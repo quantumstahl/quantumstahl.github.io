@@ -15,13 +15,13 @@
     }
     header {
       text-align: center;
-      padding: 40px 0;
+      padding: 40px 0 20px 0;
     }
-    header img {
-      width: 100px;
-      height: auto;
-      margin-bottom: 20px;
-      border-radius: 12px;
+    header img.logo {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 10px;
+      opacity: 0.9;
     }
     h1 {
       font-size: 2.4em;
@@ -48,6 +48,11 @@
       border-radius: 12px;
       margin-bottom: 20px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .project:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     }
     .project h3 {
       margin: 0 0 10px 0;
@@ -56,7 +61,7 @@
       margin: 0 0 15px 0;
     }
     .project a {
-      background: #00bcd4;
+      background: linear-gradient(to right, #00bcd4, #007b9e);
       color: white;
       padding: 10px 16px;
       text-decoration: none;
@@ -64,17 +69,24 @@
       font-weight: bold;
       display: inline-block;
     }
+    .project a:hover {
+      background: #0097a7;
+    }
     footer {
       text-align: center;
       margin-top: 40px;
       font-size: 0.9em;
       color: #999;
     }
+    footer a {
+      color: #66ccff;
+      text-decoration: none;
+    }
   </style>
 </head>
 <body>
   <header>
-    <img src="loggatrans.png" alt="QuantumStahl logotyp">
+    <img src="loggatrans.png" alt="QuantumStahl logotyp" class="logo">
     <h1>QuantumStahl – Mina Projekt</h1>
     <p class="subtitle">Spel och verktyg för PC och mobil</p>
   </header>
@@ -125,10 +137,10 @@
 
       <div class="project">
         <h3>DuckTales spel</h3>
-        <p>Klassiskt plattformsspel med retrostil..</p>
+        <p>Klassiskt plattformsspel med retrostil.</p>
         <a href="/spel4/">Spela</a>
       </div>
-      
+
       <div class="project">
         <h3>Zelda spel</h3>
         <p>Äventyrs spel med top-down vy.</p>
@@ -138,7 +150,7 @@
   </section>
 
   <footer>
-    © 2025 QuantumStahl | <a href="https://github.com/quantumstahl" style="color: #66ccff; text-decoration: none;">GitHub</a>
+    © 2025 QuantumStahl | <a href="https://github.com/quantumstahl">GitHub</a>
   </footer>
 </body>
 </html>
