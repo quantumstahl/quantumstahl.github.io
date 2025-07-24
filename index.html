@@ -3,102 +3,135 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>QuantumStahl Projekt</title>
+  <title>QuantumStahl – Mina Projekt</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
   <style>
     body {
       margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(to bottom right, #1b1f3a, #4a4e69);
-      color: #fff;
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(to bottom right, #1e2a3a, #2b3b52);
+      color: white;
+      padding: 0 20px;
     }
     header {
-      padding: 2rem;
       text-align: center;
-      background-color: rgba(0, 0, 0, 0.2);
+      padding: 40px 0;
     }
-    header h1 {
-      margin: 0;
-      font-size: 2rem;
+    h1 {
+      font-size: 2.4em;
+      margin-bottom: 0.2em;
     }
-    .projects {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 1.5rem;
-      padding: 2rem;
+    p.subtitle {
+      color: #ccc;
+      margin-top: 0;
     }
-    .card {
-      background-color: rgba(255, 255, 255, 0.05);
+    section {
+      max-width: 600px;
+      margin: 0 auto 40px auto;
+    }
+    .category {
+      margin-top: 40px;
+    }
+    .category h2 {
+      border-bottom: 1px solid #555;
+      padding-bottom: 8px;
+    }
+    .project {
+      background: #2f3f55;
+      padding: 20px;
       border-radius: 12px;
-      padding: 1rem;
-      text-align: center;
-      transition: transform 0.2s;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
     }
-    .card:hover {
-      transform: scale(1.03);
+    .project h3 {
+      margin: 0 0 10px 0;
     }
-    .card h3 {
-      margin: 0.5rem 0;
+    .project p {
+      margin: 0 0 15px 0;
     }
-    .card a {
-      display: inline-block;
-      margin-top: 0.5rem;
-      padding: 0.5rem 1rem;
-      background-color: #00b4d8;
+    .project a {
+      background: #00bcd4;
       color: white;
+      padding: 10px 16px;
       text-decoration: none;
       border-radius: 6px;
+      font-weight: bold;
+      display: inline-block;
     }
-    .card a:hover {
-      background-color: #0096c7;
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 0.9em;
+      color: #999;
     }
   </style>
 </head>
 <body>
   <header>
     <h1>QuantumStahl – Mina Projekt</h1>
-    <p>Spel och verktyg för PC och mobil</p>
+    <p class="subtitle">Spel och verktyg för PC och mobil</p>
   </header>
-  <section class="projects">
-    <div class="card">
-      <h3>MaxPaint</h3>
-      <p>Måla på mobilen eller datorn.</p>
-      <a href="maxpaint/index.html">Starta</a>
+
+  <section>
+    <div class="category">
+      <h2>🛠 Verktyg</h2>
+
+      <div class="project">
+        <h3>MaxPaint</h3>
+        <p>Måla på mobilen eller datorn.</p>
+        <a href="/maxpaint/">Starta</a>
+      </div>
+
+      <div class="project">
+        <h3>Golvläggningsprogram</h3>
+        <p>Planera golv med bilder och olika material.</p>
+        <a href="/golv/">Starta</a>
+      </div>
+
+      <div class="project">
+        <h3>Creator</h3>
+        <p>Verktyg för att bygga egna kartor och nivåer.</p>
+        <a href="/creator/">Starta</a>
+      </div>
     </div>
-    <div class="card">
-      <h3>Golvläggningsprogram</h3>
-      <p>Planera golvläggning med bilder.</p>
-      <a href="golv/index.html">Starta</a>
-    </div>
-    <div class="card">
-      <h3>DuckTails-spel</h3>
-      <p>Klassiskt plattformsspel med retrostil.</p>
-      <a href="spel4/index.html">Spela</a>
-    </div>
-    <div class="card">
-      <h3>Diablo-klon</h3>
-      <p>Hack-n-slash RPG i top-down vy.</p>
-      <a href="spel3/index.html">Spela</a>
-    </div>
-     <div class="card">
-      <h3>Mario-klon</h3>
-      <p>Platforms spel.</p>
-      <a href="spel1/index.html">Spela</a>
-    </div>
-      <div class="card">
-      <h3>Mario-klon2</h3>
-      <p>Platforms spel.</p>
-      <a href="spel2/index.html">Spela</a>
-    </div> 
-        <div class="card">
-      <h3>Zelda-klon</h3>
-      <p>Äventyrs spel med top-down vy.</p>
-      <a href="spel5/index.html">Spela</a>
-    </div> 
-    <div class="card">
-      <h3>Creator</h3>
-      <p>Skapa och redigera egna kartor och levels.</p>
-      <a href="creator/index.html">Starta</a>
+
+    <div class="category">
+      <h2>🎮 Spel</h2>
+
+      <div class="project">
+        <h3>Mario-spel</h3>
+        <p>Hopp-baserat retrospel inspirerat av NES-tiden.</p>
+        <a href="/spel1/">Spela</a>
+      </div>
+
+      <div class="project">
+        <h3>Diablo-inspirerat spel</h3>
+        <p>Strider mot monster med piltangenter och attackknappar.</p>
+        <a href="/spel3/">Spela</a>
+      </div>
+
+      <div class="project">
+        <h3>Mario spel2</h3>
+        <p>Platforms spel.</p>
+        <a href="/spel2/">Spela</a>
+      </div>
+
+      <div class="project">
+        <h3>DuckTales spel</h3>
+        <p>Klassiskt plattformsspel med retrostil..</p>
+        <a href="/spel4/">Spela</a>
+      </div>
+      
+      <div class="project">
+        <h3>Zelda spel</h3>
+        <p>Äventyrs spel med top-down vy.</p>
+        <a href="/spel5/">Spela</a>
+      </div>
     </div>
   </section>
+
+  <footer>
+    © 2025 QuantumStahl | <a href="https://github.com/quantumstahl" style="color: #66ccff; text-decoration: none;">GitHub</a>
+  </footer>
 </body>
 </html>
