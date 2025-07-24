@@ -1,237 +1,104 @@
-<html>
-    <head>
-        <meta name="viewport" content="user-scalable=no, shrink-to-fit=no">
-        <meta charset="utf-8">
-        <meta name="keywords" content="golvläggningsprogram, mobilspel, mobilegames, js games, javascript games,maxpaint,paint">
-        <link rel="icon" href="loggo.png" type="image/vnd.microsoft.icon" />
-	<title>MaxNS</title>
-        
-        <style>
-        
-            button {
-            background-image: linear-gradient(#42A1EC, #0070C9);
-            border: 1px solid #0077CC;
-            border-radius: 4px;
-            box-sizing: border-box;
-            color: #FFFFFF;
-            cursor: pointer;
-            direction: ltr;
-            display: block;
-            font-family: "SF Pro Text","SF Pro Icons","AOS Icons","Helvetica Neue","Helvetica","Arial","sans-serif";
-            font-size: 17px;
-            font-weight: 400;
-            letter-spacing: -.022em;
-            line-height: 1.47059;
-            min-width: 30px;
-            overflow: visible;
-            padding: 4px 15px;
-            text-align: center;
-            vertical-align: baseline;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: manipulation;
-            white-space: nowrap;
-          }
-
-          button:disabled {
-            cursor: default;
-            opacity: .3;
-          }
-
-          button:hover {
-            background-image: linear-gradient(#51A9EE, #147BCD);
-            border-color: #1482D0;
-            text-decoration: none;
-          }
-
-          button:active {
-            background-image: linear-gradient(#3D94D9, #0067B9);
-            border-color: #006DBC;
-            outline: none;
-          }
-
-          button:focus {
-            box-shadow: rgba(131, 192, 253, 0.5) 0 0 0 3px;
-            outline: none;
-          }
-        
-        
-        html {background-color: lightgray}
-        
-        
-    
-        
-        
-        </style>
-        
-        
-    </head>
-    <body>
-        <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
-        
-
-        
-        
-        
-        <script>
-        
-            const canvas = document.getElementById("myCanvas");
-            canvas.style.width = "100%";
-            canvas.style.height = "100%";
-            const ctx = canvas.getContext("2d");
-            document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
-            document.getElementById("myCanvas").style.width=window.innerWidth;
-            document.getElementById("myCanvas").style.height=window.innerHeight;
-
-        
-            var button = document.createElement("button");document.body.appendChild(button);
-            var button2 = document.createElement("button");document.body.appendChild(button2);
-            var button3 = document.createElement("button");document.body.appendChild(button3);
-            var button4 = document.createElement("button");document.body.appendChild(button4);
-            var button5 = document.createElement("button");document.body.appendChild(button5);
-            var button6 = document.createElement("button");document.body.appendChild(button6);
-            var button7 = document.createElement("button");document.body.appendChild(button7);
-            var button8 = document.createElement("button");document.body.appendChild(button8);
-            
-            
-            colers = new Image();
-            colers.onload = function() {
-                ctx.drawImage(colers, 0, 0,window.innerWidth,window.innerHeight);
-                ctx.drawImage(base_image, 0, 0,200,200);
-            };
-            colers.src = "color2.jpg";
-            
-            
-            
-            base_image = new Image();
-            base_image.onload = function() {
-                ctx.drawImage(base_image, 0, 0,200,200);
-            };
-            base_image.src = "loggo.png";
-            
-            
-            
-            
-           
-
-            
-                
-            canvas.width=document.body.clientWidth-8;
-            canvas.height=document.body.clientHeight-8;
-
-         
-
-
-            setbuttonlocation(button,0,230); 
-            setbuttonlocation(button8,0,330);
-            setbuttonlocation(button2,0,430);   
-            setbuttonlocation(button3,0,530);  
-            setbuttonlocation(button4,0,630);  
-            setbuttonlocation(button5,0,730);  
-            setbuttonlocation(button6,0,830);  
-            setbuttonlocation(button7,0,930);
-
-
-
-
-            ctx.font = "25px serif";
-            ctx.fillStyle = "black";
-            ctx.fillText("maxns.se", 50, 220);
-            
-            
-            
-              
-
-
-         
-
-                    
-             
-
-            function setbuttonlocation(inputs,x,y){
-                inputs.style.position = 'absolute';
-                inputs.style.left = (x - 4) + 'px';
-                inputs.style.top = (y - 4) + 'px'
-                inputs.style.fontSize=20;
-                
-                
-                if(inputs==button){
-                    inputs.innerHTML = "Golvläggnings program (PC/Mobile)";
-                    inputs.onclick = function(){
-                        window.location='golv';
-
-
-                    }
-                
-                }
-                if(inputs==button2){
-                    inputs.innerHTML = "Creator (PC)";
-                    inputs.onclick = function(){
-                        window.location='tradet';
-
-
-                    }
-                
-                }
-                if(inputs==button3){
-                    inputs.innerHTML = "Game:1 (PC/Mobile)";
-                    inputs.onclick = function(){
-                        window.location='spel1';
-
-
-                    }
-                
-                }
-                if(inputs==button4){
-                    inputs.innerHTML = "Game:2 (PC/Mobile)";
-                    inputs.onclick = function(){
-                        window.location='spel2';
-
-
-                    }
-                
-                }
-                if(inputs==button5){
-                    inputs.innerHTML = "Game:3 (PC/Mobile)";
-                    inputs.onclick = function(){
-                        window.location='spel3';
-
-
-                    }
-                
-                }
-                if(inputs==button6){
-                    inputs.innerHTML = "Game:4 (PC/Mobile)";
-                    inputs.onclick = function(){
-                        window.location='spel4';
-
-
-                    }
-                
-                }
-                if(inputs==button7){
-                    inputs.innerHTML = "Game:5 (PC/Mobile)";
-                    inputs.onclick = function(){
-                        window.location='spel5';
-
-
-                    }
-                
-                }
-                if(inputs==button8){
-                    inputs.innerHTML = "MaxPaint (PC/Mobile)";
-                    inputs.onclick = function(){
-                        window.location='paint';
-
-
-                    }
-                
-                }
-
-            }
-            
-        
-        
-         </script>
-    </body>
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QuantumStahl Projekt</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to bottom right, #1b1f3a, #4a4e69);
+      color: #fff;
+    }
+    header {
+      padding: 2rem;
+      text-align: center;
+      background-color: rgba(0, 0, 0, 0.2);
+    }
+    header h1 {
+      margin: 0;
+      font-size: 2rem;
+    }
+    .projects {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      padding: 2rem;
+    }
+    .card {
+      background-color: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 1rem;
+      text-align: center;
+      transition: transform 0.2s;
+    }
+    .card:hover {
+      transform: scale(1.03);
+    }
+    .card h3 {
+      margin: 0.5rem 0;
+    }
+    .card a {
+      display: inline-block;
+      margin-top: 0.5rem;
+      padding: 0.5rem 1rem;
+      background-color: #00b4d8;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+    }
+    .card a:hover {
+      background-color: #0096c7;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>QuantumStahl – Mina Projekt</h1>
+    <p>Spel och verktyg för PC och mobil</p>
+  </header>
+  <section class="projects">
+    <div class="card">
+      <h3>MaxPaint</h3>
+      <p>Måla på mobilen eller datorn.</p>
+      <a href="maxpaint/index.html">Starta</a>
+    </div>
+    <div class="card">
+      <h3>Golvläggningsprogram</h3>
+      <p>Planera golvläggning med bilder.</p>
+      <a href="golv/index.html">Starta</a>
+    </div>
+    <div class="card">
+      <h3>DuckTails-spel</h3>
+      <p>Klassiskt plattformsspel med retrostil.</p>
+      <a href="spel4/index.html">Spela</a>
+    </div>
+    <div class="card">
+      <h3>Diablo-klon</h3>
+      <p>Hack-n-slash RPG i top-down vy.</p>
+      <a href="spel3/index.html">Spela</a>
+    </div>
+     <div class="card">
+      <h3>Mario-klon</h3>
+      <p>Platforms spel.</p>
+      <a href="spel1/index.html">Spela</a>
+    </div>
+      <div class="card">
+      <h3>Mario-klon2</h3>
+      <p>Platforms spel.</p>
+      <a href="spel2/index.html">Spela</a>
+    </div> 
+        <div class="card">
+      <h3>Zelda-klon</h3>
+      <p>Äventyrs spel med top-down vy.</p>
+      <a href="spel5/index.html">Spela</a>
+    </div> 
+    <div class="card">
+      <h3>Creator</h3>
+      <p>Skapa och redigera egna kartor och levels.</p>
+      <a href="creator/index.html">Starta</a>
+    </div>
+  </section>
+</body>
 </html>
