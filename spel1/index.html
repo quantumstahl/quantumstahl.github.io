@@ -1,0 +1,276 @@
+
+<html>
+    <head>
+        <meta name="viewport" content="user-scalable=no, shrink-to-fit=no">
+        <meta charset="utf-8">
+        <meta name="keywords" content="mobilspel, mobilegames, js games, javascript games">
+        <link rel="icon" href="images/mario1.png" type="image/vnd.microsoft.icon" />
+	<title>Test1</title>
+        
+        <script src="js/Game4.js"></script>
+        <script src="js/joy.js"></script>
+        
+        
+        
+        
+    </head>
+    <body>
+        <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
+        
+        
+        <script>
+            function mobileAndTabletCheck() {const isMobile = {Android: function() {return navigator.userAgent.match(/Android/i);},BlackBerry: function() {return navigator.userAgent.match(/BlackBerry/i);},iOS: function() {return navigator.userAgent.match(/iPhone|iPod/i);},Opera: function() {return navigator.userAgent.match(/Opera Mini/i);},Windows: function() {return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i);},any: function() {return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows()|| (navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints && navigator.maxTouchPoints > 1));}};return isMobile.any();}
+
+            const canvas = document.getElementById("myCanvas");
+            const ctx = canvas.getContext("2d");
+            document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
+            document.getElementById("myCanvas").style.width=window.innerWidth;
+            document.getElementById("myCanvas").style.height=window.innerHeight;
+            const fps = 60;
+            
+            dp=false; 
+            ap=false; 
+            sp=false; 
+            wp=false; 
+            count=0;
+            diecount=0;
+            joump =false;
+            game = new Game4("Spelet");
+            joy = new JoyStick('myCanvas');
+            startansound=true;
+            touchflag=false;
+  
+             var audio = new Audio('sounds/overworld.mp3');
+             var audio3= new Audio('sounds/jump.wav');
+             audio.loop = true;
+
+             const context = new (window.AudioContext || window.webkitAudioContext)();
+             const audio2 = async url => {   
+             const source = context.createBufferSource(); 
+                const audioBuffer = await fetch(url)
+                  .then(res => res.arrayBuffer())
+                  .then(ArrayBuffer => context.decodeAudioData(ArrayBuffer)); 
+                source.buffer = audioBuffer;
+                source.connect(context.destination);
+                source.start();
+            };
+
+             let keysPressed = {};
+                document.addEventListener('keydown', (event) => {
+                keysPressed[event.key] = true;
+                if(audio.paused) audio.play();
+
+                if (keysPressed['w']) {
+                    wp=true;
+
+                }
+                if (keysPressed['s']) {
+                    sp=true;
+
+                }
+                if (keysPressed['d']) {
+                    dp=true;
+
+                }
+                if (keysPressed['a']) {
+                    ap=true;
+
+                }
+             });
+
+            document.addEventListener('keyup', (event) => {
+                delete keysPressed[event.key];
+
+                if (event.key == 'w'){
+                    wp=false;
+
+                }
+                if (event.key == 's'){
+                    sp=false;
+
+                }
+                if (event.key == 'd'){
+                    dp=false;
+
+                }
+                if (event.key == 'a'){
+                    ap=false;
+
+                }
+            });
+            document.addEventListener("touchstart" , function(e) {
+                e.preventDefault();
+                    if(audio.paused) audio.play();
+                    if(context.state === 'suspended'){context.suspend();context.resume();}           
+            });
+
+            
+            
+            document.addEventListener("visibilitychange", event => {
+                if (document.visibilityState === "visible") {
+                        audio.src = 'sounds/overworld.mp3';startansound=true;
+                }
+                else {
+                    audio.pause();audio.src = "";context.suspend();
+              }
+          });
+
+            
+            let mariodies=false;
+            
+            
+             var check = function(){
+                canvas.width=document.body.clientWidth-8;
+                canvas.height=document.body.clientHeight-8;
+                game.updateanimation(ctx);
+                if(mobileAndTabletCheck())joy.redraw();
+               
+                
+                mario =game.getobjecttype("mario");
+                demon =game.getobjecttype("demon");
+                button=game.getobjecttype("button");
+                death=game.getobjecttype("death");
+                background=game.getobjecttype("background");
+                
+                flagpole2=game.getobjecttype("flagpole2");
+                flag=game.getobjecttype("flag");
+                
+                
+                if(mario!=null){
+                   // game.maps[game.currentmap].zoom=-50;
+                   background.objects[0].x=0;
+                   background.objects[0].y=0;
+                   background.objects[0].dimx=canvas.width;
+                   background.objects[0].dimy=canvas.height;
+                   
+                   button.objects[0].x=canvas.width-300;button.objects[0].y=canvas.height-400;
+                   if(!mobileAndTabletCheck()){button.objects[0].x=canvas.width+300;button.objects[0].y=canvas.height+400;}
+
+           
+                   
+                    if(mariodies==false)mario.objects[0].animation=0;
+                    game.setcameraobj(mario.objects[0],canvas.width,canvas.height);
+                    
+                    
+                    if(mariodies==false&&touchflag==false){
+
+                        if(dp==true){mario.objects[0].x=mario.objects[0].x+8;mario.objects[0].animation=1;mario.objects[0].fliped=false;}
+                        if(ap==true){mario.objects[0].x=mario.objects[0].x-8;mario.objects[0].animation=1;mario.objects[0].fliped=true;}
+                        if(wp==true){joump=true;}
+
+
+                        if(button.objects[0].mousepressed){joump=true;}
+                        
+                        
+                        if(joy.GetDir()=="N"){}
+                        else if(joy.GetDir()=="NE"){mario.objects[0].x=mario.objects[0].x+8;mario.objects[0].animation=1;mario.objects[0].fliped=false;}    
+                        else if(joy.GetDir()=="E"){mario.objects[0].x=mario.objects[0].x+8;mario.objects[0].animation=1;mario.objects[0].fliped=false;}
+                        else if(joy.GetDir()=="SE"){mario.objects[0].x=mario.objects[0].x+8;mario.objects[0].animation=1;mario.objects[0].fliped=false;}    
+                        else if(joy.GetDir()=="S"){}
+                        else if(joy.GetDir()=="SW"){mario.objects[0].x=mario.objects[0].x-8;mario.objects[0].animation=1;mario.objects[0].fliped=true;}    
+                        else if(joy.GetDir()=="W"){mario.objects[0].x=mario.objects[0].x-8;mario.objects[0].animation=1;mario.objects[0].fliped=true;}    
+                        else if(joy.GetDir()=="NW"){mario.objects[0].x=mario.objects[0].x-8;mario.objects[0].animation=1;mario.objects[0].fliped=true;}     
+                        else if(joy.GetDir()=="C") {}
+                        
+                        if(joump==true){
+                        if(count==0){audio2("sounds/jump.wav");}
+                        if(count<30){mario.objects[0].y=mario.objects[0].y-19;count++;}
+                        //else mario.objects[0].y= mario.objects[0].y+6;
+                        
+                        }
+                        if(game.collideswith(mario.objects[0],"any","down")){
+                            if(joump==true&&count<10){}
+                            else{
+                                joump=false;
+                                count=0;
+                            }
+                        }
+                        
+                        
+                    }
+                     
+                   
+          
+                if(touchflag==false)mario.objects[0].y=mario.objects[0].y+12;
+                if(game.collideswith(mario.objects[0],"demon","left")){mario.objects[0].animation=2;mariodies=true;};
+                if(game.collideswith(mario.objects[0],"demon","right")){mario.objects[0].animation=2;mariodies=true;};
+                if(game.collideswiths(mario.objects[0],"death")){mario.objects[0].animation=2;mariodies=true;};
+                for(let i=0;i<death.objects.length;i++){
+                    //if(game.collideswith(death.objects[i],"mario")){mario.objects[0].animation=2;mariodies=true;};
+                    death.objects[i].animation=1;
+                
+                    
+                    
+                }
+                
+                
+                for(let i=0;i<demon.objects.length;i++){
+                
+                    if(demon.objects[i].isonscreen){
+
+                        demon.objects[i].y=demon.objects[i].y+8;
+
+                        if(demon.objects[i].fliped==false)
+                            demon.objects[i].x=demon.objects[i].x-2;
+                        else
+                            demon.objects[i].x=demon.objects[i].x+2;
+
+                        if(game.collideswith(demon.objects[i],"any","left"))demon.objects[i].fliped=true;
+                        if(game.collideswith(demon.objects[i],"any","right"))demon.objects[i].fliped=false;
+
+
+                        if(game.collideswith(demon.objects[i],"mario","left")){mario.objects[0].animation=2;mariodies=true;};
+                        if(game.collideswith(demon.objects[i],"mario","right")){mario.objects[0].animation=2;mariodies=true;};
+                    }
+                    
+                }
+                
+                if(game.collideswiths(mario.objects[0],"flagpole2")){touchflag=true;}
+                
+                
+                
+                
+                
+                
+                if(touchflag==true){
+                    
+                    mario.objects[0].counter++;
+                    
+                    
+                    if(mario.objects[0].counter>50&&mario.objects[0].counter<400){audio.pause();mario.objects[0].y=mario.objects[0].y+3;flag.objects[0].y=flag.objects[0].y+2; if(flag.objects[0].y>mario.objects[0].y)flag.objects[0].y=mario.objects[0].y;}
+                    else if(mario.objects[0].counter>400 &&mario.objects[0].counter<730){if(mario.objects[0].counter==401)audio2("sounds/levelcomp.mp3");mario.objects[0].y=mario.objects[0].y+3;mario.objects[0].x=mario.objects[0].x+2;mario.objects[0].animation=1;}
+                    else if(mario.objects[0].counter>740 &&mario.objects[0].counter<830)mario.objects[0].animation=20;
+                    
+                    else if(mario.objects[0].counter>830){ctx.fillStyle="black";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle="white";ctx.font = "48px serif";ctx.fillText("FIN", canvas.width/2, canvas.height/2);}
+                    
+                    
+                }
+                
+                
+                
+                
+                
+                if(mariodies==true){
+                       if(diecount>60){ game.load();diecount=0;mariodies=false;audio.currentTime = 0;}
+                       diecount++;
+                       if(!audio.paused)audio.pause();
+                   }
+                
+                }
+                 
+                
+                
+ 
+                
+                window.requestAnimationFrame(check);   
+            };check();
+            
+
+            
+            
+            
+            
+            
+        </script>
+    </body>
+</html>

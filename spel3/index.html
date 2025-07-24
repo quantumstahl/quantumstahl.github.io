@@ -1,0 +1,1062 @@
+
+
+<html>
+    <head>
+        <meta name="viewport" content="user-scalable=no, shrink-to-fit=no">
+        <meta charset="utf-8">
+        <meta name="keywords" content="mobilspel, mobilegames, js games, javascript games">
+        <link rel="icon" href="images/output-onlinepngtools (2).png" type="image/vnd.microsoft.icon" />
+	<title>Test3</title>
+        
+        <script src="js/Game5.js"></script>
+        <script src="js/joy.js"></script>
+         <script src="js/XboxController.js"></script>
+        
+        
+        
+        
+    </head>
+    <body>
+        <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
+        
+        <script>
+            function mobileAndTabletCheck() {const isMobile = {Android: function() {return navigator.userAgent.match(/Android/i);},BlackBerry: function() {return navigator.userAgent.match(/BlackBerry/i);},iOS: function() {return navigator.userAgent.match(/iPhone|iPod/i);},Opera: function() {return navigator.userAgent.match(/Opera Mini/i);},Windows: function() {return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i);},any: function() {return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows()|| (navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints && navigator.maxTouchPoints > 1));}};return isMobile.any();}
+
+
+            const canvas = document.getElementById("myCanvas");
+            const ctx = canvas.getContext("2d");
+            document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
+            document.getElementById("myCanvas").style.width=window.innerWidth;
+            document.getElementById("myCanvas").style.height=window.innerHeight;
+            
+            
+            
+            
+            dp=false; 
+            ap=false; 
+            sp=false; 
+            wp=false; 
+            p=false; 
+            game = new Game5("Spelet");
+            joy = new JoyStick('myCanvas');
+            xbox=new XboxController(0);
+            
+            
+            bigger=false;
+            daethcounter=0;
+  
+             var audio = new Audio('sounds/Wilderness.mp3');
+             audio.loop = true;
+ 
+
+
+
+
+             const context = new (window.AudioContext || window.webkitAudioContext)();
+             const audio2 = async url => {   
+             const source = context.createBufferSource(); 
+                const audioBuffer = await fetch(url)
+                  .then(res => res.arrayBuffer())
+                  .then(ArrayBuffer => context.decodeAudioData(ArrayBuffer)); 
+                source.buffer = audioBuffer;
+                source.connect(context.destination);
+                source.start();
+            };
+
+             let keysPressed = {};
+                document.addEventListener('keydown', (event) => {
+                keysPressed[event.key] = true;
+               
+                try{if(audio.paused){ 
+                        audio.play();
+                    }
+                }catch(error){};
+
+                if (keysPressed['w']) {
+                    wp=true;
+
+                }
+                if (keysPressed['s']) {
+                    sp=true;
+
+                }
+                if (keysPressed['d']) {
+                    dp=true;
+
+                }
+                if (keysPressed['a']) {
+                    ap=true;
+
+                }
+                if (keysPressed[' ']) {
+                    p=true;
+
+                }
+                if (keysPressed['Control']) {
+                    button.objects[1].mousepressed=true;
+
+                }
+                
+             });
+
+            document.addEventListener('keyup', (event) => {
+                delete keysPressed[event.key];
+
+                if (event.key == 'w'){
+                    wp=false;
+
+                }
+                if (event.key == 's'){
+                    sp=false;
+
+                }
+                if (event.key == 'd'){
+                    dp=false;
+
+                }
+                if (event.key == 'a'){
+                    ap=false;
+
+                }
+                if (event.key == ' '){
+                    p=false;
+
+                }
+                if (event.key == 'Control') {
+                    button.objects[1].mousepressed=false;
+
+                }
+            });
+            
+            
+            
+            document.addEventListener("touchstart" , function(e) {
+                e.preventDefault();
+                    try{if(audio.paused){ 
+                        audio.play();
+                    }
+                    }catch(error){};
+                    if(context.state === 'suspended'){context.suspend();context.resume();}           
+            });
+           
+            
+            
+            document.addEventListener("visibilitychange", event => {
+                if (document.visibilityState === "visible") {
+                        audio.pause();if(game.currentmap==0)audio.src = 'sounds/Wilderness.mp3';context.resume();
+                        
+                }
+                else {
+                   audio.pause(); audio.src = "";context.suspend();
+              }
+          });
+            
+
+       
+            
+             var check = function(){
+                canvas.width=document.body.clientWidth;
+                canvas.height=document.body.clientHeight-8;
+                 
+                 
+                game.updateanimation(ctx);
+                if(mobileAndTabletCheck())joy.redraw();
+                
+                
+                
+                hero =game.getobjecttype("hero");
+                button =game.getobjecttype("button");
+                skell =game.getobjecttype("skell");
+                gold =game.getobjecttype("gold");
+                health =game.getobjecttype("health");
+                spike=game.getobjecttype("spike");
+                nedle=game.getobjecttype("nedle");
+                potion1=game.getobjecttype("potion1");
+                fire=game.getobjecttype("fire");
+                goat=game.getobjecttype("goat");
+                
+                
+                if(hero!=null){
+                    
+                    button.objects[1].animation=1;
+                    
+                    button.objects[1].x=canvas.width-400;button.objects[1].y=canvas.height-400;
+                    button.objects[0].x=canvas.width-250;button.objects[0].y=canvas.height-250;
+                    button.objects[0].dimx=150;button.objects[0].dimy=150;
+                    button.objects[1].dimx=150;button.objects[1].dimy=150;
+                    health.objects[0].x=canvas.width-400;health.objects[0].y=canvas.height-600;
+
+                    if(!mobileAndTabletCheck()){button.objects[0].x=canvas.width+300;button.objects[0].y=canvas.height+400;button.objects[1].x=canvas.width+300;button.objects[1].y=canvas.height+400;}
+                    
+                    
+                    
+                    if(xbox.isButtonPressed('Y'))health.objects[0].mousepressed=true;
+                    
+                    
+                    
+                    
+                    game.setcameraobj(hero.objects[0],canvas.width,canvas.height);
+
+                    ctx.beginPath();
+                    ctx.rect(hero.objects[0].x+game.maps[game.currentmap].camerax, hero.objects[0].y+game.maps[game.currentmap].cameray-20, 100, 10);
+                    ctx.stroke();
+                    ctx.fillStyle = "green";
+                    if(hero.objects[0].health>=0)ctx.fillRect(hero.objects[0].x+game.maps[game.currentmap].camerax, hero.objects[0].y+game.maps[game.currentmap].cameray-20, hero.objects[0].health, 10);
+                    
+                   
+                    ctx.fillStyle = "red";
+                    if(health.objects[0].counter<300)
+                        ctx.fillStyle = "darkred";
+                    if(health.objects[0].health>=0)ctx.fillRect(canvas.width-393, canvas.height-455-health.objects[0].health, 37, health.objects[0].health);
+                    
+                
+                    
+                    hero.images[0].ani=0;hero.images[0].counter=0;
+                    hero.images[1].ani=0;hero.images[1].counter=0;
+                    hero.images[2].ani=0;hero.images[2].counter=0;
+                    hero.images[3].ani=0;hero.images[3].counter=0;
+                    hero.images[4].ani=0;hero.images[4].counter=0;
+                    hero.images[5].ani=0;hero.images[5].counter=0;
+                    hero.images[6].ani=0;hero.images[6].counter=0;
+                    hero.images[7].ani=0;hero.images[7].counter=0;
+                    
+                    
+                    if(hero.objects[0].health>0){
+                            
+                            health.objects[0].counter++;
+                            if(health.objects[0].mousepressed){
+                                
+                                if(health.objects[0].counter>300){
+                                    
+                                    if(health.objects[0].health>=25){
+                                        health.objects[0].health=health.objects[0].health-25;
+                                        hero.objects[0].health=hero.objects[0].health+25;
+                                        
+                                        if(hero.objects[0].health>100)hero.objects[0].health=100;
+                                        
+                                        
+                                        health.objects[0].counter=0;
+                                        audio2("sounds/potion.mp3");
+                                    }
+                                }
+                                
+                            }
+                        }
+                    if(!xbox.isButtonPressed('Y')) health.objects[0].mousepressed=false;
+                    
+                    if("ontouchstart" in document.documentElement){
+
+                        if(hero.objects[0].health>0){
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            if(button.objects[0].mousepressed||xbox.isButtonPressed('A')){
+                                 
+                                 if(hero.objects[0].counter==0){
+                                    hero.images[16].ani=0;hero.images[16].counter=0;
+                                    hero.images[17].ani=0;hero.images[17].counter=0;
+                                    hero.images[18].ani=0;hero.images[18].counter=0;
+                                    hero.images[19].ani=0;hero.images[19].counter=0;
+                                    hero.images[20].ani=0;hero.images[20].counter=0;
+                                    hero.images[21].ani=0;hero.images[21].counter=0;
+                                    hero.images[22].ani=0;hero.images[22].counter=0;
+                                    hero.images[23].ani=0;hero.images[23].counter=0;
+                                 }
+                                 hero.objects[0].counter++;
+                                 if(hero.objects[0].counter==80){hero.objects[0].counter=0;}
+                              
+                                 if(hero.objects[0].animation==0 || hero.objects[0].animation==8){hero.objects[0].animation=16;}
+                                 if(hero.objects[0].animation==1|| hero.objects[0].animation==9){hero.objects[0].animation=17;}
+                                 if(hero.objects[0].animation==2|| hero.objects[0].animation==10){hero.objects[0].animation=18;}
+                                 if(hero.objects[0].animation==3|| hero.objects[0].animation==11){hero.objects[0].animation=19;}
+                                 if(hero.objects[0].animation==4|| hero.objects[0].animation==12){hero.objects[0].animation=20;}
+                                 if(hero.objects[0].animation==5|| hero.objects[0].animation==13){hero.objects[0].animation=21;}
+                                 if(hero.objects[0].animation==6|| hero.objects[0].animation==14){hero.objects[0].animation=22;}
+                                 if(hero.objects[0].animation==7|| hero.objects[0].animation==15){hero.objects[0].animation=23;}
+                             }
+                             else{
+
+                                 hero.objects[0].counter=0;   
+                                 if(hero.objects[0].animation==16){hero.objects[0].animation=0;}
+                                 if(hero.objects[0].animation==17){hero.objects[0].animation=1;}
+                                 if(hero.objects[0].animation==18){hero.objects[0].animation=2;}
+                                 if(hero.objects[0].animation==19){hero.objects[0].animation=3;}
+                                 if(hero.objects[0].animation==20){hero.objects[0].animation=4;}
+                                 if(hero.objects[0].animation==21){hero.objects[0].animation=5;}
+                                 if(hero.objects[0].animation==22){hero.objects[0].animation=6;}
+                                 if(hero.objects[0].animation==23){hero.objects[0].animation=7;}
+                             }
+
+                            
+                        
+                            if(joy.GetDir()=="N"||xbox.getLeftStickDirection()=="N"){if(hero.objects[0].animation!=16)hero.objects[0].animation=8;hero.objects[0].y=hero.objects[0].y-4;}
+                            else if(joy.GetDir()=="NE"||xbox.getLeftStickDirection()=="NE"){if(hero.objects[0].animation!=17)hero.objects[0].animation=9;hero.objects[0].y=hero.objects[0].y-2;hero.objects[0].x=hero.objects[0].x+2;}    
+                            else if(joy.GetDir()=="E"||xbox.getLeftStickDirection()=="E"){if(hero.objects[0].animation!=18)hero.objects[0].animation=10;hero.objects[0].x=hero.objects[0].x+4;}
+                            else if(joy.GetDir()=="SE"||xbox.getLeftStickDirection()=="SE"){if(hero.objects[0].animation!=19)hero.objects[0].animation=11;hero.objects[0].y=hero.objects[0].y+2;hero.objects[0].x=hero.objects[0].x+2;}    
+                            else if(joy.GetDir()=="S"||xbox.getLeftStickDirection()=="S"){if(hero.objects[0].animation!=20)hero.objects[0].animation=12;hero.objects[0].y=hero.objects[0].y+4;}
+                            else if(joy.GetDir()=="SW"||xbox.getLeftStickDirection()=="SW"){if(hero.objects[0].animation!=21)hero.objects[0].animation=13;hero.objects[0].y=hero.objects[0].y+2;hero.objects[0].x=hero.objects[0].x-2;}    
+                            else if(joy.GetDir()=="W"||xbox.getLeftStickDirection()=="W"){if(hero.objects[0].animation!=22)hero.objects[0].animation=14;hero.objects[0].x=hero.objects[0].x-4;}    
+                            else if(joy.GetDir()=="NW"||xbox.getLeftStickDirection()=="NW"){if(hero.objects[0].animation!=23)hero.objects[0].animation=15;hero.objects[0].y=hero.objects[0].y-2;hero.objects[0].x=hero.objects[0].x-2;}     
+                            else if(joy.GetDir()=="C"||xbox.getLeftStickDirection()=="C") {
+                                    if(hero.objects[0].animation==8)hero.objects[0].animation=0;
+                                    if(hero.objects[0].animation==9)hero.objects[0].animation=1;
+                                    if(hero.objects[0].animation==10)hero.objects[0].animation=2;
+                                    if(hero.objects[0].animation==11)hero.objects[0].animation=3;
+                                    if(hero.objects[0].animation==12)hero.objects[0].animation=4;
+                                    if(hero.objects[0].animation==13)hero.objects[0].animation=5;
+                                    if(hero.objects[0].animation==14)hero.objects[0].animation=6;
+                                    if(hero.objects[0].animation==15)hero.objects[0].animation=7;
+                            }
+                           
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                        }
+                         
+                    }
+                  if(!mobileAndTabletCheck()){
+                      
+                 
+                     
+                      
+                  if(p||xbox.isButtonPressed('A')){
+                      
+                      
+                      
+                            if(hero.objects[0].counter==0){
+                                        hero.images[16].ani=0;hero.images[16].counter=0;
+                                        hero.images[17].ani=0;hero.images[17].counter=0;
+                                        hero.images[18].ani=0;hero.images[18].counter=0;
+                                        hero.images[19].ani=0;hero.images[19].counter=0;
+                                        hero.images[20].ani=0;hero.images[20].counter=0;
+                                        hero.images[21].ani=0;hero.images[21].counter=0;
+                                        hero.images[22].ani=0;hero.images[22].counter=0;
+                                        hero.images[23].ani=0;hero.images[23].counter=0;
+                                     }
+                                     hero.objects[0].counter=hero.objects[0].counter+1;
+
+                                     if(hero.objects[0].counter==80){hero.objects[0].counter=0;}
+
+                            if(hero.objects[0].animation==0 || hero.objects[0].animation==8){hero.objects[0].animation=16;}
+                                 if(hero.objects[0].animation==1|| hero.objects[0].animation==9){hero.objects[0].animation=17;}
+                                 if(hero.objects[0].animation==2|| hero.objects[0].animation==10){hero.objects[0].animation=18;}
+                                 if(hero.objects[0].animation==3|| hero.objects[0].animation==11){hero.objects[0].animation=19;}
+                                 if(hero.objects[0].animation==4|| hero.objects[0].animation==12){hero.objects[0].animation=20;}
+                                 if(hero.objects[0].animation==5|| hero.objects[0].animation==13){hero.objects[0].animation=21;}
+                                 if(hero.objects[0].animation==6|| hero.objects[0].animation==14){hero.objects[0].animation=22;}
+                                 if(hero.objects[0].animation==7|| hero.objects[0].animation==15){hero.objects[0].animation=23;}
+
+
+
+                        }
+                        else{
+                                     hero.objects[0].counter=0;   
+                                     if(hero.objects[0].animation==16){hero.objects[0].animation=0;}
+                                     if(hero.objects[0].animation==17){hero.objects[0].animation=1;}
+                                     if(hero.objects[0].animation==18){hero.objects[0].animation=2;}
+                                     if(hero.objects[0].animation==19){hero.objects[0].animation=3;}
+                                     if(hero.objects[0].animation==20){hero.objects[0].animation=4;}
+                                     if(hero.objects[0].animation==21){hero.objects[0].animation=5;}
+                                     if(hero.objects[0].animation==22){hero.objects[0].animation=6;}
+                                     if(hero.objects[0].animation==23){hero.objects[0].animation=7;}
+                        }
+                    
+                  
+                    if(hero.objects[0].health>0){
+                        if((sp&&dp)|| xbox.getLeftStickDirection()=="SE"){if(hero.objects[0].animation!=19)hero.objects[0].animation=11;hero.objects[0].y=hero.objects[0].y+2;hero.objects[0].x=hero.objects[0].x+2;}
+                        else if((wp&&dp)|| xbox.getLeftStickDirection()=="NE"){if(hero.objects[0].animation!=17)hero.objects[0].animation=9;hero.objects[0].y=hero.objects[0].y-2;hero.objects[0].x=hero.objects[0].x+2;}
+                        else if((sp&&ap)|| xbox.getLeftStickDirection()=="SW"){if(hero.objects[0].animation!=21)hero.objects[0].animation=13;hero.objects[0].y=hero.objects[0].y+2;hero.objects[0].x=hero.objects[0].x-2;}
+                        else if((wp&&ap)|| xbox.getLeftStickDirection()=="NW"){if(hero.objects[0].animation!=23)hero.objects[0].animation=15;hero.objects[0].y=hero.objects[0].y-2;hero.objects[0].x=hero.objects[0].x-2;}
+                        else if(wp|| xbox.getLeftStickDirection()=="N"){if(hero.objects[0].animation!=16)hero.objects[0].animation=8;hero.objects[0].y=hero.objects[0].y-4;}
+                        else if(dp|| xbox.getLeftStickDirection()=="E"){if(hero.objects[0].animation!=18)hero.objects[0].animation=10;hero.objects[0].x=hero.objects[0].x+4;}
+                        else if(sp|| xbox.getLeftStickDirection()=="S"){if(hero.objects[0].animation!=20)hero.objects[0].animation=12;hero.objects[0].y=hero.objects[0].y+4;}
+                        else if(ap|| xbox.getLeftStickDirection()=="W"){if(hero.objects[0].animation!=22)hero.objects[0].animation=14;hero.objects[0].x=hero.objects[0].x-4;}
+                    }
+                    if((!ap&&!sp&&!dp&&!wp)&& xbox.getLeftStickDirection()=="C"){
+                        if(hero.objects[0].animation==8)hero.objects[0].animation=0;
+                        if(hero.objects[0].animation==9)hero.objects[0].animation=1;
+                        if(hero.objects[0].animation==10)hero.objects[0].animation=2;
+                        if(hero.objects[0].animation==11)hero.objects[0].animation=3;
+                        if(hero.objects[0].animation==12)hero.objects[0].animation=4;
+                        if(hero.objects[0].animation==13)hero.objects[0].animation=5;
+                        if(hero.objects[0].animation==14)hero.objects[0].animation=6;
+                        if(hero.objects[0].animation==15)hero.objects[0].animation=7;
+                    }
+                    }
+                    if(xbox.isButtonPressed('X'))button.objects[1].mousepressed=true;
+                 
+                    button.objects[1].counter++;
+                    if(button.objects[1].mousepressed&&hero.objects[0].health>0&&button.objects[1].counter>100){
+                                button.objects[1].counter=0;
+                                
+                                if(hero.objects[0].animation==8||hero.objects[0].animation==0 ){game.addobject(fire,hero.objects[0].x+50,hero.objects[0].y+50,100,100,-90,false);}
+                                if(hero.objects[0].animation==9||hero.objects[0].animation==1 ){game.addobject(fire,hero.objects[0].x+50,hero.objects[0].y+50,100,100,-45,false);}
+                                if(hero.objects[0].animation==10||hero.objects[0].animation==2 ){game.addobject(fire,hero.objects[0].x+50,hero.objects[0].y+50,100,100,0,false);}
+                                if(hero.objects[0].animation==11||hero.objects[0].animation==3 ){game.addobject(fire,hero.objects[0].x+50,hero.objects[0].y+50,100,100,45,false);}
+                                if(hero.objects[0].animation==12||hero.objects[0].animation==4 ){game.addobject(fire,hero.objects[0].x+50,hero.objects[0].y+50,100,100,90,false);}
+                                if(hero.objects[0].animation==13||hero.objects[0].animation==5 ){game.addobject(fire,hero.objects[0].x+50,hero.objects[0].y+50,100,100,135,false);}
+                                if(hero.objects[0].animation==14||hero.objects[0].animation==6 ){game.addobject(fire,hero.objects[0].x+50,hero.objects[0].y+50,100,100,180,false);}
+                                if(hero.objects[0].animation==15||hero.objects[0].animation==7 ){game.addobject(fire,hero.objects[0].x+50,hero.objects[0].y+50,100,100,225,false);}
+                                
+                                
+                                
+                    }
+                    if(!xbox.isButtonPressed('X')) button.objects[1].mousepressed=false;
+                    for(let i=0;i<fire.objects.length;i++){
+                        
+                        if(fire.objects[i].animation==0){
+                        
+                            if(fire.objects[i].rot==-90){fire.objects[i].y=fire.objects[i].y-6;}
+                            if(fire.objects[i].rot==-45){fire.objects[i].y=fire.objects[i].y-3;fire.objects[i].x=fire.objects[i].x+3;}
+                            if(fire.objects[i].rot==0){fire.objects[i].x=fire.objects[i].x+6;}
+                            if(fire.objects[i].rot==45){fire.objects[i].y=fire.objects[i].y+3;fire.objects[i].x=fire.objects[i].x+3;}
+                            if(fire.objects[i].rot==90){fire.objects[i].y=fire.objects[i].y+6;}
+                            if(fire.objects[i].rot==135){fire.objects[i].y=fire.objects[i].y+3;fire.objects[i].x=fire.objects[i].x-3;}
+                            if(fire.objects[i].rot==180){fire.objects[i].x=fire.objects[i].x-6;}
+                            if(fire.objects[i].rot==225){fire.objects[i].y=fire.objects[i].y-3;fire.objects[i].x=fire.objects[i].x-3;}
+
+                            if(game.collideswiths(fire.objects[i],"skell")){
+                                o=game.collideswithobject(fire.objects[i],"skell");
+                                
+                                if(o.ghost==false){
+                                    o.health=o.health-75;
+                                    game.removeObject(fire, fire.objects[i]);
+                                    continue;
+                                }
+                            }
+                            if(game.collideswiths(fire.objects[i],"spike")){
+                                o=game.collideswithobject(fire.objects[i],"spike");
+                                if(o.ghost==false){
+                                    o.health=0;;
+                                    game.removeObject(fire, fire.objects[i]);
+                                    continue;
+                                }
+                            }
+                            if(game.collideswiths(fire.objects[i],"goat")){
+                                o=game.collideswithobject(fire.objects[i],"goat");
+                                if(o.ghost==false){
+                                    o.health=0;;
+                                    game.removeObject(fire, fire.objects[i]);
+                                    continue;
+                                }
+                            }
+                            
+                            
+                        }
+                        if(fire.objects[i].isonscreen)fire.objects[i].counter=1;
+                        if(!fire.objects[i].isonscreen&&fire.objects[i].counter==1){game.removeObject(fire, fire.objects[i]);continue;}
+                    }
+                    
+                    
+                    
+                    
+                    movex=false;
+                    attack=false;
+
+                             
+
+                    for(let i=0;i<skell.objects.length;i++){
+                        
+                        if(skell.objects[i].isonscreen){
+                        
+
+
+                            if(skell.objects[i].health<=0){
+
+                                if(skell.objects[i].ghost==false){
+
+                                    audio2("sounds/bone.mp3");
+
+                                    if(Math.floor(Math.random() * 3)==0)game.addobject(gold,skell.objects[i].x-20,skell.objects[i].y-20,50,20,0,false);
+                                    if(Math.floor(Math.random() * 5)==0)game.addobject(potion1,skell.objects[i].x+120,skell.objects[i].y+120,20,40,0,false);
+
+                                }
+
+
+
+                                skell.objects[i].animation=5;
+                                skell.objects[i].ghost=true;
+
+                            }
+                            else{
+
+
+                                movex=false;
+                                ctx.beginPath();
+                                ctx.rect(skell.objects[i].x+game.maps[game.currentmap].camerax, skell.objects[i].y+game.maps[game.currentmap].cameray-20, 100, 10);
+                                ctx.stroke();
+                                ctx.fillStyle = "green";
+                                if(skell.objects[i].health>=0)ctx.fillRect(skell.objects[i].x+game.maps[game.currentmap].camerax, skell.objects[i].y+game.maps[game.currentmap].cameray-20, skell.objects[i].health, 10);
+
+
+
+                                if(!(skell.objects[i].x+800<hero.objects[0].x)&&!(skell.objects[i].x-800>hero.objects[0].x)){
+                                    if(Math.round(skell.objects[i].x)<Math.round(hero.objects[0].x)){skell.objects[i].x++;skell.objects[i].animation=2;skell.objects[i].fliped=true;movex=true;}
+                                    else if(Math.round(skell.objects[i].x)>Math.round(hero.objects[0].x)){skell.objects[i].x--;skell.objects[i].animation=2;skell.objects[i].fliped=false;movex=true;}
+                                }
+
+
+                                if(!(skell.objects[i].y+800<hero.objects[0].y)&&!(skell.objects[i].y-800>hero.objects[0].y)){
+                                    if(Math.round(skell.objects[i].y)<Math.round(hero.objects[0].y)){skell.objects[i].y++;skell.objects[i].animation=4;if(movex==true)skell.objects[i].animation=3;}      
+                                    else if(Math.round(skell.objects[i].y)>Math.round(hero.objects[0].y)){skell.objects[i].y--;skell.objects[i].animation=0;if(movex==true)skell.objects[i].animation=1;}
+                                }
+
+                                if(game.collideswiths(skell.objects[i],"hero")){
+
+                                    skell.objects[i].counter++;
+
+                                    if(skell.objects[i].counter==20){
+                                    hero.objects[0].health=hero.objects[0].health-1;
+                                    skell.objects[i].counter=0;
+                                    }
+
+
+                                    if(hero.objects[0].animation==16 && game.collideswith(skell.objects[i],"hero","down")){
+                                         if(hero.objects[0].counter==60){
+                                             skell.objects[i].health=skell.objects[i].health-40;
+                                             audio2("sounds/grunt.mp3");
+                                         }
+                                    }
+                                    if(hero.objects[0].animation==17 &&(game.collideswith(skell.objects[i],"hero","down")||game.collideswith(skell.objects[i],"hero","left"))){
+
+                                        if(hero.objects[0].counter==60){
+                                             skell.objects[i].health=skell.objects[i].health-40;
+                                             audio2("sounds/grunt.mp3");
+                                         }    
+                                    }
+                                    if(hero.objects[0].animation==18&&game.collideswith(skell.objects[i],"hero","left")){
+
+                                        if(hero.objects[0].counter==60){
+                                             skell.objects[i].health=skell.objects[i].health-40;
+                                             audio2("sounds/grunt.mp3");
+                                         } 
+                                    }
+                                    if(hero.objects[0].animation==19&&(game.collideswith(skell.objects[i],"hero","up")||game.collideswith(skell.objects[i],"hero","left"))){
+
+                                        if(hero.objects[0].counter==60){
+                                             skell.objects[i].health=skell.objects[i].health-40;
+                                             audio2("sounds/grunt.mp3");
+                                         } 
+                                    }
+                                    if(hero.objects[0].animation==20&&game.collideswith(skell.objects[i],"hero","up")){
+                                        if(hero.objects[0].counter==60){
+                                             skell.objects[i].health=skell.objects[i].health-40;
+                                             audio2("sounds/grunt.mp3");
+                                         } 
+
+                                    }
+                                    if(hero.objects[0].animation==21&&(game.collideswith(skell.objects[i],"hero","up")||game.collideswith(skell.objects[i],"hero","right"))){
+                                        if(hero.objects[0].counter==60){
+                                             skell.objects[i].health=skell.objects[i].health-40;
+                                             audio2("sounds/grunt.mp3");
+                                         } 
+
+                                    }
+                                    if(hero.objects[0].animation==22&&(game.collideswith(skell.objects[i],"hero","right"))){
+                                        if(hero.objects[0].counter==60){
+                                             skell.objects[i].health=skell.objects[i].health-40;
+                                             audio2("sounds/grunt.mp3");
+                                         } 
+
+                                    }
+                                    if(hero.objects[0].animation==23&&(game.collideswith(skell.objects[i],"hero","right")||game.collideswith(skell.objects[i],"hero","down"))){
+                                        if(hero.objects[0].counter==60){
+                                             skell.objects[i].health=skell.objects[i].health-40;
+                                             audio2("sounds/grunt.mp3");
+                                         } 
+
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    for(let i=0;i<spike.objects.length;i++){
+                        
+                        if(spike.objects[i].isonscreen){
+                    
+                            if(spike.objects[i].health<=0){
+
+                                if(spike.objects[i].ghost==false){
+
+                                    //audio2("sounds/bone.mp3");
+
+                                    
+                                    if(Math.floor(Math.random() * 3)==0)game.addobject(gold,spike.objects[i].x-20,spike.objects[i].y-20,50,20,0,false);
+                                    if(Math.floor(Math.random() * 10)==0)game.addobject(potion1,spike.objects[i].x+120,spike.objects[i].y+120,20,40,0,false);
+                                    
+                                    if(spike.objects[i].animation==0)spike.objects[i].animation=5;
+                                    if(spike.objects[i].animation==1)spike.objects[i].animation=6;
+                                    if(spike.objects[i].animation==2)spike.objects[i].animation=7;
+                                    if(spike.objects[i].animation==3)spike.objects[i].animation=8;
+                                    if(spike.objects[i].animation==4)spike.objects[i].animation=9;
+                                    
+                                    
+
+                                }
+
+
+
+                                spike.objects[i].ghost=true;
+
+                            }
+                    
+                    
+                    
+                            if(spike.objects[i].ghost==false){
+                            
+                            
+                                ctx.beginPath();
+                                ctx.rect(spike.objects[i].x+game.maps[game.currentmap].camerax, spike.objects[i].y+game.maps[game.currentmap].cameray-20, 100, 10);
+                                ctx.stroke();
+                                ctx.fillStyle = "green";
+                                if(spike.objects[i].health>=0)ctx.fillRect(spike.objects[i].x+game.maps[game.currentmap].camerax, spike.objects[i].y+game.maps[game.currentmap].cameray-20, spike.objects[i].health, 10);
+                            
+                            
+                          
+                                value1=(Math.round(spike.objects[i].x)-Math.round(hero.objects[0].x));
+                                if(value1>0)value1=Math.round(hero.objects[0].x)-(Math.round(spike.objects[i].x));
+
+                                value2=(Math.round(spike.objects[i].y)-Math.round(hero.objects[0].y));
+                                if(value2>0)value2=(Math.round(hero.objects[0].y)-(Math.round(spike.objects[i].y)));
+
+                                if(value1>value2){
+                                    if((!(spike.objects[i].x+600<hero.objects[0].x)&&!(spike.objects[i].x-600>hero.objects[0].x))&&(!(spike.objects[i].y+600<hero.objects[0].y)&&!(spike.objects[i].y-600>hero.objects[0].y))){
+                                        if(Math.round(spike.objects[i].x)<Math.round(hero.objects[0].x)){spike.objects[i].x++;spike.objects[i].counter=1;;spike.objects[i].fliped=false;}
+                                        else if(Math.round(spike.objects[i].x)>Math.round(hero.objects[0].x)){spike.objects[i].x--;spike.objects[i].counter2=1;;spike.objects[i].fliped=true;}
+                                    }
+                                    if((!(spike.objects[i].x+600<hero.objects[0].x)&&!(spike.objects[i].x-600>hero.objects[0].x))&&(!(spike.objects[i].y+600<hero.objects[0].y)&&!(spike.objects[i].y-600>hero.objects[0].y))){
+                                        if(Math.round(spike.objects[i].y)<Math.round(hero.objects[0].y)){spike.objects[i].y++;spike.objects[i].counter3=1;}      
+                                        else if(Math.round(spike.objects[i].y)>Math.round(hero.objects[0].y)){spike.objects[i].y--;spike.objects[i].counter4=1;}
+                                    }
+
+
+
+
+                                }
+                                else{
+                                    if((!(spike.objects[i].x+600<hero.objects[0].x)&&!(spike.objects[i].x-600>hero.objects[0].x))&&(!(spike.objects[i].y+600<hero.objects[0].y)&&!(spike.objects[i].y-600>hero.objects[0].y))){
+                                        if(Math.round(spike.objects[i].y)<Math.round(hero.objects[0].y)){spike.objects[i].y++;spike.objects[i].counter3=1;}      
+                                        else if(Math.round(spike.objects[i].y)>Math.round(hero.objects[0].y)){spike.objects[i].y--;spike.objects[i].counter4=1;}
+                                    }
+
+                                    if((!(spike.objects[i].x+600<hero.objects[0].x)&&!(spike.objects[i].x-600>hero.objects[0].x))&&(!(spike.objects[i].y+600<hero.objects[0].y)&&!(spike.objects[i].y-600>hero.objects[0].y))){
+                                        if(Math.round(spike.objects[i].x)<Math.round(hero.objects[0].x)){spike.objects[i].x++;spike.objects[i].counter=1;spike.objects[i].fliped=false;}
+                                        else if(Math.round(spike.objects[i].x)>Math.round(hero.objects[0].x)){spike.objects[i].x--;spike.objects[i].counter2=1;spike.objects[i].fliped=true;}
+                                    }
+
+                                }
+                                
+                                
+                                if(spike.objects[i].counter==1&&spike.objects[i].counter3==1){spike.objects[i].animation=3;}
+                                else if(spike.objects[i].counter==1&&spike.objects[i].counter4==1){spike.objects[i].animation=1;}
+                                else if(spike.objects[i].counter2==1&&spike.objects[i].counter3==1){spike.objects[i].animation=3;}
+                                else if(spike.objects[i].counter2==1&&spike.objects[i].counter4==1){spike.objects[i].animation=1;}
+                                else if(spike.objects[i].counter==1){spike.objects[i].animation=2;}
+                                else if(spike.objects[i].counter2==1){spike.objects[i].animation=2;}
+                                else if(spike.objects[i].counter3==1){spike.objects[i].animation=4;}
+                                else if(spike.objects[i].counter4==1){spike.objects[i].animation=0;}
+                                
+                                
+                                
+                                if(spike.objects[i].counter==1||spike.objects[i].counter2==1||spike.objects[i].counter3==1||spike.objects[i].counter4==1)spike.objects[i].counter5++;
+                                
+                                
+                                
+                                if(spike.objects[i].counter5==100){
+                                    
+                                   
+                                   
+                                    if(spike.objects[i].counter==1&&spike.objects[i].counter3==1){game.addobject(nedle,spike.objects[i].x+20,spike.objects[i].y+20,5,35,135,false); }
+                                    else if(spike.objects[i].counter==1&&spike.objects[i].counter4==1){game.addobject(nedle,spike.objects[i].x+20,spike.objects[i].y+20,5,35,45,false);}
+                                    else if(spike.objects[i].counter2==1&&spike.objects[i].counter3==1){game.addobject(nedle,spike.objects[i].x+20,spike.objects[i].y+20,5,35,-135,false);}
+                                    else if(spike.objects[i].counter2==1&&spike.objects[i].counter4==1){game.addobject(nedle,spike.objects[i].x+20,spike.objects[i].y+20,5,35,-45,false);}
+                                    else if(spike.objects[i].counter==1){game.addobject(nedle,spike.objects[i].x+20,spike.objects[i].y+20,5,35,90,false);}
+                                    else if(spike.objects[i].counter2==1){game.addobject(nedle,spike.objects[i].x+20,spike.objects[i].y+20,5,35,-90,false);}
+                                    else if(spike.objects[i].counter3==1){game.addobject(nedle,spike.objects[i].x+20,spike.objects[i].y+20,5,35,180,false);}
+                                    else if(spike.objects[i].counter4==1){game.addobject(nedle,spike.objects[i].x+20,spike.objects[i].y+20,5,35,0,false);}
+
+                                    
+                                    
+                                    spike.objects[i].counter5=0;
+                                    
+                                    
+                                }
+                                
+                                
+                                
+                                
+                                
+                                spike.objects[i].counter=0;
+                                spike.objects[i].counter2=0;
+                                spike.objects[i].counter3=0;
+                                spike.objects[i].counter4=0;
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+                                if(game.collideswiths(spike.objects[i],"hero")){
+
+                                    
+
+                                  
+                                    hero.objects[0].health=hero.objects[0].health-0.05;
+                                    spike.objects[i].counter=0;
+                                    
+
+
+                                    if(hero.objects[0].animation==16 && game.collideswith(spike.objects[i],"hero","down")){
+                                         if(hero.objects[0].counter==60){
+                                             spike.objects[i].health=spike.objects[i].health-80;
+                                             audio2("sounds/grunt.mp3");
+                                         }
+                                    }
+                                    if(hero.objects[0].animation==17 &&(game.collideswith(spike.objects[i],"hero","down")||game.collideswith(spike.objects[i],"hero","left"))){
+
+                                        if(hero.objects[0].counter==60){
+                                             spike.objects[i].health=spike.objects[i].health-80;
+                                             audio2("sounds/grunt.mp3");
+                                         }    
+                                    }
+                                    if(hero.objects[0].animation==18&&game.collideswith(spike.objects[i],"hero","left")){
+
+                                        if(hero.objects[0].counter==60){
+                                             spike.objects[i].health=spike.objects[i].health-80;
+                                             audio2("sounds/grunt.mp3");
+                                         } 
+                                    }
+                                    if(hero.objects[0].animation==19&&(game.collideswith(spike.objects[i],"hero","up")||game.collideswith(spike.objects[i],"hero","left"))){
+
+                                        if(hero.objects[0].counter==60){
+                                             spike.objects[i].health=spike.objects[i].health-80;
+                                             audio2("sounds/grunt.mp3");
+                                         } 
+                                    }
+                                    if(hero.objects[0].animation==20&&game.collideswith(spike.objects[i],"hero","up")){
+                                        if(hero.objects[0].counter==60){
+                                             spike.objects[i].health=spike.objects[i].health-80;
+                                             audio2("sounds/grunt.mp3");
+                                         } 
+
+                                    }
+                                    if(hero.objects[0].animation==21&&(game.collideswith(spike.objects[i],"hero","up")||game.collideswith(spike.objects[i],"hero","right"))){
+                                        if(hero.objects[0].counter==60){
+                                             spike.objects[i].health=spike.objects[i].health-80;
+                                             audio2("sounds/grunt.mp3");
+                                         } 
+
+                                    }
+                                    if(hero.objects[0].animation==22&&(game.collideswith(spike.objects[i],"hero","right"))){
+                                        if(hero.objects[0].counter==60){
+                                             spike.objects[i].health=spike.objects[i].health-80;
+                                             audio2("sounds/grunt.mp3");
+                                         } 
+
+                                    }
+                                    if(hero.objects[0].animation==23&&(game.collideswith(spike.objects[i],"hero","right")||game.collideswith(spike.objects[i],"hero","down"))){
+                                        if(hero.objects[0].counter==60){
+                                             spike.objects[i].health=spike.objects[i].health-80;
+                                             audio2("sounds/grunt.mp3");
+                                         } 
+
+                                    }
+                                }
+                                
+                                
+                                
+                                
+                            
+                        }
+                            
+                            
+                    
+                        }
+                    }
+                    for(let i=0;i<nedle.objects.length;i++){
+                        
+                            if(nedle.objects[i].animation==0){
+                            if(nedle.objects[i].rot==0){nedle.objects[i].y=nedle.objects[i].y-4;}
+                            if(nedle.objects[i].rot==45){nedle.objects[i].y--;nedle.objects[i].x++;nedle.objects[i].y--;nedle.objects[i].x++;}
+                            if(nedle.objects[i].rot==90){nedle.objects[i].x=nedle.objects[i].x+4;}
+                            if(nedle.objects[i].rot==135){nedle.objects[i].y++;nedle.objects[i].x++;nedle.objects[i].y++;nedle.objects[i].x++;}
+                            if(nedle.objects[i].rot==180){nedle.objects[i].y=nedle.objects[i].y+4;}
+                            if(nedle.objects[i].rot==-45){nedle.objects[i].y--;nedle.objects[i].x--;nedle.objects[i].y--;nedle.objects[i].x--;}
+                            if(nedle.objects[i].rot==-90){nedle.objects[i].x=nedle.objects[i].x-4;}
+                            if(nedle.objects[i].rot==-135){nedle.objects[i].y++;nedle.objects[i].x--;nedle.objects[i].y++;nedle.objects[i].x--;}
+
+
+                            if(game.collideswiths(nedle.objects[i],"hero")){
+
+                                hero.objects[0].health=hero.objects[0].health-5;
+                                game.removeObject(nedle, nedle.objects[i]);
+                                continue;
+                            }
+                        }
+                        if(nedle.objects[i].isonscreen)nedle.objects[i].counter=1;
+                        if(!nedle.objects[i].isonscreen&&nedle.objects[i].counter==1){game.removeObject(nedle, nedle.objects[i]);continue;}
+                        
+                        
+                    }
+                    
+                    for(let i=0;i<goat.objects.length;i++){
+                        
+                        if(goat.objects[i].isonscreen){
+                    
+                            if(goat.objects[i].health<=0){
+
+                                if(goat.objects[i].ghost==false){
+
+                                    //audio2("sounds/bone.mp3");
+
+                                    
+                                    if(Math.floor(Math.random() * 3)==0)game.addobject(gold,goat.objects[i].x-20,goat.objects[i].y-20,50,20,0,false);
+                                    if(Math.floor(Math.random() * 10)==0)game.addobject(potion1,goat.objects[i].x+120,goat.objects[i].y+120,20,40,0,false);
+                                    
+                                    if(goat.objects[i].animation==0)goat.objects[i].animation=5;
+                                    if(goat.objects[i].animation==1)goat.objects[i].animation=6;
+                                    if(goat.objects[i].animation==2)goat.objects[i].animation=7;
+                                    if(goat.objects[i].animation==3)goat.objects[i].animation=8;
+                                    if(goat.objects[i].animation==4)goat.objects[i].animation=9;
+                                    
+                                    
+
+                                }
+
+
+
+                                goat.objects[i].ghost=true;
+
+                            }
+                    
+                    
+                    
+                            if(goat.objects[i].ghost==false){
+                            
+                            
+                                ctx.beginPath();
+                                ctx.rect(goat.objects[i].x+game.maps[game.currentmap].camerax, goat.objects[i].y+game.maps[game.currentmap].cameray-20, 100, 10);
+                                ctx.stroke();
+                                ctx.fillStyle = "green";
+                                if(goat.objects[i].health>=0)ctx.fillRect(goat.objects[i].x+game.maps[game.currentmap].camerax, goat.objects[i].y+game.maps[game.currentmap].cameray-20, goat.objects[i].health, 10);
+                            
+                            
+                          
+                                value1=(Math.round(goat.objects[i].x)-Math.round(hero.objects[0].x));
+                                if(value1>0)value1=Math.round(hero.objects[0].x)-(Math.round(goat.objects[i].x));
+
+                                value2=(Math.round(goat.objects[i].y)-Math.round(hero.objects[0].y));
+                                if(value2>0)value2=(Math.round(hero.objects[0].y)-(Math.round(goat.objects[i].y)));
+
+                                if(value1>value2){
+                                    if((!(goat.objects[i].x+600<hero.objects[0].x)&&!(goat.objects[i].x-1000>hero.objects[0].x))&&(!(goat.objects[i].y+1000<hero.objects[0].y)&&!(goat.objects[i].y-600>hero.objects[0].y))){
+                                        if(Math.round(goat.objects[i].x)<Math.round(hero.objects[0].x)){goat.objects[i].x=goat.objects[i].x+2;goat.objects[i].counter=1;;goat.objects[i].fliped=false;}
+                                        else if(Math.round(goat.objects[i].x)>Math.round(hero.objects[0].x)){goat.objects[i].x=goat.objects[i].x-2;goat.objects[i].counter2=1;;goat.objects[i].fliped=true;}
+                                    }
+                                    if((!(goat.objects[i].x+600<hero.objects[0].x)&&!(goat.objects[i].x-1000>hero.objects[0].x))&&(!(goat.objects[i].y+1000<hero.objects[0].y)&&!(goat.objects[i].y-600>hero.objects[0].y))){
+                                        if(Math.round(goat.objects[i].y)<Math.round(hero.objects[0].y)){goat.objects[i].y=goat.objects[i].y+2;goat.objects[i].counter3=1;}      
+                                        else if(Math.round(goat.objects[i].y)>Math.round(hero.objects[0].y)){goat.objects[i].y=goat.objects[i].y-2;goat.objects[i].counter4=1;}
+                                    }
+
+
+
+
+                                }
+                                else{
+                                    if((!(goat.objects[i].x+600<hero.objects[0].x)&&!(goat.objects[i].x-1000>hero.objects[0].x))&&(!(goat.objects[i].y+1000<hero.objects[0].y)&&!(goat.objects[i].y-600>hero.objects[0].y))){
+                                        if(Math.round(goat.objects[i].y)<Math.round(hero.objects[0].y)){goat.objects[i].y=goat.objects[i].y+2;goat.objects[i].counter3=1;}      
+                                        else if(Math.round(goat.objects[i].y)>Math.round(hero.objects[0].y)){goat.objects[i].y=goat.objects[i].y-2;;goat.objects[i].counter4=1;}
+                                    }
+
+                                    if((!(goat.objects[i].x+600<hero.objects[0].x)&&!(goat.objects[i].x-1000>hero.objects[0].x))&&(!(goat.objects[i].y+1000<hero.objects[0].y)&&!(goat.objects[i].y-600>hero.objects[0].y))){
+                                        if(Math.round(goat.objects[i].x)<Math.round(hero.objects[0].x)){goat.objects[i].x=goat.objects[i].x+2;goat.objects[i].counter=1;goat.objects[i].fliped=false;}
+                                        else if(Math.round(goat.objects[i].x)>Math.round(hero.objects[0].x)){goat.objects[i].x=goat.objects[i].x-2;goat.objects[i].counter2=1;goat.objects[i].fliped=true;}
+                                    }
+
+                                }
+                                
+                                
+                                if(goat.objects[i].counter==1&&goat.objects[i].counter3==1){goat.objects[i].animation=3;}
+                                else if(goat.objects[i].counter==1&&goat.objects[i].counter4==1){goat.objects[i].animation=1;}
+                                else if(goat.objects[i].counter2==1&&goat.objects[i].counter3==1){goat.objects[i].animation=3;}
+                                else if(goat.objects[i].counter2==1&&goat.objects[i].counter4==1){goat.objects[i].animation=1;}
+                                else if(goat.objects[i].counter==1){goat.objects[i].animation=2;}
+                                else if(goat.objects[i].counter2==1){goat.objects[i].animation=2;}
+                                else if(goat.objects[i].counter3==1){goat.objects[i].animation=4;}
+                                else if(goat.objects[i].counter4==1){goat.objects[i].animation=0;}
+                                
+                                
+                              
+                                
+                                
+                                
+                                
+                                
+                                goat.objects[i].counter=0;
+                                goat.objects[i].counter2=0;
+                                goat.objects[i].counter3=0;
+                                goat.objects[i].counter4=0;
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+                                if(game.collideswiths(goat.objects[i],"hero")){
+
+                                    
+
+                                  
+                                    hero.objects[0].health=hero.objects[0].health-0.05;
+                                    goat.objects[i].counter=0;
+                                    
+
+
+                                    if(hero.objects[0].animation==16 && game.collideswith(goat.objects[i],"hero","down")){
+                                         if(hero.objects[0].counter==60){
+                                             goat.objects[i].health=goat.objects[i].health-50;
+                                             audio2("sounds/grunt.mp3");
+                                         }
+                                    }
+                                    if(hero.objects[0].animation==17 &&(game.collideswith(goat.objects[i],"hero","down")||game.collideswith(goat.objects[i],"hero","left"))){
+
+                                        if(hero.objects[0].counter==60){
+                                             goat.objects[i].health=goat.objects[i].health-50;
+                                             audio2("sounds/grunt.mp3");
+                                         }    
+                                    }
+                                    if(hero.objects[0].animation==18&&game.collideswith(goat.objects[i],"hero","left")){
+
+                                        if(hero.objects[0].counter==60){
+                                             goat.objects[i].health=goat.objects[i].health-50;
+                                             audio2("sounds/grunt.mp3");
+                                         } 
+                                    }
+                                    if(hero.objects[0].animation==19&&(game.collideswith(goat.objects[i],"hero","up")||game.collideswith(goat.objects[i],"hero","left"))){
+
+                                        if(hero.objects[0].counter==60){
+                                             goat.objects[i].health=goat.objects[i].health-50;
+                                             audio2("sounds/grunt.mp3");
+                                         } 
+                                    }
+                                    if(hero.objects[0].animation==20&&game.collideswith(goat.objects[i],"hero","up")){
+                                        if(hero.objects[0].counter==60){
+                                             goat.objects[i].health=goat.objects[i].health-50;
+                                             audio2("sounds/grunt.mp3");
+                                         } 
+
+                                    }
+                                    if(hero.objects[0].animation==21&&(game.collideswith(goat.objects[i],"hero","up")||game.collideswith(goat.objects[i],"hero","right"))){
+                                        if(hero.objects[0].counter==60){
+                                             goat.objects[i].health=goat.objects[i].health-50;
+                                             audio2("sounds/grunt.mp3");
+                                         } 
+
+                                    }
+                                    if(hero.objects[0].animation==22&&(game.collideswith(goat.objects[i],"hero","right"))){
+                                        if(hero.objects[0].counter==60){
+                                             goat.objects[i].health=goat.objects[i].health-50;
+                                             audio2("sounds/grunt.mp3");
+                                         } 
+
+                                    }
+                                    if(hero.objects[0].animation==23&&(game.collideswith(goat.objects[i],"hero","right")||game.collideswith(goat.objects[i],"hero","down"))){
+                                        if(hero.objects[0].counter==60){
+                                             goat.objects[i].health=goat.objects[i].health-50;
+                                             audio2("sounds/grunt.mp3");
+                                         } 
+
+                                    }
+                                }
+                                
+                                
+                                
+                                
+                            
+                        }
+                            
+                            
+                    
+                        }
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    if(game.collideswith(hero.objects[0],"gold","ghost")){
+                        obj=game.collideswithobject(hero.objects[0],"gold");
+                        if(obj.animation==0)
+                            audio2("sounds/coin.mp3");
+                        
+                        obj.animation=1;
+                     
+                    
+                    }
+                    if(game.collideswith(hero.objects[0],"potion1","ghost")){
+                        obj=game.collideswithobject(hero.objects[0],"potion1");
+                        if(obj.animation==0){
+                            
+                            if(health.objects[0].health<100){health.objects[0].health=health.objects[0].health+25;obj.animation=1;if(health.objects[0].health>100)health.objects[0].health=100;}
+                            
+                            
+                        }
+                           
+                        
+                        
+                     
+                    
+                    }
+                    
+                    
+                    
+                    
+                    if(hero.objects[0].health<=0){
+                        
+                        hero.objects[0].animation=24;
+                        daethcounter++;
+                        if(daethcounter==300){
+                            daethcounter=0;
+                            game.load();
+                        }
+                        
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                  
+                 }
+                 
+                window.requestAnimationFrame(check);   
+            };check();
+            
+
+            
+            
+            
+            
+            
+        </script>
+    </body>
+</html>

@@ -1,0 +1,3013 @@
+<html>
+    <head>
+        <meta name="viewport" content="user-scalable=no, shrink-to-fit=no">
+        <meta charset="utf-8">
+        <meta name="keywords" content="golvläggningsprogram, golvläggnings program">
+        <link rel="icon" href="bilder/trä.jpg" type="image/vnd.microsoft.icon" />
+	    <title>Golv</title>
+    
+            
+                        <style>
+/* CSS */
+button {
+  background-image: linear-gradient(#42A1EC, #0070C9);
+  border: 1px solid #0077CC;
+  border-radius: 4px;
+  box-sizing: border-box;
+  color: #FFFFFF;
+  cursor: pointer;
+  direction: ltr;
+  display: block;
+  font-family: "SF Pro Text","SF Pro Icons","AOS Icons","Helvetica Neue","Helvetica","Arial","sans-serif";
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -.022em;
+  line-height: 1.47059;
+  min-width: 30px;
+  overflow: visible;
+  padding: 4px 15px;
+  text-align: center;
+  vertical-align: baseline;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  white-space: nowrap;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: .3;
+}
+
+button:hover {
+  background-image: linear-gradient(#51A9EE, #147BCD);
+  border-color: #1482D0;
+  text-decoration: none;
+}
+
+button:active {
+  background-image: linear-gradient(#3D94D9, #0067B9);
+  border-color: #006DBC;
+  outline: none;
+}
+
+button:focus {
+  box-shadow: rgba(131, 192, 253, 0.5) 0 0 0 3px;
+  outline: none;
+}
+
+
+.form__group {
+  position: relative;
+  padding: 15px 0 0;
+  margin-top: 10px;
+  width: 50%;
+}
+
+input {
+  font-family: inherit;
+  width: 200px;
+  border: 0;
+  border-bottom: 2px solid #1482D0;
+  outline: 0;
+  font-size: 1.3rem;
+  color: #000000;
+  padding: 7px 0;
+  background: transparent;
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: transparent;
+  }
+
+  &:placeholder-shown ~ label {
+    font-size: 1.3rem;
+    cursor: text;
+    top: 20px;
+  }
+}
+
+label {
+  position: absolute;
+  top: 0;
+  display: block;
+  transition: 0.2s;
+  font-size: 1rem;
+  color: #9b9b9b;
+}
+
+input:focus {
+  ~ label {
+    position: absolute;
+    top: 0;
+    display: block;
+    transition: 0.2s;
+    font-size: 1rem;
+    color: #11998e;
+    font-weight:700;    
+  }
+  padding-bottom: 6px;  
+  font-weight: 700;
+  border-width: 3px;
+  border-image: linear-gradient(to right, #11998e,#38ef7d);
+  border-image-slice: 1;
+}
+/* reset input */
+input{
+  &:required,&:invalid { box-shadow:none; }
+}
+
+
+html {background-color: lightgray}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</style>
+            
+
+            
+            
+            
+            
+            
+    </head>
+    <body>
+        <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
+
+
+
+        
+        
+        
+        <script>
+        
+            const canvas = document.getElementById("myCanvas");
+            const ctx = canvas.getContext("2d");
+            document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
+            document.getElementById("myCanvas").style.width=window.innerWidth;
+            document.getElementById("myCanvas").style.height=window.innerHeight;
+ 
+            var cursorX;
+            var cursorY;
+            document.onmousemove = function(e){
+                cursorX = e.pageX;
+                cursorY = e.pageY;
+            };
+
+            canvas.onclick = function(){
+                
+                if(cursorX<200&&cursorY<200)
+                    window.location.href = "https://maxns.se/";
+                 
+
+
+            };
+        
+        
+        
+            var input = document.createElement('input');document.body.appendChild(input);
+            var input2 = document.createElement('input');document.body.appendChild(input2);
+            var input3 = document.createElement('input');document.body.appendChild(input3);
+            var input4 = document.createElement('input');document.body.appendChild(input4);
+            var input5 = document.createElement('input');document.body.appendChild(input5);
+            
+
+        
+            var button = document.createElement("button");document.body.appendChild(button);
+            var button3 = document.createElement("button");document.body.appendChild(button3);
+            var button4 = document.createElement("button");document.body.appendChild(button4);  
+            var button5 = document.createElement("button");document.body.appendChild(button5);
+            var button6 = document.createElement("button");document.body.appendChild(button6);
+            var button7 = document.createElement("button");document.body.appendChild(button7);
+            var button8 = document.createElement("button");document.body.appendChild(button8);
+            var button9 = document.createElement("button");document.body.appendChild(button9);
+
+            input.value=4000 ; 
+            input2.value=4000 ; 
+            input3.value=1000 ; 
+            input4.value=200 ; 
+            input5.value=1.5 ; 
+        
+            brada_image = new Image();
+            brada_image.src = 'bilder/tra.jpg';
+          
+            base_image = new Image();
+            base_image.src = 'bilder/loggo.png';
+            
+            kilnker_image= new Image();
+            kilnker_image.src = 'bilder/kakel.jpg';
+    
+            vinyl_image= new Image();
+            vinyl_image.src = 'bilder/vinyl.jpg';
+    
+            var array = [];
+            let element = {lenght: 0, width: 0, row: 0, start:0};  
+            let element2 = {lenght: 0, width: 0, row: 0, start:0};
+            let elementstart = {lenght: 0, width: 0, row: 0, start:0};
+            
+            let firstnummber=0;
+            let woody=100;
+            let woodcalc=0;
+            let miniwood=0;
+            let rowcontertext=0;
+            let capx=input.value;
+            let capy=input2.value;
+            let rows=input2.value/input4.value;
+            let startansa=true;
+            let breddkapad=0;
+            let programmnummer=0;
+            let programmnummer2=0;
+            let rotateroom=false;
+            
+            
+            setbuttonlocation(button,0,230);                
+            setbuttonlocation(button3,0,300);
+            setbuttonlocation(button4,0,580);               
+            setbuttonlocation(button5,0,370);
+            setbuttonlocation(button6,0,440);
+            setbuttonlocation(button7,0,510);
+            setbuttonlocation(button8,0,650);
+            setbuttonlocation(button9,180, 400);
+            
+            
+            
+            
+            
+            
+            
+            
+            var check = function(){
+                
+                try{
+                
+        
+                
+                canvas.width=document.body.clientWidth-8;
+                canvas.height=document.body.clientHeight-8;
+                
+            //    const my_gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            //    my_gradient.addColorStop(0, "white");
+            //    my_gradient.addColorStop(1, "gray");
+           //     ctx.fillStyle = "lightgray";
+            //    ctx.fillRect(0, 0, canvas.width, canvas.height);
+ 
+ 
+                setinputlocation(input,canvas.width/2-120,20);
+                setinputlocation(input2,canvas.width/2-120,90);
+                setinputlocation(input3,canvas.width/2-120,160);
+                setinputlocation(input4,canvas.width/2-120,230);
+                setinputlocation(input5,canvas.width/2-120,300);
+                
+             
+                ctx.font = "18px serif";
+                ctx.fillStyle = "black";
+                ctx.fillText("Golvläggnings program", 10, 215);
+                ctx.fillText("Rummets bredd", canvas.width/2-245, 50);
+                ctx.fillText("Rummets djup", canvas.width/2-235, 120);
+                ctx.fillText("Brädas längd", canvas.width/2-225, 190);
+                ctx.fillText("Brädas bredd", canvas.width/2-225, 260);
+                ctx.fillText("Distans per M", canvas.width/2-235, 330);
+
+                ctx.drawImage(base_image, 0, 0,200,200);
+                
+                
+                
+                
+                
+                
+                    ctx.fillStyle = "white";
+                    ctx.fillRect((canvas.width/2)-(input.value/20), 450, input.value/10, input2.value/10);
+                
+                if(input3.value<260||input4.value<50||input.value>1000000||input2.value>1000000||input.value<200||input2.value<200){}
+                else{
+               
+                   
+                    capx=input.value-((input5.value*input.value)/1000);
+                    capy=input2.value-((input5.value*input2.value)/1000);
+               
+                    if(rotateroom){
+                        
+                        
+                        capy=input.value-((input5.value*input.value)/1000);
+                        capx=input2.value-((input5.value*input2.value)/1000);
+                        
+                    }
+                    
+                    
+                    
+                
+                    
+                    
+
+                    if(programmnummer==0){
+//000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000                           
+                        array =[];
+                        rows=capy/input4.value;
+
+                        rows=Math.ceil(rows);
+                        breddkapad=0;
+         //   if(!rotateroom){            
+                        if(rows*input4.value>capy){
+
+                            breddkapad=rows*input4.value-capy;
+                            breddkapad=breddkapad/2;
+                            breddkapad=breddkapad;
+                            if(rows==1)breddkapad=breddkapad*2;
+
+                            breddkapad=Math.ceil(breddkapad);
+
+                        }
+
+                        let xposition=0;
+                            for (let i = 0; i < rows; i++) {
+
+                                while(xposition<=capx){
+                                    if((capx-xposition)>input3.value){
+
+                                        if(xposition==0){
+
+                                            let firstbrada=parseInt(calcfirstwood());
+
+                                            if(breddkapad>0&&(i==0||i==rows-1)){
+                                                element = {lenght: parseInt(firstbrada), width: input4.value-breddkapad, row: i, start:xposition};
+                                                array.push(element);
+
+                                            }
+                                            else{
+                                                element = {lenght: parseInt(firstbrada), width: input4.value, row: i, start:xposition};
+                                                array.push(element);
+                                            }
+                                            xposition=xposition+firstbrada;
+                                        }
+                                        else{
+                                            if(breddkapad>0&&(i==0||i==rows-1)){
+                                                element = {lenght: parseInt(input3.value), width: input4.value-breddkapad, row: i, start:xposition};
+                                                array.push(element);
+
+                                            }
+                                            else{
+                                                element = {lenght: parseInt(input3.value), width: input4.value, row: i, start:xposition};
+                                                array.push(element);
+                                            }
+                                            xposition=xposition+parseInt(input3.value); 
+                                        }
+                                    }
+                                    else{
+                                        if(parseInt((capx-xposition))==0){}
+                                        else if(breddkapad>0&&(i==0||i==rows-1)){
+                                            element = {lenght: parseInt(capx-xposition), width: input4.value-breddkapad, row: i, start:xposition};
+                                            array.push(element);
+
+                                        }
+                                        else{
+                                            element = {lenght: parseInt(capx-xposition), width: input4.value, row: i, start:xposition};
+                                            array.push(element);
+
+                                        }
+                                        xposition=xposition+100000;
+                                    }
+                                }
+                                xposition=0;
+                            }
+                            firstnummber=0;
+              //  }            
+               
+                            
+                            
+                        if(rotateroom){    
+                            ctx.save();ctx.translate(canvas.width/2, 450+(input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450+(input2.value/20)));    
+                            for(let i = 0; i < array.length; i++){           
+                                element=array[i];
+                                ctx.fillStyle = "black";
+
+                            
+    
+                                if(element.row==0){
+                                    ctx.fillRect((canvas.width/2)-(capx/20)+element.start/10, +(input2.value-input.value)/20+450+element.row*element.width/10, 2+element.lenght/10, 2+element.width/10);
+                                    ctx.drawImage(brada_image,(canvas.width/2)-(capx/20)+1+element.start/10, +(input2.value-input.value)/20+450+1+element.row*element.width/10, element.lenght/10, element.width/10);
+                                }
+                                else if(element.row==rows-1){
+                                    ctx.fillRect((canvas.width/2)-(capx/20)+element.start/10, +(input2.value-input.value)/20+450+element.row*input4.value/10-(breddkapad/10), 2+element.lenght/10, 2+element.width/10);
+                                    ctx.drawImage(brada_image,(canvas.width/2)-(capx/20)+1+element.start/10, +(input2.value-input.value)/20+450+1+element.row*input4.value/10-(breddkapad/10), element.lenght/10, element.width/10);
+                                }
+                                else{
+                                    ctx.fillRect((canvas.width/2)-(capx/20)+element.start/10, +(input2.value-input.value)/20+450+element.row*element.width/10-(breddkapad/10), 2+element.lenght/10, 2+element.width/10);
+                                    ctx.drawImage(brada_image,(canvas.width/2)-(capx/20)+1+element.start/10, +(input2.value-input.value)/20+450+1+element.row*element.width/10-(breddkapad/10), element.lenght/10, element.width/10);
+                                }
+
+
+                        }
+                            
+                            
+                            ctx.restore();
+                        }
+                        else{
+                            
+                            for(let i = 0; i < array.length; i++){           
+                                element=array[i];
+                                ctx.fillStyle = "black";
+
+                                if(element.row==0){
+                                    ctx.fillRect((canvas.width/2)-(capx/20)+element.start/10, 450+element.row*element.width/10, 2+element.lenght/10, 2+element.width/10);
+                                    ctx.drawImage(brada_image,(canvas.width/2)-(capx/20)+1+element.start/10, 450+1+element.row*element.width/10, element.lenght/10, element.width/10);
+                                }
+                                else if(element.row==rows-1){
+                                    ctx.fillRect((canvas.width/2)-(capx/20)+element.start/10, 450+element.row*input4.value/10-(breddkapad/10), 2+element.lenght/10, 2+element.width/10);
+                                    ctx.drawImage(brada_image,(canvas.width/2)-(capx/20)+1+element.start/10, 450+1+element.row*input4.value/10-(breddkapad/10), element.lenght/10, element.width/10);
+                                }
+                                else{
+                                    ctx.fillRect((canvas.width/2)-(capx/20)+element.start/10, 450+element.row*element.width/10-(breddkapad/10), 2+element.lenght/10, 2+element.width/10);
+                                    ctx.drawImage(brada_image,(canvas.width/2)-(capx/20)+1+element.start/10, 450+1+element.row*element.width/10-(breddkapad/10), element.lenght/10, element.width/10);
+                                }
+                            }
+      
+                        }
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        ctx.font = "25px serif";
+                        ctx.fillStyle = "black";
+
+                        rowcontertext=0;
+                        let antalförsta1=0;
+                        let antalförsta2=0;
+                        let antalförsta3=0;
+                        let antalförsta4=0;
+                        let antalförsta5=0;
+                        
+                        for(let i = 0; i < array.length; i++){
+                            element=array[i];
+                            element2=array[i-1];
+                            if(rowcontertext==0||element.row>element2.row){
+                                if(rowcontertext==5)rowcontertext=0;
+                                if(rowcontertext==0)
+                                    antalförsta1++;
+                                if(rowcontertext==1)
+                                    antalförsta2++;
+                                if(rowcontertext==2)    
+                                   antalförsta3++;
+                                if(rowcontertext==3) 
+                                    antalförsta4++;
+                                if(rowcontertext==4)
+                                    antalförsta5++;
+                                rowcontertext++;
+                                
+                            }
+                        }                        
+                        rowcontertext=0;
+       
+                        for(let i = 0; i < array.length; i++){
+                            element=array[i];
+                            element2=array[i-1];
+                            if(rowcontertext==0||element.row>element2.row){
+                                if(rowcontertext==0)
+                                    ctx.fillText("Rad1:Första brädans längd:"+element.lenght +" X:"+antalförsta1, canvas.width/2+80, 40);
+                                if(rowcontertext==1)
+                                    ctx.fillText("Rad2:Första brädans längd:"+element.lenght+" X:"+antalförsta2, canvas.width/2+80, 110);
+                                if(rowcontertext==2)    
+                                   ctx.fillText("Rad3:Första brädans längd:"+element.lenght+" X:"+antalförsta3, canvas.width/2+80, 180);
+                                if(rowcontertext==3) 
+                                    ctx.fillText("Rad4:Första brädans längd:"+element.lenght+" X:"+antalförsta4, canvas.width/2+80, 250);
+                                if(rowcontertext==4)
+                                    ctx.fillText("Rad5:Första brädans längd:"+element.lenght+" X:"+antalförsta5, canvas.width/2+80, 320);
+                                rowcontertext++;
+                            }
+                        }
+
+                        element=array[0];
+                        element2=array[1];
+                   
+                        if(element.row<element2.row){}
+                        else{
+                            rowcontertext=0;
+                            for(let i = 0; i < array.length; i++){
+                                element=array[i];
+                                element2=array[i+1];
+                                if(i==array.length-1||element.row<element2.row){
+                                    if(rowcontertext==0)
+                                        ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta1, canvas.width/2+140, 70);
+                                    if(rowcontertext==1)
+                                        ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta2, canvas.width/2+140, 140);
+                                    if(rowcontertext==2)    
+                                       ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta3, canvas.width/2+140, 210);
+                                    if(rowcontertext==3) 
+                                        ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta4, canvas.width/2+140, 280);
+                                    if(rowcontertext==4)
+                                        ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta5, canvas.width/2+140, 350);
+                                    rowcontertext++;
+                                }
+                            }
+                        }
+                        antalförsta1=0;
+                        let antalbrädorrr=0;
+                        for(let i = 0; i < array.length; i++){
+                             element=array[i];
+                             antalbrädorrr++;
+                             if(element.lenght==input3.value){
+                                 antalförsta1++;
+                                 
+                             }
+                            
+                        }
+                        ctx.fillStyle = "black";
+                        ctx.fillText("Första/sista radens kap:"+breddkapad, canvas.width/2+200, 400);
+                        ctx.fillText("Hela brädor:"+antalförsta1, canvas.width/2+200, 430);
+                        
+                        
+                        
+                        
+                        ctx.font = "25px serif";
+                        ctx.fillStyle = "black";
+                        ctx.fillText("Brädor:" + (antalbrädorrr) +" M2:"+Math.round(((((antalbrädorrr))*input3.value*input4.value/1000000)+ Number.EPSILON) * 100)/100, canvas.width/2-200, 390);
+                        
+                        
+                        
+                        
+                }
+                if(programmnummer==1){
+//1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111                    
+                     
+                        array =[];
+                        rows=capy/input4.value;
+                        rows=Math.ceil(rows);
+                        breddkapad=0;
+
+                        if(rows*input4.value>capy){
+
+                            breddkapad=rows*input4.value-capy;
+                            breddkapad=breddkapad/2;
+                            breddkapad=breddkapad;
+                            if(rows==1)breddkapad=breddkapad*2;
+
+                            breddkapad=Math.ceil(breddkapad);
+
+                        }
+
+                        let xposition=0;
+                            for (let i = 0; i < rows; i++) {
+
+                                while(xposition<=capx){
+                                    if((capx-xposition)>input3.value){
+
+                                        if(xposition==0){
+
+                                            let firstbrada=parseInt(calcfirtsclincer());
+
+                                            if(breddkapad>0&&(i==0||i==rows-1)){
+                                                element = {lenght: parseInt(firstbrada), width: input4.value-breddkapad, row: i, start:xposition};
+                                                array.push(element);
+
+                                            }
+                                            else{
+                                                element = {lenght: parseInt(firstbrada), width: input4.value, row: i, start:xposition};
+                                                array.push(element);
+                                            }
+                                            xposition=xposition+firstbrada;
+
+
+
+                                        }
+                                        else{
+                                            if(breddkapad>0&&(i==0||i==rows-1)){
+                                                element = {lenght: parseInt(input3.value), width: input4.value-breddkapad, row: i, start:xposition};
+                                                array.push(element);
+
+                                            }
+                                            else{
+                                                element = {lenght: parseInt(input3.value), width: input4.value, row: i, start:xposition};
+                                                array.push(element);
+                                            }
+                                            xposition=xposition+parseInt(input3.value); 
+                                        }
+                                    }
+                                    else{
+                                        if(parseInt((capx-xposition))==0){}
+                                        else if(breddkapad>0&&(i==0||i==rows-1)){
+                                            element = {lenght: parseInt(capx-xposition), width: input4.value-breddkapad, row: i, start:xposition};
+                                            array.push(element);
+
+                                        }
+                                        else{
+                                            element = {lenght: parseInt(capx-xposition), width: input4.value, row: i, start:xposition};
+                                            array.push(element);
+
+                                        }
+                                        xposition=xposition+100000;
+                                    }
+                                }
+                                xposition=0;
+                            }
+                            firstnummber=0;
+                            
+                           if(rotateroom){
+                            ctx.save();ctx.translate(canvas.width/2, 450+(input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450+(input2.value/20))); 
+                        for(let i = 0; i < array.length; i++){           
+                            element=array[i];
+                            ctx.fillStyle = "black";
+
+                            if(element.row==0){
+                                ctx.fillRect((canvas.width/2)-(capx/20)+element.start/10, +(input2.value-input.value)/20+450+element.row*element.width/10, 2+element.lenght/10, 2+element.width/10);
+                                ctx.drawImage(kilnker_image,(canvas.width/2)-(capx/20)+1+element.start/10, +(input2.value-input.value)/20+450+1+element.row*element.width/10, element.lenght/10, element.width/10);
+                            }
+                            else if(element.row==rows-1){
+                                ctx.fillRect((canvas.width/2)-(capx/20)+element.start/10, +(input2.value-input.value)/20+450+element.row*input4.value/10-(breddkapad/10), 2+element.lenght/10, 2+element.width/10);
+                                ctx.drawImage(kilnker_image,(canvas.width/2)-(capx/20)+1+element.start/10, +(input2.value-input.value)/20+450+1+element.row*input4.value/10-(breddkapad/10), element.lenght/10, element.width/10);
+                            }
+                            else{
+                                ctx.fillRect((canvas.width/2)-(capx/20)+element.start/10, +(input2.value-input.value)/20+450+element.row*element.width/10-(breddkapad/10), 2+element.lenght/10, 2+element.width/10);
+                                ctx.drawImage(kilnker_image,(canvas.width/2)-(capx/20)+1+element.start/10, +(input2.value-input.value)/20+450+1+element.row*element.width/10-(breddkapad/10), element.lenght/10, element.width/10);
+                            }
+                            
+                            
+                            
+                        }
+                        ctx.restore();
+                        }
+                        else{
+                            
+                            for(let i = 0; i < array.length; i++){           
+                            element=array[i];
+                            ctx.fillStyle = "black";
+
+                            if(element.row==0){
+                                ctx.fillRect((canvas.width/2)-(capx/20)+element.start/10, 450+element.row*element.width/10, 2+element.lenght/10, 2+element.width/10);
+                                ctx.drawImage(kilnker_image,(canvas.width/2)-(capx/20)+1+element.start/10, 450+1+element.row*element.width/10, element.lenght/10, element.width/10);
+                            }
+                            else if(element.row==rows-1){
+                                ctx.fillRect((canvas.width/2)-(capx/20)+element.start/10, 450+element.row*input4.value/10-(breddkapad/10), 2+element.lenght/10, 2+element.width/10);
+                                ctx.drawImage(kilnker_image,(canvas.width/2)-(capx/20)+1+element.start/10, 450+1+element.row*input4.value/10-(breddkapad/10), element.lenght/10, element.width/10);
+                            }
+                            else{
+                                ctx.fillRect((canvas.width/2)-(capx/20)+element.start/10, 450+element.row*element.width/10-(breddkapad/10), 2+element.lenght/10, 2+element.width/10);
+                                ctx.drawImage(kilnker_image,(canvas.width/2)-(capx/20)+1+element.start/10, 450+1+element.row*element.width/10-(breddkapad/10), element.lenght/10, element.width/10);
+                            }
+                        }
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                        }
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        ctx.font = "25px serif";
+                        ctx.fillStyle = "black";
+
+
+
+                        let antalförsta12=0;
+                        let antalförsta22=0;
+                        
+                        rowcontertext=0;
+                        for(let i = 0; i < array.length; i++){
+                            element=array[i];
+                            element2=array[i-1];
+                           if(rowcontertext==0||element.row>element2.row){
+                                if(rowcontertext==2)rowcontertext=0;
+                                if(rowcontertext==0)
+                                    antalförsta12++;
+                                if(rowcontertext==1)
+                                    antalförsta22++;
+                               rowcontertext++;
+                                
+                            }
+                        }
+                        rowcontertext=0;
+                        for(let i = 0; i < array.length; i++){
+                            element=array[i];
+                            element2=array[i-1];
+                            if(rowcontertext==0||element.row>element2.row){
+                                if(rowcontertext==0)
+                                    ctx.fillText("Rad1:Första brädans längd:"+element.lenght+" X:"+antalförsta12, canvas.width/2+80, 40);
+                                if(rowcontertext==1&&programmnummer2 !=3)
+                                    ctx.fillText("Rad2:Första brädans längd:"+element.lenght+" X:"+antalförsta22, canvas.width/2+80, 110);       
+                                rowcontertext++;
+                            }
+                        }
+
+                        element=array[0];
+                        element2=array[1];
+
+                        if(element.row<element2.row){}
+                        else{
+                            rowcontertext=0;
+                            for(let i = 0; i < array.length; i++){
+                                element=array[i];
+                                element2=array[i+1];
+                                if(i==array.length-1||element.row<element2.row){
+                                    if(rowcontertext==0)
+                                        ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta12, canvas.width/2+140, 70);
+                                    if(rowcontertext==1&&programmnummer2 !=3)
+                                        ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta22, canvas.width/2+140, 140);
+                                    rowcontertext++;
+                                }
+                            }
+                        }
+                        
+                        antalförsta12=0;
+                        antalbrädorrr=0;
+                        for(let i = 0; i < array.length; i++){
+                             antalbrädorrr++;
+                             element=array[i];
+                             if(element.lenght==input3.value){
+                                 antalförsta12++;
+                                 
+                             }
+                            
+                        }         
+                        ctx.fillText("Första/sista radens kap:"+breddkapad, canvas.width/2+140, 190);
+                        ctx.fillText("Hela brädor:"+antalförsta12, canvas.width/2+140, 220);
+                        
+                        
+                      ctx.font = "25px serif";
+                      ctx.fillStyle = "black";
+                      ctx.fillText("Brädor:" + (antalbrädorrr) +" M2:"+Math.round(((((antalbrädorrr))*input3.value*input4.value/1000000)+ Number.EPSILON) * 100)/100, canvas.width/2-200, 390);
+                        
+                        
+                        
+                    
+                }
+                if(programmnummer==2){
+//222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222                 
+                    
+                    rows=capy/input4.value;
+                    array =[];
+                        rows=capy/input4.value;
+
+
+
+                        rows=Math.ceil(rows)-1;
+                        breddkapad=0;
+                        let breddansa=0;
+                        if(rows*input4.value>capy){
+
+                            breddkapad=rows*input4.value-capy;
+                            breddkapad=breddkapad/2;
+                            breddkapad=breddkapad;
+                            if(rows==1)breddkapad=breddkapad*2;
+
+                            breddkapad=Math.ceil(breddkapad);
+
+                        }
+
+                        let xposition=0;
+                            for (let i = 0; i < rows; i++) {
+
+                                while(xposition<=capx){
+                                    if((capx-xposition)>input3.value){
+                                        element = {lenght: parseInt(input3.value), width: input4.value, row: i, start:xposition};
+                                        array.push(element);
+                                        xposition=xposition+parseInt(input3.value); 
+                                        
+                                    }
+                                    else{
+                                        breddansa=xposition;
+                                        xposition=xposition+100000;
+                                    }
+                                }
+                                xposition=0;
+                            }
+                            firstnummber=0;
+                            if(rotateroom){
+                            ctx.save();ctx.translate(canvas.width/2, 450+(input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450+(input2.value/20))); 
+                        for(let i = 0; i < array.length; i++){           
+                            element=array[i];
+                            
+
+                            if(element.row==0){
+                                ctx.fillStyle = "black";
+                                ctx.fillRect((canvas.width/2)+(capx/20)-breddansa/10+element.start/10+((((input5.value*input2.value)/1000))/20), +(input2.value-input.value)/20+450+element.row*element.width/10, 2+element.lenght/10, 2+element.width/10);
+                                ctx.drawImage(brada_image,(canvas.width/2)+(capx/20)-breddansa/10+1+element.start/10+((((input5.value*input2.value)/1000))/20), +(input2.value-input.value)/20+450+1+element.row*element.width/10, element.lenght/10, element.width/10);
+                                ctx.fillStyle= "rgba(255, 255, 255, 0.3)";
+                                ctx.fillRect((canvas.width/2)+(capx/20)-breddansa/10+1+element.start/10+((((input5.value*input2.value)/1000))/20), +(input2.value-input.value)/20+450+1+element.row*element.width/10, element.lenght/10, element.width/10);
+                            }
+                            else if(element.row==rows-1){
+                                ctx.fillStyle = "black";
+                                ctx.fillRect((canvas.width/2)+(capx/20)-breddansa/10+element.start/10+((((input5.value*input2.value)/1000))/20), +(input2.value-input.value)/20+450+element.row*input4.value/10-(breddkapad/10), 2+element.lenght/10, 2+element.width/10);
+                                ctx.drawImage(brada_image,(canvas.width/2)+(capx/20)-breddansa/10+1+element.start/10+((((input5.value*input2.value)/1000))/20), +(input2.value-input.value)/20+450+1+element.row*input4.value/10-(breddkapad/10), element.lenght/10, element.width/10);
+                                ctx.fillStyle= "rgba(255, 255, 255, 0.3)";
+                                ctx.fillRect((canvas.width/2)+(capx/20)-breddansa/10+1+element.start/10+((((input5.value*input2.value)/1000))/20), +(input2.value-input.value)/20+450+1+element.row*input4.value/10-(breddkapad/10), element.lenght/10, element.width/10);
+                            }
+                            else{
+                                ctx.fillStyle = "black";
+                                ctx.fillRect((canvas.width/2)+(capx/20)-breddansa/10+element.start/10+((((input5.value*input2.value)/1000))/20), +(input2.value-input.value)/20+450+element.row*element.width/10-(breddkapad/10), 2+element.lenght/10, 2+element.width/10);
+                                ctx.drawImage(brada_image,(canvas.width/2)+(capx/20)-breddansa/10+1+element.start/10+((((input5.value*input2.value)/1000))/20), +(input2.value-input.value)/20+450+1+element.row*element.width/10-(breddkapad/10), element.lenght/10, element.width/10);
+                                ctx.fillStyle= "rgba(255, 255, 255, 0.3)";
+                                ctx.fillRect((canvas.width/2)+(capx/20)-breddansa/10+1+element.start/10+((((input5.value*input2.value)/1000))/20), +(input2.value-input.value)/20+450+1+element.row*element.width/10-(breddkapad/10), element.lenght/10, element.width/10);
+                            }
+                            
+                            
+                        }
+                        ctx.restore();
+                        }
+                        else{
+                            
+                            for(let i = 0; i < array.length; i++){           
+                            element=array[i];
+                            ctx.fillStyle = "black";
+
+                            if(element.row==0){
+                                ctx.fillStyle = "black";
+                                ctx.fillRect((canvas.width/2)-(capx/20)+element.start/10-((((input5.value*input.value)/1000))/20), 450+element.row*element.width/10, 2+element.lenght/10, 2+element.width/10);
+                                ctx.drawImage(brada_image,(canvas.width/2)-(capx/20)+1+element.start/10-((((input5.value*input.value)/1000))/20), 450+1+element.row*element.width/10, element.lenght/10, element.width/10);
+                                ctx.fillStyle= "rgba(255, 255, 255, 0.3)";
+                                ctx.fillRect((canvas.width/2)-(capx/20)+1+element.start/10-((((input5.value*input.value)/1000))/20), 450+1+element.row*element.width/10, element.lenght/10, element.width/10);
+                            }
+                            else if(element.row==rows-1){
+                                ctx.fillStyle = "black";
+                                ctx.fillRect((canvas.width/2)-(capx/20)+element.start/10-((((input5.value*input.value)/1000))/20), 450+element.row*input4.value/10-(breddkapad/10), 2+element.lenght/10, 2+element.width/10);
+                                ctx.drawImage(brada_image,(canvas.width/2)-(capx/20)+1+element.start/10-((((input5.value*input.value)/1000))/20), 450+1+element.row*input4.value/10-(breddkapad/10), element.lenght/10, element.width/10);
+                                ctx.fillStyle= "rgba(255, 255, 255, 0.3)";
+                                ctx.fillRect((canvas.width/2)-(capx/20)+1+element.start/10-((((input5.value*input.value)/1000))/20), 450+1+element.row*input4.value/10-(breddkapad/10), element.lenght/10, element.width/10);
+                            }
+                            else{
+                                ctx.fillStyle = "black";
+                                ctx.fillRect((canvas.width/2)-(capx/20)+element.start/10-((((input5.value*input.value)/1000))/20), 450+element.row*element.width/10-(breddkapad/10), 2+element.lenght/10, 2+element.width/10);
+                                ctx.drawImage(brada_image,(canvas.width/2)-(capx/20)+1+element.start/10-((((input5.value*input.value)/1000))/20), 450+1+element.row*element.width/10-(breddkapad/10), element.lenght/10, element.width/10);
+                                ctx.fillStyle= "rgba(255, 255, 255, 0.3)";
+                                ctx.fillRect((canvas.width/2)-(capx/20)+1+element.start/10-((((input5.value*input.value)/1000))/20), 450+1+element.row*element.width/10-(breddkapad/10), element.lenght/10, element.width/10);
+                            }
+                        }
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                        }
+                       
+                        ctx.font = "25px serif";
+                        ctx.fillStyle = "black";
+                        ctx.fillText("Antal: "+array.length, canvas.width/2+250, 340);
+                        
+                        
+                    let golvytans=0;
+                    for(let i = 0; i < array.length; i++){
+                        element=array[i];
+
+                        golvytans=golvytans+element.lenght*element.width;
+
+
+                    }
+                    golvytans=(golvytans/(capx*capy));
+                
+                //    golvytans=Math.round((golvytans + Number.EPSILON) * 10000) / 10000;
+                   // golvytans=golvytans*100;
+                    
+                    
+                    
+                    ctx.fillText("Utnyttjande grad:"+Math.round(((((golvytans*100)))+ Number.EPSILON) * 100)/100+"%", canvas.width/2+159, 280);
+         
+                
+                    
+                    
+                }
+                if(programmnummer==3){
+//33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333                  
+                    
+                    
+                     if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                    
+                    
+                    
+                    let fiskx=input3.value/10;
+                    let fisky=input4.value/10;
+                    
+                    let fiskbredd=capx/20;
+                    
+                    let Offset=Math.sqrt(fisky*fisky+fisky*fisky)/4;
+                    
+                    fiskbredd=fiskbredd+(fiskx*Math.sqrt(2))/2;
+                    fiskbredd=fiskbredd+(Math.sqrt(fisky*fisky+fisky*fisky))/2;
+                    fiskbredd=fiskbredd-Offset;
+                    
+                    let fiskbredd2=capx/20;
+                    fiskbredd2=fiskbredd2+Offset;
+                    fiskbredd2=fiskbredd2+(fiskx*Math.sqrt(2))/2;
+                    
+                    
+                    let antalstarttrianglar=(fiskbredd)/(fiskx*Math.sqrt(2));
+                    let antalstarttrianglar2=(fiskbredd2)/(fiskx*Math.sqrt(2));
+         
+                    
+                    
+                    let antalsansa=capx/20;
+                    antalsansa=antalsansa+(fiskx*Math.sqrt(2))/2;
+                    antalsansa=antalsansa-Offset;
+                    antalsansa=antalsansa/(fiskx*Math.sqrt(2));
+                    
+                    let kapvänster=(fiskx*Math.sqrt(2))*(antalstarttrianglar);
+                    kapvänster=((fiskx*Math.sqrt(2))*(Math.floor(antalsansa)))-(kapvänster)+(((Math.sqrt(fisky*fisky+fisky*fisky))/2));
+                    kapvänster=-kapvänster;
+                    kapvänster=kapvänster*10;
+                    
+                    
+                    let antalsansa2=capx/20;
+                    antalsansa2=antalsansa2+Offset;
+                    antalsansa2=antalsansa2+(fiskx*Math.sqrt(2))/2;
+                    antalsansa2=antalsansa2/(fiskx*Math.sqrt(2));
+                    
+                    let kaphöger=(fiskx*Math.sqrt(2))*(antalstarttrianglar2);
+                    kaphöger=(fiskx*Math.sqrt(2))*(Math.floor(antalsansa2))-(kaphöger);
+                    kaphöger=-kaphöger;
+                    kaphöger=kaphöger*10;
+                    
+                    
+                    let koko= capx/20;
+                    koko=koko+((fiskx)*Math.sqrt(2))/2+(((Math.sqrt(fisky*fisky+fisky*fisky))/2));
+                    koko=koko-Offset;
+                    koko=koko/((fiskx*Math.sqrt(2))/2);
+                    
+                    let högersmåbit= (fiskx*Math.sqrt(2))*(antalstarttrianglar);
+                    
+                    högersmåbit=(högersmåbit)-(((fiskx*Math.sqrt(2))/2)*(Math.floor(koko)));
+                    
+                    let ishögerbitred= "red";
+                    if(!Number.isInteger(Math.floor(koko)/2))ishögerbitred="gray";
+                    
+                    let ishögerbitgray="red";
+                    if(Number.isInteger(Math.floor(koko)/2))ishögerbitgray="gray";
+                    
+                    
+                    högersmåbit=(högersmåbit*10)/Math.sqrt(2);
+                    högersmåbit=högersmåbit*2;
+                    
+                    if(högersmåbit>fiskx*10)högersmåbit=högersmåbit/2;
+                    let högersmåbitlängd=högersmåbit-fisky*10;
+                    
+                    
+                    
+                    koko= capx/20;
+                    koko=koko+((fiskx*Math.sqrt(2))/2);
+                    koko=koko+Offset;
+                    koko=koko/((fiskx*Math.sqrt(2))/2);
+                    
+                    let väntersmåbit=((fiskx*Math.sqrt(2)))*(antalstarttrianglar2);
+                    väntersmåbit=(väntersmåbit)-(((fiskx*Math.sqrt(2))/2)*(Math.floor(koko)));
+                    väntersmåbit=(väntersmåbit*10)/Math.sqrt(2);
+                    väntersmåbit=väntersmåbit*2;
+                    
+                    if(väntersmåbit>fiskx*10)väntersmåbit=väntersmåbit/2;
+                    let vänstersmåbitlängd=väntersmåbit-fisky*10;
+                    //--------------------------------------------------------------------------------------------------------------------
+                    
+                    koko= capx/20;
+                    koko=koko+((fiskx*Math.sqrt(2))/2);
+                    koko=koko-Offset;
+                    koko=koko/((fiskx*Math.sqrt(2))/2);
+                    
+                    
+                    let högersmåbit2= ((fiskx*Math.sqrt(2)))*(antalstarttrianglar);
+                    högersmåbit2=(högersmåbit2)-(((fiskx*Math.sqrt(2))/2)*(Math.floor(koko)));
+                    högersmåbit2=(högersmåbit2*10)/Math.sqrt(2);
+                    högersmåbit2=högersmåbit2*2;
+                    let högersmåbitlängd2=högersmåbit2;
+                    
+                    
+                    
+                    if(högersmåbit2>fiskx*10)högersmåbit2=högersmåbit2-fisky*10;
+                    
+                    
+                    if(högersmåbit2>fiskx*10)högersmåbit2=(fiskx*10)-(fisky*10)+(högersmåbit2-fiskx*10)*2;
+                    
+                    
+                    
+                    
+                    
+                    
+                    koko= capx/20;
+                    koko=koko+((fiskx*Math.sqrt(2))/2);
+                    koko=koko-Offset;
+                    koko=koko/((fiskx*Math.sqrt(2))/2);
+                    
+                    
+                    let väntersmåbit2= ((fiskx*Math.sqrt(2)))*(antalstarttrianglar);
+                   väntersmåbit2=(väntersmåbit2)-(((fiskx*Math.sqrt(2))/2)*(Math.floor(koko)));
+                    väntersmåbit2=(väntersmåbit2*10)/Math.sqrt(2);
+                    väntersmåbit2=väntersmåbit2*2;
+                    let vänstersmåbitlängd2=väntersmåbit2;
+                    
+                    
+                    
+                    if(väntersmåbit2>fiskx*10)väntersmåbit2=väntersmåbit2-fisky*10;
+                    
+                    
+                    if(väntersmåbit2>fiskx*10)väntersmåbit2=(fiskx*10)-(fisky*10)+(väntersmåbit2-fiskx*10)*2;
+                    
+                    
+                    
+                    let fisklängd=capy/10;
+                      fisklängd= fisklängd-(fiskx/Math.sqrt(2));
+                      fisklängd= fisklängd/Math.sqrt(fisky*fisky+fisky*fisky);
+                      fisklängd=Math.ceil(fisklängd);
+                     fisklängd=((capy/10-fisklängd*Math.sqrt(fisky*fisky+fisky*fisky))+((capy/10)-(fiskx/Math.sqrt(2)))/Math.sqrt(fisky*fisky+fisky*fisky));
+                    fisklängd=Math.ceil(fisklängd);
+                    
+                    
+                    
+                     let fisklängd3=capy/10;
+                    let fisklängd2=capy/10;
+                    fisklängd3= fisklängd3-((fiskx/Math.sqrt(2)));
+                    fisklängd3= fisklängd3/Math.sqrt(fisky*fisky+fisky*fisky);
+                    fisklängd3=Math.floor(fisklängd3);
+                    if(ishögerbitred=="red"){
+                        if(kapvänster/10+(fisky/Math.sqrt(2))>(Math.sqrt(fiskx*fiskx+fiskx*fiskx)/2))fisklängd2= fisklängd2-(Math.sqrt(fiskx*fiskx+fiskx*fiskx)/2)+kapvänster/20+(fisky/Math.sqrt(2));
+                        else fisklängd2= fisklängd2-kapvänster/10;
+                        fisklängd2= fisklängd2/Math.sqrt(fisky*fisky+fisky*fisky);
+                        fisklängd2=Math.floor(fisklängd2);
+                        
+                        
+                        
+                        
+                        
+                        
+                    }
+                    if(ishögerbitred=="gray"){
+                        
+                        fisklängd2= fisklängd2-((fiskx/Math.sqrt(2)));
+                        fisklängd2= fisklängd2/Math.sqrt(fisky*fisky+fisky*fisky);
+                        fisklängd2=Math.floor(fisklängd2);
+                        
+                        
+                        
+                        
+                    }
+                    
+                    
+                    let fisklängd4=capy/10;
+                    let fisklängd5=capy/10;
+                    fisklängd5= fisklängd5-((fiskx/Math.sqrt(2)))+(fisky/Math.sqrt(2));
+                    fisklängd5= fisklängd5/Math.sqrt(fisky*fisky+fisky*fisky);
+                    fisklängd5=Math.floor(fisklängd5);
+                    
+                    if(ishögerbitred=="gray"){
+                        
+                        fisklängd4= fisklängd4-((fiskx/Math.sqrt(2)))+(fisky/Math.sqrt(2));
+                        fisklängd4= fisklängd4/Math.sqrt(fisky*fisky+fisky*fisky);
+                        fisklängd4=Math.floor(fisklängd4);
+                        
+                        
+                    }
+                    if(ishögerbitred=="red"){
+                        
+                 
+                        
+                        
+                        
+                        if(kaphöger/10+(fisky/Math.sqrt(2))>(Math.sqrt(fiskx*fiskx+fiskx*fiskx)/2))fisklängd4= fisklängd4-(Math.sqrt(fiskx*fiskx+fiskx*fiskx)/2)+kaphöger/20+(fisky/Math.sqrt(2));
+                        else fisklängd4= fisklängd4-kaphöger/10;
+                        fisklängd4= fisklängd4/Math.sqrt(fisky*fisky+fisky*fisky);
+                        fisklängd4=Math.floor(fisklängd4);
+                        
+                        
+                        
+                        
+                        
+                    }
+                    
+                    
+                    let fisklängd6=capy/10;
+                    fisklängd6= fisklängd6-(fiskx/Math.sqrt(2));
+                      fisklängd6= fisklängd6/Math.sqrt(fisky*fisky+fisky*fisky);
+                      fisklängd6=Math.ceil(fisklängd6);
+                    
+                    
+                    /*
+                    if(ishögerbitred=="gray"){
+                    fisklängd2= fisklängd2-((fiskx/Math.sqrt(2)));
+                    fisklängd2= fisklängd2/Math.sqrt(fisky*fisky+fisky*fisky);
+                    fisklängd2=Math.floor(fisklängd2);
+                    }  
+                    else{
+                   // fisklängd2= fisklängd2-((fiskx/Math.sqrt(2)));
+                    fisklängd2= fisklängd2/Math.sqrt(fisky*fisky+fisky*fisky);
+                    fisklängd2=Math.floor(fisklängd2);
+                        
+                        
+                    }
+                      
+                      */
+                    let colorred= "rgba(255, 0, 0, 0.3)";
+                    let colorgray= "rgba(0, 0, 0, 0.3)";
+                    
+                    
+                    
+                    //exepelbräda
+                    
+
+                    if(!rotateroom)ctx.translate((canvas.width/2)-Offset, 450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2)));
+                    if(rotateroom)ctx.translate((canvas.width/2)-Offset, +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2)));
+                    ctx.rotate((-45 * Math.PI) / 180);
+                    ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                    ctx.fillStyle = colorgray;
+                    ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0, 0, fiskx, fisky);
+                    ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                    if(!rotateroom)ctx.translate((canvas.width/2)-Offset, 450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2)));
+                    if(rotateroom)ctx.translate((canvas.width/2)-Offset, +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2)));
+                    ctx.rotate((-135 * Math.PI) / 180);
+                    ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                    ctx.fillStyle = colorred;
+                    ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0,0, fiskx, fisky);
+                    ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                    if(!rotateroom)ctx.translate((canvas.width/2)-Offset, 450+((fiskx/Math.sqrt(2)))-3*(fisky/Math.sqrt(2)));
+                    if(rotateroom)ctx.translate((canvas.width/2)-Offset, +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-3*(fisky/Math.sqrt(2)));
+                    ctx.rotate((-45 * Math.PI) / 180);
+                    ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                    ctx.fillStyle = colorgray;
+                    ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0, 0, fiskx, fisky);
+                    ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                    if(!rotateroom)ctx.translate((canvas.width/2)-Offset, 450+((fiskx/Math.sqrt(2)))-3*(fisky/Math.sqrt(2)));
+                    if(rotateroom)ctx.translate((canvas.width/2)-Offset, +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-3*(fisky/Math.sqrt(2)));
+                    ctx.rotate((-135 * Math.PI) / 180);
+                    ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                    ctx.fillStyle = colorred;
+                    ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0,0, fiskx, fisky);
+                    ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                    if(!rotateroom)ctx.translate((canvas.width/2)-Offset, 450+((fiskx/Math.sqrt(2)))-5*(fisky/Math.sqrt(2)));
+                    if(rotateroom)ctx.translate((canvas.width/2)-Offset, +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-5*(fisky/Math.sqrt(2)));
+                    ctx.rotate((-45 * Math.PI) / 180);
+                    ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                    ctx.fillStyle = colorgray;
+                    ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0, 0, fiskx, fisky);
+                    ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90* Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                    if(!rotateroom)ctx.translate((canvas.width/2)-Offset, 450+((fiskx/Math.sqrt(2)))-5*(fisky/Math.sqrt(2)));
+                    if(rotateroom)ctx.translate((canvas.width/2)-Offset, +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-5*(fisky/Math.sqrt(2)));
+                    ctx.rotate((-135 * Math.PI) / 180);
+                    ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                    ctx.fillStyle = colorred;
+                    ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0,0, fiskx, fisky);
+                    ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+
+                    
+                    
+                   
+                    
+                    for(let k=1;k<antalstarttrianglar;k++){
+                    
+                            if(!rotateroom)ctx.translate((canvas.width/2)-Offset+(fiskx*Math.sqrt(2)*k), 450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2)));
+                            if(rotateroom)ctx.translate((canvas.width/2)-Offset+(fiskx*Math.sqrt(2)*k), +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2)));
+                            ctx.rotate((-45 * Math.PI) / 180);
+                            ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.fillStyle = colorgray;
+                            ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                            if(!rotateroom)ctx.translate((canvas.width/2)-Offset+(fiskx*Math.sqrt(2)*k), 450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2)));
+                            if(rotateroom)ctx.translate((canvas.width/2)-Offset+(fiskx*Math.sqrt(2)*k), +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2)));
+                            ctx.rotate((-135 * Math.PI) / 180);
+                            ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.fillStyle = colorred;
+                            ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0,0, fiskx, fisky);
+                            ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                            if(!rotateroom)ctx.translate((canvas.width/2)-Offset+(fiskx*Math.sqrt(2)*k), 450+((fiskx/Math.sqrt(2)))-3*(fisky/Math.sqrt(2)));
+                            if(rotateroom)ctx.translate((canvas.width/2)-Offset+(fiskx*Math.sqrt(2)*k), +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-3*(fisky/Math.sqrt(2)));
+                            ctx.rotate((-45 * Math.PI) / 180);
+                            ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.fillStyle = colorgray;
+                            ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                            if(!rotateroom)ctx.translate((canvas.width/2)-Offset+(fiskx*Math.sqrt(2)*k), 450+((fiskx/Math.sqrt(2)))-3*(fisky/Math.sqrt(2)));
+                            if(rotateroom)ctx.translate((canvas.width/2)-Offset+(fiskx*Math.sqrt(2)*k), +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-3*(fisky/Math.sqrt(2)));
+                            ctx.rotate((-135 * Math.PI) / 180);
+                            ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.fillStyle = colorred;
+                            ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0,0, fiskx, fisky);
+                            ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                            if(!rotateroom)ctx.translate((canvas.width/2)-Offset+(fiskx*Math.sqrt(2)*k), 450+((fiskx/Math.sqrt(2)))-5*(fisky/Math.sqrt(2)));
+                            if(rotateroom)ctx.translate((canvas.width/2)-Offset+(fiskx*Math.sqrt(2)*k), +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-5*(fisky/Math.sqrt(2)));
+                            ctx.rotate((-45 * Math.PI) / 180);
+                            ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.fillStyle = colorgray;
+                            ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                            if(!rotateroom)ctx.translate((canvas.width/2)-Offset+(fiskx*Math.sqrt(2)*k), 450+((fiskx/Math.sqrt(2)))-5*(fisky/Math.sqrt(2)));
+                            if(rotateroom)ctx.translate((canvas.width/2)-Offset+(fiskx*Math.sqrt(2)*k), +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-5*(fisky/Math.sqrt(2)));
+                            ctx.rotate((-135 * Math.PI) / 180);
+                            ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.fillStyle = colorred;
+                            ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0,0, fiskx, fisky);
+                            ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                          
+                    
+                    
+                    } 
+                  for(let k=1;k<antalstarttrianglar2;k++){
+                    
+                    
+                      
+                        
+                            if(!rotateroom)ctx.translate((canvas.width/2)-Offset-(fiskx*Math.sqrt(2)*k), 450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2)));
+                            if(rotateroom)ctx.translate((canvas.width/2)-Offset-(fiskx*Math.sqrt(2)*k), +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2)));
+                            ctx.rotate((-45 * Math.PI) / 180);
+                            ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.fillStyle = colorgray;
+                            ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                            if(!rotateroom)ctx.translate((canvas.width/2)-Offset-(fiskx*Math.sqrt(2)*k), 450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2)));
+                            if(rotateroom)ctx.translate((canvas.width/2)-Offset-(fiskx*Math.sqrt(2)*k), +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2)));
+                            ctx.rotate((-135 * Math.PI) / 180);
+                            ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.fillStyle = colorred;
+                            ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0,0, fiskx, fisky);
+                            ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                            if(!rotateroom)ctx.translate((canvas.width/2)-Offset-(fiskx*Math.sqrt(2)*k), 450+((fiskx/Math.sqrt(2)))-3*(fisky/Math.sqrt(2)));
+                            if(rotateroom)ctx.translate((canvas.width/2)-Offset-(fiskx*Math.sqrt(2)*k), +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-3*(fisky/Math.sqrt(2)));
+                            ctx.rotate((-45 * Math.PI) / 180);
+                            ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.fillStyle = colorgray;
+                            ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                            if(!rotateroom)ctx.translate((canvas.width/2)-Offset-(fiskx*Math.sqrt(2)*k), 450+((fiskx/Math.sqrt(2)))-3*(fisky/Math.sqrt(2)));
+                            if(rotateroom)ctx.translate((canvas.width/2)-Offset-(fiskx*Math.sqrt(2)*k), +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-3*(fisky/Math.sqrt(2)));
+                            ctx.rotate((-135 * Math.PI) / 180);
+                            ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.fillStyle = colorred;
+                            ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0,0, fiskx, fisky);
+                            ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                            if(!rotateroom)ctx.translate((canvas.width/2)-Offset-(fiskx*Math.sqrt(2)*k), 450+((fiskx/Math.sqrt(2)))-5*(fisky/Math.sqrt(2)));
+                            if(rotateroom)ctx.translate((canvas.width/2)-Offset-(fiskx*Math.sqrt(2)*k), +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-5*(fisky/Math.sqrt(2)));
+                            ctx.rotate((-45 * Math.PI) / 180);
+                            ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.fillStyle = colorgray;
+                            ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                            if(!rotateroom)ctx.translate((canvas.width/2)-Offset-(fiskx*Math.sqrt(2)*k), 450+((fiskx/Math.sqrt(2)))-5*(fisky/Math.sqrt(2)));
+                            if(rotateroom)ctx.translate((canvas.width/2)-Offset-(fiskx*Math.sqrt(2)*k), +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-5*(fisky/Math.sqrt(2)));
+                            ctx.rotate((-135 * Math.PI) / 180);
+                            ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.fillStyle = colorred;
+                            ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0,0, fiskx, fisky);
+                            ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                        
+                    
+                    
+                    }
+                    
+                    
+                     
+                    for(let k =1; k<fisklängd;k++){
+                        if(!rotateroom)ctx.translate((canvas.width/2)-Offset, 450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2))+(2*k*fisky/Math.sqrt(2)));
+                        if(rotateroom)ctx.translate((canvas.width/2)-Offset, +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2))+(2*k*fisky/Math.sqrt(2)));
+                        ctx.rotate((-45 * Math.PI) / 180);
+                        ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                        ctx.fillStyle = colorgray;
+                        ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0, 0, fiskx, fisky);
+                        ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                        if(!rotateroom)ctx.translate((canvas.width/2)-Offset, 450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2))+(2*k*fisky/Math.sqrt(2)));
+                       if(rotateroom) ctx.translate((canvas.width/2)-Offset, +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2))+(2*k*fisky/Math.sqrt(2)));
+                        ctx.rotate((-135 * Math.PI) / 180);
+                        ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                        ctx.fillStyle = colorred;
+                        ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0,0, fiskx, fisky);
+                        ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                        
+                        
+                        
+                    }
+                   
+                    for(let m =1; m<fisklängd;m++){
+                        for(let k=1;k<antalstarttrianglar;k++){
+                            if(!rotateroom)ctx.translate((canvas.width/2)-Offset+(fiskx*Math.sqrt(2)*k), 450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2))+(2*m*fisky/Math.sqrt(2)));
+                            if(rotateroom)ctx.translate((canvas.width/2)-Offset+(fiskx*Math.sqrt(2)*k), +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2))+(2*m*fisky/Math.sqrt(2)));
+                            ctx.rotate((-45 * Math.PI) / 180);
+                            ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.fillStyle = colorgray;
+                            ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                            if(!rotateroom)ctx.translate((canvas.width/2)-Offset+(fiskx*Math.sqrt(2)*k), 450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2))+(2*m*fisky/Math.sqrt(2)));
+                            if(rotateroom)ctx.translate((canvas.width/2)-Offset+(fiskx*Math.sqrt(2)*k), +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2))+(2*m*fisky/Math.sqrt(2)));
+                            ctx.rotate((-135 * Math.PI) / 180);
+                            ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.fillStyle = colorred;
+                            ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0,0, fiskx, fisky);
+                            ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                            
+                            
+                            
+                    
+                    
+                        }
+                    }
+                    
+                    
+                    for(let m =1; m<fisklängd;m++){
+                        for(let k=1;k<antalstarttrianglar2;k++){
+                            if(!rotateroom)ctx.translate((canvas.width/2)-Offset-(fiskx*Math.sqrt(2)*k), 450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2))+(2*m*fisky/Math.sqrt(2)));
+                            if(rotateroom)ctx.translate((canvas.width/2)-Offset-(fiskx*Math.sqrt(2)*k), +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2))+(2*m*fisky/Math.sqrt(2)));
+                            ctx.rotate((-45 * Math.PI) / 180);
+                            ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.fillStyle = colorgray;
+                            ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                            if(!rotateroom)ctx.translate((canvas.width/2)-Offset-(fiskx*Math.sqrt(2)*k), 450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2))+(2*m*fisky/Math.sqrt(2)));
+                            if(rotateroom)ctx.translate((canvas.width/2)-Offset-(fiskx*Math.sqrt(2)*k), +(input2.value-input.value)/20+450+((fiskx/Math.sqrt(2)))-(fisky/Math.sqrt(2))+(2*m*fisky/Math.sqrt(2)));
+                            ctx.rotate((-135 * Math.PI) / 180);
+                            ctx.fillStyle = "black";ctx.fillRect(0, 0, fiskx, fisky);
+                            ctx.fillStyle = colorred;
+                            ctx.drawImage(brada_image,1, 1, fiskx-2, fisky-2);ctx.fillRect(0,0, fiskx, fisky);
+                            ctx.setTransform(1, 0, 0, 1, 0, 0);if(rotateroom){ctx.save();ctx.translate(canvas.width/2, 450 + (input2.value/20));ctx.rotate((-90 * Math.PI) / 180);ctx.translate(-canvas.width/2, -(450 + (input2.value/20))); }
+                            
+                            
+                    
+                        }
+                    }
+                  
+                    if(rotateroom){
+                        
+                        
+                        ctx.fillStyle = "blue";
+                        ctx.fillRect((canvas.width/2),+(input2.value-input.value)/20+450,1,capy/10);
+                        ctx.restore();
+                        ctx.fillStyle = "lightgray";
+                        ctx.fillRect(0,0, 5000, 450);
+                        ctx.fillRect(0,450+(input2.value/10), 5000, 5000);
+                        ctx.fillRect(0,450+(input2.value/10), 5000, 5000);
+                       if(-(((canvas.width/2)-(input.value/20)))<0) ctx.fillRect(-(((canvas.width/2)-(input.value/20))),0,(((canvas.width/2)-(input.value/20)))*2,5000);
+                       ctx.fillRect((((canvas.width/2)+(input.value/20))),0,(((canvas.width/2)+(input.value/20)))*2,5000);
+                        ctx.fillStyle = "white";
+           
+                        ctx.fillRect((((canvas.width/2)-(input.value/20))),450, (input.value/10), ((input5.value*input2.value)/20000));
+                        ctx.fillRect((((canvas.width/2)-(input.value/20))),450+(input2.value/10)-((input5.value*input2.value)/20000), (input.value/10), ((input5.value*input2.value)/20000));
+                       // ctx.fillRect((((canvas.width/2)-(input2.value/20))),450, ((input5.value*input2.value)/10000), (input.value/10));
+                        ctx.fillRect((((canvas.width/2)+(input.value/20)))-((input5.value*input.value)/10000),450, ((input5.value*input.value)/10000), (input2.value/10)); 
+                        
+                        
+                       
+                   
+           
+           
+           
+           
+                    }
+                    else{
+                        
+                        ctx.fillStyle = "blue";
+                        ctx.fillRect((canvas.width/2),450,1,capy/10);
+                        ctx.fillStyle = "lightgray";
+                        ctx.fillRect(0,0, 5000, 450);
+                        ctx.fillRect(0,-5000, (canvas.width/2)-(capx/20), 10000);
+                        ctx.fillRect((canvas.width/2)+(capx/20),0, 5000, 5000);
+                        ctx.fillRect((canvas.width/2)-(input.value/20),450+(capy/10), input.value/10,5000);
+                        ctx.fillStyle = "white";
+                        ctx.fillRect((canvas.width/2)-(input.value/20),450, input.value/20-capx/20, input2.value/10);
+                        ctx.fillRect((canvas.width/2)+(capx/20),450, input.value/20-capx/20, input2.value/10);
+                        ctx.fillRect((canvas.width/2)-(input.value/20),450+(capy/10), input.value/10, input2.value/10-capy/10);
+                        
+                        
+                    }
+                    
+                    
+                    
+                    
+                    
+                    ctx.restore();
+                    ctx.font = "18px serif";
+                    ctx.fillStyle = "black";
+                    ctx.fillText("Golvläggnings program", 10, 215);
+                    ctx.fillText("Rummets bredd", canvas.width/2-245, 50);
+                    ctx.fillText("Rummets djup", canvas.width/2-235, 120);
+                    ctx.fillText("Brädas längd", canvas.width/2-225, 190);
+                    ctx.fillText("Brädas bredd", canvas.width/2-225, 260);
+                    ctx.fillText("Distans per M", canvas.width/2-235, 330);
+                    ctx.drawImage(base_image, 0, 0,200,200);
+                    
+                    ctx.font = "20px serif";
+                    ctx.fillText("Start trianglar:"+((((Math.ceil(antalsansa)+Math.ceil(antalsansa2))))-1), canvas.width/2+80, 20);
+                    
+                    
+                    
+                    if(((((Math.ceil(antalsansa)+Math.ceil(antalsansa2))))-1)>1){
+                        ctx.fillText("Höger triangeln:"+Math.round((kapvänster + Number.EPSILON) * 1) / 1, canvas.width/2+80, 40);
+                        ctx.fillText("Vänster triangeln:"+Math.round((kaphöger + Number.EPSILON) * 1) / 1, canvas.width/2+80, 60);
+                    }
+                    
+                    let högervänsterbitar=0;
+                    
+                    
+                    let högerlängdansa=högersmåbitlängd2;
+                    let vänsterlängdansa=vänstersmåbitlängd2;
+                    if(högerlängdansa>fiskx*10)högerlängdansa=fiskx*10;
+                    if(vänsterlängdansa>fiskx*10)vänsterlängdansa=fiskx*10;
+                    
+                    let högersmåsmå=högersmåbitlängd;
+                    let vänstersmåsmå=vänstersmåbitlängd;
+                    
+                    
+                    if(högersmåsmå<0)högersmåsmå=0;
+                    if(vänstersmåsmå<0)vänstersmåsmå =0;
+                    
+                    
+                    if(högersmåbit2!=högersmåbit){
+                        ctx.fillText("Höger bit:  "+Math.round((högersmåbit + Number.EPSILON) * 1) / 1+ "/" + Math.round((högersmåsmå + Number.EPSILON) * 1) / 1+ " "+ishögerbitred  +" X:" + Math.floor(fisklängd2), canvas.width/2+80, 80);
+                        ctx.fillText("Höger bit2:  "+Math.round((högersmåbit2 + Number.EPSILON) * 1) / 1 + "/" + Math.round((högerlängdansa + Number.EPSILON) * 1) / 1+ " "+ishögerbitgray +" X:" + Math.floor(fisklängd3), canvas.width/2+80, 100);
+                        högervänsterbitar=högervänsterbitar+Math.floor(fisklängd2)+Math.floor(fisklängd3);
+                    }
+                    else{ ctx.fillText("Höger bit:  "+Math.round((högersmåbit + Number.EPSILON) * 1) / 1+ "/" + Math.round((högersmåbitlängd + Number.EPSILON) * 1) / 1 + " "+ishögerbitred  + " X:" + Math.floor(fisklängd2), canvas.width/2+80, 80);
+                        högervänsterbitar=högervänsterbitar+Math.floor(fisklängd2);
+                    }
+                    if(Math.round((väntersmåbit2 + Number.EPSILON) * 1) / 1!=Math.round((väntersmåbit + Number.EPSILON) * 1) / 1){
+                        ctx.fillText("Vänster bit:"+Math.round((väntersmåbit + Number.EPSILON) * 1) / 1 + "/" + Math.round((vänstersmåsmå + Number.EPSILON) * 1) / 1 + " "+ishögerbitgray +" X:" + Math.floor(fisklängd4), canvas.width/2+80, 120);
+                        ctx.fillText("Vänster bit2:"+Math.round((väntersmåbit2 + Number.EPSILON) * 1) / 1+ "/" + Math.round((vänsterlängdansa + Number.EPSILON) * 1) / 1 + " "+ishögerbitred + " X:" + Math.floor(fisklängd5), canvas.width/2+80, 140);
+                        högervänsterbitar=högervänsterbitar+Math.floor(fisklängd4)+Math.floor(fisklängd5);
+                    }
+                    else{ ctx.fillText("Vänster bit:"+Math.round((väntersmåbit + Number.EPSILON) * 1) / 1+ "/" + Math.round((vänstersmåbitlängd + Number.EPSILON) * 1) / 1 + " "+ishögerbitgray +" X:" + Math.floor(fisklängd4), canvas.width/2+80, 120);
+                        högervänsterbitar=högervänsterbitar+Math.floor(fisklängd4);
+                    }
+                    
+                    let helabrädor=calcwholebits(capx/10,capy/10,fiskx,fisky,Offset,Math.floor(fisklängd6),Math.floor(antalsansa)+Math.floor(antalsansa2));
+                    
+                    ctx.fillText("Antal hela brädor:" + helabrädor, canvas.width/2+80, 160);
+                    
+                    
+                    
+                    let antalbottomboards=calcbottomfloor(capx/10,capy/10,fiskx,fisky,Offset,Math.floor(antalsansa)+Math.floor(antalsansa2)+1,Math.ceil(fisklängd));
+                    
+                    let antalstarttringelbrädor=(1+(Math.floor(antalsansa)+Math.floor(antalsansa2)))*6;
+                    
+                    
+                    
+                   // console.log(högervänsterbitar);
+                  //  ((helabrädor+högervänsterbitar+antalstarttringelbrädor)*input3.value*input4.value/1000000)
+                    
+                    ctx.font = "25px serif";
+                    ctx.fillStyle = "black";
+                    ctx.fillText("Brädor:" + (helabrädor+högervänsterbitar+antalstarttringelbrädor+antalbottomboards) +" M2:"+Math.round((((helabrädor+högervänsterbitar+antalstarttringelbrädor+antalbottomboards)*input3.value*input4.value/1000000)+ Number.EPSILON) * 100)/100, canvas.width/2-200, 390);
+                    
+                    
+                    
+                    
+                    
+                    if(Math.round((högersmåbit2 + Number.EPSILON) * 1) / 1==Math.round((högersmåbit + Number.EPSILON) * 1) / 1){
+                    let x=canvas.width/2;
+                    let y=input2.value/10+500;
+                    let högrelängd1=Math.round((högersmåbit/2.5 + Number.EPSILON) * 1) / 1;
+                    let högrelängd2=Math.round((högersmåbitlängd/2.5 + Number.EPSILON) * 1) / 1;
+                    
+                    let corners = [
+                        {x: x, y: y}, // top-left (origin)
+                        {x: x +  högrelängd1* Math.cos((90 * Math.PI) / 180), y: y + högrelängd1 * Math.sin((90 * Math.PI) / 180)}, // top-right
+                        {x: x + högrelängd2 * Math.cos((90 * Math.PI) / 180) + fisky*4 * Math.cos((90 * Math.PI) / 180 + Math.PI/2),y: y + högrelängd2 * Math.sin((90 * Math.PI) / 180) + fisky*4 * Math.sin((90 * Math.PI) / 180 + Math.PI/2)}, // bottom-right
+                        {x: x + fisky*4 * Math.cos((90 * Math.PI) / 180 + Math.PI/2), y: y + fisky*4 * Math.sin((90 * Math.PI) / 180 + Math.PI/2)} // bottom-left
+                    ];
+                    
+                    
+                    ctx.save();
+                    ctx.rect(x-2000, y, 4000, fiskx*4);
+                    ctx.clip();
+                    
+              
+                    
+                    if(ishögerbitred=="red"){
+                    
+                    
+                      ctx.fillStyle = "gray";
+                      ctx.beginPath();
+                      ctx.moveTo(corners[0].x-input.value/40, corners[0].y);
+                      ctx.lineTo(corners[1].x-input.value/40, corners[1].y);
+                      ctx.lineTo(corners[2].x-input.value/40, corners[2].y);
+                      ctx.lineTo(corners[3].x-input.value/40 ,corners[3].y);
+                      ctx.fill();
+                      ctx.closePath();
+                      ctx.stroke();
+                    
+                      ctx.fillStyle = "red";
+                      ctx.beginPath();
+                      ctx.moveTo(corners[3].x+input.value/40+fisky*4, corners[0].y);
+                      ctx.lineTo(corners[2].x+input.value/40+fisky*4, corners[1].y);
+                      ctx.lineTo(corners[1].x+input.value/40+fisky*4, corners[2].y);
+                      ctx.lineTo(corners[0].x+input.value/40+fisky*4, corners[3].y);
+                      ctx.fill();
+                      ctx.closePath();
+                      ctx.stroke();  
+                      
+                      
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)-input.value/40, input2.value/10+500+högrelängd1/2);
+                    ctx.rotate((-90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbit + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore();
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)-input.value/40-fisky*4, input2.value/10+500+högrelängd2/20+10);
+                    ctx.rotate((90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbitlängd + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore();  
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)+input.value/40+fisky*4, input2.value/10+500+högrelängd2/2+10);
+                    ctx.rotate((-90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbitlängd + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore();
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)+input.value/40, input2.value/10+500+högrelängd1/2);
+                    ctx.rotate((90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbit + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore();    
+                      
+                      
+                      
+                    }  
+                    else{
+                        
+                        
+                        ctx.fillStyle = "gray";
+                      ctx.beginPath();
+                      ctx.moveTo(corners[0].x+input.value/40+fisky*4, corners[0].y);
+                      ctx.lineTo(corners[1].x+input.value/40+fisky*4, corners[1].y);
+                      ctx.lineTo(corners[2].x+input.value/40+fisky*4, corners[2].y);
+                      ctx.lineTo(corners[3].x+input.value/40+fisky*4, corners[3].y);
+                      ctx.fill();
+                      ctx.closePath();
+                      ctx.stroke();
+                    
+                      ctx.fillStyle = "red";
+                      ctx.beginPath();
+                      ctx.moveTo(corners[3].x-input.value/40, corners[0].y);
+                      ctx.lineTo(corners[2].x-input.value/40, corners[1].y);
+                      ctx.lineTo(corners[1].x-input.value/40, corners[2].y);
+                      ctx.lineTo(corners[0].x-input.value/40, corners[3].y);
+                      ctx.fill();
+                      ctx.closePath();
+                      ctx.stroke();  
+                      
+                      
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)+input.value/40+fisky*4, input2.value/10+500+högrelängd1/2);
+                    ctx.rotate((-90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbit + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore();
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)+0+input.value/40+fisky*4-fisky*4, input2.value/10+500+högrelängd2/2);
+                    ctx.rotate((90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbitlängd + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore();  
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)-input.value/40, input2.value/10+500+högrelängd2/2);
+                    ctx.rotate((-90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbitlängd + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore();
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)-input.value/40-fisky*4, input2.value/10+500+högrelängd1/2);
+                    ctx.rotate((90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbit + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore(); 
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                    }  
+                      
+                      
+                      
+                      
+                    }
+                      
+                      
+                    if(Math.round((högersmåbit2 + Number.EPSILON) * 1) / 1!=Math.round((högersmåbit + Number.EPSILON) * 1) / 1){
+                    
+               
+               
+               
+                     let x=canvas.width/2;
+                     let y=input2.value/10+500;
+                    let högrelängd1=Math.round((högersmåbit/2.5 + Number.EPSILON) * 1) / 1;
+                    let högrelängd2=Math.round((högersmåbitlängd/2.5 + Number.EPSILON) * 1) / 1;
+                    
+                    let corners = [
+                        {x: x, y: y}, // top-left (origin)
+                        {x: x +  högrelängd1* Math.cos((90 * Math.PI) / 180), y: y + högrelängd1 * Math.sin((90 * Math.PI) / 180)}, // top-right
+                        {x: x + högrelängd2 * Math.cos((90 * Math.PI) / 180) + fisky*4 * Math.cos((90 * Math.PI) / 180 + Math.PI/2),y: y + högrelängd2 * Math.sin((90 * Math.PI) / 180) + fisky*4 * Math.sin((90 * Math.PI) / 180 + Math.PI/2)}, // bottom-right
+                        {x: x + fisky*4 * Math.cos((90 * Math.PI) / 180 + Math.PI/2), y: y + fisky*4 * Math.sin((90 * Math.PI) / 180 + Math.PI/2)} // bottom-left
+                    ];
+                    
+                    ctx.save();
+                   ctx.rect(x-2000, y, 4000, fiskx*4);
+                    ctx.clip();
+                    
+                    
+                     if(ishögerbitred=="red"){
+                    
+                    
+                      ctx.fillStyle = "gray";
+                      ctx.beginPath();
+                      ctx.moveTo(corners[3].x-input.value/40, corners[0].y);
+                      ctx.lineTo(corners[2].x-input.value/40, corners[1].y);
+                      ctx.lineTo(corners[1].x-input.value/40, corners[2].y);
+                      ctx.lineTo(corners[0].x-input.value/40, corners[3].y);
+                      ctx.fill();
+                      ctx.closePath();
+                      ctx.stroke();
+                    
+                      ctx.fillStyle = "red";
+                      ctx.beginPath();
+                      ctx.moveTo(corners[0].x+input.value/40+fisky*4, corners[0].y);
+                      ctx.lineTo(corners[1].x+input.value/40+fisky*4, corners[1].y);
+                      ctx.lineTo(corners[2].x+input.value/40+fisky*4, corners[2].y);
+                      ctx.lineTo(corners[3].x+input.value/40+fisky*4, corners[3].y);
+                      ctx.fill();
+                      ctx.closePath();
+                      ctx.stroke();  
+               
+               
+               
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)-input.value/40, input2.value/10+500+högrelängd2/2);
+                    ctx.rotate((-90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbitlängd + Number.EPSILON) * 1) / 1, 0, 0-17);
+                    ctx.restore();
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)-input.value/40-fisky*4, input2.value/10+500+högrelängd1/2+20);
+                    ctx.rotate((90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbit + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore();  
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)+input.value/40+fisky*4, input2.value/10+500+högrelängd1/2+20);
+                    ctx.rotate((-90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbit + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore();
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)+input.value/40+fisky*4-fisky*4, input2.value/10+500+högrelängd2/2-17);
+                    ctx.rotate((90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbitlängd + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore(); 
+                    
+               
+                     }
+               else{
+                   
+                   
+                   ctx.fillStyle = "gray";
+                      ctx.beginPath();
+                      ctx.moveTo(corners[3].x+input.value/40+fisky*4, corners[0].y);
+                      ctx.lineTo(corners[2].x+input.value/40+fisky*4, corners[1].y);
+                      ctx.lineTo(corners[1].x+input.value/40+fisky*4, corners[2].y);
+                      ctx.lineTo(corners[0].x+input.value/40+fisky*4, corners[3].y);
+                      ctx.fill();
+                      ctx.closePath();
+                      ctx.stroke();
+                    
+                      ctx.fillStyle = "red";
+                      ctx.beginPath();
+                      ctx.moveTo(corners[0].x-input.value/40, corners[0].y);
+                      ctx.lineTo(corners[1].x-input.value/40, corners[1].y);
+                      ctx.lineTo(corners[2].x-input.value/40, corners[2].y);
+                      ctx.lineTo(corners[3].x-input.value/40, corners[3].y);
+                      ctx.fill();
+                      ctx.closePath();
+                      ctx.stroke();  
+               
+               
+               
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)+input.value/40+fisky*4, input2.value/10+500+högrelängd2/2);
+                    ctx.rotate((-90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbitlängd + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore();
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)+input.value/40+fisky*4-fisky*4, input2.value/10+500+högrelängd1/2);
+                    ctx.rotate((90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbit + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore();  
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)-input.value/40, input2.value/10+500+högrelängd1/2);
+                    ctx.rotate((-90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbit + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore();
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)-input.value/40-fisky*4, input2.value/10+500+högrelängd2/2);
+                    ctx.rotate((90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbitlängd + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore(); 
+                   
+                   
+                   
+                   
+                   
+                   
+                   
+                   
+                   
+                   
+                   
+                   
+                   
+                   
+               }
+               
+               
+  
+               
+               
+               
+               
+               
+               
+               
+               
+               
+                    let högrelängd11=Math.round((högersmåbit2/2.5 + Number.EPSILON) * 1) / 1;
+                    let högrelängd22=Math.round((högersmåbitlängd2/2.5 + Number.EPSILON) * 1) / 1;
+                    
+                
+                    
+                    
+                    let corners2 = [
+                        {x: x, y: y}, // top-left (origin)
+                        {x: x +  högrelängd11* Math.cos((90 * Math.PI) / 180), y: y + högrelängd11 * Math.sin((90 * Math.PI) / 180)}, // top-right
+                        {x: x + högrelängd22 * Math.cos((90 * Math.PI) / 180) + fisky*4 * Math.cos((90 * Math.PI) / 180 + Math.PI/2),y: y + högrelängd22 * Math.sin((90 * Math.PI) / 180) + fisky*4 * Math.sin((90 * Math.PI) / 180 + Math.PI/2)}, // bottom-right
+                        {x: x + fisky*4 * Math.cos((90 * Math.PI) / 180 + Math.PI/2), y: y + fisky*4 * Math.sin((90 * Math.PI) / 180 + Math.PI/2)} // bottom-left
+                    ];
+                    
+                    
+                    ctx.save();
+                     ctx.rect(x-2000, y, 4000, fiskx*4);
+                    ctx.clip();
+                    
+                    if(ishögerbitred=="red"){
+                    
+                      ctx.fillStyle = "gray";
+                      ctx.beginPath();
+                      ctx.moveTo(corners2[3].x+input.value/40+fisky*4+100, corners2[0].y);
+                      ctx.lineTo(corners2[2].x+input.value/40+fisky*4+100, corners2[1].y);
+                      ctx.lineTo(corners2[1].x+input.value/40+fisky*4+100, corners2[2].y);
+                      ctx.lineTo(corners2[0].x+input.value/40+fisky*4+100, corners2[3].y);
+                      ctx.fill();
+                      ctx.closePath();
+                      ctx.stroke();
+                    
+                      ctx.fillStyle = "red";
+                      ctx.beginPath();
+                      ctx.moveTo(corners2[0].x-input.value/40-100, corners2[0].y);
+                      ctx.lineTo(corners2[1].x-input.value/40-100, corners2[1].y);
+                      ctx.lineTo(corners2[2].x-input.value/40-100, corners2[2].y);
+                      ctx.lineTo(corners2[3].x-input.value/40-100, corners2[3].y);
+                      ctx.fill();
+                      ctx.closePath();
+                      ctx.stroke(); 
+                      
+                    
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)+input.value/40+fisky*4+100, input2.value/10+500+högrelängd22/2);
+                    ctx.rotate((-90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högerlängdansa + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore();
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)+input.value/40+fisky*4+100-fisky*4, input2.value/10+500+högrelängd11/2);
+                    ctx.rotate((90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbit2 + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore();  
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)-input.value/40-100, input2.value/10+500+högrelängd11/2);
+                    ctx.rotate((-90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbit2 + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore();
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)-input.value/40-100-fisky*4, input2.value/10+500+högrelängd22/2);
+                    ctx.rotate((90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högerlängdansa + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore(); 
+                      
+                      
+                    }
+                    else{
+                        
+                        
+                        ctx.fillStyle = "gray";
+                      ctx.beginPath();
+                      ctx.moveTo(corners2[3].x-input.value/40-100, corners2[0].y);
+                      ctx.lineTo(corners2[2].x-input.value/40-100, corners2[1].y);
+                      ctx.lineTo(corners2[1].x-input.value/40-100, corners2[2].y);
+                      ctx.lineTo(corners2[0].x-input.value/40-100, corners2[3].y);
+                      ctx.fill();
+                      ctx.closePath();
+                      ctx.stroke();
+                    
+                      ctx.fillStyle = "red";
+                      ctx.beginPath();
+                      ctx.moveTo(corners2[0].x+input.value/40+fisky*4+100, corners2[0].y);
+                      ctx.lineTo(corners2[1].x+input.value/40+fisky*4+100, corners2[1].y);
+                      ctx.lineTo(corners2[2].x+input.value/40+fisky*4+100, corners2[2].y);
+                      ctx.lineTo(corners2[3].x+input.value/40+fisky*4+100, corners2[3].y);
+                      ctx.fill();
+                      ctx.closePath();
+                      ctx.stroke(); 
+                      
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)-input.value/40-100, input2.value/10+500+högrelängd22/2);
+                    ctx.rotate((-90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högerlängdansa + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore();
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)-input.value/40-100-fisky*4, input2.value/10+500+högrelängd11/2);
+                    ctx.rotate((90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbit2 + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore();  
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)+input.value/40+fisky*4+100, input2.value/10+500+högrelängd11/2);
+                    ctx.rotate((-90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högersmåbit2 + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore();
+                      
+                    ctx.fillStyle = "black"; 
+                    ctx.save();
+                    ctx.translate((canvas.width/2)+input.value/40+fisky*4+100-fisky*4, input2.value/10+500+högrelängd22/2);
+                    ctx.rotate((90 * Math.PI) / 180);
+                    ctx.fillText(Math.round((högerlängdansa + Number.EPSILON) * 1) / 1, 0, 0);
+                    ctx.restore(); 
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                    }
+                      
+                      
+                      
+ 
+                       
+                      
+                      
+                      
+                      
+                      
+                      
+                    
+                }
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                     
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                }
+                
+             
+                
+                
+                
+                
+                 ctx.restore();ctx.restore();
+                
+                
+                ctx.font = "25px serif";
+                ctx.fillStyle = "black";
+                ctx.fillText("Total yta:"+Math.round((((input.value*input2.value)/1000000)+ Number.EPSILON) * 100)/100+" M2", canvas.width/2-200, 415);
+                
+                
+                let golvytans=capy*capx;
+                
+                
+                
+                
+                
+                
+                ctx.fillText("Golv yta:"+Math.round(((((golvytans)/1000000)) + Number.EPSILON) * 100) / 100+" M2", canvas.width/2-200, 440);
+                
+                
+         
+                
+                
+            }
+            
+        }catch(error){};
+                
+            setTimeout(check, 50);     
+            };check();
+            function setinputlocation(input,x,y){
+                
+                input.type = 'text';
+                input.style.position = 'absolute';
+                input.style.left = (x - 4) + 'px';
+                input.style.top = (y - 4) + 'px';
+                input.foam
+                
+                
+                input.size=7;
+                input.style.height=60;
+                input.style.fontSize=35;
+               
+                
+            }
+            function setbuttonlocation(inputs,x,y){
+                inputs.style.position = 'absolute';
+                inputs.style.left = (x - 4) + 'px';
+                inputs.style.top = (y - 4) + 'px'
+                inputs.style.fontSize=20;
+                
+                
+                if(inputs==button){
+                    inputs.innerHTML = "Fallande längder";
+                    inputs.onclick = function(){
+                        programmnummer=0;
+                        if(programmnummer==3)programmnummer=0;
+
+
+                    }
+                
+                }
+   
+                if(inputs==button3){
+                    inputs.innerHTML = "Tiles 1/2";
+                    inputs.onclick = function(){
+                        programmnummer=1;
+                        programmnummer2=0;
+                        if(programmnummer==3)programmnummer=0;
+
+                    
+                    }
+                    
+                }
+                if(inputs==button4){
+                    inputs.innerHTML = "Hela skivor";
+                    inputs.onclick = function(){
+                        programmnummer=2;
+                      
+                    }
+                    
+                }
+                if(inputs==button5){
+                    inputs.innerHTML = "Tiles 1/3";
+                    
+                    inputs.onclick = function(){
+                        programmnummer2=1;
+                        programmnummer=1;
+                     
+                    }
+                }
+                if(inputs==button6){
+                    inputs.innerHTML = "Tiles 2/3";
+                    
+                    inputs.onclick = function(){
+                        programmnummer2=2;
+                        programmnummer=1;
+                  
+                    }
+                    
+                }
+                if(inputs==button7){
+                    inputs.innerHTML = "Tiles 3/3";
+                    
+                    inputs.onclick = function(){
+                        programmnummer2=3;
+                        programmnummer=1;
+
+                    }
+                }
+                if(inputs==button8){
+                    inputs.innerHTML = "Fiskben";
+                    
+                    inputs.onclick = function(){
+                
+                        programmnummer=3;
+
+                    }
+                }
+                if(inputs==button9){
+                    inputs.innerHTML = "rotera";
+                    
+                    button9.onclick = function(){
+                
+                    if(rotateroom==false)rotateroom=true;
+                    else rotateroom=false;
+                        
+
+                }
+                    
+                    
+                    
+                    
+                }
+                
+                
+                
+                
+                
+
+    }
+    function calcwholebits(xroom,yroom,floox,floory,offsetToRight,numberofheight,numberofwidth){
+        
+    let bottomY = 450 + yroom;
+    let leftX = (canvas.width/2) - xroom/2;
+    let rightX = (canvas.width/2) + xroom/2;
+    let startX = (canvas.width/2) - offsetToRight;
+    let spacing=floox* Math.sqrt(2);
+    
+    
+    let antal=0;
+    
+    // Store lengths of boards intersecting with bottom
+    let boardLengths = [];
+    
+    // Use clipping to restrict drawing to within the room boundaries
+    //ctx.save();
+    //ctx.beginPath();
+    //ctx.rect(leftX, 450, xroom, yroom);
+    //ctx.clip();
+    
+    // Draw the herringbone pattern with gray boards first and red boards after
+    for (let row = 1; row < numberofheight+1; row++) {
+        // Y position for this row
+       // let rowY = 450 + (floory * row * Math.sqrt(2));
+        let rowY=450+((floox/Math.sqrt(2)))-(floory/Math.sqrt(2))+(2*row*floory/Math.sqrt(2));
+         
+        
+        
+        // First, draw gray boards (-45 degrees)
+        for (let k = -numberofwidth; k <= numberofwidth; k++) {
+            // X position for this board
+            let posX = startX + (spacing * k);
+            
+            // Skip boards that are clearly outside the room width
+            if (posX < leftX || posX +(floox* Math.sqrt(2)/2)+floory/Math.sqrt(2) > rightX) continue;
+            
+              
+                if (rowY  +(1*floory/Math.sqrt(2)) < bottomY){
+                antal++;
+              //  ctx.save();
+              //  ctx.translate(posX, rowY);
+              //  ctx.rotate((-45 * Math.PI) / 180);
+              //  ctx.fillStyle = "gray";
+              //  ctx.fillRect(0, 0, floox, floory);
+             //   ctx.strokeStyle = "black";
+              //  ctx.strokeRect(0, 0, floox, floory);
+               // ctx.restore();
+                }
+        }
+        
+        
+        
+        
+        // Then, draw red boards (-135 degrees)
+        for (let k = -numberofwidth; k <= numberofwidth; k++) {
+            // X position for this board
+            let posX = startX + (spacing * k);
+            
+            // Skip boards that are clearly outside the room width
+            if (posX -(floox* Math.sqrt(2)/2) < leftX || posX  > rightX) continue;
+            
+           
+                 if (rowY   < bottomY){
+                antal++;
+             //   ctx.save();
+             //   ctx.translate(posX, rowY);
+             //   ctx.rotate((-135 * Math.PI) / 180);
+             //  ctx.fillRect(0, 0, floox, floory);
+             //   ctx.fillStyle = "red";
+             ///   ctx.strokeStyle = "black";
+            //    ctx.strokeRect(0, 0, floox, floory);
+            //    ctx.restore();
+                 }
+        }
+    }
+        
+        
+        
+        
+        
+        
+        return antal;
+        
+    }
+    
+    
+ 
+     function checkBoardIntersection(x, y, width, height, angleDegrees, bottomY, leftX, rightX) {
+    // Convert angle to radians
+    let angleRad = (angleDegrees * Math.PI) / 180;
+    
+    // Calculate all four corners of the board
+    let corners = [
+        {x: x, y: y}, // top-left (origin)
+        {x: x + width * Math.cos(angleRad), y: y + width * Math.sin(angleRad)}, // top-right
+        {x: x + width * Math.cos(angleRad) + height * Math.cos(angleRad + Math.PI/2),y: y + width * Math.sin(angleRad) + height * Math.sin(angleRad + Math.PI/2)}, // bottom-right
+        {x: x + height * Math.cos(angleRad + Math.PI/2), y: y + height * Math.sin(angleRad + Math.PI/2)} // bottom-left
+    ];
+    
+    if (angleDegrees === -45) {
+        corners = [corners[0], corners[1], corners[2], corners[3]];
+    }
+    
+    if (angleDegrees === -135) {
+        corners = [corners[3], corners[2], corners[1], corners[0]];
+
+    }
+    
+    
+    let intersectionXs = [];
+     let isUndersideIntersectingRoom = doesSegmentIntersectRoom(corners[3], corners[2], leftX, bottomY, rightX);
+     let isOversideIntersectingRoom=doesSegmentIntersectRoom(corners[1], corners[0], leftX, bottomY, rightX);
+     
+     //if(isUndersideIntersectingRoom==true) isUndersideIntersectingRoom= doesSegmentIntersectRoom(corners[3], corners[0], leftX, bottomY, rightX);
+    // Helper function to add a unique intersection value to intersectionXs.
+    function addIntersection(val) {
+        const tol = 1e-10;
+        if (!intersectionXs.some(existing => Math.abs(existing - val) < tol)) {
+            intersectionXs.push(val);
+        }
+    }
+    for (let i = 0; i < corners.length; i++) {
+        let p1 = corners[i];
+        let p2 = corners[(i + 1) % corners.length];
+        
+        // Check if the edge is horizontal and exactly on bottomY
+        if (Math.abs(p2.y - p1.y) < 1e-10) {
+            if (Math.abs(p1.y - bottomY) < 1e-10) {
+                // Add both endpoints if they are within the horizontal bounds
+                if (p1.x >= leftX && p1.x <= rightX) {
+                    addIntersection(p1.x);
+                }
+                if (p2.x >= leftX && p2.x <= rightX) {
+                    addIntersection(p2.x);
+                }
+            }
+            continue;
+        }
+        
+        if ((p1.y - bottomY) * (p2.y - bottomY) <= 0) {
+            // Calculate parameter t for the intersection point along the edge
+            let t = (bottomY - p1.y) / (p2.y - p1.y);
+            // Ensure t falls within the segment [0, 1]
+            if (t >= 0 && t <= 1) {
+                let intersectX = p1.x + t * (p2.x - p1.x);
+                // Include the intersection only if it lies within the horizontal boundaries
+                if (intersectX >= leftX && intersectX <= rightX) {
+                    addIntersection(intersectX);
+                }
+            }
+        }
+    }
+    let cutLengths =[];
+    if (intersectionXs.length === 0) {
+        // No valid intersections found; the board does not cross bottomY within [leftX, rightX]
+        return {
+            intersects: false,
+            length: 0
+        };
+    }
+    //After calc
+
+    for (let i = 0; i < corners.length; i++){
+        let c1 = corners[i];
+        
+        
+        let newY = c1.y;
+        let prev = corners[(i - 1 + corners.length) % corners.length];
+        let next = corners[(i + 1) % corners.length];
+        let newX = c1.x;
+        
+        if(c1.y > bottomY){
+            // Adjust c1.x based on board's rotation when intersecting bottomY
+            
+            
+            if(prev.y <= bottomY){
+                let t = (bottomY - prev.y) / (c1.y - prev.y);
+                newX = prev.x + t * (c1.x - prev.x);
+                
+                
+            } else if(next.y <= bottomY){
+                let t = (bottomY - c1.y) / (next.y - c1.y);
+                newX = c1.x + t * (next.x - c1.x);
+            }
+            c1.x = newX;
+            c1.y = bottomY;
+        }
+        
+        
+    }
+  
+        
+        
+      if((corners[0].x < leftX && corners[1].x > leftX) || (corners[0].x > leftX && corners[1].x < leftX)){
+         
+         if(corners[0].x < leftX){
+             // Find intersection with left boundary
+             // Using point-slope formula to find intersection
+             let dx = corners[1].x - corners[0].x;
+             let dy = corners[1].y - corners[0].y;
+             
+             // Guard against division by zero
+             if (Math.abs(dx) > 1e-10) {
+                 let slope = dy / dx;
+                 let newY = corners[0].y + slope * (leftX - corners[0].x);
+                 
+                 corners[0].x = leftX;
+                 corners[0].y = newY;
+             }
+         }
+         
+         if(corners[1].x < leftX){
+             // Find intersection with left boundary
+             let dx = corners[0].x - corners[1].x;
+             let dy = corners[0].y - corners[1].y;
+             
+             // Guard against division by zero
+             if (Math.abs(dx) > 1e-10) {
+                 let slope = dy / dx;
+                 let newY = corners[1].y + slope * (leftX - corners[1].x);
+                 
+                 corners[1].x = leftX;
+                 corners[1].y = newY;
+             }
+         }
+     }   
+        
+     if((corners[2].x < leftX && corners[3].x > leftX) || (corners[2].x > leftX && corners[3].x < leftX)){
+         
+         if(corners[2].x < leftX){
+             // Find intersection with left boundary
+             let dx = corners[3].x - corners[2].x;
+             let dy = corners[3].y - corners[2].y;
+             
+             // Guard against division by zero
+             if (Math.abs(dx) > 1e-10) {
+                 let slope = dy / dx;
+                 let newY = corners[2].y + slope * (leftX - corners[2].x);
+                 
+                 corners[2].x = leftX;
+                 corners[2].y = newY;
+             }
+         }
+         
+         if(corners[3].x < leftX){
+             // Find intersection with left boundary
+             let dx = corners[2].x - corners[3].x;
+             let dy = corners[2].y - corners[3].y;
+             
+             // Guard against division by zero
+             if (Math.abs(dx) > 1e-10) {
+                 let slope = dy / dx;
+                 let newY = corners[3].y + slope * (leftX - corners[3].x);
+                 
+                 corners[3].x = leftX;
+                 corners[3].y = newY;
+             }
+         }
+     }      
+        
+     if((corners[0].x < rightX && corners[1].x > rightX) || (corners[0].x > rightX && corners[1].x < rightX)){
+         
+        if(corners[0].x > rightX){
+            // Find intersection with right boundary
+            let dx = corners[1].x - corners[0].x;
+            let dy = corners[1].y - corners[0].y;
+             
+            // Guard against division by zero
+            if (Math.abs(dx) > 1e-10) {
+                let slope = dy / dx;
+                let newY = corners[0].y + slope * (rightX - corners[0].x);
+                 
+                corners[0].x = rightX;
+                corners[0].y = newY;
+            }
+        }
+         
+        if(corners[1].x > rightX){
+            // Find intersection with right boundary
+            let dx = corners[0].x - corners[1].x;
+            let dy = corners[0].y - corners[1].y;
+             
+            // Guard against division by zero
+            if (Math.abs(dx) > 1e-10) {
+                let slope = dy / dx;
+                let newY = corners[1].y + slope * (rightX - corners[1].x);
+                 
+                corners[1].x = rightX;
+                corners[1].y = newY;
+            }
+        }
+    }   
+        
+    if((corners[2].x < rightX && corners[3].x > rightX) || (corners[2].x > rightX && corners[3].x < rightX)){
+         
+        if(corners[2].x > rightX){
+            // Find intersection with right boundary
+            let dx = corners[3].x - corners[2].x;
+            let dy = corners[3].y - corners[2].y;
+             
+            // Guard against division by zero
+            if (Math.abs(dx) > 1e-10) {
+                let slope = dy / dx;
+                let newY = corners[2].y + slope * (rightX - corners[2].x);
+                 
+                corners[2].x = rightX;
+                corners[2].y = newY;
+            }
+        }
+         
+        if(corners[3].x > rightX){
+            // Find intersection with right boundary
+            let dx = corners[2].x - corners[3].x;
+            let dy = corners[2].y - corners[3].y;
+             
+            // Guard against division by zero
+            if (Math.abs(dx) > 1e-10) {
+                let slope = dy / dx;
+                let newY = corners[3].y + slope * (rightX - corners[3].x);
+                 
+                corners[3].x = rightX;
+                corners[3].y = newY;
+            }
+        }
+    }   
+        
+        
+    // Check if the underside actually intersects with the room
+   
+    
+    //calculate boards upperside length and underside length
+     // Calculate upperside length (from adjusted corner[0] to corner[1])
+     
+    if(isOversideIntersectingRoom){
+    let upperSideLength = Math.sqrt(
+        Math.pow(corners[1].x - corners[0].x, 2) + 
+        Math.pow(corners[1].y - corners[0].y, 2)
+    );
+    cutLengths.push(upperSideLength);
+     }
+    // Calculate underside length (from adjusted corner[3] to corner[2])
+    if (isUndersideIntersectingRoom) {
+    let underSideLength = Math.sqrt(
+        Math.pow(corners[2].x - corners[3].x, 2) + 
+        Math.pow(corners[2].y - corners[3].y, 2)
+    );
+    cutLengths.push(underSideLength);
+    }
+      //  ctx.beginPath();
+     //   ctx.strokeStyle = "yellow";
+      //  ctx.moveTo(corners[0].x, corners[0].y);
+      //  ctx.lineTo(corners[1].x, corners[1].y);
+     //   ctx.moveTo(corners[2].x, corners[2].y);
+     //   ctx.lineTo(corners[3].x, corners[3].y);
+     //  ctx.closePath();
+     //   ctx.stroke();
+    
+    
+    
+    return {
+        intersects: true,
+        length: cutLengths.length === 1 ? cutLengths[0] : cutLengths
+    };
+    
+    
+   
+    
+    
+    
+    
+    
+}
+
+
+// Helper function to check if a line segment intersects with the room
+    function doesSegmentIntersectRoom(p1, p2, leftX, bottomY, rightX) {
+        // Check if either endpoint is inside the room
+        const isP1Inside = p1.x >= leftX && p1.x <= rightX && p1.y <= bottomY;
+        const isP2Inside = p2.x >= leftX && p2.x <= rightX && p2.y <= bottomY;
+        
+        if (isP1Inside || isP2Inside) {
+            return true;
+        }
+        
+        // Check for intersections with room boundaries
+        
+        // Check bottom boundary
+        if ((p1.y - bottomY) * (p2.y - bottomY) <= 0) {
+            // Calculate where the line intersects y = bottomY
+            const t = (bottomY - p1.y) / (p2.y - p1.y);
+            if (t >= 0 && t <= 1) {
+                const intersectX = p1.x + t * (p2.x - p1.x);
+                if (intersectX >= leftX && intersectX <= rightX) {
+                    return true;
+                }
+            }
+        }
+       /*
+        // Check left boundary
+        if ((p1.x - leftX) * (p2.x - leftX) <= 0) {
+            // Calculate where the line intersects x = leftX
+            const t = (leftX - p1.x) / (p2.x - p1.x);
+            if (t >= 0 && t <= 1) {
+                const intersectY = p1.y + t * (p2.y - p1.y);
+                if (intersectY <= bottomY) {
+                    return true;
+                }
+            }
+        }
+        
+        // Check right boundary
+        if ((p1.x - rightX) * (p2.x - rightX) <= 0) {
+            // Calculate where the line intersects x = rightX
+            const t = (rightX - p1.x) / (p2.x - p1.x);
+            if (t >= 0 && t <= 1) {
+                const intersectY = p1.y + t * (p2.y - p1.y);
+                if (intersectY <= bottomY) {
+                    return true;
+                }
+            }
+        }
+         */
+        return false;
+    }
+
+
+
+
+
+
+
+
+
+function calcbottomfloor(xroom, yroom, floox, floory, offsetToRight, numberofwidth, numberofheight) {
+    // Define colors for the rectangles
+    let colorred = "rgba(255, 0, 0, 0.7)";
+    let colorgray = "rgba(0, 0, 0, 0.7)";
+    
+    // Room boundaries
+    let bottomY = 450 + yroom;
+    let leftX = (canvas.width/2) - xroom/2;
+    let rightX = (canvas.width/2) + xroom/2;
+    
+    // Starting X position aligned with the herringbone pattern
+    //let startX = (canvas.width/2) - (floory/2 * Math.sqrt(2)) + offsetToRight;
+    let startX = (canvas.width/2) - offsetToRight;
+ 
+    
+    // Spacing between rectangles in the pattern
+    //let spacing = (floory * (floox/floory) * Math.sqrt(2));
+        let spacing=floox* Math.sqrt(2);
+    
+    
+    // Store lengths of boards intersecting with bottom
+    let boardLengths = [];
+    
+    // Use clipping to restrict drawing to within the room boundaries
+    //ctx.save();
+    //ctx.beginPath();
+    //ctx.rect(leftX, 450, xroom, yroom);
+    //ctx.clip();
+    
+    // Draw the herringbone pattern with gray boards first and red boards after
+    for (let row = 0; row < numberofheight; row++) {
+        // Y position for this row
+       // let rowY = 450 + (floory * row * Math.sqrt(2));
+        let rowY=450+((floox/Math.sqrt(2)))-(floory/Math.sqrt(2))+(2*row*floory/Math.sqrt(2));
+        
+        // Skip rows that are clearly above the bottom
+        if (rowY  +(2*floory/Math.sqrt(2)) < bottomY) continue;
+        
+        // First, draw gray boards (-45 degrees)
+        for (let k = -numberofwidth; k <= numberofwidth; k++) {
+            // X position for this board
+            let posX = startX + (spacing * k);
+            
+            // Skip boards that are clearly outside the room width
+            if (posX + floox * Math.sqrt(2) < leftX || posX - floox * Math.sqrt(2) > rightX) continue;
+            
+            let intersects45 = checkBoardIntersection(posX, rowY, floox, floory, -45, bottomY, leftX, rightX);
+            if (intersects45.intersects) {
+                boardLengths.push({angle: 45, length: intersects45.length});
+                
+              //  ctx.save();
+              //  ctx.translate(posX, rowY);
+             //   ctx.rotate((-45 * Math.PI) / 180);
+             //   ctx.fillStyle = colorgray;
+              //  ctx.fillRect(0, 0, floox, floory);
+             //   ctx.strokeStyle = "black";
+             //   ctx.strokeRect(0, 0, floox, floory);
+             //   ctx.restore();
+            }
+        }
+        // Then, draw red boards (-135 degrees)
+        for (let k = -numberofwidth; k <= numberofwidth; k++) {
+            // X position for this board
+            let posX = startX + (spacing * k);
+            
+            // Skip boards that are clearly outside the room width
+            if (posX + floox * Math.sqrt(2) < leftX || posX - floox * Math.sqrt(2) > rightX) continue;
+            
+            let intersects135 = checkBoardIntersection(posX, rowY, floox, floory, -135, bottomY, leftX, rightX);
+            if (intersects135.intersects) {
+                boardLengths.push({angle: 135, length: intersects135.length});
+                
+              //  ctx.save();
+              //  ctx.translate(posX, rowY);
+              //  ctx.rotate((-135 * Math.PI) / 180);
+              //  ctx.fillStyle = colorred;
+              //  ctx.fillRect(0, 0, floox, floory);
+              //  ctx.strokeStyle = "black";
+              //  ctx.strokeRect(0, 0, floox, floory);
+              //  ctx.restore();
+            }
+        }
+    }
+    
+    // Restore context (removes clipping)
+    ctx.restore();
+    
+    // Display the results
+    ctx.font = "20px serif";
+    ctx.fillStyle = "black";
+    ctx.fillText("Bottom boards: " + boardLengths.length, canvas.width/2+80, 190);
+    
+    if (boardLengths.length > 0) {
+        ctx.fillText("Board lengths:", canvas.width/2+80, 210);
+        
+        // Group by length (rounded to nearest mm)
+        let groups = {};
+        for (let board of boardLengths) {
+            let key;
+            let angleText = board.angle === 45 ? "Gray" : "Red";
+            
+            if (Array.isArray(board.length)) {
+                // For boards with multiple cut lengths
+                let roundedLengths = board.length.map(len => Math.round(len * 10));
+                // Sort to ensure consistent key generation
+                roundedLengths.sort((a, b) => a - b);
+                key = angleText + "-" + roundedLengths.join("+");
+            } else {
+                // For boards with a single cut length
+                let roundedLength = Math.round(board.length * 10);
+                key = angleText + "-" + roundedLength;
+            }
+            
+            if (!groups[key]) {
+                groups[key] = {
+                    angle: angleText,
+                    length: Array.isArray(board.length) ? board.length.map(len => Math.round(len * 10)) : Math.round(board.length * 10),
+                    count: 0
+                };
+            }
+            groups[key].count++;
+        }
+        
+        // Separate groups into gray and red
+        let grayGroups = [];
+        let redGroups = [];
+
+        for (let key in groups) {
+            let group = groups[key];
+            if (group.angle === "Gray") {
+                grayGroups.push(group);
+            } else {
+                redGroups.push(group);
+            }
+        }
+
+        // Display the gray groups first
+        let y = 230;
+        for (let group of grayGroups) {
+            let lengthText;
+            
+            if (Array.isArray(group.length)) {
+                // For multiple cut lengths, show each value (e.g., "Cut1: 120mm, Cut2: 80mm")
+                lengthText = group.length.map((len, i) => `Cut${i+1}: ${len}mm`).join(", ");
+            } else {
+                // For single cut length
+                lengthText = `${group.length}mm`;
+            }
+            
+            ctx.fillText(`${group.angle}: ${lengthText} - ${group.count} boards`, 
+                        canvas.width/2+80, y);
+            y += 20;
+            
+            // Check if we're reaching the display limit
+            if (y > 850) {
+                ctx.fillText("...and more", canvas.width/2+80, y);
+                break;
+            }
+        }
+
+        // Then display the red groups (if we haven't hit display limit)
+        if (y <= 550) {
+            for (let group of redGroups) {
+                let lengthText;
+                
+                if (Array.isArray(group.length)) {
+                    // For multiple cut lengths, show each value (e.g., "Cut1: 120mm, Cut2: 80mm")
+                    lengthText = group.length.map((len, i) => `Cut${i+1}: ${len}mm`).join(", ");
+                } else {
+                    // For single cut length
+                    lengthText = `${group.length}mm`;
+                }
+                
+                ctx.fillText(`${group.angle}: ${lengthText} - ${group.count} boards`, 
+                            canvas.width/2+80, y);
+                y += 20;
+                
+                // Check if we're reaching the display limit
+                if (y > 850) {
+                    ctx.fillText("...and more", canvas.width/2+80, y);
+                    break;
+                }
+            }
+        }
+    }
+    
+    
+    return boardLengths.length;
+    
+}
+   
+   
+            
+            function calcfirtsclincer(){
+                
+                if(firstnummber==0){
+                    
+                    woody=input3.value;
+                    for (let i = 0; i < capx-1; i++){
+
+                        woodcalc=woody;
+                        while(woodcalc<capx-1){
+
+                            woodcalc=parseInt(input3.value)+parseInt(woodcalc);
+
+                        }
+                        woodcalc=woodcalc-input3.value;
+                        if((capx-woodcalc)<miniwood)woody--;
+                        else break;
+
+
+                    }
+                   savestorst=parseInt(woody);
+                }
+                if(firstnummber==1){
+                    
+                    if(programmnummer2==0)
+                        woody=savestorst-input3.value/2;
+                    if(programmnummer2==1)
+                        woody=savestorst-input3.value/3-input3.value/3;
+                    if(programmnummer2==2)
+                        woody=savestorst-input3.value/3;
+                    if(programmnummer2==3)
+                        woody=savestorst;
+                    if(woody<0)woody=0;
+                    
+                    firstnummber=-1;
+                }
+                
+                firstnummber++;
+                return woody;
+                
+                
+            }
+             function calcfirstwood(){
+                
+                if(input3<250){miniwood=0;}
+                else{miniwood=250;}
+                
+                if(firstnummber==0){
+                    
+                    woody=input3.value;
+                    for (let i = 0; i < capx-1; i++){
+
+                        woodcalc=woody;
+                        while(woodcalc<capx-1){
+
+                            woodcalc=parseInt(input3.value)+parseInt(woodcalc);
+
+                        }
+                        woodcalc=woodcalc-input3.value;
+                        if((capx-woodcalc)<=miniwood)woody--;
+                        else break;
+
+
+                    }
+                    savestorst=parseInt(woody);
+                }
+                if(firstnummber==1){
+                    
+                  woody=250;
+                    for (let i = 0; i < capx-1; i++){
+
+                        woodcalc=woody;
+                        while(woodcalc<capx-1){
+
+                            woodcalc=parseInt(input3.value)+parseInt(woodcalc);
+
+                        }
+                        woodcalc=woodcalc-input3.value;
+                        if((capx-woodcalc)<=miniwood&&woody<input3.value)woody++;
+                        else break;
+
+
+                    }
+                    if(woody>250)woody--;
+                    saveminst=parseInt(woody);
+                  
+                  
+                  //----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                  
+                   wood=(savestorst/2+saveminst/2)/2+saveminst/2;
+                   let woo1=(savestorst/2+saveminst/2)/2+saveminst/2;
+                  let woo2=(savestorst/2+saveminst/2)/2+saveminst/2;
+                  for (let i = 0; i < capx-1; i++){
+
+                        woodcalc=woo1;
+                        while(woodcalc<capx-1){
+
+                            woodcalc=parseInt(input3.value)+parseInt(woodcalc);
+
+                        }
+                        woodcalc=woodcalc-input3.value;
+                        if((capx-woodcalc)<=miniwood)woo1--;
+                        else break;
+                    }
+                    
+                    for (let i = 0; i < capx-1; i++){
+
+                        woodcalc=woo2;
+                        while(woodcalc<capx-1){
+
+                            woodcalc=parseInt(input3.value)+parseInt(woodcalc);
+
+                        }
+                        woodcalc=woodcalc-input3.value;
+                        if((capx-woodcalc)<=miniwood&&woody<input3.value)woo2++;
+                        else break;
+                    }
+                    
+                    wood=(Math.abs(woo1 - wood) < Math.abs(woo2 - wood) ? woo1 : woo2);
+                  
+                  
+                  
+                  //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                  
+                   woo=((savestorst-(savestorst/2+saveminst/2))/2)+savestorst/2+saveminst/2;
+                    let wo1=((savestorst-(savestorst/2+saveminst/2))/2)+savestorst/2+saveminst/2;
+                  let wo2=((savestorst-(savestorst/2+saveminst/2))/2)+savestorst/2+saveminst/2;
+                  for (let i = 0; i < capx-1; i++){
+
+                        woodcalc=wo1;
+                        while(woodcalc<capx-1){
+
+                            woodcalc=parseInt(input3.value)+parseInt(woodcalc);
+
+                        }
+                        woodcalc=woodcalc-input3.value;
+                        if((capx-woodcalc)<=miniwood)wo1--;
+                        else break;
+                    }
+                    
+                    for (let i = 0; i < capx-1; i++){
+
+                        woodcalc=wo2;
+                        while(woodcalc<capx-1){
+
+                            woodcalc=parseInt(input3.value)+parseInt(woodcalc);
+
+                        }
+                        woodcalc=woodcalc-input3.value;
+                        if((capx-woodcalc)<=miniwood&&woody<input3.value)wo2++;
+                        else break;
+                    }
+                    
+                    
+                    woo=(Math.abs(wo1 - woo) < Math.abs(wo2 - woo) ? wo1 : wo2);
+                  
+                  
+                  
+                   woody=wood+((woo-wood)/2);
+                  
+                  let wood1=wood+((woo-wood)/2);
+                  let wood2=wood+((woo-wood)/2);
+                  
+                  
+                  
+                  //--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                  for (let i = 0; i < capx-1; i++){
+
+                        woodcalc=wood1;
+                        while(woodcalc<capx-1){
+
+                            woodcalc=parseInt(input3.value)+parseInt(woodcalc);
+
+                        }
+                        woodcalc=woodcalc-input3.value;
+                        if((capx-woodcalc)<=miniwood)wood1--;
+                        else break;
+                    }
+                    
+                    for (let i = 0; i < capx-1; i++){
+
+                        woodcalc=wood2;
+                        while(woodcalc<capx-1){
+
+                            woodcalc=parseInt(input3.value)+parseInt(woodcalc);
+
+                        }
+                        woodcalc=woodcalc-input3.value;
+                        if((capx-woodcalc)<=miniwood&&woody<input3.value)wood2++;
+                        else break;
+                    }
+                    woody=(Math.abs(wood1 - woody) < Math.abs(wood2 - woody) ? wood1 : wood2);
+                    
+                    
+                    
+                    
+                    
+                }
+                if(firstnummber==2){
+                   
+                   woody=250;
+                    for (let i = 0; i < capx-1; i++){
+
+                        woodcalc=woody;
+                        while(woodcalc<capx-1){
+
+                            woodcalc=parseInt(input3.value)+parseInt(woodcalc);
+
+                        }
+                        woodcalc=woodcalc-input3.value;
+                        if((capx-woodcalc)<=miniwood&&woody<input3.value)woody++;
+                        else break;
+                    }
+                    if(woody>250)woody--;
+                    saveminst=parseInt(woody);
+                  
+                }
+                if(firstnummber==3){
+                   
+                   woody=((savestorst-(savestorst/2+saveminst/2))/2)+savestorst/2+saveminst/2;
+                    let wood1=((savestorst-(savestorst/2+saveminst/2))/2)+savestorst/2+saveminst/2;
+                  let wood2=((savestorst-(savestorst/2+saveminst/2))/2)+savestorst/2+saveminst/2;
+                  for (let i = 0; i < capx-1; i++){
+
+                        woodcalc=wood1;
+                        while(woodcalc<capx-1){
+
+                            woodcalc=parseInt(input3.value)+parseInt(woodcalc);
+
+                        }
+                        woodcalc=woodcalc-input3.value;
+                        if((capx-woodcalc)<=miniwood)wood1--;
+                        else break;
+                    }
+                    
+                    for (let i = 0; i < capx-1; i++){
+
+                        woodcalc=wood2;
+                        while(woodcalc<capx-1){
+
+                            woodcalc=parseInt(input3.value)+parseInt(woodcalc);
+
+                        }
+                        woodcalc=woodcalc-input3.value;
+                        if((capx-woodcalc)<=miniwood&&woody<input3.value)wood2++;
+                        else break;
+                    }
+                    
+                    
+                    woody=(Math.abs(wood1 - woody) < Math.abs(wood2 - woody) ? wood1 : wood2);
+
+                   
+                   
+                }
+                if(firstnummber==4){
+                   
+                    woody=(savestorst/2+saveminst/2)/2+saveminst/2;
+                   let wood1=(savestorst/2+saveminst/2)/2+saveminst/2;
+                  let wood2=(savestorst/2+saveminst/2)/2+saveminst/2;
+                  for (let i = 0; i < capx-1; i++){
+
+                        woodcalc=wood1;
+                        while(woodcalc<capx-1){
+
+                            woodcalc=parseInt(input3.value)+parseInt(woodcalc);
+
+                        }
+                        woodcalc=woodcalc-input3.value;
+                        if((capx-woodcalc)<=miniwood)wood1--;
+                        else break;
+                    }
+                    
+                    for (let i = 0; i < capx-1; i++){
+
+                        woodcalc=wood2;
+                        while(woodcalc<capx-1){
+
+                            woodcalc=parseInt(input3.value)+parseInt(woodcalc);
+
+                        }
+                        woodcalc=woodcalc-input3.value;
+                        if((capx-woodcalc)<=miniwood&&woody<input3.value)wood2++;
+                        else break;
+                    }
+                    
+                    
+                    woody=(Math.abs(wood1 - woody) < Math.abs(wood2 - woody) ? wood1 : wood2);
+                   
+                    
+                    firstnummber=-1;
+                }
+                firstnummber++;
+                return woody;
+            }
+        
+        
+         </script>
+    </body>
+</html>

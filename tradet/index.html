@@ -1,0 +1,59 @@
+
+<html>
+    <head>
+        <meta name="viewport" content="user-scalable=no, shrink-to-fit=no">
+        	<link rel="icon" href="https://pngimg.com/d/folder_PNG8769.png" type="image/vnd.microsoft.icon" />
+        <meta charset="utf-8">
+        
+        <script src="js/Jstree4.js"></script>
+        <script src="js/Game3.js"></script>
+    
+        
+        
+        
+    </head>
+    <body>
+        <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
+        
+        
+        <script>
+            
+
+            const canvas = document.getElementById("myCanvas");
+            const ctx = canvas.getContext("2d");
+            document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
+            document.getElementById("myCanvas").style.width=window.innerWidth;
+            document.getElementById("myCanvas").style.height=window.innerHeight;
+            const fps = 60;
+            
+            
+           
+            game = new Game3("Spelet");
+            tree= new Jstree4("Spelet",game);
+            
+            //text= new TextEditor(canvas);
+            
+            
+             var check = function(){
+                canvas.width=document.body.clientWidth-8;
+                canvas.height=document.body.clientHeight-8;
+                
+                
+                
+                game.updateanimation(ctx);
+                tree.maketree(canvas,ctx,10,10,game);
+               // text.update();
+                
+            
+                
+                
+                window.requestAnimationFrame(check);   
+            };check();
+            
+            
+            
+            
+            
+        </script>
+    </body>
+</html>

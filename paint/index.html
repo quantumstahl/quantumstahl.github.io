@@ -1,0 +1,2858 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>MaxPaint</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="user-scalable=no, shrink-to-fit=no">
+        <meta name="keywords" content="maxpaint,paint">
+        <link rel="icon" href="loggo.png" type="image/vnd.microsoft.icon" />
+        <style>
+            
+              body {
+    overscroll-behavior: none;
+    touch-action: none;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }       
+
+            
+        canvas {
+          background-color: #50459b;
+          max-width: 100%;
+          max-height: 100%;
+          image-rendering: pixelated;
+          /* Enhanced pixel rendering properties for all browsers */
+          image-rendering: -moz-crisp-edges;    /* Firefox */
+          image-rendering: -webkit-crisp-edges; /* Webkit */
+          image-rendering: pixelated;           /* Chrome, Edge, Opera, Safari */
+          image-rendering: crisp-edges;         /* Standard syntax */
+          -ms-interpolation-mode: nearest-neighbor;  /* IE */
+          display: block;
+          margin: auto;
+        }
+        .btn-open {
+          padding: 8px 15px;
+          font-size: 16px;
+          background-color: #4CAF50;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          position: absolute;
+          top: 50px; /* Centered in toolbar height */
+          left: 0px;
+          transform: translateY(-50%);
+          z-index: 100;
+          outline: none; /* Remove outline */
+          box-shadow: none;
+        }
+        .btn-open:hover {
+          background-color: #45a049;
+        }
+        .zoom-container {
+          position: absolute;
+          top: 50px; /* Centered in toolbar height */
+          left: 50%;
+          transform: translate(-50%, -50%);
+          text-align: center;
+          z-index: 100;
+          touch-action: none;
+          -webkit-touch-callout: none;
+          pointer-events: auto;
+          outline: none; /* Remove outline */
+          box-shadow: none;
+        }
+        #zoomLabel, #brushSizeLabel {
+            -webkit-user-select: none;  /* Safari */
+            -moz-user-select: none;     /* Firefox */
+            -ms-user-select: none;      /* IE/Edge */
+            user-select: none;          /* Standard syntax */
+            cursor: default;            /* Change cursor to default instead of text */
+          }
+
+          /* Make all labels and text in the control area non-selectable */
+          .zoom-container, label {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            cursor: default;
+          }
+        #zoomSlider, #brushSizeSlider {
+            touch-action: none;
+            -webkit-appearance: none;
+            -webkit-tap-highlight-color: transparent;
+          }
+          #zoomSlider, #brushSizeSlider, .zoom-container, #zoomLabel, #brushSizeLabel,.color-palette {
+            -webkit-touch-callout: none !important;
+            -webkit-user-select: none !important;
+            -khtml-user-select: none !important;
+            -moz-user-select: none !important;
+            -ms-user-select: none !important;
+            user-select: none !important;
+            touch-action: none !important;
+            outline: none; /* Remove outline */
+            box-shadow: none;
+            touch-action: none;
+        }
+          
+          
+          
+        
+        @media (max-width: 768px), (pointer: coarse) {
+          .btn-open {
+            padding: 15px 25px;
+            font-size: 22px;
+            top: 60px;
+            left: 20px;
+          }
+        .scrollbar-hitbox {
+            position: absolute;
+            z-index: 99;
+          }
+          .zoom-container {
+            top: 68px;
+            width: 100%;
+            left: 0;
+            transform: translateY(-50%);
+            padding: 0 80px;
+            box-sizing: border-box;
+          }
+
+          #zoomSlider {
+            width: 100%;
+            height: 30px;
+            margin-top: 8px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #d3d3d3;
+            outline: none;
+            border-radius: 15px;
+          }
+
+          #zoomSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #4CAF50;
+            border-radius: 50%;
+            width: 180px; 
+            height: 180px;
+            transform: scale(0.3);
+            margin-left: -65px; /* Adjust this value to center the thumb vertically */
+            margin-right: 220px;
+            cursor: pointer; 
+            
+          }
+
+          #zoomSlider::-moz-range-thumb {
+            width: 45px; 
+            height: 45px;
+            background: #4CAF50;
+            border-radius: 50%;
+            transform: scale(0.8);
+          }
+          
+          /* Brush size slider styling similar to zoomSlider */
+          #brushSizeSlider {
+            width: 100%;
+            height: 30px;
+            margin-top: 8px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #d3d3d3;
+            outline: none;
+            border-radius: 15px;
+          }
+
+          #brushSizeSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 180px; 
+            height: 180px;
+            transform: scale(0.3);
+            margin-left: -65px; /* Adjust this value to center the thumb vertically */
+            margin-right: 220px;;
+            background: #4CAF50;
+            border-radius: 50%;
+          }
+
+          #brushSizeSlider::-moz-range-thumb {
+            width: 35px;
+            height: 35px;
+            background: #4CAF50;
+            border-radius: 50%;
+          }
+
+          #zoomLabel, #brushSizeLabel {
+            font-size: 18px;
+            font-weight: bold;
+            
+          }
+        }
+          .color-palette {
+            border: 1px solid transparent;  
+            position: absolute;
+            will-change: transform;
+            background-color: #f1f1f1;
+            padding: 9px;
+            border-radius: 4px;
+            left: 50%; margin-left: 120px; margin-top: 0;
+            outline: none; /* Remove outline */
+            box-shadow: none;
+                
+          }
+
+          .color-row {
+            display: flex;
+            margin-bottom: 5px;
+            outline: none; /* Remove outline */
+            box-shadow: none;
+          }
+
+          .color-row:last-child {
+            margin-bottom: 0;
+          }
+
+          .color-swatch {
+            width: 28px;
+            height: 28px;
+            margin: 0 5px;
+            border-radius: 3px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.1s;
+          }
+
+          .color-swatch:hover {
+            transform: scale(1.1);
+          }
+
+          .color-swatch.active {
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 1px #000;
+          }
+
+          @media (max-width: 768px), (pointer: coarse) {
+            .color-palette {
+              position: absolute;
+              border: 1px solid transparent;  
+              will-change: transform;
+              top: 0px;
+              right: 20px;
+              outline: none; /* Remove outline */
+              box-shadow: none;
+              
+            
+            }
+
+            .color-swatch {
+              width: 35px;
+              height: 35px;
+              margin: 0 3px;
+              outline: none; /* Remove outline */
+              box-shadow: none;
+            }
+          }
+          /* Modal dialog styling */
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 3000; /* Higher than toolbar */
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.4);
+      }
+      
+      .modal-content {
+        background-color: #fefefe;
+        margin: 15% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 300px;
+        border-radius: 5px;
+      }
+      
+      .modal-content h3 {
+        margin-top: 0;
+      }
+      
+      .modal-content .form-group {
+        margin-bottom: 15px;
+      }
+      
+      .modal-content label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      
+      .modal-content input {
+        width: 100%;
+        padding: 8px;
+        box-sizing: border-box;
+      }
+      
+      .modal-content .button-row {
+        text-align: right;
+        margin-top: 20px;
+      }
+      
+      .modal-content button {
+        padding: 8px 15px;
+        margin-left: 10px;
+        cursor: pointer;
+      }
+        
+        
+        
+        
+        </style>
+    </head>
+    <body>
+        
+<label for="directFileInput" style="position:absolute; top:10px; left:0px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; min-width:90px; text-align:center; font-size:16px;">Open Image</label>
+<input type="file" id="directFileInput" accept="image/*" style="position:absolute; left:-200px;">
+
+<!-- Save Image button, positioned much lower -->
+<button id="saveImageBtn" style="position:absolute; top:130px; left:0px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:90px; text-align:center; font-size:16px;">Save Image</button>
+
+    <button id="project1Btn" style="position:absolute; top:150px; left:0px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:60px; text-align:center; font-size:16px; ">Canvas 1</button>
+    <button id="project2Btn" style="position:absolute; top:150px; left:100px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:60px; text-align:center; font-size:16px; ">Canvas 2</button>
+    <button id="project3Btn" style="position:absolute; top:150px; left:202px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:60px; text-align:center; font-size:16px; ">Canvas 3</button>
+     
+    <button id="ResizeBtn" style="position: absolute;right: 0%; top:150px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:60px; text-align:center; font-size:16px; ">Resize</button>    
+
+<div class="tool-buttons" style="position: absolute; top: 120px; z-index: 110; display: grid; grid-template-columns: 40px 40px; grid-gap: 5px; transform: translateY(-50%);">
+  <!-- Pen Tool -->
+  <button class="tool-btn" id="penTool" title="Pen Tool (P)" style="width: 40px; height: 40px; background-color: #d4ffd4; border: 2px solid #4CAF50; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;">
+    <svg viewBox="0 0 24 24" style="width: 100%; height: 100%;">
+      <path d="M3,17.25V21h3.75L17.81,9.94l-3.75-3.75L3,17.25z M20.71,7.04c0.39-0.39,0.39-1.02,0-1.41l-2.34-2.34c-0.39-0.39-1.02-0.39-1.41,0 l-1.83,1.83l3.75,3.75L20.71,7.04z" fill="#333"/>
+    </svg>
+  </button>
+  
+  <!-- Fill Tool (Watering Can) -->
+  <button class="tool-btn" id="fillTool" title="Fill Tool (F)" style="width: 40px; height: 40px; background-color: #f1f1f1; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;">
+    <svg viewBox="0 0 24 24" style="width: 100%; height: 100%;">
+      <path d="M19,11.5c0,0-2,2.17-2,3.5c0,1.1,0.9,2,2,2s2-0.9,2-2C21,13.67,19,11.5,19,11.5z M5.21,10L10,5.21L14.79,10H5.21z M16.56,8.94L7.62,0L6.21,1.41l2.38,2.38L3.44,8.94c-0.59,0.59-0.59,1.54,0,2.12l5.5,5.5C9.23,16.85,9.62,17,10,17 s0.77-0.15,1.06-0.44l5.5-5.5C17.15,10.46,17.15,9.5,16.56,8.94z" fill="#333"/>
+    </svg>
+  </button>
+  
+  <!-- Select Tool -->
+  <button class="tool-btn" id="selectTool" title="Selection Tool (S)" style="width: 40px; height: 40px; background-color: #f1f1f1; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;">
+    <svg viewBox="0 0 24 24" style="width: 100%; height: 100%;">
+      <path d="M3,5h2V3C3,3,3,5,3,5z M7,3v2h2V3H7z M11,3v2h2V3H11z M15,3v2h2V3H15z M19,3v2h2V3H19z M3,9h2V7H3V9z M19,7v2h2V7H19z M3,13h2 v-2H3V13z M19,11v2h2v-2H19z M3,17h2v-2H3V17z M19,15v2h2v-2H19z M3,21h2v-2H3V21z M7,21h2v-2H7V21z M11,21h2v-2h-2V21z M15,21h2 v-2h-2V21z M19,21h2v-2h-2V21z" fill="#333"/>
+    </svg>
+  </button>
+  <!-- New C Tool -->
+  <button class="tool-btn" id="cTool" title="C Tool" style="width: 40px; height: 40px; background-color: #f1f1f1; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;">
+    <svg viewBox="0 0 24 24" style="width: 100%; height: 100%;">
+      <path d="M3,5h2V3C3,3,3,5,3,5z M7,3v2h2V3H7z M11,3v2h2V3H11z M15,3v2h2V3H15z M19,3v2h2V3H19z M3,9h2V7H3V9z M19,7v2h2V7H19z M3,13h2 v-2H3V13z M19,11v2h2v-2H19z M3,17h2v-2H3V17z M19,15v2h2v-2H19z M3,21h2v-2H3V21z M7,21h2v-2H7V21z M11,21h2v-2h-2V21z M15,21h2 v-2h-2V21z M19,21h2v-2h-2V21z" fill="#333"/>
+      <text x="12" y="16" font-family="Arial" font-size="12" fill="#333" text-anchor="middle" dominant-baseline="alphabetic">C</text>
+    </svg>
+  </button>
+  
+  
+  <!-- Eyedropper/Pipette Tool -->
+  <button class="tool-btn" id="eyedropperTool" title="Color Picker (E)" style="width: 40px; height: 40px; background-color: #f1f1f1; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;">
+    <svg viewBox="0 0 24 24" style="width: 100%; height: 100%;">
+      <path d="M20.71,5.63l-2.34-2.34c-0.39-0.39-1.02-0.39-1.41,0l-3.12,3.12l-1.93-1.91l-1.41,1.41l1.42,1.42L3,16.25V21h4.75l8.92-8.92 l1.42,1.42l1.41-1.41l-1.92-1.92l3.12-3.12C21.1,6.65,21.1,6.02,20.71,5.63z M6.92,19L5,17.08l8.06-8.06l1.92,1.92L6.92,19z" fill="#333"/>
+    </svg>
+  </button>
+  
+  <!-- Text Tool -->
+  <button class="tool-btn" id="textTool" title="Text Tool (T)" style="width: 40px; height: 40px; background-color: #f1f1f1; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;">
+      <svg viewBox="0 0 24 24" style="width: 100%; height: 100%;">
+          <rect x="2" y="2" width="20" height="20" fill="none" stroke="#333" stroke-width="2"/>
+          <text x="12" y="16" font-family="Arial" font-size="12" fill="#333" text-anchor="middle" dominant-baseline="alphabetic">T</text>
+      </svg>
+  </button>
+  
+</div>
+
+
+            <!-- Zoom centered in toolbar -->
+        <div class="zoom-container">
+          <label id="zoomLabel" for="zoomSlider">Zoom: 100%</label><br>
+          <input type="range" id="zoomSlider" min="10" max="1000" value="100" style="width: 200px;"><br>
+          <label id="brushSizeLabel" for="brushSizeSlider">Brush Size: 1px</label><br>
+          <input type="range" id="brushSizeSlider" min="1" max="10" value="1" step="1" style="width: 200px;">
+        </div>
+                <div class="color-palette" style="position: absolute; top: 50px; right: 20px; transform: translateY(-50%); z-index: 100; text-align: center;">
+          
+          <div class="color-row">
+            <div class="color-swatch" data-color="black" style="background-color: black; border: 2px solid #fff;"></div>
+            <div class="color-swatch" data-color="red" style="background-color: red;"></div>
+            <div class="color-swatch" data-color="blue" style="background-color: blue;"></div>
+            <div class="color-swatch" data-color="green" style="background-color: green;"></div>
+            <div class="color-swatch" data-color="yellow" style="background-color: yellow;"></div>
+          </div>
+          <div class="color-row">
+            <div class="color-swatch" data-color="white" style="background-color: white;"></div>
+            <div class="color-swatch" data-color="purple" style="background-color: purple;"></div>
+            <div class="color-swatch" data-color="orange" style="background-color: orange;"></div>
+            <div class="color-swatch" data-color="brown" style="background-color: brown;"></div>
+            <div class="color-swatch" data-color="cyan" style="background-color: cyan;"></div>
+          </div>
+          <!-- NEW: Third row added for checkerboards color swatch -->
+          <div class="color-row">
+            <div class="color-swatch" data-color="checkerboard" style="background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%);"></div>
+            <div class="color-swatch" data-color="#c71585" style="background-color: #c71585;"></div>
+            <div class="color-swatch" data-color="#FF4433" style="background-color: #FF4433;"></div>
+            <div class="color-swatch" data-color="#9ACD32" style="background-color: #9ACD32;"></div>
+            <div class="color-swatch" data-color="gray" style="background-color: gray;"></div>
+            
+            
+            
+            
+          </div>
+        </div>    
+        <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
+        
+        <!-- Resize Modal Dialog -->
+    <div id="resizeModal" class="modal">
+      <div class="modal-content">
+        <h3>Resize Canvas</h3>
+        <div class="form-group">
+          <label for="canvasWidth">Width (pixels):</label>
+          <input type="number" id="canvasWidth" min="10">
+        </div>
+        <div class="form-group">
+          <label for="canvasHeight">Height (pixels):</label>
+          <input type="number" id="canvasHeight" min="10">
+        </div>
+        <div class="button-row">
+          <button id="cancelResizeBtn">Cancel</button>
+          <button id="confirmResizeBtn">Resize</button>
+        </div>
+      </div>
+    </div>   
+        
+        <script>
+            
+            const canvas = document.getElementById("myCanvas");
+            const ctx = canvas.getContext("2d");
+            document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
+            canvas.style.width = window.innerWidth + "px";
+            canvas.style.height = window.innerHeight + "px";
+    
+            // Create an in-memory canvas to store our drawing
+            const drawingCanvas = document.createElement('canvas');
+            const drawingCtx = drawingCanvas.getContext('2d');
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            
+            
+        
+            
+                        
+                        
+            const projectImages = [null, null, null];
+            let currentproject=0;
+            
+            
+
+       
+            
+            
+            
+            
+            // Function to save the current drawing to the selected project
+            function saveCurrentProject(index) {
+                
+                projectdrawareax[index]=drawareax;
+                projectdrawareay[index]=drawareay;
+                projectdrawstartx[index]=drawstartx;
+                projectdrawstarty[index]=drawstarty;
+                projectzoom[index]=zoom;
+                
+                
+                
+                const dataURL = drawingCanvas.toDataURL('image/png');
+                projectImages[index] = dataURL; // Save the image data URL to the array
+                console.log(`Project ${index + 1} saved.`);
+            }
+            
+            // Function to load the selected project image into the drawing canvas
+            function loadProject(index) {
+                
+                saveCurrentProject(currentproject);
+                currentproject=index;
+                
+                drawareax=projectdrawareax[index];
+                drawareay=projectdrawareay[index];
+                drawstartx=projectdrawstartx[index];
+                drawstarty=projectdrawstarty[index];
+                zoom=projectzoom[index];
+                zoomvalue=zoom*100;
+                document.getElementById("zoomSlider").value = zoomvalue;
+                document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
+                
+              
+                
+                if (projectImages[index]) {
+                    const img = new Image();
+                    img.onload = function() {
+                        drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height); // Clear the canvas
+                        drawingCtx.drawImage(img, 0, 0); // Draw the saved image
+                    };
+                    img.src = projectImages[index]; // Set the image source to the saved data URL
+                    console.log(`Project ${index + 1} loaded.`);
+                } else {
+                    console.log(`No project ${index + 1} found.`);
+                }
+                
+            }
+            document.getElementById('project1Btn').addEventListener('click', () => loadProject(0));
+            document.getElementById('project2Btn').addEventListener('click', () => loadProject(1));
+            document.getElementById('project3Btn').addEventListener('click', () => loadProject(2));
+            
+            document.getElementById('ResizeBtn').addEventListener('click', () => resizecanvas());
+            
+            
+            const resizeModal = document.getElementById('resizeModal');
+            const widthInput = document.getElementById('canvasWidth');
+            const heightInput = document.getElementById('canvasHeight');
+            const confirmResizeBtn = document.getElementById('confirmResizeBtn');
+            const cancelResizeBtn = document.getElementById('cancelResizeBtn');
+            
+            function resizecanvas(){
+                
+                
+                widthInput.value = Math.round(drawareax/zoom) ;
+               heightInput.value = Math.round(drawareay/zoom);
+               
+        
+            // Show the modal
+             resizeModal.style.display = 'block';
+                
+            }
+            cancelResizeBtn.addEventListener('click', function() {
+                resizeModal.style.display = 'none';
+            });
+      
+            // Confirm resize button event
+confirmResizeBtn.addEventListener('click', async function() {
+    let newWidth = parseInt(widthInput.value);
+    let newHeight = parseInt(heightInput.value);
+
+    // Validate dimensions
+    
+    if (isNaN(newWidth) || newWidth < 1 || isNaN(newHeight) || newHeight < 1 || newWidth>drawingCanvas.width||newHeight>drawingCanvas.height) {
+        alert('Invalid dimensions');
+        return;
+    }
+
+    // Create a snapshot of the current canvas content
+    const snapshot = createCanvasSnapshot(drawingCanvas.width, drawingCanvas.height);
+
+    // Create an offscreen canvas for resizing
+    const offscreenCanvas = document.createElement('canvas');
+    const offscreenCtx = offscreenCanvas.getContext('2d');
+    offscreenCanvas.width = newWidth;
+    offscreenCanvas.height = newHeight;
+
+    // Draw the snapshot onto the offscreen canvas
+    offscreenCtx.drawImage(snapshot, 0, 0, drawareax/zoom,drawareay/zoom, 0, 0, newWidth, newHeight);
+
+    // Clear the drawing context
+    drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+    disableSmoothing(drawingCtx);
+
+    // Draw the resized image onto the main canvas
+    drawingCtx.drawImage(offscreenCanvas, 0, 0);
+
+    // Update drawing area dimensions
+     
+
+                    // Reset zoom to 1 after resizing
+                    let newZoom = zoom; // Start with current zoom
+                    if (newWidth * newZoom > window.innerWidth * 0.8 || 
+                        newHeight * newZoom > (window.innerHeight - 100) * 0.8) {
+                        // Image is too large at current zoom, recalculate
+                        const zoomX = Math.round(((window.innerWidth * 0.8) / newWidth)*10)/10;
+                        const zoomY = Math.round((((window.innerHeight - 100) * 0.8) / newHeight)*10)/10;
+           
+                        newZoom = Math.min(zoomX, zoomY);
+                    }
+                    else if(((newWidth * newZoom < window.innerWidth * 0.5 ||newHeight * newZoom < (window.innerHeight - 100) * 0.5 ))){
+                        
+     
+                        const zoomX = Math.round(((window.innerWidth * 0.5) / newWidth)*10)/10;
+                        const zoomY = Math.round((((window.innerHeight - 100) * 0.5) / newHeight)*10)/10;
+           
+                        newZoom = Math.min(zoomX, zoomY);
+                        
+                        
+                        
+                    }
+                    
+                    
+                    zoom = newZoom;
+                    zoomvalue = Math.round(newZoom * 100);
+                    document.getElementById("zoomSlider").value = zoomvalue;
+                    document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
+
+    // Center the drawing area
+    drawareax = newWidth*zoom; 
+    drawareay = newHeight*zoom;
+    
+    drawstartx = (canvas.width / devicePixelRatio - drawareax) / 2;
+    drawstarty = (canvas.height / devicePixelRatio - drawareay) / 2;
+
+    // Close the modal
+    resizeModal.style.display = 'none';
+});
+            function createCanvasSnapshot(width,height) {
+                const offscreen = document.createElement('canvas');
+                offscreen.width = width;
+                offscreen.height = height;
+                const offCtx = offscreen.getContext('2d');
+                disableSmoothing(offCtx);
+                
+                offCtx.drawImage(drawingCanvas, 0, 0,width,height);
+                return offscreen;
+            }
+
+            
+            
+            
+            
+              document.addEventListener('DOMContentLoaded', function() {
+            // Get all color swatches
+            const swatches = document.querySelectorAll('.color-swatch');
+
+            // Add click event handlers
+            swatches.forEach(swatch => {
+            swatch.addEventListener('click', function() {
+              swatches.forEach(s => s.classList.remove('active'));
+              this.classList.add('active');
+              brushColor = this.getAttribute('data-color');
+              isTransparentBrush = brushColor === "checkerboard";
+            });
+          });
+
+            // Set black as the initial active color
+            const blackSwatch = document.querySelector('[data-color="black"]');
+            if (blackSwatch) {
+              blackSwatch.classList.add('active');
+            }
+          });
+            document.addEventListener('DOMContentLoaded', function() {
+                // Adjust color palette position for mobile
+                function adjustColorPalettePosition() {
+                  const colorPalette = document.querySelector('.color-palette');
+                  if (colorPalette) {
+                    if (mobileAndTabletCheck()) {
+                      colorPalette.style.top = '0px'; // 8px lower for mobile
+                      colorPalette.style.transform = 'none'; // Remove vertical centering transform
+                    } else {
+                      colorPalette.style.top = '50px'; // Original position for desktop
+                      colorPalette.style.transform = 'translateY(-50%)'; // Original transform
+                    }
+                  }
+                }
+
+                // Call initially
+                adjustColorPalettePosition();
+
+                // Also call when window is resized
+                window.addEventListener('resize', adjustColorPalettePosition);
+              });
+            
+            function mobileAndTabletCheck() {
+               const isMobile = {
+                    Android: function() {
+                        return navigator.userAgent.match(/Android/i);
+                    },
+                    BlackBerry: function() {
+                        return navigator.userAgent.match(/BlackBerry/i);
+                    },
+                    iOS: function() {
+                        return navigator.userAgent.match(/iPhone|iPod/i);
+                    },
+                    Opera: function() {
+                        return navigator.userAgent.match(/Opera Mini/i);
+                    },
+                    Windows: function() {
+                        return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i);
+                    },
+                    any: function() {
+                        return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows()|| (navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints && navigator.maxTouchPoints > 1));
+                    }
+                };
+           
+                return isMobile.any();
+            }
+            function quantizeValue(value, quantum) {
+    return Math.round(value / quantum) * quantum;
+}
+            // Function to return scrollbar thickness based on mobile status
+            function getScrollbarThickness() {
+                return mobileAndTabletCheck() ? 60 : 30;
+            }
+            
+            if(mobileAndTabletCheck()){
+ 
+                drawingCanvas.width = 4000;
+                drawingCanvas.height = 4000;
+                tempCanvas.width = 4000;
+                tempCanvas.height = 4000;
+                
+                
+            }
+            else{
+                drawingCanvas.width = 10000;
+                drawingCanvas.height = 10000;
+                tempCanvas.width = 10000;
+                tempCanvas.height = 10000;
+            }
+            
+            // Fill the drawing canvas with white initially
+            drawingCtx.fillStyle = "white";
+            drawingCtx.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+            
+            // Disable image smoothing for crisp pixels
+            function disableSmoothing(context) {
+                context.imageSmoothingEnabled = false;
+                context.webkitImageSmoothingEnabled = false;
+                context.mozImageSmoothingEnabled = false;
+                context.msImageSmoothingEnabled = false;
+            }
+            
+            disableSmoothing(ctx);
+            disableSmoothing(drawingCtx);
+            disableSmoothing(tempCtx);
+    
+            let drawareax = 640;
+            let drawareay = 640;
+            let drawstartx = 1000;
+            let drawstarty = 1000;
+            let startan = false;
+            
+            let movecorners1 = false;
+            let movecorners2 = false;
+            let movecorners3 = false;
+            let movecorners4 = false;
+            let movescrollx = false;
+            let movescrollxvalue = 0;
+            let savescrollxvalue = 0;
+            let isposetive = false;
+            let isdirposetive = 0;
+            let x = 0;
+            let y = 0;
+            let zoomvalue = 100;
+            let zoom = 1;
+            let scrollx = 0;
+            let scrolly = 0;
+            let movescrollyvalue = 0;
+            let movescrolly = false;
+            let savescrollyvalue = 0;
+            
+            let isposetivey = false;
+            let isdirposetivey = 0;
+            
+            // Variables for drawing
+            let isDrawing = false;
+            let brushSize = 1; // Default brush size
+            let brushColor = "black"; // Default brush color
+            
+            // Function to draw at a specific point with pixel perfect precision
+            let lastX = 0;
+            let lastY = 0;
+            
+            // Variables to track drag start position
+            let dragStartX = 0;
+            let dragStartY = 0;
+            
+            // Original content area in pixel units (not screen units)
+            let originalContentX = 0;
+            let originalContentY = 0;
+            let originalContentWidth = drawareax;
+            let originalContentHeight = drawareay;
+            
+            // Constants to address the edge pixel issue
+            const EDGE_BUFFER = 2; // Add 2 extra pixels for drawing
+            
+            // Flag to track if an image has already been loaded
+            let firstImageLoaded1 = false;
+            let firstImageLoaded2 = false;
+            let firstImageLoaded3 = false;
+            
+            // Track content dimensions for the first image
+            let firstImageWidth = 0;
+            let firstImageHeight = 0;
+            let isImageWaiting = false;   // Image is loaded, waiting for first click
+            let isMovingImage = false; 
+            
+            // **************** NEW VARIABLES FOR IMAGE LAYER ****************
+            let currentImage = null;
+            let currentImageX = 0;
+            let currentImageY = 0;
+            let currentImageWidth = 0;
+            let currentImageHeight = 0;
+            let currentImageOriginalWidth = 0;
+            let currentImageOriginalHeight = 0;
+            let dragOffsetX = 0;
+            let dragOffsetY = 0;
+            // ******************************************************************
+            let lastTapTime = 0;
+            let lastTapCorner = 0; 
+            const doubleTapThreshold = 300; 
+            let isTransparentBrush = false;
+            let prevDrawAreaX, prevDrawAreaY, prevDrawStartX, prevDrawStartY, prevZoom;
+            let currentTool = 'pen';      // Default tool
+            let isSelecting = false;      // Track selection state
+            let selectionStartX = 0;      // Selection coordinates
+            let selectionStartY = 0;
+            let selectionEndX = 0;
+            let selectionEndY = 0;
+            let selectionNeedsClick = false; 
+            let isInteractingWithToolbar = false;
+            
+            let projectdrawareax = [drawareax, drawareax, drawareax];
+            let projectdrawareay = [drawareay, drawareay, drawareay];
+            let projectdrawstartx = [drawstartx, drawstartx, drawstartx];
+            let projectdrawstarty = [drawstarty, drawstarty, drawstarty];
+            let projectzoom = [zoomvalue, zoomvalue, zoomvalue];
+            
+            
+            let prevzoom=1;
+            let selLeft = 0;
+            let selTop =0;
+            let selWidth = 0;
+            let selHeight =0;
+            let isTextToolActive = false;
+            let currentImagecanvas=currentproject;
+            // Event listener for zoom slider
+            document.getElementById("zoomSlider").addEventListener("input", (e) => {
+                e.preventDefault();
+                zoomvalue = Number(e.target.value);
+                document.getElementById("zoomLabel").innerText = "Zoom: " + e.target.value + "%";
+            });
+            
+            // Event listener for brush size slider
+            document.getElementById("brushSizeSlider").addEventListener("input", (e) => {
+                e.preventDefault();
+                const sliderVal = Number(e.target.value);
+                brushSize = sliderVal * sliderVal;
+                document.getElementById("brushSizeLabel").innerText = "Brush Size: " + brushSize + "px";
+            });
+            
+            const toolButtons = document.querySelectorAll('.tool-btn');
+
+// Add pointer event listeners to each tool button
+toolButtons.forEach(button => {
+    button.addEventListener('pointerdown', (e) => {
+        e.preventDefault(); // Prevent default behavior
+        e.stopPropagation(); // Stop the event from bubbling up
+    });
+});
+
+// Get the save and open buttons
+const saveBtn = document.getElementById('saveImageBtn');
+const openLabel = document.querySelector('label[for="directFileInput"]');
+
+// Add pointer event listeners to the save and open buttons
+if (saveBtn) {
+    saveBtn.addEventListener('pointerdown', (e) => {
+        e.preventDefault(); // Prevent default behavior
+        e.stopPropagation(); // Stop the event from bubbling up
+    });
+}
+
+if (openLabel) {
+    openLabel.addEventListener('pointerdown', (e) => {
+        e.preventDefault(); // Prevent default behavior
+        e.stopPropagation(); // Stop the event from bubbling up
+    });
+}
+
+// Get all color swatches
+const colorSwatches = document.querySelectorAll('.color-swatch');
+
+// Add pointer event listeners to each color swatch
+colorSwatches.forEach(swatch => {
+    swatch.addEventListener('pointerdown', (e) => {
+        e.preventDefault(); // Prevent default behavior
+        e.stopPropagation(); // Stop the event from bubbling up
+    });
+});
+            
+            
+            
+            function applyCanvasTransform(shouldRound) {
+                // Create stable integer positions for drawing
+                let renderX = Math.floor(drawstartx);
+                let renderY = Math.floor(drawstarty);
+                let renderW = Math.ceil(drawareax);
+                let renderH = Math.ceil(drawareay);
+
+                // Calculate display dimensions precisely
+                const displayWidth = Math.floor(renderW / zoom);
+                const displayHeight = Math.floor(renderH / zoom);
+
+                // Draw using transformation matrix
+                ctx.save();
+                ctx.translate(renderX, renderY);
+                ctx.scale(zoom, zoom);
+                ctx.drawImage(drawingCanvas, 0, 0, displayWidth, displayHeight, 0, 0, displayWidth, displayHeight);
+                ctx.restore();
+
+                return { displayWidth, displayHeight, renderX, renderY, renderW, renderH };
+            }
+function floodFill(startX, startY) {
+    console.log("Filling at", startX, startY);
+    
+    // Early exit checks
+    if (startX < 0 || startY < 0 || 
+        startX >= drawingCanvas.width || 
+        startY >= drawingCanvas.height) {
+        return;
+    }
+    
+    // Get target color from starting pixel
+    const targetData = drawingCtx.getImageData(startX, startY, 1, 1).data;
+    const targetR = targetData[0];
+    const targetG = targetData[1];
+    const targetB = targetData[2];
+    const targetA = targetData[3];
+    
+    // Get fill color values
+    let fillR, fillG, fillB, fillA = 255;
+    if (brushColor === "checkerboard") {
+        // Clear the pixel when using transparent/checkerboard tool
+        fillR = fillG = fillB = 0;
+        fillA = 0;
+    } else if (brushColor.startsWith('#')) {
+        fillR = parseInt(brushColor.slice(1, 3), 16);
+        fillG = parseInt(brushColor.slice(3, 5), 16);
+        fillB = parseInt(brushColor.slice(5, 7), 16);
+    } else {
+        // For named colors or RGB strings
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = 1;
+        tempCanvas.height = 1;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.fillStyle = brushColor;
+        tempCtx.fillRect(0, 0, 1, 1);
+        const fillData = tempCtx.getImageData(0, 0, 1, 1).data;
+        fillR = fillData[0];
+        fillG = fillData[1];
+        fillB = fillData[2];
+        fillA = fillData[3];
+    }
+    
+    // If target color is the same as fill color, exit
+    if (Math.abs(targetR - fillR) <= 2 && 
+        Math.abs(targetG - fillG) <= 2 && 
+        Math.abs(targetB - fillB) <= 2 && 
+        Math.abs(targetA - fillA) <= 2) {
+        return;
+    }
+    
+    // Color matching tolerance (helps with anti-aliased edges)
+    const tolerance = 2;
+    
+    // For large areas, we'll use a chunk-based approach
+    let chunkSize = mobileAndTabletCheck() ? 20000 : 40000;
+    const maxIterations = mobileAndTabletCheck() ? 10000000 : 20000000;
+    
+    // Function to fill a specified chunk of the canvas
+    function fillChunk(chunkX, chunkY, chunkWidth, chunkHeight) {
+        console.log(`Filling chunk: ${chunkX},${chunkY} size: ${chunkWidth}x${chunkHeight}`);
+        
+        // Get the image data for just this chunk
+        const imageData = drawingCtx.getImageData(chunkX, chunkY, chunkWidth, chunkHeight);
+        const data = imageData.data;
+        
+        // Local coordinates within this chunk
+        const localX = startX - chunkX;
+        const localY = startY - chunkY;
+        
+        // Skip if outside chunk
+        if (localX < 0 || localY < 0 || localX >= chunkWidth || localY >= chunkHeight) {
+            return 0;
+        }
+        
+        // Memory-efficient tracking of visited pixels
+        const visited = new Uint8Array(chunkWidth * chunkHeight);
+        
+        // Stack-based flood fill with 8-way connectivity
+        const stack = [[localX, localY]];
+        let iterations = 0;
+        
+        // Check if a pixel matches the target color with tolerance
+        function matchesTarget(x, y) {
+            if (x < 0 || y < 0 || x >= chunkWidth || y >= chunkHeight) return false;
+            const idx = (y * chunkWidth + x) * 4;
+            return (
+                Math.abs(data[idx] - targetR) <= tolerance &&
+                Math.abs(data[idx + 1] - targetG) <= tolerance &&
+                Math.abs(data[idx + 2] - targetB) <= tolerance &&
+                Math.abs(data[idx + 3] - targetA) <= tolerance
+            );
+        }
+        
+        // Set a pixel's color
+        function setPixel(x, y) {
+            const idx = (y * chunkWidth + x) * 4;
+            data[idx] = fillR;
+            data[idx + 1] = fillG;
+            data[idx + 2] = fillB;
+            data[idx + 3] = fillA;
+            visited[y * chunkWidth + x] = 1;
+        }
+        
+        // Process pixels in the stack (breadth-first search for better coverage)
+        while (stack.length > 0 && iterations < maxIterations) {
+            iterations++;
+            const [x, y] = stack.shift(); // Use shift() for breadth-first search
+            
+            if (visited[y * chunkWidth + x]) continue;
+            
+            // Only fill if matches target color
+            if (!matchesTarget(x, y)) continue;
+            
+            // Set the pixel's color
+            setPixel(x, y);
+            
+            // Check 8 adjacent pixels (including diagonals)
+            if (x > 0) stack.push([x - 1, y]);                  // Left
+            if (x < chunkWidth - 1) stack.push([x + 1, y]);     // Right
+            if (y > 0) stack.push([x, y - 1]);                  // Up
+            if (y < chunkHeight - 1) stack.push([x, y + 1]);    // Down
+            
+            // Diagonals (comment these out if you need faster performance)
+            if (x > 0 && y > 0) stack.push([x - 1, y - 1]);                // Top-left
+            if (x < chunkWidth - 1 && y > 0) stack.push([x + 1, y - 1]);   // Top-right
+            if (x > 0 && y < chunkHeight - 1) stack.push([x - 1, y + 1]);  // Bottom-left
+            if (x < chunkWidth - 1 && y < chunkHeight - 1) stack.push([x + 1, y + 1]); // Bottom-right
+        }
+        
+        // Update the canvas with our changes
+        drawingCtx.putImageData(imageData, chunkX, chunkY);
+        return iterations;
+    }
+    
+    // Fill the initial chunk where the click happened
+    const initialChunkX = Math.max(0, startX - chunkSize/2);
+    const initialChunkY = Math.max(0, startY - chunkSize/2);
+    const initialChunkWidth = Math.min(chunkSize, drawingCanvas.width - initialChunkX);
+    const initialChunkHeight = Math.min(chunkSize, drawingCanvas.height - initialChunkY);
+    
+    const iterations = fillChunk(initialChunkX, initialChunkY, initialChunkWidth, initialChunkHeight);
+    
+    console.log(`Fill completed in ${iterations} iterations`);
+    
+    // We could implement a more complex system that processes additional chunks
+    // if the fill operation reaches the edges of the initial chunk, but that
+    // would be more complex and might not be necessary for most use cases.
+}
+
+// Helper function to get pixel color
+function getPixelColor(x, y) {
+    if (x < 0 || y < 0 || x >= drawingCanvas.width || y >= drawingCanvas.height) {
+        return 'rgba(0,0,0,0)';
+    }
+    
+    const data = drawingCtx.getImageData(x, y, 1, 1).data;
+    return `rgba(${data[0]},${data[1]},${data[2]},${data[3]/255})`;
+}
+function drawText(x, y, text) {
+    
+    const relativeX = Math.floor((x - drawstartx) / zoom );
+    const relativeY = Math.floor((y - drawstarty) / zoom );
+    
+    const fontSize = brushSize*5 + 10; // Brush size + 10 for font size
+    drawingCtx.font = `${fontSize}px Arial`;
+    drawingCtx.fillStyle = brushColor; // Use the current brush color
+    drawingCtx.fillText(text, relativeX, relativeY); // Draw the text at the specified coordinates
+}
+
+
+function roundToFullPixels(value) {
+    return Math.round(value);
+}
+
+// Helper to check if two colors match
+function colorsMatch(colorData, cssColor) {
+    // Parse CSS color
+    let targetR, targetG, targetB, targetA;
+    
+    if (cssColor.startsWith('rgba')) {
+        const parts = cssColor.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/);
+        if (!parts) return false;
+        
+        targetR = parseInt(parts[1]);
+        targetG = parseInt(parts[2]);
+        targetB = parseInt(parts[3]);
+        targetA = Math.round(parseFloat(parts[4]) * 255);
+    } else if (cssColor.startsWith('rgb')) {
+        const parts = cssColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        if (!parts) return false;
+        
+        targetR = parseInt(parts[1]);
+        targetG = parseInt(parts[2]);
+        targetB = parseInt(parts[3]);
+        targetA = 255;
+    } else {
+        // For other formats, we need a different approach
+        return false;
+    }
+    
+    // Compare with small tolerance for floating point errors
+    return Math.abs(colorData[0] - targetR) <= 2 && 
+           Math.abs(colorData[1] - targetG) <= 2 && 
+           Math.abs(colorData[2] - targetB) <= 2 && 
+           Math.abs(colorData[3] - targetA) <= 2;
+}
+
+// Helper to set pixel color in ImageData
+function setPixelInImageData(imageData, x, y, color) {
+    const idx = (y * imageData.width + x) * 4;
+    
+    // Handle different color formats
+    if (color.startsWith('#')) {
+        // Hex color
+        imageData.data[idx] = parseInt(color.substring(1, 3), 16);
+        imageData.data[idx + 1] = parseInt(color.substring(3, 5), 16);
+        imageData.data[idx + 2] = parseInt(color.substring(5, 7), 16);
+        imageData.data[idx + 3] = 255; // Fully opaque
+    } else if (color.startsWith('rgba')) {
+        // RGBA color
+        const parts = color.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/);
+        imageData.data[idx] = parseInt(parts[1]);
+        imageData.data[idx + 1] = parseInt(parts[2]);
+        imageData.data[idx + 2] = parseInt(parts[3]);
+        imageData.data[idx + 3] = Math.round(parseFloat(parts[4]) * 255);
+    } else if (color.startsWith('rgb')) {
+        // RGB color
+        const parts = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        imageData.data[idx] = parseInt(parts[1]);
+        imageData.data[idx + 1] = parseInt(parts[2]);
+        imageData.data[idx + 2] = parseInt(parts[3]);
+        imageData.data[idx + 3] = 255; // Fully opaque
+    } else {
+        // Named colors or other formats
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = 1;
+        tempCanvas.height = 1;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.fillStyle = color;
+        tempCtx.fillRect(0, 0, 1, 1);
+        const colorData = tempCtx.getImageData(0, 0, 1, 1).data;
+        
+        imageData.data[idx] = colorData[0];
+        imageData.data[idx + 1] = colorData[1];
+        imageData.data[idx + 2] = colorData[2];
+        imageData.data[idx + 3] = colorData[3];
+    }
+}
+function switchTool(newTool) {
+    // Update the current tool
+    currentTool = newTool;
+    
+    // Update the UI buttons
+    const toolButtons = {
+        pen: document.getElementById('penTool'),
+        fill: document.getElementById('fillTool'),
+        select: document.getElementById('selectTool'),
+        eyedropper: document.getElementById('eyedropperTool'),
+        copy: document.getElementById('cTool'),
+        text: document.getElementById('textTool')
+    };
+    
+    // Update appearance of all tool buttons
+    Object.keys(toolButtons).forEach(tool => {
+        if (toolButtons[tool]) {
+            if (tool === currentTool) {
+                toolButtons[tool].style.backgroundColor = '#d4ffd4';
+                toolButtons[tool].style.borderColor = '#4CAF50';
+            } else {
+                toolButtons[tool].style.backgroundColor = '#f1f1f1';
+                toolButtons[tool].style.borderColor = '#ccc';
+            }
+        }
+    });
+    
+    console.log("Switched to tool:", newTool);
+}            
+            // Ensure the drawing canvas is big enough for the image
+            function ensureCanvasSize(width, height) {
+                // Resize the drawing canvas if the new dimensions are larger
+                if (width > drawingCanvas.width || height > drawingCanvas.height) {
+                    // Save current content
+                    const oldContent = document.createElement('canvas');
+                    oldContent.width = drawingCanvas.width;
+                    oldContent.height = drawingCanvas.height;
+                    const oldCtx = oldContent.getContext('2d');
+                    oldCtx.drawImage(drawingCanvas, 0, 0);
+
+                    // Resize the canvas
+                    drawingCanvas.width = Math.max(width, drawingCanvas.width);
+                    drawingCanvas.height = Math.max(height, drawingCanvas.height);
+
+                    // Fill with white and restore content
+                    drawingCtx.fillStyle = "white";
+                    drawingCtx.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                    drawingCtx.drawImage(oldContent, 0, 0);
+
+                    // Ensure smooth rendering is disabled
+                    disableSmoothing(drawingCtx);
+
+                    // Also resize temp canvas
+                    tempCanvas.width = drawingCanvas.width;
+                    tempCanvas.height = drawingCanvas.height;
+                    disableSmoothing(tempCtx);
+
+                    console.log(`Canvas resized to ${drawingCanvas.width}x${drawingCanvas.height}`);
+                }
+            }
+            
+            // Event listener for image open button
+     
+     
+            function drawBresenhamLine(x0, y0, x1, y1, size) {
+                x0 = Math.floor(x0);
+                y0 = Math.floor(y0);
+                x1 = Math.floor(x1);
+                y1 = Math.floor(y1);
+
+                const dx = Math.abs(x1 - x0);
+                const dy = Math.abs(y1 - y0);
+                const sx = (x0 < x1) ? 1 : -1;
+                const sy = (y0 < y1) ? 1 : -1;
+                let err = dx - dy;
+
+                const halfSize = Math.floor(size / 2);
+
+                while (true) {
+                    // Simplified: just draw one rectangle at each point
+                    if (isTransparentBrush) {
+                        drawingCtx.clearRect(x0 - halfSize, y0 - halfSize, size, size);
+                    } else {
+                        drawingCtx.fillRect(x0 - halfSize, y0 - halfSize, size, size);
+                    }
+
+                    if (x0 === x1 && y0 === y1) break;
+
+                    const e2 = 2 * err;
+                    if (e2 > -dy) {
+                        err -= dy;
+                        x0 += sx;
+                    }
+                    if (e2 < dx) {
+                        err += dx;
+                        y0 += sy;
+                    }
+                }
+            }
+            function ensureIntDimension(value) {
+                // Add a tiny bias (0.001) to prevent rounding down due to floating point errors
+                return Math.round(value + 0.001);
+            }
+            
+            
+            // IMPROVED: Make sure we have accurate mouse coordinates
+            function getCanvasMousePosition(event) {
+                const rect = canvas.getBoundingClientRect();
+                const devicePixelRatio = window.devicePixelRatio || 1;
+                
+                // Calculate scales including the device pixel ratio
+                const scaleX = canvas.width / (rect.width * devicePixelRatio);
+                const scaleY = canvas.height / (rect.height * devicePixelRatio);
+                
+                // Get mouse coordinates relative to the canvas
+                const clientX = event.clientX - rect.left;
+                const clientY = event.clientY - rect.top;
+               
+                return {
+                    x: clientX * (canvas.width / rect.width),
+                    y: clientY * (canvas.height / rect.height)
+                };
+            }
+            
+            
+         
+    
+            
+            
+            // IMPROVED: More accurate pixel drawing
+            function drawPixel(x, y) {
+                const relativeX = Math.floor((x - drawstartx) / zoom );
+                const relativeY = Math.floor((y - drawstarty) / zoom );
+
+                // Set the brush color
+                if (!isTransparentBrush) {
+                    drawingCtx.fillStyle = brushColor;
+                }
+
+                if (x >= drawstartx && x < drawstartx + drawareax &&
+                    y >= drawstarty && y < drawstarty + drawareay) {
+
+                    if(lastX === 0 && lastY === 0) {
+                        lastX = relativeX; 
+                        lastY = relativeY;
+
+                        const halfSize = Math.floor(brushSize / 2);
+                        if (isTransparentBrush) {
+                            drawingCtx.clearRect(relativeX - halfSize, relativeY - halfSize, brushSize, brushSize);
+                        } else {
+                            drawingCtx.fillRect(relativeX - halfSize, relativeY - halfSize, brushSize, brushSize);
+                        }
+                    } else {
+                        drawBresenhamLine(lastX, lastY, relativeX, relativeY, brushSize);
+                        lastX = relativeX;
+                        lastY = relativeY;
+                    }
+                } else {
+                    if(lastX !== 0 && lastY !== 0) {
+                        drawBresenhamLine(lastX, lastY, relativeX, relativeY, brushSize);
+                    }
+                    lastX = relativeX;
+                    lastY = relativeY;
+                }
+            }
+            
+            // Initialize canvas size properly
+            function resizeCanvas() {
+                const devicePixelRatio = window.devicePixelRatio || 1;
+                
+                // Set the canvas size to match the display size
+                canvas.width = window.innerWidth * devicePixelRatio;
+                canvas.height = window.innerHeight * devicePixelRatio;
+                
+                // Scale the canvas CSS size to match the window
+                canvas.style.width = window.innerWidth + 'px';
+                canvas.style.height = window.innerHeight + 'px';
+                
+                // Ensure the canvas renders crisply on high DPI displays
+                ctx.scale(devicePixelRatio, devicePixelRatio);
+                
+                disableSmoothing(ctx);
+            }
+            
+            window.addEventListener('resize', (event) => {
+                // Store current state before resize
+                prevDrawAreaX = drawareax;
+                prevDrawAreaY = drawareay;
+                prevDrawStartX = drawstartx;
+                prevDrawStartY = drawstarty;
+                prevZoom = zoom;
+
+                // Update canvas size
+                const oldDevicePixelRatio = window.devicePixelRatio || 1;
+                resizeCanvas();
+
+                // Preserve drawing content by copying to temporary canvas
+                tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+                tempCtx.drawImage(drawingCanvas, 0, 0);
+
+                // CRITICAL: Do not change the drawing area dimensions during resize!
+                // Just maintain position based on window size change
+                const deltaWidth = window.innerWidth - (canvas.width / oldDevicePixelRatio);
+                const deltaHeight = window.innerHeight - (canvas.height / oldDevicePixelRatio);
+
+                // Maintain the same relative position
+                if (drawareax > canvas.width|| drawareay > canvas.height) { // If zoomed in
+                    // Do nothing to the dimensions - keep them exactly as they were
+                    drawareax = prevDrawAreaX;
+                    drawareay = prevDrawAreaY;
+
+                    // Keep the canvas in the same relative position
+                    drawstartx = prevDrawStartX;
+                    drawstarty = prevDrawStartY;
+                } else {
+                    // Not zoomed in - center the canvas
+                    const toolbarHeight = 155;
+                    drawstartx = (window.innerWidth / 2) - (drawareax / 2);
+                    drawstarty = Math.max(toolbarHeight, (window.innerHeight / 2) - (drawareay / 2));
+                    movescrollxvalue = 0;
+                    scrollx = 0;
+                    movescrollyvalue = 0;
+                    scrolly = 0;
+                }
+
+                // Restore drawing content
+                drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                drawingCtx.fillStyle = "white";
+                drawingCtx.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                drawingCtx.drawImage(tempCanvas, 0, 0);
+
+                // Reset background
+                ctx.fillStyle = "lightgray";
+                ctx.fillRect(0, 0, canvas.width/devicePixelRatio, canvas.height/devicePixelRatio);
+
+                startan = true;
+            });
+            
+            var check = function() {
+                // Update canvas size
+                if (canvas.width !== window.innerWidth * (window.devicePixelRatio || 1) ||
+                    canvas.height !== window.innerHeight * (window.devicePixelRatio || 1)) {
+                    resizeCanvas();
+                }
+                
+                let centerX = drawstartx + drawareax / 2;
+                let centerY = drawstarty + drawareay / 2;
+                drawareax = (drawareax / zoom * (zoomvalue / 100));
+                drawareay = (drawareay / zoom * (zoomvalue / 100));
+                drawstartx = centerX - drawareax / 2;
+                drawstarty = centerY - drawareay / 2;
+                zoom = zoomvalue / 100;
+                
+                if((document.body.clientWidth > 100 && startan == false)) {
+                    startan = true;  
+                    drawstartx = (canvas.width/devicePixelRatio)/2 - drawareax/2;
+                    drawstarty = (canvas.height/devicePixelRatio)/2 - drawareay/2;
+                    prevDrawAreaX = drawareax;
+                    prevDrawAreaY = drawareay;
+                    prevDrawStartX = drawstartx;
+                    prevDrawStartY = drawstarty;
+                    saveCurrentProject(0);saveCurrentProject(1);saveCurrentProject(2);
+                    projectdrawareax = [drawareax, drawareax, drawareax];
+                    projectdrawareay = [drawareay, drawareay, drawareay];
+                    projectdrawstartx = [drawstartx, drawstartx, drawstartx];
+                    projectdrawstarty = [drawstarty, drawstarty, drawstarty];
+                    projectzoom = [zoom, zoom, zoom];
+                    
+                }
+                
+                
+                let resizeOccurred = false;
+                
+                // Store the old dimensions before any changes
+                const oldDrawStartX = drawstartx;
+                const oldDrawStartY = drawstarty;
+                const oldDrawAreaX = drawareax;
+                const oldDrawAreaY = drawareay;
+                
+                // Determine if any corner is being moved and update dimensions
+                if (movecorners1 == true) {
+                    // Calculate new position and dimensions normally first
+                    let newDrawstartx = x + 7.5;
+                    let newDrawstarty = y + 2.5;
+                    let newDrawareax = drawareax + (-newDrawstartx + drawstartx);
+                    let newDrawareay = drawareay + (-newDrawstarty + drawstarty);
+
+                    // Apply minimum size constraints
+                    if (newDrawareax < 10) {
+                        newDrawstartx = drawstartx + drawareax - 10;
+                        newDrawareax = 10;
+                    }
+
+                    if (newDrawareay < 10) {
+                        newDrawstarty = drawstarty + drawareay - 10;
+                        newDrawareay = 10;
+                    } else if (newDrawstarty < 100) {
+                        newDrawstarty = 100 + 2.5;
+                        newDrawareay = drawareay + (-newDrawstarty + drawstarty);
+                    }
+
+                    // CRITICAL FIX: Quantize the position changes to be exact pixel boundaries for the zoom level
+              
+                        // Calculate how much the position is changing
+                        const deltaX = newDrawstartx - drawstartx;
+                        const deltaY = newDrawstarty - drawstarty;
+
+                        // Quantize these deltas to whole pixels in the original (unzoomed) coordinate space
+                        const quantizedDeltaX = quantizeValue(deltaX, zoom);
+                        const quantizedDeltaY = quantizeValue(deltaY, zoom);
+
+                        // Apply the quantized deltas to get stable coordinates
+                        newDrawstartx = drawstartx + quantizedDeltaX;
+                        newDrawstarty = drawstarty + quantizedDeltaY;
+
+                        // Recalculate dimensions to match the quantized positions
+                        newDrawareax = drawareax + (drawstartx - newDrawstartx);
+                        newDrawareay = drawareay + (drawstarty - newDrawstarty);
+        
+
+                    // Update the actual values
+                    drawstartx = newDrawstartx;
+                    drawstarty = newDrawstarty;
+                    drawareax = newDrawareax;
+                    drawareay = newDrawareay;
+                   
+                    resizeOccurred = true;
+                }
+                
+               if (movecorners2 == true) {
+                    // Normal calculations first
+                    let newDrawareax = drawareax;
+                    let newDrawstarty = Math.round((y + 2.5)*zoom)/zoom;
+                    let newDrawareay = drawareay + (-newDrawstarty + drawstarty);
+
+                    // Width calculations
+                    if (x > canvas.width/devicePixelRatio - 5)
+                        newDrawareax = drawareax + (canvas.width/devicePixelRatio - 5 - drawareax - drawstartx - 2.5);
+                    else if (drawareax + (x - drawareax - drawstartx - 2.5) < 10)
+                        newDrawareax = 10;
+                    else
+                        newDrawareax = Math.round((drawareax + (x - drawareax - drawstartx - 2.5))/zoom)*zoom;
+
+                    // Height calculations
+                    if (newDrawareay < 10) {
+                        if (drawareay > 10)
+                            newDrawstarty = drawstarty + drawareay - 10;
+                        newDrawareay = 10;
+                    } else if (y < 100) {
+                        newDrawstarty = 100 + 2.5;
+                        newDrawareay = drawareay + (-newDrawstarty + drawstarty);
+                    }
+
+                    // CRITICAL FIX: Quantize the Y-position changes (top edge)
+          
+                        // For top-right corner, Y position changes but X stays fixed
+                        const deltaY = newDrawstarty - drawstarty;
+
+                        // Quantize the delta to whole pixels in the unzoomed space
+                        const quantizedDeltaY = quantizeValue(deltaY, zoom);
+
+                        // Apply the quantized delta for position
+                        newDrawstarty = drawstarty + quantizedDeltaY;
+
+                        // Recalculate height based on the quantized position
+                        newDrawareay = drawareay + (drawstarty - newDrawstarty);
+                  
+
+                    // Update the values
+                    drawstarty = newDrawstarty;
+                    drawareax = newDrawareax;
+                    drawareay = newDrawareay;
+
+                    resizeOccurred = true;
+                }
+
+                // For corner 3 (bottom-left)
+                if (movecorners3 == true) {
+                    // Normal calculations first
+                    let newDrawstartx =Math.round((x + 7.5)/zoom)*zoom;
+                    let newDrawareax = drawareax + (-newDrawstartx + drawstartx);
+                    let newDrawareay = drawareay;
+
+                    // Width calculations
+                    if (newDrawareax < 10) {
+                   
+                    
+                            newDrawstartx = drawstartx + drawareax - 10;
+                        newDrawareax = 10;
+                    }
+
+                    // Height calculations
+                    if (drawareay + (y - drawareay - drawstarty - 7.5) < 10)
+                        newDrawareay = 10;
+                    else if (y > canvas.height/devicePixelRatio - 50)
+                        newDrawareay = -drawstarty + canvas.height/devicePixelRatio - 50;
+                    else {
+                        newDrawareay = Math.round((drawareay + (y - drawareay - drawstarty - 7.5))/zoom)*zoom;
+                    }
+
+                    // CRITICAL FIX: Quantize the X-position changes (left edge)
+           
+                        // For bottom-left corner, X position changes but Y stays fixed
+                        const deltaX = newDrawstartx - drawstartx;
+
+                        // Quantize the delta to whole pixels in the unzoomed space
+                        const quantizedDeltaX = quantizeValue(deltaX, zoom);
+
+                        // Apply the quantized delta for position
+                        newDrawstartx = drawstartx + quantizedDeltaX;
+
+                        // Recalculate width based on the quantized position
+                        newDrawareax = drawareax + (drawstartx - newDrawstartx);
+               
+
+                    // Update the values
+                    drawstartx = newDrawstartx;
+                    drawareax = newDrawareax;
+                    drawareay = newDrawareay;
+
+                    resizeOccurred = true;
+                }
+                
+                if (movecorners4 == true) {
+                    // Bottom-right corner being moved
+                    if (x > canvas.width/devicePixelRatio - 5)
+                        drawareax = drawareax + (canvas.width/devicePixelRatio - 5 - drawareax - drawstartx - 2.5);
+                    else if (drawareax + (x - drawareax - drawstartx - 2.5) < 10)
+                        drawareax = 10;
+                    else {
+                        drawareax = Math.round((drawareax + (x - drawareax - drawstartx - 2.5))/zoom)*zoom;
+                    }
+                    
+                    if (drawareay + (y - drawareay - drawstarty - 7.5) < 10)
+                        drawareay = 10;
+                    else if (y > canvas.height/devicePixelRatio - 50)
+                        drawareay = -drawstarty + canvas.height/devicePixelRatio - 50;
+                    else {
+                        drawareay = Math.round((drawareay + (y - drawareay - drawstarty - 7.5))/zoom)*zoom;
+                    }
+                    
+                    resizeOccurred = true;
+                }
+                
+                if (resizeOccurred) {
+                    // Update the first image dimensions to match the new drawing area size
+                    firstImageWidth = Math.floor(drawareax / zoom);
+                    firstImageHeight = Math.floor(drawareay / zoom);
+
+                    // 1. Save current drawing to tempCanvas
+                    tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+                    tempCtx.drawImage(drawingCanvas, 0, 0);
+
+                    // 2. Clear the drawing canvas with white
+                    drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+
+
+                    // 3. Define source and destination for different corner scenarios
+                    const oldWidth = Math.floor(oldDrawAreaX / zoom);
+                    const oldHeight = Math.floor(oldDrawAreaY / zoom);
+                    const newWidth = Math.floor(drawareax / zoom);
+                    const newHeight = Math.floor(drawareay / zoom);
+                    drawingCtx.fillStyle = "white";
+                    let srcX = 0, srcY = 0;
+                    let dstX = 0, dstY = 0;
+                    let srcWidth = newWidth;
+                    let srcHeight = newHeight;
+
+                    if (movecorners1) {
+                        const trimmedFromRight = (oldWidth - newWidth);
+                        const trimmedFromBottom = (oldHeight - newHeight);
+                        srcX = trimmedFromRight;
+                        srcY = trimmedFromBottom;
+                        if (srcX + srcWidth > oldWidth) srcWidth = oldWidth - srcX;
+                        if (srcY + srcHeight > oldHeight) srcHeight = oldHeight - srcY;
+                        if (newWidth > oldWidth) {
+                            drawingCtx.fillRect(0, 0, newWidth - oldWidth, newHeight);
+                        }
+                        if (newHeight > oldHeight) {
+                            drawingCtx.fillRect(0, 0, newWidth, newHeight - oldHeight);
+                        }
+                    } 
+                    else if (movecorners2) {
+                        srcX = 0;
+                        srcY = ( oldHeight - newHeight);
+                        if (srcY + srcHeight > oldHeight) srcHeight = oldHeight - srcY;
+                        if (newWidth > oldWidth) {
+                            drawingCtx.fillRect(oldWidth, 0, newWidth - oldWidth, newHeight);
+                        }
+                        if (newHeight > oldHeight) {
+                            drawingCtx.fillRect(0, 0, newWidth, newHeight - oldHeight);
+                        }
+                    } 
+                    else if (movecorners3) {
+                        srcX = ( oldWidth - newWidth);
+                        srcY = 0;
+                        if (srcX + srcWidth > oldWidth) srcWidth = oldWidth - srcX;
+                        if (newWidth > oldWidth) {
+                            drawingCtx.fillRect(0, 0, newWidth - oldWidth, newHeight);
+                        }
+                        if (newHeight > oldHeight) {
+                            drawingCtx.fillRect(0, oldHeight, newWidth, newHeight - oldHeight);
+                        }
+                    } 
+                    else if (movecorners4) {
+                        srcX = 0;
+                        srcY = 0;
+                        if (newWidth > oldWidth) {
+                            drawingCtx.fillRect(oldWidth, 0, newWidth - oldWidth, newHeight);
+                        }
+                        if (newHeight > oldHeight) {
+                            drawingCtx.fillRect(0, oldHeight, newWidth, newHeight - oldHeight);
+                        }
+                        
+                    }
+
+                    // Only draw if we have valid dimensions
+                    if (srcWidth > 0 && srcHeight > 0) {
+                        drawingCtx.drawImage(
+                            tempCanvas,
+                            srcX, srcY, srcWidth, srcHeight,
+                            dstX, dstY, srcWidth, srcHeight
+                        );
+                    }
+
+                    isImageWaiting = false;
+                    isMovingImage = false;
+                    currentImage = null;
+                }
+                
+                if (movescrollx == true) {
+                    movescrollxvalue = -savescrollxvalue + x + scrollx;
+                    if (canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue < 0 && !isposetive) {
+                        scrollx = scrollx - movescrollxvalue + canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 - (canvas.width/devicePixelRatio - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01));
+                        movescrollxvalue = canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 - (canvas.width/devicePixelRatio - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01));
+                    }
+                    if (canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue > canvas.width/devicePixelRatio - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01) && isposetive) {
+                        scrollx = scrollx - movescrollxvalue + canvas.width/devicePixelRatio - ((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01 - (canvas.width/devicePixelRatio/2 - ((((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2));
+                        movescrollxvalue = canvas.width/devicePixelRatio - ((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01 - (canvas.width/devicePixelRatio/2 - ((((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2));
+                    }
+                    drawstartx = -(drawareax/2) - (movescrollxvalue * ((drawareax)/(canvas.width/devicePixelRatio)+(100/drawareax)*canvas.width/devicePixelRatio/20)*1.08) + canvas.width/devicePixelRatio/2;
+                }
+                
+                if (movescrolly == true) {
+                    movescrollyvalue = -savescrollyvalue + y + scrolly;
+                    if (-50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue < 0 && !isposetivey) {
+                        scrolly = 50 + scrolly - movescrollyvalue + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 - (canvas.height/devicePixelRatio - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01));
+                        movescrollyvalue = 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 - (canvas.height/devicePixelRatio - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01));
+                    }
+                    if (50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue > canvas.height/devicePixelRatio - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)) {
+                        scrolly = scrolly - movescrollyvalue - 50 + canvas.height/devicePixelRatio - ((canvas.height/devicePixelRatio-200)/drawareay)*(canvas.height/devicePixelRatio/1.01) - (canvas.height/devicePixelRatio/2 - ((((canvas.height/devicePixelRatio-200)/drawareay)*(canvas.height/devicePixelRatio/1.01))/2));
+                        movescrollyvalue = -50 + canvas.height/devicePixelRatio - ((canvas.height/devicePixelRatio-200)/drawareay)*(canvas.height/devicePixelRatio/1.01) - (canvas.height/devicePixelRatio/2 - ((((canvas.height/devicePixelRatio-200)/drawareay)*(canvas.height/devicePixelRatio/1.01))/2));
+                    }
+                    drawstarty = 50 - (drawareay/2) - (movescrollyvalue * ((drawareay)/(canvas.height/devicePixelRatio)+(100/drawareay)*canvas.height/devicePixelRatio/20)*1.08) + canvas.height/devicePixelRatio/2;
+                }
+                
+                // Draw the document background
+                ctx.fillStyle = "lightgray";
+                ctx.fillRect(0, 0, canvas.width/devicePixelRatio, canvas.height/devicePixelRatio);
+                
+ 
+
+                const checkerPattern = (function createCheckerPattern() {
+                const patternCanvas = document.createElement('canvas');
+                const size = 16; // Small pattern size (8px per square)
+                patternCanvas.width = size;
+                patternCanvas.height = size;
+                const patternCtx = patternCanvas.getContext('2d');
+
+                // Create the pattern
+                patternCtx.fillStyle = "white";
+                patternCtx.fillRect(0, 0, size, size);
+                patternCtx.fillStyle = "#cccccc";
+                patternCtx.fillRect(0, 0, size/2, size/2);
+                patternCtx.fillRect(size/2, size/2, size/2, size/2);
+
+                return patternCanvas;
+            })();
+                const pattern = ctx.createPattern(checkerPattern, 'repeat');
+                ctx.fillStyle = pattern;
+                // Use integer coordinates and add 1px buffer to prevent edge artifacts
+                const patternX = Math.floor(drawstartx+1);
+                const patternY = Math.floor(drawstarty+1);
+                const patternWidth = (Math.ceil(drawareax + (drawstartx - patternX)) - 3);
+                const patternHeight = (Math.ceil(drawareay + (drawstarty - patternY)) - 3);
+                ctx.fillRect(patternX, patternY, patternWidth, patternHeight);
+
+                
+                // Calculate how much of the drawing area to display
+                //const displayWidth = Math.ceil(drawareax / zoom) + EDGE_BUFFER;
+              //  const displayHeight = Math.ceil(drawareay / zoom) + EDGE_BUFFER;
+
+  
+                // Draw the content from the drawing canvas to the visible canvas
+           
+                
+                    ctx.save(); // Save the current state
+                    ctx.translate(drawstartx, drawstarty); // Move to the top-left corner
+                    ctx.scale(zoom, zoom); // Apply zoom scaling
+                    const displayWidth = ensureIntDimension(drawareax / zoom);
+                    const displayHeight = ensureIntDimension(drawareay / zoom);
+                    ctx.drawImage(drawingCanvas, 0, 0, displayWidth, displayHeight, 0,0,displayWidth, displayHeight);
+                    ctx.restore();
+            
+                // ********** NEW: Draw the image layer overlay if an image is loaded **********
+                if(currentImage){
+                    // Draw the image
+                    
+                    currentImageWidth = currentImageOriginalWidth*zoom;;
+                    currentImageHeight = currentImageOriginalHeight*zoom;
+                    
+                    
+                    if(prevzoom!=zoom){
+                    
+                      
+                        prevzoom=zoom;
+                        currentImageX = (drawstartx + selLeft * zoom);
+                        currentImageY = (drawstarty + selTop * zoom);
+                         
+                    }
+                    if(currentImagecanvas!=currentproject){
+                        
+                        
+                        
+                        if(currentproject==0&&firstImageLoaded1==false){drawareax=currentImageWidth;drawareay=currentImageHeight;}
+                        if(currentproject==1&&firstImageLoaded2==false){drawareax=currentImageWidth;drawareay=currentImageHeight;}
+                        if(currentproject==2&&firstImageLoaded3==false){drawareax=currentImageWidth;drawareay=currentImageHeight;}
+
+                        drawstartx = canvas.width/devicePixelRatio/2 - drawareax/2;
+                        movescrollxvalue = 0;
+                        scrollx = 0;
+                        drawstarty = canvas.height/devicePixelRatio/2 - drawareay/2;
+                        movescrollyvalue = 0;
+                        scrolly = 0;
+                        
+                        
+                        currentImageX = (drawstartx );
+                        currentImageY = (drawstarty );
+                        
+                        currentImagecanvas=currentproject;
+                    }
+                    
+                    
+                        
+                        
+             
+                        
+                        
+                       
+
+                    
+                    
+                    
+                 
+           
+                    
+                    
+                    ctx.drawImage(currentImage, currentImageX, currentImageY, currentImageWidth, currentImageHeight);
+
+                    // Draw a green border around the image to indicate it's movable
+                    ctx.strokeStyle = "#4CAF50"; // Green color matching the UI
+                    ctx.lineWidth = 3;
+                    ctx.setLineDash([5, 5]); // Dashed line for better visibility
+                    ctx.strokeRect(currentImageX, currentImageY, currentImageWidth, currentImageHeight);
+
+                    // Add corner handles for visual clarity
+                    const handleSize = 8;
+                    ctx.fillStyle = "#4CAF50";
+                    // Draw corner handles
+                    ctx.fillRect(currentImageX - handleSize/2, currentImageY - handleSize/2, handleSize, handleSize);
+                    ctx.fillRect(currentImageX + currentImageWidth - handleSize/2, currentImageY - handleSize/2, handleSize, handleSize);
+                    ctx.fillRect(currentImageX - handleSize/2, currentImageY + currentImageHeight - handleSize/2, handleSize, handleSize);
+                    ctx.fillRect(currentImageX + currentImageWidth - handleSize/2, currentImageY + currentImageHeight - handleSize/2, handleSize, handleSize);
+
+                    // Reset dash pattern for other drawings
+                    ctx.setLineDash([]);
+                }
+                // ****************************************************************************
+                
+                // Draw the UI elements
+                ctx.fillStyle = "rgb(241, 241, 241)";
+                ctx.fillRect(0, 0, canvas.width/devicePixelRatio, 155);
+                // Draw corner handles
+                ctx.fillStyle = "black";
+                ctx.fillRect(drawstartx-10, drawstarty-10, 10, 10);
+                ctx.fillRect(drawstartx+drawareax, drawstarty-10, 10, 10);
+                ctx.fillRect(drawstartx-10, drawstarty+drawareay, 10, 10);
+                ctx.fillRect(drawstartx+drawareax, drawstarty+drawareay, 10, 10);
+                
+                // Draw scrollbars
+                ctx.fillStyle = "rgb(100, 100, 100)";
+                let sbThickness = getScrollbarThickness();
+    
+                if (drawareax - (canvas.width/devicePixelRatio*2) > -canvas.width/devicePixelRatio-50) {
+                    ctx.fillRect(
+                        canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue, 
+                        canvas.height/devicePixelRatio - sbThickness, 
+                        (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01), 
+                        sbThickness
+                    );
+                }
+                
+                if (drawareay - (canvas.height/devicePixelRatio*2) > -canvas.height/devicePixelRatio-50) {
+                   ctx.fillRect(canvas.width/devicePixelRatio - sbThickness, 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue, sbThickness, (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01));
+                }
+              
+                const isCanvasTooSmallForScrollingX = !(drawareax - (canvas.width/devicePixelRatio*2) > -canvas.width/devicePixelRatio-50);
+                const isCanvasTooSmallForScrollingY = !(drawareay - (canvas.height/devicePixelRatio*2) > -canvas.height/devicePixelRatio-50);
+
+                // Center horizontally if needed
+                if (isCanvasTooSmallForScrollingX && 
+                    (drawstartx < 0 || drawstartx + drawareax > canvas.width/devicePixelRatio)) {
+                    // Center horizontally
+                    drawstartx = canvas.width/devicePixelRatio/2 - drawareax/2;
+                    movescrollxvalue = 0;
+                    scrollx = 0;
+                }
+
+                // Center vertically if needed
+                if (isCanvasTooSmallForScrollingY && 
+                    (drawstarty < 0 || drawstarty + drawareay > canvas.height/devicePixelRatio)) {
+                    // Center vertically
+                    drawstarty = canvas.height/devicePixelRatio/2 - drawareay/2;
+                    movescrollyvalue = 0;
+                    scrolly = 0;
+                }
+            if (isSelecting && (currentTool === 'select'|| currentTool === 'copy')) {
+                ctx.strokeStyle = "#4CAF50";
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+
+                const selLeft = drawstartx + Math.min(selectionStartX, selectionEndX) * zoom;
+                const selTop = drawstarty + Math.min(selectionStartY, selectionEndY) * zoom;
+                const selWidth = Math.abs(selectionEndX - selectionStartX) * zoom;
+                const selHeight = Math.abs(selectionEndY - selectionStartY) * zoom;
+
+                ctx.strokeRect(selLeft, selTop, selWidth, selHeight);
+                ctx.setLineDash([]);
+            }
+                window.requestAnimationFrame(check);   
+            }; 
+            
+            check();
+            
+            // Process mouse events
+            window.addEventListener("mousemove", (e) => {  
+                
+                
+           if (e.target === canvas){      
+                
+    const mousePos = getCanvasMousePosition(e);
+    x = mousePos.x;
+    y = mousePos.y;
+    
+    isposetive = false;
+    if (isdirposetive < x) {
+        isposetive = true;
+    }
+    isdirposetive = x;
+    
+    isposetivey = false;
+    if (isdirposetivey < y) {
+        isposetivey = true;
+    }
+    isdirposetivey = y;
+    
+    // Handle image dragging
+    if(isMovingImage && currentImage&&!selectionNeedsClick){
+        currentImageX = (x - dragOffsetX);
+        currentImageY = (y - dragOffsetY);
+    }
+    
+    // Handle selection tool
+    if (isSelecting && (currentTool === 'select'|| currentTool === 'copy')) {
+        selectionEndX = Math.floor((x - drawstartx) / zoom);
+        selectionEndY = Math.floor((y - drawstarty) / zoom);
+        
+        
+        
+    }
+    
+    // Handle drawing when mousemove with pen tool
+    const heightCheck = 155;
+    if (isDrawing && y > heightCheck && currentTool === 'pen'&&!movescrolly&&!movescrollx) {
+        drawPixel(x, y);
+    }
+}});
+            
+            window.addEventListener("mousedown", (e) => {
+                if (e.target === canvas){ 
+    const mousePos = getCanvasMousePosition(e);
+    x = mousePos.x;
+    y = mousePos.y;
+    
+    // Check if clicking on the image overlay first
+ if(currentImage && x >= currentImageX && x <= currentImageX + currentImageWidth &&
+                   y >= currentImageY && y <= currentImageY + currentImageHeight){
+                    if(!isMovingImage){
+                        // Begin dragging the image
+                        isMovingImage = true;
+                        dragOffsetX = x - (currentImageX);;
+                        dragOffsetY = y - (currentImageY);
+                        selectionNeedsClick=false;
+                    }
+                   
+                    else {
+                        // If already dragging, finalize by drawing the image permanently onto the drawing canvas
+                        let unzoomedX = Math.round((currentImageX - drawstartx) / zoom);
+                        let unzoomedY = Math.round((currentImageY - drawstarty) / zoom);
+                        drawingCtx.drawImage(currentImage, unzoomedX, unzoomedY, currentImageOriginalWidth, currentImageOriginalHeight);
+                        currentImage = null;
+                        isMovingImage = false;
+                    }
+                    
+                    
+                    return;
+                }
+                else if((currentTool === 'select'|| currentTool === 'copy')&&currentImage!=null){
+                        
+                        let unzoomedX = Math.round((currentImageX - drawstartx) / zoom);
+                        let unzoomedY = Math.round((currentImageY - drawstarty) / zoom);
+                        drawingCtx.drawImage(currentImage, unzoomedX, unzoomedY, currentImageOriginalWidth, currentImageOriginalHeight);
+                        currentImage = null;
+                        isMovingImage = false;
+                        
+                        
+                    }
+    
+    
+    // Handle UI interaction with corners and scrollbars
+    if (x >= drawstartx-15 && x < drawstartx && y >= drawstarty-15 && y < drawstarty+5) {
+        movecorners1 = true;
+        dragStartX = x;
+        dragStartY = y;
+        return;
+    }
+    if (x >= drawstartx+drawareax-5 && x < drawstartx+drawareax+15 && y >= drawstarty-15 && y < drawstarty+5) {
+        movecorners2 = true;
+        dragStartX = x;
+        dragStartY = y;
+        return;
+    }
+    if (x >= drawstartx-15 && x < drawstartx && y >= drawstarty+drawareay && y < drawstarty-5+drawareay+15) {
+        movecorners3 = true;
+        dragStartX = x;
+        dragStartY = y;
+        return;
+    }
+    if (x >= drawstartx+drawareax-5 && x < drawstartx+drawareax+15 && y >= drawstarty+drawareay-5 && y < drawstarty+drawareay+15) {
+        movecorners4 = true;
+        dragStartX = x;
+        dragStartY = y;
+        return;
+    }
+    
+    // Handle scrollbar interactions
+    let sbThickness = getScrollbarThickness();
+    if (drawareax - (canvas.width/devicePixelRatio*2) > -canvas.width/devicePixelRatio-50) {
+        if (x <= canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue + (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01) &&
+           x >= canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue &&
+           y >= canvas.height/devicePixelRatio - sbThickness && y <= canvas.height/devicePixelRatio) {
+            movescrollx = true;
+            savescrollxvalue = x;
+            return;
+        }
+    }
+    if (drawareay - (canvas.height/devicePixelRatio*2) > -canvas.height/devicePixelRatio-50) {
+        if (x <= canvas.width/devicePixelRatio && x >= canvas.width/devicePixelRatio - sbThickness &&
+           y >= 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue &&
+           y <= 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue + (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)) {
+            movescrolly = true;
+            savescrollyvalue = y;
+            return;
+        }
+    }
+    // Process tool actions if inside the drawing area and below the toolbar
+    if (x >= drawstartx && x < drawstartx + drawareax &&
+        y >= drawstarty && y < drawstarty + drawareay && y > 100) {
+        
+        const canvasX = Math.floor((x - drawstartx) / zoom);
+        const canvasY = Math.floor((y - drawstarty) / zoom);
+        
+        if (currentTool === 'eyedropper') {
+            // Sample color with eyedropper
+            const pixelData = drawingCtx.getImageData(canvasX, canvasY, 1, 1).data;
+            const hexColor = '#' + 
+                (pixelData[0] < 16 ? '0' : '') + pixelData[0].toString(16) +
+                (pixelData[1] < 16 ? '0' : '') + pixelData[1].toString(16) +
+                (pixelData[2] < 16 ? '0' : '') + pixelData[2].toString(16);
+            
+            brushColor = hexColor;
+            isTransparentBrush = false;
+            
+            // Update color swatch selection in UI
+            document.querySelectorAll('.color-swatch').forEach(swatch => {
+                swatch.classList.remove('active');
+            });
+            switchTool('pen');
+            
+        }
+        else if (currentTool === 'fill') {
+            // Fill tool
+            floodFill(canvasX, canvasY);
+            
+        }
+        else if ((currentTool === 'select'|| currentTool === 'copy')) {
+            // Selection tool
+            isSelecting = true;
+            selectionStartX = canvasX;
+            selectionStartY = canvasY;
+            selectionEndX = canvasX;
+            selectionEndY = canvasY;
+            
+        }
+        else if(currentTool === 'text'){
+            const text = prompt("Enter your text:"); // Prompt user for text input
+            if (text) {
+                drawText(x, y, text); // Draw the text on the canvas
+            }
+        }
+        
+        
+        
+        else if (currentTool === 'pen') {
+            // Draw with pen
+            isDrawing = true;
+            lastX = 0;
+            lastY = 0;
+            drawPixel(x, y);
+           
+        }
+    }
+                } });    
+            
+            window.addEventListener('mouseup', (e) => {
+    movecorners1 = false;
+    movecorners2 = false;
+    movecorners3 = false;
+    movecorners4 = false;
+    movescrollx = false;
+    movescrolly = false;
+    isposetive = false;
+    scrollx = movescrollxvalue;
+    scrolly = movescrollyvalue;
+    
+    // Stop drawing
+    isDrawing = false;
+    lastX = 0;
+    lastY = 0;
+
+
+
+
+    
+    
+    
+    if(currentTool == 'move'&&isMovingImage==false){switchTool('select');}
+    if(currentTool == "move2"&&isMovingImage==false){switchTool('copy');}
+    
+    
+    // Handle selection completion
+    if (isSelecting && (currentTool === 'select'|| currentTool === 'copy')) {
+    isSelecting = false;
+    
+    
+        // Calculate the selection boundaries
+    selLeft = Math.min(selectionStartX, selectionEndX);
+    selTop = Math.min(selectionStartY, selectionEndY);
+    selWidth = Math.abs(selectionEndX - selectionStartX);
+    selHeight = Math.abs(selectionEndY - selectionStartY);
+    
+
+    
+    
+    
+    
+    console.log("Selection created:", selLeft, selTop, selWidth, selHeight);
+    
+    // Only proceed if we have a valid selection (non-zero area)
+    if (selWidth > 0 && selHeight > 0) {
+        // Create a temporary canvas to hold the selection
+        const selectionCanvas = document.createElement('canvas');
+        selectionCanvas.width = selWidth;
+        selectionCanvas.height = selHeight;
+        const selectionCtx = selectionCanvas.getContext('2d');
+        disableSmoothing(selectionCtx);
+        
+        // Copy the selection from the main canvas
+        
+        selectionCtx.drawImage(
+            drawingCanvas, 
+            selLeft, selTop, selWidth, selHeight,
+            0, 0, selWidth, selHeight
+        );
+        
+        // Create an image from the selection canvas
+        currentImage = new Image();
+  
+            // Once loaded, set up the draggable selection
+            currentImageOriginalWidth = selWidth;
+            currentImageOriginalHeight = selHeight;
+            currentImageWidth = selWidth * zoom;
+            currentImageHeight = selHeight * zoom;
+            
+            // Position at original location
+            currentImageX = drawstartx + selLeft * zoom;
+            currentImageY = drawstarty + selTop * zoom;
+            prevzoom=zoom;
+            // Start in moving state immediately
+            isMovingImage = true;
+            dragOffsetX = 0;
+            dragOffsetY = 0;
+            isMovingImage = false;
+            selectionNeedsClick = true;
+            currentImagecanvas=currentproject;
+            
+            // Clear the selected area on the canvas (like cut operation)
+            
+            
+            if(currentTool === 'select'){
+                if (!isTransparentBrush) {
+                    drawingCtx.fillStyle = "white";
+                    drawingCtx.fillRect(selLeft, selTop, selWidth, selHeight);
+                } else {
+                    drawingCtx.clearRect(selLeft, selTop, selWidth, selHeight);
+                }
+
+                // Switch to the "move" tool interface state
+                currentTool = 'move';
+            }
+            else currentTool = 'move2';
+            
+            // Update UI to reflect we're in move mode
+            const toolButtons = document.querySelectorAll('.tool-btn');
+            toolButtons.forEach(btn => {
+                btn.style.backgroundColor = '#f1f1f1';
+                btn.style.borderColor = '#ccc';
+            });
+    
+        
+        currentImage.src = selectionCanvas.toDataURL();
+    }
+}
+});
+            
+            // Stop drawing if the mouse leaves the canvas
+            window.addEventListener('mouseout', () => {
+                isDrawing = false;
+                lastX = 0;
+                lastY = 0;
+            });
+           // ===== MOBILE DEVICE SUPPORT =====
+           
+           
+            canvas.addEventListener('touchstart', handleTouchStart, {passive: false});
+            canvas.addEventListener('touchmove', handleTouchMove, {passive: false});
+            canvas.addEventListener('touchend', handleTouchEnd, {passive: false}); 
+           
+           
+            function handleTouchStart(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+
+        const touchX = Math.round((touch.clientX - rect.left) * (canvas.width / rect.width / devicePixelRatio));
+        const touchY = Math.round((touch.clientY - rect.top) * (canvas.height / rect.height / devicePixelRatio));
+
+        // Update global position variables
+        x = touchX;
+        y = touchY;
+                // Handle image interaction
+    if (currentImage) {
+    // Check if touch is on the image
+    if (touchX >= currentImageX && touchX <= currentImageX + currentImageWidth &&
+        touchY >= currentImageY && touchY <= currentImageY + currentImageHeight) {
+        
+       if(!isMovingImage){
+                        // Begin dragging the image
+                        isMovingImage = true;
+                        dragOffsetX = x - currentImageX;
+                        dragOffsetY = y - currentImageY;
+                        selectionNeedsClick=false;
+                    } else {
+                        // If already dragging, finalize by drawing the image permanently onto the drawing canvas
+                        let unzoomedX = Math.floor((currentImageX - drawstartx) / zoom);
+                        let unzoomedY = Math.floor((currentImageY - drawstarty) / zoom);
+                        drawingCtx.drawImage(currentImage, unzoomedX, unzoomedY, currentImageOriginalWidth, currentImageOriginalHeight);
+                        currentImage = null;
+                        isMovingImage = false;
+                    }
+                    return;
+    }
+    else if((currentTool === 'select'|| currentTool === 'copy')&&currentImage!=null){
+                        
+                        let unzoomedX = Math.round((currentImageX - drawstartx) / zoom);
+                        let unzoomedY = Math.round((currentImageY - drawstarty) / zoom);
+                        drawingCtx.drawImage(currentImage, unzoomedX, unzoomedY, currentImageOriginalWidth, currentImageOriginalHeight);
+                        currentImage = null;
+                        isMovingImage = false;
+                        
+                        
+                    }
+    
+    
+    
+}
+
+
+
+                    
+                 
+                
+
+
+
+
+
+
+
+        let cornerTouched = 0;
+        // Check each corner with a slightly larger touch area for mobile
+        const cornerSize = 30; // Larger touch target for corners on mobile
+
+        // Top-left corner
+        if (touchX >= drawstartx-cornerSize && touchX < drawstartx+cornerSize && 
+            touchY >= drawstarty-cornerSize && touchY < drawstarty+cornerSize) {
+            cornerTouched = 1;
+            
+        }
+        // Top-right corner
+        else if (touchX >= drawstartx+drawareax-cornerSize && touchX < drawstartx+drawareax+cornerSize && 
+                 touchY >= drawstarty-cornerSize && touchY < drawstarty+cornerSize) {
+            cornerTouched = 2;
+           
+        }
+        // Bottom-left corner
+        else if (touchX >= drawstartx-cornerSize && touchX < drawstartx+cornerSize && 
+                 touchY >= drawstarty+drawareay-cornerSize && touchY < drawstarty+drawareay+cornerSize) {
+            cornerTouched = 3;
+           
+        }
+        // Bottom-right corner
+        else if (touchX >= drawstartx+drawareax-cornerSize && touchX < drawstartx+drawareax+cornerSize && 
+                 touchY >= drawstarty+drawareay-cornerSize && touchY < drawstarty+drawareay+cornerSize) {
+            cornerTouched = 4;
+            
+        }
+
+        // Check if it's a double tap on a corner
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastTapTime;
+
+        if (cornerTouched > 0 && tapLength < doubleTapThreshold && cornerTouched === lastTapCorner) {
+            // Double tap detected on the same corner!
+            console.log("Double tap on corner " + cornerTouched);
+
+            // Enable dragging for the corresponding corner
+            if (cornerTouched === 1) {
+                movecorners1 = true;
+                return;
+            } else if (cornerTouched === 2) {
+                movecorners2 = true;
+                return;
+            } else if (cornerTouched === 3) {
+                movecorners3 = true;
+                return;
+            } else if (cornerTouched === 4) {
+                movecorners4 = true;
+                return;
+            }
+
+            dragStartX = touchX;
+            dragStartY = touchY;
+        }
+
+        // Update the last tap info for next time
+        if (cornerTouched > 0) {
+            lastTapTime = currentTime;
+            lastTapCorner = cornerTouched;
+
+            // Return early to prevent other interactions from happening
+            // when touching a corner but not double-tapping yet
+            if (!movecorners1 && !movecorners2 && !movecorners3 && !movecorners4) {
+                return;
+                
+            }
+        }
+        
+        
+        
+        
+        
+        
+        // Check for scrollbar interaction on touch devices
+        let sbThickness = getScrollbarThickness();
+        if (drawareax - (canvas.width/devicePixelRatio*2) > -canvas.width/devicePixelRatio-50) {
+            if(touchX <= canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue + (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01) &&
+               touchX >= canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue &&
+               touchY >= canvas.height/devicePixelRatio - sbThickness && touchY <= canvas.height/devicePixelRatio) {
+                movescrollx = true;
+                savescrollxvalue = touchX - movescrollxvalue ;
+                return;
+                
+            }
+        }
+        if (drawareay - (canvas.height/devicePixelRatio*2) > -canvas.height/devicePixelRatio-50) {
+            if(touchX <= canvas.width/devicePixelRatio && touchX >= canvas.width/devicePixelRatio - sbThickness &&
+               touchY >= 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue &&
+               touchY <= 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue + (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)) {
+                movescrolly = true;
+                savescrollyvalue = touchY- movescrollyvalue ;;
+                return;
+                
+            }
+        }
+                    // Check for tool actions inside the drawing area
+        if (touchX >= drawstartx && touchX < drawstartx + drawareax &&
+           touchY >= drawstarty && touchY < drawstarty + drawareay && touchY > 155) {
+
+            const canvasX = Math.floor((touchX - drawstartx) / zoom);
+            const canvasY = Math.floor((touchY - drawstarty) / zoom);
+
+            if (currentTool === 'eyedropper') {
+                // Sample color with eyedropper
+                const pixelData = drawingCtx.getImageData(canvasX, canvasY, 1, 1).data;
+                const hexColor = '#' + 
+                    (pixelData[0] < 16 ? '0' : '') + pixelData[0].toString(16) +
+                    (pixelData[1] < 16 ? '0' : '') + pixelData[1].toString(16) +
+                    (pixelData[2] < 16 ? '0' : '') + pixelData[2].toString(16);
+
+                brushColor = hexColor;
+                isTransparentBrush = false;
+
+                // Update color swatch selection in UI
+                document.querySelectorAll('.color-swatch').forEach(swatch => {
+                    swatch.classList.remove('active');
+                });
+                switchTool('pen');
+
+            }
+             else if (currentTool === 'fill') {
+                // Fill tool
+                floodFill(canvasX, canvasY);
+
+            }
+             else if ((currentTool === 'select'|| currentTool === 'copy')) {
+                // Selection tool
+                isSelecting = true;
+                selectionStartX = canvasX;
+                selectionStartY = canvasY;
+                selectionEndX = canvasX;
+                selectionEndY = canvasY;
+
+           }
+           else if(currentTool === 'text'){
+                const text = prompt("Enter your text:"); // Prompt user for text input
+                if (text) {
+                    drawText(touchX, touchY, text); // Draw the text on the canvas
+                }
+           }
+           
+             else if (currentTool === 'pen') {
+                // Rest of your existing touch handling code for drawing
+                isDrawing = true;
+                lastX = 0;
+                lastY = 0;
+                drawPixel(touchX, touchY);
+                
+                
+                
+
+           }
+        }
+    }
+
+function handleTouchMove(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+
+    // Convert to canvas coordinates
+    const touchX = (touch.clientX - rect.left) * (canvas.width / rect.width / devicePixelRatio);
+    const touchY = (touch.clientY - rect.top) * (canvas.height / rect.height / devicePixelRatio);
+
+    // Update directions
+    isposetive = isdirposetive < touchX;
+    isdirposetive = touchX;
+    
+    isposetivey = isdirposetivey < touchY;
+    isdirposetivey = touchY;
+
+    // Update current position
+    x = touchX;
+    y = touchY;
+
+    // Handle selection tool
+    if (isSelecting && (currentTool === 'select'|| currentTool === 'copy')) {
+        selectionEndX = Math.floor((x - drawstartx) / zoom);
+        selectionEndY = Math.floor((y - drawstarty) / zoom);
+    }
+
+
+   // Move the image if it's in moving state
+    if (isMovingImage && currentImage&&!selectionNeedsClick) {
+        currentImageX = touchX - dragOffsetX;
+        currentImageY = touchY - dragOffsetY;
+    }
+
+    // Handle drawing with pen tool
+    if (isDrawing && touchY > 155 && currentTool === 'pen'&&!movescrolly&&!movescrollx) {
+        drawPixel(touchX, touchY);
+     
+    }
+ 
+}
+
+   function handleTouchEnd(e) {
+    e.preventDefault();
+    
+    movescrollx = false;
+    movescrolly = false;
+    
+    // Stop drawing
+    isDrawing = false;
+    lastX = 0;
+    lastY = 0;
+    
+    movecorners1 = false;
+    movecorners2 = false;
+    movecorners3 = false;
+    movecorners4 = false;
+    
+    // Handle selection completion
+    
+    if(currentTool == 'move'&&isMovingImage==false)switchTool('select');
+    if(currentTool == 'move2'&&isMovingImage==false)switchTool('copy');
+    
+    
+    
+    
+        if (isSelecting && (currentTool === 'select'|| currentTool === 'copy')) {
+    isSelecting = false;
+    
+    // Calculate the selection boundaries
+    const selLeft = Math.min(selectionStartX, selectionEndX);
+    const selTop = Math.min(selectionStartY, selectionEndY);
+    const selWidth = Math.abs(selectionEndX - selectionStartX);
+    const selHeight = Math.abs(selectionEndY - selectionStartY);
+    
+    console.log("Selection created:", selLeft, selTop, selWidth, selHeight);
+    
+    // Only proceed if we have a valid selection (non-zero area)
+    if (selWidth > 0 && selHeight > 0) {
+        // Create a temporary canvas to hold the selection
+        const selectionCanvas = document.createElement('canvas');
+        selectionCanvas.width = selWidth;
+        selectionCanvas.height = selHeight;
+        const selectionCtx = selectionCanvas.getContext('2d');
+        disableSmoothing(selectionCtx);
+        
+        // Copy the selection from the main canvas
+        selectionCtx.drawImage(
+            drawingCanvas, 
+            selLeft, selTop, selWidth, selHeight,
+            0, 0, selWidth, selHeight
+        );
+        
+        // Create an image from the selection canvas
+        currentImage = new Image();
+   
+            // Once loaded, set up the draggable selection
+            currentImageOriginalWidth = selWidth;
+            currentImageOriginalHeight = selHeight;
+            currentImageWidth = selWidth * zoom;
+            currentImageHeight = selHeight * zoom;
+            
+            // Position at original location
+            currentImageX = drawstartx + selLeft * zoom;
+            currentImageY = drawstarty + selTop * zoom;
+            
+            // Start in moving state immediately
+            isMovingImage = true;
+            dragOffsetX = 0;
+            dragOffsetY = 0;
+            isMovingImage = false;
+            selectionNeedsClick = true;
+            currentImagecanvas=currentproject;
+            
+            
+            
+            if((currentTool === 'select')){
+            // Clear the selected area on the canvas (like cut operation)
+            if (!isTransparentBrush) {
+                drawingCtx.fillStyle = "white";
+                drawingCtx.fillRect(selLeft, selTop, selWidth, selHeight);
+            } else {
+                drawingCtx.clearRect(selLeft, selTop, selWidth, selHeight);
+            }
+            
+            // Switch to the "move" tool interface state
+            currentTool = 'move';
+            }
+            else currentTool = 'move2';
+            // Update UI to reflect we're in move mode
+            const toolButtons = document.querySelectorAll('.tool-btn');
+            toolButtons.forEach(btn => {
+                btn.style.backgroundColor = '#f1f1f1';
+                btn.style.borderColor = '#ccc';
+            });
+      
+        
+        currentImage.src = selectionCanvas.toDataURL();
+    }
+}
+}
+           
+     //==========LOAD IMAGES MOBILE===========
+                
+document.addEventListener('DOMContentLoaded', function() {
+    // Get direct file input
+    const directInput = document.getElementById('directFileInput');
+
+    // Add proper event listener
+    directInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            const img = new Image();
+img.onload = function() {
+                    // Make sure the drawing canvas is big enough
+                    ensureCanvasSize(img.width, img.height);
+
+                    // **************** FIXED: Load image into separate overlay layer ****************
+                    currentImage = img;
+                    currentImageOriginalWidth = img.width;
+                    currentImageOriginalHeight = img.height;
+                    currentImagecanvas=currentproject;
+                    
+                    
+                    // Determine appropriate zoom based on image size compared to window
+                    // Always check if we need to adjust zoom for the new image regardless if it's the first
+                    let newZoom = zoom; // Start with current zoom
+                    if (img.width * newZoom > window.innerWidth * 0.8 || 
+                        img.height * newZoom > (window.innerHeight - 100) * 0.8) {
+                        // Image is too large at current zoom, recalculate
+                        const zoomX = Math.round(((window.innerWidth * 0.8) / img.width)*10)/10;
+                        const zoomY = Math.round((((window.innerHeight - 100) * 0.8) / img.height)*10)/10;
+           
+                        newZoom = Math.min(zoomX, zoomY);
+                    }
+                    else if((((firstImageLoaded1===false&&currentproject===0))||(firstImageLoaded2===false&&currentproject===1)||(firstImageLoaded3===false&&currentproject===2) )&&((img.width * newZoom < window.innerWidth * 0.5 ||img.height * newZoom < (window.innerHeight - 100) * 0.5 ))){
+                        
+     
+                        const zoomX = Math.round(((window.innerWidth * 0.5) / img.width)*10)/10;
+                        const zoomY = Math.round((((window.innerHeight - 100) * 0.5) / img.height)*10)/10;
+           
+                        newZoom = Math.min(zoomX, zoomY);
+                        
+                        
+                        
+                    }
+                    
+                    
+                    zoom = newZoom;
+                    zoomvalue = Math.round(newZoom * 100);
+                    document.getElementById("zoomSlider").value = zoomvalue;
+                    document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
+                    
+                    // Update canvas dimensions if this is the first image or if the new image is larger
+                    if (((firstImageLoaded1==false&&currentproject==0)||(firstImageLoaded2==false&&currentproject==1)||(firstImageLoaded3==false&&currentproject==2) ) || (img.width > firstImageWidth || img.height > firstImageHeight)) {
+                        firstImageWidth = Math.max(img.width);
+                        firstImageHeight = Math.max(img.height);
+                    }
+                    
+                    drawareax = Math.floor(firstImageWidth * zoom);
+                    drawareay = Math.floor(firstImageHeight * zoom);
+                    
+                    // Set display dimensions for the overlay image
+                    currentImageWidth = currentImageOriginalWidth * zoom;
+                    currentImageHeight = currentImageOriginalHeight * zoom;
+                    
+                    // Position the image initially centered in the viewport
+                    currentImageX = Math.floor((canvas.width/devicePixelRatio - currentImageWidth) / 2);
+                    currentImageY = Math.max(120, Math.floor((canvas.height/devicePixelRatio - currentImageHeight) / 2));
+                    
+                    // Center drawing area
+                    drawstartx = Math.floor((canvas.width/devicePixelRatio - drawareax) / 2);
+                    drawstarty = Math.max(100, Math.floor((canvas.height/devicePixelRatio - drawareay) / 2));
+
+                    // Update previous dimensions
+                    prevDrawAreaX = drawareax;
+                    prevDrawAreaY = drawareay;
+                    prevDrawStartX = drawstartx;
+                    prevDrawStartY = drawstarty;
+                    prevzoom = zoom;
+                    
+                    
+                    let unzoomedX = Math.round((currentImageX - drawstartx) / zoom);
+                    let unzoomedY = Math.round((currentImageY - drawstarty) / zoom);
+                    if(((firstImageLoaded1==false&&currentproject==0)||(firstImageLoaded2==false&&currentproject==1)||(firstImageLoaded3==false&&currentproject==2) ))drawingCtx.clearRect(unzoomedX, unzoomedY, currentImageOriginalWidth, currentImageOriginalHeight); 
+                    
+                    
+                    
+                    // Mark image as loaded, but NOT moving yet (wait for click)
+                    
+                    if(currentproject==0)firstImageLoaded1=true;
+                    if(currentproject==1)firstImageLoaded2=true;
+                    if(currentproject==2)firstImageLoaded3=true;
+                    
+                   
+                    isImageWaiting = true;
+                    isMovingImage = false; // Don't move until clicked
+                };
+            img.src = evt.target.result;
+        };
+        reader.readAsDataURL(file);
+        this.value = ''; // Reset input for reuse
+    });
+});
+    document.addEventListener('DOMContentLoaded', function() {
+    // Get the save button
+    const saveBtn = document.getElementById('saveImageBtn');
+    
+    // Add click event handler for save button
+    if (saveBtn) {
+        saveBtn.addEventListener('click', function() {
+            // Create a temporary canvas for the final image
+            const saveCanvas = document.createElement('canvas');
+            const saveCtx = saveCanvas.getContext('2d', {alpha: true});
+            
+            // Set dimensions to match the current drawing area
+            const displayWidth = Math.floor(drawareax / zoom);
+            const displayHeight = Math.floor(drawareay / zoom);
+            saveCanvas.width = displayWidth;
+            saveCanvas.height = displayHeight;
+            
+            // Draw the content WITHOUT filling white background first
+            disableSmoothing(saveCtx);
+            
+            // Just draw the drawing canvas directly   
+            saveCtx.drawImage(drawingCanvas, 0, 0, displayWidth, displayHeight, 0, 0, displayWidth, displayHeight);
+            
+            try {
+                // Convert to data URL with PNG format to support transparency
+                const dataURL = saveCanvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = 'maxpaint-image.png';
+                link.href = dataURL;
+                link.click();
+                console.log("Image saved successfully with transparency");
+            } catch (e) {
+                console.error("Error saving image:", e);
+                alert("Could not save the image. Error: " + e.message);
+            }
+        });
+    }
+    
+    // Mobile-specific adjustments for the save button
+    function adjustButtonsForMobile() {
+        const saveBtn = document.getElementById('saveImageBtn');
+        const openLabel = document.querySelector('label[for="directFileInput"]');
+        
+        if (mobileAndTabletCheck()) {
+            // Mobile styling - keep the buttons the same size and font
+            if (saveBtn) {
+                saveBtn.style.padding = "15px 25px";
+                saveBtn.style.fontSize = "22px";
+                saveBtn.style.top = "80px"; // Positioned much lower
+                saveBtn.style.minWidth = "120px";
+            }
+            if (openLabel) {
+                openLabel.style.padding = "15px 25px";
+                openLabel.style.fontSize = "22px"; // Exact same font size
+                openLabel.style.top = "15px";
+                openLabel.style.minWidth = "120px";
+            }
+        } else {
+            // Desktop styling - keep the buttons the same size and font
+            if (saveBtn) {
+                saveBtn.style.padding = "8px 15px";
+                saveBtn.style.fontSize = "16px"; // Exact same font size
+                saveBtn.style.top = "80px"; // Positioned much lower
+                saveBtn.style.minWidth = "90px";
+            }
+            if (openLabel) {
+                openLabel.style.padding = "8px 15px";
+                openLabel.style.fontSize = "16px"; // Exact same font size
+                openLabel.style.top = "10px";
+                openLabel.style.minWidth = "90px";
+            }
+        }
+    }
+    
+    // Call initially
+    adjustButtonsForMobile();
+    
+    // Also adjust when window is resized
+    window.addEventListener('resize', adjustButtonsForMobile);
+});
+    document.addEventListener('DOMContentLoaded', function() {
+    // Tool button setup
+    const toolButtons = {
+        pen: document.getElementById('penTool'),
+        fill: document.getElementById('fillTool'),
+        select: document.getElementById('selectTool'),
+        eyedropper: document.getElementById('eyedropperTool'),
+        copy: document.getElementById('cTool'),
+        text: document.getElementById('textTool')
+    };
+    
+    // Function to update tool button appearance
+    function updateToolButtons() {
+        Object.keys(toolButtons).forEach(tool => {
+            if (toolButtons[tool]) {
+                if (tool === currentTool) {
+                    toolButtons[tool].style.backgroundColor = '#d4ffd4';
+                    toolButtons[tool].style.borderColor = '#4CAF50';
+                } else {
+                    toolButtons[tool].style.backgroundColor = '#f1f1f1';
+                    toolButtons[tool].style.borderColor = '#ccc';
+                }
+            }
+        });
+    }
+    
+    // Add click handlers for tool buttons
+    Object.keys(toolButtons).forEach(tool => {
+        if (toolButtons[tool]) {
+            toolButtons[tool].addEventListener('click', function() {
+                currentTool = tool;
+                console.log("Selected tool:", tool);
+                updateToolButtons();
+            });
+        }
+    });
+    
+    // Keyboard shortcuts for tools
+    window.addEventListener('keydown', function(e) {
+        if (document.activeElement.tagName !== 'INPUT') {
+            switch(e.key.toLowerCase()) {
+                case 'p': currentTool = 'pen'; break;
+                case 'f': currentTool = 'fill'; break;
+                case 's': currentTool = 'select'; break;
+                case 'e': currentTool = 'eyedropper'; break;
+                case 'c': currentTool = 'copy'; break; 
+                case 't': currentTool = 'text'; break;     
+                
+            }
+            updateToolButtons();
+        }
+    });
+    
+    // Initialize tool buttons appearance
+    updateToolButtons();
+    
+   const toolsContainer = document.querySelector('.tool-buttons');
+    
+    function adjustToolsForDeviceType() {
+        if (mobileAndTabletCheck() ) {
+            // Mobile layout - position under other controls
+            toolsContainer.style.top = '70px';
+          
+            toolsContainer.style.left = '180px';
+            toolsContainer.style.transform = 'translateY(-50%)';
+            
+            // Make buttons bigger on mobile
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.style.width = '45px';
+                btn.style.height = '45px';
+            });
+        } else {
+            
+            
+            // Desktop layout - use right positioning to stay next to zoom
+            toolsContainer.style.top = '70px';
+             toolsContainer.style.left = '600px';
+            toolsContainer.style.transform = 'translateY(-50%)';
+         
+            
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.style.width = '40px';
+                btn.style.height = '40px';
+            });
+        }
+    }
+    
+    // Call initially and on window resize
+    adjustToolsForDeviceType();
+    window.addEventListener('resize', adjustToolsForDeviceType);
+    // Call initially and on resize
+
+});
+
+
+    
+           // ===== END MOBILE DEVICE SUPPORT =====
+            resizeCanvas();
+            
+        </script>
+    </body>
+</html>
