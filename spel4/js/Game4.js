@@ -405,12 +405,13 @@ class Game4 {
                     else if (this.maps[this.currentmap].layer[i2].ghost == true || this.maps[this.currentmap].layer[i2].objectype[i3].objects[i4].ghost == true) {
                         o.rakna = 0;
                         o.rakna2 = 0;
-                        o.collideslistfull(this.maps, this.currentmap, "ghost");
+                        o.collideslistfull(this.maps, this.currentmap, "ghost",this.maps[this.currentmap].layer[i2].objectype[i3].name);
+              
                     }
                     else {
                         if (-(this.maps[this.currentmap].camerax / 100 * this.maps[this.currentmap].layer[i2].moving) - o.dimx <= o.x + o.dimx &&
                             ((o.dimx + document.body.clientWidth / (1 + (1 * this.maps[this.currentmap].zoom / 100)) - 8 + 300) - (this.maps[this.currentmap].camerax / 100 * this.maps[this.currentmap].layer[i2].moving)) >= o.x + o.dimx &&
-                            -(this.maps[this.currentmap].cameray / 100 * this.maps[this.currentmap].layer[i2].moving) - o.dimy <= o.y + o.dimy &&
+                            -(this.maps[this.currentmap].cameray / 100 * this.maps[this.currentmap].layer[i2].moving) - o.dimy <= o.y + o.dimy+300 &&
                             ((o.dimy + document.body.clientHeight / (1 + (1 * this.maps[this.currentmap].zoom / 100)) - 8 + 300) - (this.maps[this.currentmap].cameray / 100 * this.maps[this.currentmap].layer[i2].moving)) >= o.y + o.dimy) {
                             
                             o.rakna = o.x - o.freex;
@@ -441,7 +442,7 @@ class Game4 {
                         for (let k = 0; k < -o.rakna; k++) {
                             o.x = o.x - 1;
                             if (o.collideslist(this.maps, this.currentmap, "left")) {
-                                o.x = o.x + 1;
+                                o.x = o.x + 3;
                                 break;
                             }
                         }
@@ -451,7 +452,7 @@ class Game4 {
                         for (let k = 0; k < o.rakna; k++) {
                             o.x = o.x + 1;
                             if (o.collideslist(this.maps, this.currentmap, "right")) {
-                                o.x = o.x - 1;
+                                o.x = o.x - 3;
                                 break;
                             }
                         }
@@ -461,7 +462,7 @@ class Game4 {
                         for (let k = 0; k < -o.rakna2; k++) {
                             o.y = o.y - 1;
                             if (o.collideslist(this.maps, this.currentmap, "up")) {
-                                o.y = o.y + 1;
+                                o.y = o.y + 3;
                                 break;
                             }
                         }
@@ -471,7 +472,7 @@ class Game4 {
                         for (let k = 0; k < o.rakna2; k++) {
                             o.y = o.y + 1;
                             if (o.collideslist(this.maps, this.currentmap, "down")) {
-                                o.y = o.y - 1;
+                                o.y = o.y - 3;
                                 break;
                             }
                         }
@@ -877,7 +878,7 @@ class Object {
         }
         return false;
     }
-    collideslistfull(maps, currentmap, dir) {
+    collideslistfull(maps, currentmap, dir,name) {
         for (let i2 = 0; i2 < maps[currentmap].layer.length; i2++) {
             let layer = maps[currentmap].layer[i2];
             for (let i3 = 0; i3 < layer.objectype.length; i3++) {
@@ -892,11 +893,19 @@ class Object {
                                     this.collideslistan.push(objType.name);
                                     this.collideslistandir.push("ghost");
                                     this.collideslistanobj.push(objType.objects[i4]);
+                                    
+                                    objType.objects[i4].collideslistan.push(name);
+                                    objType.objects[i4].collideslistandir.push("ghost");
+                                    objType.objects[i4].collideslistanobj.push(this);
                                 }
                                 else {
                                     this.collideslistan.push(objType.name);
                                     this.collideslistandir.push(dir);
                                     this.collideslistanobj.push(objType.objects[i4]);
+                                    
+                                    objType.objects[i4].collideslistan.push(name);
+                                    objType.objects[i4].collideslistandir.push(dir);
+                                    objType.objects[i4].collideslistanobj.push(this);
                                 }
                             }
                         }
@@ -906,11 +915,19 @@ class Object {
                                     this.collideslistan.push(objType.name);
                                     this.collideslistandir.push("ghost");
                                     this.collideslistanobj.push(objType.objects[i4]);
+                                    
+                                    objType.objects[i4].collideslistan.push(name);
+                                    objType.objects[i4].collideslistandir.push("ghost");
+                                    objType.objects[i4].collideslistanobj.push(this);
                                 }
                                 else {
                                     this.collideslistan.push(objType.name);
                                     this.collideslistandir.push(dir);
                                     this.collideslistanobj.push(objType.objects[i4]);
+                                    
+                                    objType.objects[i4].collideslistan.push(name);
+                                    objType.objects[i4].collideslistandir.push(dir);
+                                    objType.objects[i4].collideslistanobj.push(this);
                                 }
                             }
                         }
