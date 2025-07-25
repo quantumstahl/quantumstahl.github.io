@@ -420,6 +420,11 @@ D*?
 5
 E*?
 images/koopa5.png
+D*?
+
+5
+E*?
+images/koopa5.png
 F*?
 1911
 623
@@ -1927,6 +1932,11 @@ E*?
 images/koopa3.png
 E*?
 images/koopa4.png
+D*?
+
+5
+E*?
+images/koopa5.png
 D*?
 
 5
@@ -4332,6 +4342,11 @@ E*?
 images/koopa3.png
 E*?
 images/koopa4.png
+D*?
+
+5
+E*?
+images/koopa5.png
 D*?
 
 5
