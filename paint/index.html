@@ -1261,19 +1261,22 @@ function switchTool(newTool) {
             // IMPROVED: Make sure we have accurate mouse coordinates
             function getCanvasMousePosition(event) {
                 const rect = canvas.getBoundingClientRect();
-                const devicePixelRatio = window.devicePixelRatio || 1;
+               // const devicePixelRatio = window.devicePixelRatio || 1;
                 
                 // Calculate scales including the device pixel ratio
-                const scaleX = canvas.width / (rect.width * devicePixelRatio);
-                const scaleY = canvas.height / (rect.height * devicePixelRatio);
+              //  const scaleX = canvas.width / (rect.width * devicePixelRatio);
+             //   const scaleY = canvas.height / (rect.height * devicePixelRatio);
                 
                 // Get mouse coordinates relative to the canvas
-                const clientX = event.clientX - rect.left;
-                const clientY = event.clientY - rect.top;
+               // const clientX = event.clientX - rect.left;
+              //  const clientY = event.clientY - rect.top;
                
                 return {
-                    x: clientX * (canvas.width / rect.width),
-                    y: clientY * (canvas.height / rect.height)
+                 //   x: clientX * (canvas.width / rect.width),
+                 //   y: clientY * (canvas.height / rect.height)
+                    
+                    x: event.clientX - rect.left,
+                    y: event.clientY - rect.top
                 };
             }
             
