@@ -1,0 +1,2025 @@
+
+<html>
+    <head>
+        <meta name="viewport" content="user-scalable=no, shrink-to-fit=no">
+        <meta charset="utf-8">
+        <meta name="keywords" content="mobilspel, mobilegames, js games, javascript games">
+        <link rel="icon" href="images/linkdown.png" type="image/vnd.microsoft.icon" />
+	<title>Test5</title>
+        
+        <script src="js/Game4.js"></script>
+        <script src="js/joy.js"></script>
+        <script src="js/Mapsdata.js"></script>
+         <script src="js/XboxController.js"></script>
+        
+        <style>
+        html {background-color: black}
+        
+        </style>
+        
+        
+        
+        
+    </head>
+    <body>
+        <canvas id="myCanvas" width="10" height="10" style="border:2px solid black"></canvas>
+        
+        <script>
+            function mobileAndTabletCheck() {const isMobile = {Android: function() {return navigator.userAgent.match(/Android/i);},BlackBerry: function() {return navigator.userAgent.match(/BlackBerry/i);},iOS: function() {return navigator.userAgent.match(/iPhone|iPod/i);},Opera: function() {return navigator.userAgent.match(/Opera Mini/i);},Windows: function() {return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i);},any: function() {return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows()|| (navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints && navigator.maxTouchPoints > 1));}};return isMobile.any();}
+
+
+            const canvas = document.getElementById("myCanvas");
+            const ctx = canvas.getContext("2d");
+            document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
+            canvas.width=document.body.clientWidth-8;
+            canvas.height=document.body.clientHeight-8;
+            
+       
+            game = new Game4("Spelet");
+            joy = new JoyStick('myCanvas');
+            xbox= new XboxController(0);
+            
+            
+            
+            mapsdata= new Mapsdata();
+            daethcounter=0;
+            soundstarter=false;
+  
+            var audio = new Audio('sounds/opening.mp3');
+            audio.loop2 = true;
+            
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            const audio2 = async url => {   
+                const source = context.createBufferSource(); 
+                const audioBuffer = await fetch(url)
+                  .then(res => res.arrayBuffer())
+                  .then(ArrayBuffer => context.decodeAudioData(ArrayBuffer)); 
+                source.buffer = audioBuffer;
+                source.connect(context.destination);
+                source.start();
+            };
+
+             
+            document.addEventListener("touchstart" , function(e) {
+                e.preventDefault();
+                    try{if(audio.paused){ 
+                        audio.play();
+                        soundstarter=true;
+                     
+                    }
+                    }catch(error){};
+                    if(context.state === 'suspended'){context.suspend();context.resume();}           
+            });
+            document.addEventListener("visibilitychange", event => {
+                if (document.visibilityState === "visible") {
+                        audio.pause();//if(game.currentmap==0)audio.src = 'sounds/opening.mp3';context.resume();
+                        audio.src = 'sounds/opening.mp3';context.resume();
+                        
+                }
+                else {
+                   audio.pause(); audio.src = "";context.suspend();
+              }
+            });
+            dp=false; 
+            ap=false; 
+            sp=false; 
+            wp=false; 
+            p=false; 
+            let keysPressed = {};
+                document.addEventListener('keydown', (event) => {
+                keysPressed[event.key] = true;
+               
+                try{if(audio.paused){ 
+                        audio.play();
+                        soundstarter=true;
+                    }
+                }catch(error){};
+
+                if (keysPressed['w']) {
+                    wp=true;
+
+                }
+                if (keysPressed['s']) {
+                    sp=true;
+
+                }
+                if (keysPressed['d']) {
+                    dp=true;
+
+                }
+                if (keysPressed['a']) {
+                    ap=true;
+
+                }
+                if (keysPressed[' ']) {
+                    buttonA.objects[0].mousepressed=true;
+
+                }
+                if (keysPressed['e']) {
+                    buttonB.objects[0].mousepressed=true;
+
+                }
+                
+                
+                
+             });
+
+            document.addEventListener('keyup', (event) => {
+                delete keysPressed[event.key];
+
+                if (event.key == 'w'){
+                    wp=false;
+
+                }
+                if (event.key == 's'){
+                    sp=false;
+
+                }
+                if (event.key == 'd'){
+                    dp=false;
+
+                }
+                if (event.key == 'a'){
+                    ap=false;
+
+                }
+                if (event.key == ' '){
+                    buttonA.objects[0].mousepressed=false;
+
+                }
+                if (event.key == 'e') {
+                    buttonB.objects[0].mousepressed=false;
+
+                }
+                
+                
+            });
+            
+
+            
+            
+
+
+
+
+
+
+            haveshield=false;
+            havesword=false;
+            havemediumsword=false;
+            havefether=false;
+            linkdubble=false;
+            havebracelet=false;
+            savedir=0;
+            immortalcount=150;
+            linkhurtdir=0;
+            haverock=false;
+            havepot=false;
+            rockobj=game.getobjecttype("rock");
+            rockthrow=false;
+            bpressed=0;
+            rockdir=0;
+            haveitems=2;
+            rupeescount=0;
+            havebow=false;
+            havebomb=false;
+            firearrow=false;
+            arrows=0;
+            bombs=0;
+            
+            isbracelet=false;
+            isfether=false;
+            isbow=false;
+            isbomb=false;
+            islantern=false;
+            isbomerang=false;
+            
+            grasdestroyed=false;
+            
+            havebomerang=false;
+            havelantern=false;
+            havebombs=false;
+            holdingbombs=false;
+            bombobj=game.getobjecttype("bomb");
+            trowbomb=false;
+            bpressed2=0;
+            bombdir=0;
+            
+            heartpeases=0;
+            havehearts=0;
+
+            potobj=game.getobjecttype("pot");
+            potthrow=false;
+            potdir=false;
+            bpressed3=0;
+            
+            extralifes=3;
+            
+            lanternloc=0;
+            fetherloc=0;
+            braceletloc=0;
+            bowloc=0;
+            bombsloc=0;
+            bomerangloc=0;
+            
+            healthnumber=0;
+            
+            
+  
+            
+            var check = function(){
+                
+               
+                
+                
+                
+                
+                
+                canvas.width=document.body.clientWidth;
+                canvas.height=document.body.clientHeight-8;
+                
+                //if(soundstarter==true&&audio.currentTime>55){audio.currentTime = 13.35;}
+                if(soundstarter==true&&audio.currentTime>60.5){audio.currentTime = 13.6;}
+                game.updateanimation(ctx);
+                
+                
+                link =game.getobjecttype("link");
+                shield=game.getobjecttype("shield");
+                sword=game.getobjecttype("sword");
+                mediumsword=game.getobjecttype("mediumsword");
+                fether=game.getobjecttype("fether");
+                buttonA=game.getobjecttype("buttonA");
+                buttonB=game.getobjecttype("buttonB");
+                guard=game.getobjecttype("guard");
+                swordguard=game.getobjecttype("swordguard");
+                hole=game.getobjecttype("hole");
+                heart=game.getobjecttype("heart");
+                bracelet=game.getobjecttype("bracelet");
+                rock=game.getobjecttype("rock");
+                
+                braceleticon=game.getobjecttype("braceleticon");
+                fethericon=game.getobjecttype("fethericon");
+                swordicon=game.getobjecttype("swordicon");
+                shieldicon=game.getobjecttype("shieldicon");
+                bowicon=game.getobjecttype("bowicon");
+                bombicon=game.getobjecttype("bombicon");
+                
+                linkjump=game.getobjecttype("linkjump");
+                shieldjump=game.getobjecttype("shieldjump");
+                
+                
+                buch=game.getobjecttype("buch");
+                rupees=game.getobjecttype("rupees");
+                arrowfind=game.getobjecttype("arrowfind");
+                bombfind=game.getobjecttype("bombfind");
+                
+                bow=game.getobjecttype("bow");
+                arrow=game.getobjecttype("arrow");
+                
+                getbombs=game.getobjecttype("getbombs");
+                bomb=game.getobjecttype("bomb");
+                explotion=game.getobjecttype("explotion");
+                
+                lanternicon=game.getobjecttype("lanternicon");
+                lantern=game.getobjecttype("lantern");
+                torch=game.getobjecttype("torch");
+                
+                bomerang=game.getobjecttype("bomerang");
+                bomerangicon=game.getobjecttype("bomerangicon");
+                
+                health=game.getobjecttype("health");
+                blocker=game.getobjecttype("blocker");
+                trigger=game.getobjecttype("trigger");
+                
+                crab=game.getobjecttype("crab");
+                
+                rupeesicon=game.getobjecttype("rupeesicon");
+                arrowicon=game.getobjecttype("arrowicon");
+                bombicon2=game.getobjecttype("bombicon2");
+                heartpeaseicon=game.getobjecttype("heartpeaseicon");
+                gray=game.getobjecttype("gray");
+                gate=game.getobjecttype("gate");
+                chest=game.getobjecttype("chest");
+                
+                
+                if(link!=null &&  chest!=null){
+                    
+                    
+                    
+                    game.setcameraobj(link.objects[0],canvas.width,canvas.height);
+                    if(buttonA.objects.length==0)game.addobject(buttonA,canvas.width-250,canvas.height-250,150,150,0,false);
+                    if(buttonB.objects.length==0)game.addobject(buttonB,canvas.width-400,canvas.height-400,150,150,0,false);
+                    if(heart.objects.length==0){game.addobject(heart,207,147,30,30,0,false);game.addobject(heart,238,147,30,30,0,false);game.addobject(heart,269,147,30,30,0,false);}
+                    if(rupeesicon.objects.length==0){game.addobject(rupeesicon,10,139,30,50,0,false);}
+                    if(arrowicon.objects.length==0){game.addobject(arrowicon,-4,212,60,30,270,false);}
+                    if(bombicon2.objects.length==0){game.addobject(bombicon2,3,275,50,50,0,false);}
+                    if(heartpeaseicon.objects.length==0){game.addobject(heartpeaseicon,4,352,50,50,0,false);}
+                    if(gray.objects.length==0){game.addobject(gray,0,0,canvas.width,125,0,false);}
+                    
+                    if(!mobileAndTabletCheck()){buttonA.objects[0].x=canvas.width+300;buttonA.objects[0].y=canvas.height+400;buttonB.objects[0].x=canvas.width+300;buttonB.objects[0].y=canvas.height+400;}
+                    
+                    
+                    mapsdata.loadmapsdata(game);
+                    
+                    
+                    if(extralifes>heart.objects.length){
+                        
+                        for(let x=0;x<(extralifes-heart.objects.length);x++){
+                            
+                            game.addobject(heart,300+(1*(extralifes-heart.objects.length-1)*31),147,30,30,0,false);
+                            
+                        }
+                        
+                    }
+                
+                    for(let x=0;x<heart.objects.length-1;x++){
+
+                        heart.objects[x].animation=0;
+
+                    }   
+                    for(let x=heart.objects.length-1;x>heart.objects.length-1+healthnumber;x--){
+
+                        heart.objects[x].animation=1;
+
+                    }
+                   
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    if(linkdubble==true&& linkjump.objects.length==0){game.addobject(linkjump,0,0,100,100,0,false);game.addobject(shieldjump,0,0,30,30,0,false);shieldjump.objects[0].animation=55;linkjump.objects[0].animation=55;}
+                    if(haveshield==true&&shield.objects.length==0){game.addobject(shield,10+0,0,40,30,0,false);game.addobject(shieldicon,10+(1*110),10,100,100,0,false);shield.objects[0].ghost=true;}
+                    if(havesword==true && sword.objects.length==0){game.addobject(sword,50000,50000,75,75,0,false);if(havemediumsword==false)game.addobject(swordicon,10+(0*110),10,100,100,0,false);sword.objects[0].ghost=true;}
+                    if(havemediumsword==true&&mediumsword.objects.length==0){game.addobject(mediumsword,0,0,75,100,0,false);game.addobject(swordicon,10+(0*110),0,100,110,0,false);swordicon.objects[0].animation=1;mediumsword.objects[0].ghost=true;}
+
+                    if(havelantern==true&&lantern.objects.length==0){game.addobject(lantern,50000,50000,30,70,0,false);game.addobject(lanternicon,10+(1*lanternloc*110),10,100,100,0,false);lantern.objects[0].ghost=true;}
+                    if(havefether==true&& fether.objects.length==0){game.addobject(fether,50000,50000,50,50,0,false);game.addobject(fethericon,10+(1*fetherloc*110),10,100,100,0,false);fether.objects[0].ghost=true;fether.objects[0].animation=1;}
+                    if(havebracelet==true&&bracelet.objects.length==0){game.addobject(bracelet,50000,50000,50,50,0,false);game.addobject(braceleticon,10+(1*braceletloc*110),10,100,100,0,false);bracelet.objects[0].ghost=true;bracelet.objects[0].animation=1;}
+                    if(havebow==true&&bow.objects.length==0){game.addobject(bow,50000,50000,30,70,0,false);game.addobject(bowicon,10+(1*bowloc*110),10,100,100,0,false);bow.objects[0].ghost=true;bow.objects[0].animation=1;}
+                    if(havebombs==true&&getbombs.objects.length==0){game.addobject(getbombs,50000,50000,30,70,0,false);game.addobject(bombicon,10+(1*bombsloc*110),10,100,100,0,false);}
+                    if(havebomerang==true&&bomerang.objects.length==0){game.addobject(bomerang,50000,50000,50,50,0,false);game.addobject(bomerangicon,10+(1*bomerangloc*110),10,100,100,0,false);bomerang.objects[0].ghost=true;bomerang.objects[0].animation=1;} 
+                    
+                    if(bomerangicon.objects.length==1)bomerangicon.objects[0].animation=0;
+                    if(bombicon.objects.length==1)bombicon.objects[0].animation=0;
+                    if(bowicon.objects.length==1)bowicon.objects[0].animation=0;
+                    if(braceleticon.objects.length==1)braceleticon.objects[0].animation=0;
+                    if(fethericon.objects.length==1)fethericon.objects[0].animation=0;
+                    if(lanternicon.objects.length==1)lanternicon.objects[0].animation=0;
+                    if(isbomerang){bomerangicon.objects[0].animation=1;}
+                    if(isbomb){bombicon.objects[0].animation=1;}
+                    if(isbow){bowicon.objects[0].animation=1;}
+                    if(isbracelet){braceleticon.objects[0].animation=1;}
+                    if(isfether){fethericon.objects[0].animation=1;}
+                    if(islantern){lanternicon.objects[0].animation=1;}
+                    
+                    
+                    ctx.fillStyle = "red";
+                    ctx.font = "bold 55px serif";
+                    ctx.fillText(rupeescount, 60, 180);
+                    ctx.fillText(arrows, 60, 250);
+                    ctx.fillText(bombs, 60, 320);
+                    ctx.fillText(heartpeases, 60, 390);
+                    
+                    for(let k=0;k<blocker.objects.length;k++){blocker.objects[k].animation=1;}
+                    for(let k=0;k<trigger.objects.length;k++){trigger.objects[k].animation=1;}
+                    
+                    
+                    
+                    
+                    
+                    if(linkdubble==false){game.addobject(linkjump,0,0,100,100,0,false);linkdubble=true;game.addobject(shieldjump,0,0,30,30,0,false);linkdubble=true;shieldjump.objects[0].animation=55;linkjump.objects[0].animation=55;}
+                    
+
+                    if(game.collideswiths(link.objects[0],"shield")){if(haveshield==false){audio2("sounds/itemget.mp3");game.addobject(shieldicon,10+(1*110),10,100,100,0,false);}haveshield=true;shield.objects[0].ghost=true;}
+                    else if(shield.objects.length>0){
+                        shield.objects[0].dimx=40;
+                        shield.objects[0].animation=1;
+                        
+                    }
+          
+                    if(game.collideswiths(link.objects[0],"sword")){if(havesword==false&&havemediumsword==false){audio2("sounds/itemget.mp3");game.addobject(swordicon,10+(0*110),10,100,100,0,false);}havesword=true;sword.objects[0].ghost=true;}
+                    else if(sword.objects.length>0){
+                        sword.objects[0].dimx=75;
+                        sword.objects[0].dimy=75;
+                        sword.objects[0].animation=4;
+                        
+                    }
+                    if(game.collideswiths(link.objects[0],"mediumsword")){if(havemediumsword==false){audio2("sounds/itemget.mp3");if(havesword==false){game.addobject(swordicon,10+(0*110),0,100,110,0,false);}swordicon.objects[0].animation=1;}havemediumsword=true;mediumsword.objects[0].ghost=true;}
+                    else if(mediumsword.objects.length>0){
+                        mediumsword.objects[0].dimx=75;
+                        mediumsword.objects[0].dimy=100;
+                        mediumsword.objects[0].animation=4;
+                        
+                    }
+                    
+                    if(game.collideswiths(link.objects[0],"fether")){if(havefether==false){fetherloc=haveitems;audio2("sounds/itemget.mp3");game.addobject(fethericon,10+(1*haveitems*110),10,100,100,0,false);if(haveitems==2){isfether=true;fethericon.objects[0].animation=1;}haveitems++;}havefether=true;fether.objects[0].ghost=true;fether.objects[0].animation=1;}
+
+                    if(game.collideswiths(link.objects[0],"bracelet")){if(havebracelet==false){braceletloc=haveitems;audio2("sounds/itemget.mp3");game.addobject(braceleticon,10+(1*haveitems*110),10,100,100,0,false);if(haveitems==2){isbracelet=true;braceleticon.objects[0].animation=1;}haveitems++;}havebracelet=true;bracelet.objects[0].ghost=true;bracelet.objects[0].animation=1;}
+
+                    if(game.collideswiths(link.objects[0],"bow")){if(havebow==false){bowloc=haveitems;arrows=arrows+10;audio2("sounds/itemget.mp3");game.addobject(bowicon,10+(1*haveitems*110),10,100,100,0,false);if(haveitems==2){isbow=true;bowicon.objects[0].animation=1;}haveitems++;}havebow=true;bow.objects[0].ghost=true;bow.objects[0].animation=1;}
+
+                    if(game.collideswiths(link.objects[0],"getbombs")){if(havebombs==false){bombsloc=haveitems;bombs=bombs+10;audio2("sounds/itemget.mp3");game.addobject(bombicon,10+(1*haveitems*110),10,100,100,0,false);if(haveitems==2){isbomb=true;bombicon.objects[0].animation=1;}haveitems++;}havebombs=true;getbombs.objects[0].ghost=true;getbombs.objects[0].animation=1;}
+                    
+                    if(game.collideswiths(link.objects[0],"lantern")){if(havelantern==false){lanternloc=haveitems;audio2("sounds/itemget.mp3");game.addobject(lanternicon,10+(1*haveitems*110),10,100,100,0,false);if(haveitems==2){islantern=true;lanternicon.objects[0].animation=1;}haveitems++;havelantern=true;lantern.objects[0].ghost=true;lantern.objects[0].animation=1;}}
+                    
+                    if(game.collideswiths(link.objects[0],"bomerang")){if(havebomerang==false){bomerangloc=haveitems;audio2("sounds/itemget.mp3");game.addobject(bomerangicon,10+(1*haveitems*110),10,100,100,0,false);if(haveitems==2){isbomerang=true;bomerangicon.objects[0].animation=1;}haveitems++;havebomerang=true;bomerang.objects[0].ghost=true;bomerang.objects[0].animation=1;}}
+                    
+                    if(game.collideswiths(link.objects[0],"heartpease")){
+                        if(game.collideswithobject(link.objects[0],"heartpease").ghost==false){
+                            game.collideswithobject(link.objects[0],"heartpease").ghost=true;
+                            game.collideswithobject(link.objects[0],"heartpease").animation=1;
+                            heartpeases++;
+                            healthnumber=0;
+                            for(let k=0;k<heart.objects.length;k++){heart.objects[k].animation=0;}
+                            
+                            
+                            if(heartpeases==4){
+                                audio2("sounds/heartcontainer.mp3");
+                                heartpeases=0;
+                                game.addobject(heart,300+(1*havehearts*31),147,30,30,0,false);
+                                havehearts++;
+                                extralifes++;
+                            }
+                            else audio2("sounds/heartpease.mp3");
+                            
+                        }
+                    }
+                    if(game.collideswiths(link.objects[0],"fullheart")){
+                        if(game.collideswithobject(link.objects[0],"fullheart").ghost==false){
+                            game.collideswithobject(link.objects[0],"fullheart").ghost=true;
+                            game.collideswithobject(link.objects[0],"fullheart").animation=1;
+                            healthnumber=0;
+                            for(let k=0;k<heart.objects.length;k++){heart.objects[k].animation=0;}
+                            audio2("sounds/heartcontainer.mp3");
+                            game.addobject(heart,300+(1*havehearts*31),147,30,30,0,false);
+                            havehearts++;
+                            extralifes++;
+                        }
+                    }
+                    
+                    
+                    if(braceleticon.objects.length==1&&braceleticon.objects[0].mousepressed==true){
+                        braceleticon.objects[0].animation=1;
+                        if(fethericon.objects.length==1)fethericon.objects[0].animation=0;
+                        if(bowicon.objects.length==1)bowicon.objects[0].animation=0;
+                        if(bombicon.objects.length==1)bombicon.objects[0].animation=0;
+                        if(lanternicon.objects.length==1)lanternicon.objects[0].animation=0;
+                        if(bomerangicon.objects.length==1)bomerangicon.objects[0].animation=0;
+                        isbracelet=true;
+                        isfether=false;
+                        isbow=false;
+                        isbomb=false;
+                        islantern=false;
+                        isbomerang=false;
+                        
+                    }
+                    if(fethericon.objects.length==1&&fethericon.objects[0].mousepressed==true){
+                        fethericon.objects[0].animation=1;
+                        if(braceleticon.objects.length==1)braceleticon.objects[0].animation=0;
+                        if(bowicon.objects.length==1)bowicon.objects[0].animation=0;
+                        if(bombicon.objects.length==1)bombicon.objects[0].animation=0;
+                        if(lanternicon.objects.length==1)lanternicon.objects[0].animation=0;
+                        if(bomerangicon.objects.length==1)bomerangicon.objects[0].animation=0;
+                        isbracelet=false;
+                        isfether=true;
+                        isbow=false;
+                        isbomb=false;
+                        islantern=false;
+                        isbomerang=false;
+                    }
+                    if(bowicon.objects.length==1&&bowicon.objects[0].mousepressed==true){
+                        bowicon.objects[0].animation=1;
+                        
+                        if(braceleticon.objects.length==1)braceleticon.objects[0].animation=0;
+                        if(fethericon.objects.length==1)fethericon.objects[0].animation=0;
+                        if(bombicon.objects.length==1)bombicon.objects[0].animation=0;
+                        if(lanternicon.objects.length==1)lanternicon.objects[0].animation=0;
+                        if(bomerangicon.objects.length==1)bomerangicon.objects[0].animation=0;
+                        
+                        isbracelet=false;
+                        isfether=false;
+                        isbow=true;
+                        isbomb=false;
+                        islantern=false;
+                        isbomerang=false;
+                    }
+                    if(bombicon.objects.length==1&&bombicon.objects[0].mousepressed==true){
+                        bombicon.objects[0].animation=1;
+                        
+                        if(braceleticon.objects.length==1)braceleticon.objects[0].animation=0;
+                        if(fethericon.objects.length==1)fethericon.objects[0].animation=0;
+                        if(bowicon.objects.length==1)bowicon.objects[0].animation=0;
+                        if(lanternicon.objects.length==1)lanternicon.objects[0].animation=0;
+                        if(bomerangicon.objects.length==1)bomerangicon.objects[0].animation=0;
+                        
+                        isbracelet=false;
+                        isfether=false;
+                        isbomb=true;
+                        isbow=false;
+                        islantern=false;
+                        isbomerang=false;
+                    }
+                    if(lanternicon.objects.length==1&&lanternicon.objects[0].mousepressed==true){
+                        lanternicon.objects[0].animation=1;
+                        
+                        if(braceleticon.objects.length==1)braceleticon.objects[0].animation=0;
+                        if(fethericon.objects.length==1)fethericon.objects[0].animation=0;
+                        if(bowicon.objects.length==1)bowicon.objects[0].animation=0;
+                        if(bombicon.objects.length==1)bombicon.objects[0].animation=0;
+                        if(bomerangicon.objects.length==1)bomerangicon.objects[0].animation=0;
+                        
+                        isbracelet=false;
+                        isfether=false;
+                        isbomb=false;
+                        isbow=false;
+                        islantern=true;
+                        isbomerang=false;
+                    }
+                    if(bomerangicon.objects.length==1&&bomerangicon.objects[0].mousepressed==true){
+                        bomerangicon.objects[0].animation=1;
+                        
+                        if(braceleticon.objects.length==1)braceleticon.objects[0].animation=0;
+                        if(fethericon.objects.length==1)fethericon.objects[0].animation=0;
+                        if(bowicon.objects.length==1)bowicon.objects[0].animation=0;
+                        if(bombicon.objects.length==1)bombicon.objects[0].animation=0;
+                        if(lanternicon.objects.length==1)lanternicon.objects[0].animation=0;
+                        
+                        isbracelet=false;
+                        isfether=false;
+                        isbomb=false;
+                        isbow=false;
+                        islantern=false;
+                        isbomerang=true;
+                    }
+                    
+                    
+                    if(xbox.isButtonPressed('A'))buttonA.objects[0].mousepressed=true;
+                    if(xbox.isButtonPressed('B'))buttonB.objects[0].mousepressed=true;
+                    
+                    
+                 
+                    if(link.objects[0].health>0&&link.objects[0].animation!=19){
+
+                   
+                   
+                            
+                        if(link.objects[0].counter==0){    
+                            if(joy.GetDir()=="N"||xbox.getLeftStickDirection()=="N"){savedir=5;link.objects[0].animation=5;link.objects[0].counter=0;link.objects[0].y=link.objects[0].y-4;}
+                            else if(joy.GetDir()=="NE"||xbox.getLeftStickDirection()=="NE"){savedir=5;link.objects[0].animation=5;link.objects[0].y=link.objects[0].y-2;link.objects[0].x=link.objects[0].x+2;}    
+                            else if(joy.GetDir()=="E"||xbox.getLeftStickDirection()=="E"){savedir=7;link.objects[0].animation=7;link.objects[0].counter=1;link.objects[0].x=link.objects[0].x+4;}
+                            else if(joy.GetDir()=="SE"||xbox.getLeftStickDirection()=="SE"){savedir=1;link.objects[0].animation=1;link.objects[0].y=link.objects[0].y+2;link.objects[0].x=link.objects[0].x+2;}    
+                            else if(joy.GetDir()=="S"||xbox.getLeftStickDirection()=="S"){savedir=1;link.objects[0].animation=1;link.objects[0].counter=0;link.objects[0].y=link.objects[0].y+4;}
+                            else if(joy.GetDir()=="SW"||xbox.getLeftStickDirection()=="SW"){savedir=1;link.objects[0].animation=1;link.objects[0].y=link.objects[0].y+2;link.objects[0].x=link.objects[0].x-2;}    
+                            else if(joy.GetDir()=="W"||xbox.getLeftStickDirection()=="W"){savedir=3;link.objects[0].animation=3;link.objects[0].counter=1;link.objects[0].x=link.objects[0].x-4;}    
+                            else if(joy.GetDir()=="NW"||xbox.getLeftStickDirection()=="NW"){savedir=5;link.objects[0].animation=5;link.objects[0].y=link.objects[0].y-2;link.objects[0].x=link.objects[0].x-2;}     
+                            else if(joy.GetDir()=="C"||xbox.getLeftStickDirection()=="C") {
+                                    if(link.objects[0].animation==1||link.objects[0].animation==8){savedir=0;link.objects[0].animation=0;}
+                                    if(link.objects[0].animation==3||link.objects[0].animation==11){savedir=2;link.objects[0].animation=2;}
+                                    if(link.objects[0].animation==5||link.objects[0].animation==10){savedir=4;link.objects[0].animation=4;}
+                                    if(link.objects[0].animation==7||link.objects[0].animation==9){savedir=6;link.objects[0].animation=6;}
+
+                            }
+                            if(!mobileAndTabletCheck()){
+                 
+                                if(sp&&dp){savedir=1;link.objects[0].animation=1;link.objects[0].y=link.objects[0].y+2;link.objects[0].x=link.objects[0].x+2;}
+                                else if(wp&&dp){savedir=5;link.objects[0].animation=5;link.objects[0].y=link.objects[0].y-2;link.objects[0].x=link.objects[0].x+2;}
+                                else if(sp&&ap){savedir=1;link.objects[0].animation=1;link.objects[0].y=link.objects[0].y+2;link.objects[0].x=link.objects[0].x-2;}
+                                else if(wp&&ap){savedir=5;link.objects[0].animation=5;link.objects[0].y=link.objects[0].y-2;link.objects[0].x=link.objects[0].x-2;}
+                                else if(wp){savedir=5;link.objects[0].animation=5;link.objects[0].counter=0;link.objects[0].y=link.objects[0].y-4;}
+                                else if(dp){savedir=7;link.objects[0].animation=7;link.objects[0].counter=1;link.objects[0].x=link.objects[0].x+4;}
+                                else if(sp){savedir=1;link.objects[0].animation=1;link.objects[0].counter=0;link.objects[0].y=link.objects[0].y+4;}
+                                else if(ap){savedir=3;link.objects[0].animation=3;link.objects[0].counter=1;link.objects[0].x=link.objects[0].x-4;}
+                                else if (xbox.getLeftStickDirection()=="C"){
+                                    if(link.objects[0].animation==1||link.objects[0].animation==8){savedir=0;link.objects[0].animation=0;}
+                                    if(link.objects[0].animation==3||link.objects[0].animation==11){savedir=2;link.objects[0].animation=2;}
+                                    if(link.objects[0].animation==5||link.objects[0].animation==10){savedir=4;link.objects[0].animation=4;}
+                                    if(link.objects[0].animation==7||link.objects[0].animation==9){savedir=6;link.objects[0].animation=6;}
+                                }
+                            
+                            
+                    }
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                        }
+                        else{
+                            if(joy.GetDir()=="N"||xbox.getLeftStickDirection()=="N"){savedir=5;link.objects[0].animation=5;link.objects[0].counter=0;link.objects[0].y=link.objects[0].y-4;}
+                            else if(joy.GetDir()=="NE"||xbox.getLeftStickDirection()=="NE"){savedir=7;link.objects[0].animation=7;link.objects[0].y=link.objects[0].y-2;link.objects[0].x=link.objects[0].x+2;}    
+                            else if(joy.GetDir()=="E"||xbox.getLeftStickDirection()=="E"){savedir=7;link.objects[0].animation=7;link.objects[0].counter=1;link.objects[0].x=link.objects[0].x+4;}
+                            else if(joy.GetDir()=="SE"||xbox.getLeftStickDirection()=="SE"){savedir=7;link.objects[0].animation=7;link.objects[0].y=link.objects[0].y+2;link.objects[0].x=link.objects[0].x+2;}    
+                            else if(joy.GetDir()=="S"||xbox.getLeftStickDirection()=="S"){savedir=1;link.objects[0].animation=1;link.objects[0].counter=0;link.objects[0].y=link.objects[0].y+4;}
+                            else if(joy.GetDir()=="SW"||xbox.getLeftStickDirection()=="SW"){savedir=3;link.objects[0].animation=3;link.objects[0].y=link.objects[0].y+2;link.objects[0].x=link.objects[0].x-2;}    
+                            else if(joy.GetDir()=="W"||xbox.getLeftStickDirection()=="W"){savedir=3;link.objects[0].animation=3;link.objects[0].counter=1;link.objects[0].x=link.objects[0].x-4;}    
+                            else if(joy.GetDir()=="NW"||xbox.getLeftStickDirection()=="NW"){savedir=3;link.objects[0].animation=3;link.objects[0].y=link.objects[0].y-2;link.objects[0].x=link.objects[0].x-2;}     
+                            else if(joy.GetDir()=="C"||xbox.getLeftStickDirection()=="C") {
+                                    if(link.objects[0].animation==1||link.objects[0].animation==8){savedir=0;link.objects[0].animation=0;}
+                                    if(link.objects[0].animation==3||link.objects[0].animation==11){savedir=2;link.objects[0].animation=2;}
+                                    if(link.objects[0].animation==5||link.objects[0].animation==10){savedir=4;link.objects[0].animation=4;}
+                                    if(link.objects[0].animation==7||link.objects[0].animation==9){savedir=6;link.objects[0].animation=6;}
+
+                            }
+                            
+                        if(!mobileAndTabletCheck()){
+                          
+                                if(sp&&dp){savedir=7;link.objects[0].animation=1;link.objects[0].y=link.objects[0].y+2;link.objects[0].x=link.objects[0].x+2;}
+                                else if(wp&&dp){savedir=7;link.objects[0].animation=5;link.objects[0].y=link.objects[0].y-2;link.objects[0].x=link.objects[0].x+2;}
+                                else if(sp&&ap){savedir=3;link.objects[0].animation=1;link.objects[0].y=link.objects[0].y+2;link.objects[0].x=link.objects[0].x-2;}
+                                else if(wp&&ap){savedir=3;link.objects[0].animation=5;link.objects[0].y=link.objects[0].y-2;link.objects[0].x=link.objects[0].x-2;}
+                                else if(wp){savedir=5;link.objects[0].animation=5;link.objects[0].counter=0;link.objects[0].y=link.objects[0].y-4;}
+                                else if(dp){savedir=7;link.objects[0].animation=7;link.objects[0].counter=1;link.objects[0].x=link.objects[0].x+4;}
+                                else if(sp){savedir=1;link.objects[0].animation=1;link.objects[0].counter=0;link.objects[0].y=link.objects[0].y+4;}
+                                else if(ap){savedir=3;link.objects[0].animation=3;link.objects[0].counter=1;link.objects[0].x=link.objects[0].x-4;}
+                                else if(xbox.getLeftStickDirection()=="C"){
+                                    if(link.objects[0].animation==1||link.objects[0].animation==8){savedir=0;link.objects[0].animation=0;}
+                                    if(link.objects[0].animation==3||link.objects[0].animation==11){savedir=2;link.objects[0].animation=2;}
+                                    if(link.objects[0].animation==5||link.objects[0].animation==10){savedir=4;link.objects[0].animation=4;}
+                                    if(link.objects[0].animation==7||link.objects[0].animation==9){savedir=6;link.objects[0].animation=6;}
+                                }
+                            
+                         }
+                            
+                            
+                }   
+                            
+                            
+                            
+                        
+                            
+                            
+                            
+                            
+                            
+                        
+                        
+                        
+                       
+                        
+                        if(havepot==false&&haverock==false&&buttonB.objects[0].health==100&&buttonA.objects[0].mousepressed==true||buttonA.objects[0].health<100){
+                            
+                            if(buttonA.objects[0].health==100){audio2("sounds/sword.mp3");grasdestroyed=false;}
+                            buttonA.objects[0].health--;
+                            if(buttonA.objects[0].health==50){buttonA.objects[0].health=100;}
+                            
+                            if(link.objects[0].animation==5||link.objects[0].animation==4){
+                                link.objects[0].animation=10;
+                            }
+                            else if(link.objects[0].animation==1||link.objects[0].animation==0){
+                                link.objects[0].animation=8;
+                            }
+                            else if(link.objects[0].animation==7||link.objects[0].animation==6){
+                                link.objects[0].animation=9;
+                            }
+                            else if(link.objects[0].animation==3||link.objects[0].animation==2){
+                                link.objects[0].animation=11;
+                                
+                            }
+                        }else{buttonA.objects[0].health=100;}
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        if(havepot==true){
+  
+                            if(bpressed3==(-1)&&buttonB.objects[0].mousepressed==true){        
+                                potthrow=true;
+                                havepot=false;  
+                                
+                            }    
+                            
+                            potobj.ghost=true;
+                            potobj.x=link.objects[0].x;
+                            potobj.y=link.objects[0].y-80;
+                        }
+                        if(potthrow==true){
+                            potobj.health--;
+                            
+                            if(potobj.health==99){potdir=savedir;audio2("sounds/throw.mp3");  }
+                            
+                            if(game.collideswiths(potobj,"blocker")){potobj.health=100;potthrow=false;potobj.ghost=true;potobj.animation=1;audio2("sounds/break.mp3");if((Math.floor(Math.random() * 5))==0)game.addobject(rupees,potobj.x+35,potobj.y+25,30,50,0,false);else if((Math.floor(Math.random() * 5))==0)game.addobject(health,potobj.x+35,potobj.y+25,40,40,0,false);else if(havebow&&(Math.floor(Math.random() * 5))==0)game.addobject(arrowfind,potobj.x+25,potobj.y+25,60,20,270,false);else if(havebombs&&(Math.floor(Math.random() * 5))==0)game.addobject(bombfind,potobj.x+25,potobj.y+25,50,50,0,false);}
+                            else if(potobj.health<70){potobj.health=100;potthrow=false;potobj.ghost=true;potobj.animation=1;audio2("sounds/break.mp3");if((Math.floor(Math.random() * 5))==0)game.addobject(rupees,potobj.x+35,potobj.y+25,30,50,0,false);else if((Math.floor(Math.random() * 5))==0)game.addobject(health,potobj.x+35,potobj.y+25,40,40,0,false);else if(havebow&&(Math.floor(Math.random() * 5))==0)game.addobject(arrowfind,potobj.x+25,potobj.y+25,60,20,270,false);else if(havebombs&&(Math.floor(Math.random() * 5))==0)game.addobject(bombfind,potobj.x+25,potobj.y+25,50,50,0,false);}
+                            else{
+                                if(potdir==0||potdir==1){if(potobj.health>70)potobj.y=potobj.y+11;}
+                                if(potdir==2||potdir==3){if(potobj.health>70)potobj.x=potobj.x-10;if(potobj.health<90)potobj.y=potobj.y+4;}
+                                if(potdir==4||potdir==5){if(potobj.health>70)potobj.y=potobj.y-10;}
+                                if(potdir==6||potdir==7){if(potobj.health>70)potobj.x=potobj.x+10;if(potobj.health<90)potobj.y=potobj.y+4;}
+                                
+                                
+                                
+                            }
+                        } 
+                         
+                       
+                         
+                        if(buttonA.objects[0].health==100&&buttonB.objects[0].mousepressed==true){
+                            
+                            bpressed3++;
+                            if(game.collideswiths(link.objects[0],"pot")&&game.collideswithobject(link.objects[0],"pot").animation==0){
+                                if(havepot==false&&potthrow==false){
+                                    havepot=true;
+                                    audio2("sounds/lift.mp3");
+                                    potobj=game.collideswithobject(link.objects[0],"pot");
+                                    
+                                }
+                                
+                            }
+                        
+                        
+                        }
+                        else{
+                            bpressed3=-1;
+                            
+                        }
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        if(linkjump.objects.length>0)linkjump.objects[0].animation=20;
+                        if(linkjump.objects.length>0)linkjump.objects[0].x=link.objects[0].x;
+                        if(linkjump.objects.length>0)linkjump.objects[0].y=link.objects[0].y;
+                        if(buttonB.objects[0].counter>0)buttonB.objects[0].counter--;
+                        
+                        if(havepot==false&&isfether==true&&buttonB.objects[0].counter==0&&havefether==true&&buttonA.objects[0].health==100&&buttonB.objects[0].mousepressed==true||((buttonB.objects[0].health<100)&&havefether==true&&isfether==true)){
+                            if(buttonB.objects[0].health==100)audio2("sounds/linkjump.mp3");
+                            buttonB.objects[0].health--;
+                            if(buttonB.objects[0].health==40){buttonB.objects[0].health=100;link.objects[0].ghost=false;link.objects[0].animation=savedir;link.objects[0].x++;buttonB.objects[0].counter=10;}
+                            
+                            
+                            
+                            if(buttonB.objects[0].health<=70){
+                                linkjump.objects[0].y=link.objects[0].y+((70-(buttonB.objects[0].health))*4)-116;
+                                if(savedir==0||savedir==1)linkjump.objects[0].animation=0;
+                                if(savedir==2||savedir==3)linkjump.objects[0].animation=1;
+                                if(savedir==4||savedir==5)linkjump.objects[0].animation=2;
+                                if(savedir==6||savedir==7)linkjump.objects[0].animation=3;
+                                link.objects[0].animation=18;
+                                
+                                
+                            }else if(buttonB.objects[0].health<=100){
+                                
+                                linkjump.objects[0].y=link.objects[0].y-(100-(buttonB.objects[0].health))*4;
+                                if(savedir==0||savedir==1)linkjump.objects[0].animation=0;
+                                if(savedir==2||savedir==3)linkjump.objects[0].animation=1;
+                                if(savedir==4||savedir==5)linkjump.objects[0].animation=2;
+                                if(savedir==6||savedir==7)linkjump.objects[0].animation=3;
+                                link.objects[0].animation=18;
+                               // link.objects[0].ghost=true;
+                            }
+                            else{
+                                linkjump.objects[0].y=link.objects[0].y;
+                                link.objects[0].animation=savedir;
+                                linkjump.objects[0].animation=20;
+                                
+                                
+                            }
+                            
+                            
+                            
+                        }
+                        else{
+                            if(link.objects[0].animation==18)link.objects[0].animation=savedir;
+                            if(linkjump.objects>0)linkjump.objects[0].y=link.objects[0].y;
+                            if(linkjump.objects>0)linkjump.objects[0].animation=20;
+                            link.objects[0].ghost=false;
+                            
+                        }
+                         
+                        if(haverock==true){
+  
+                            if(bpressed==(-1)&&buttonB.objects[0].mousepressed==true){        
+                                rockthrow=true;
+                                haverock=false;  
+                                
+                            }    
+                            
+                            rockobj.ghost=true;
+                            rockobj.x=link.objects[0].x;
+                            rockobj.y=link.objects[0].y-80;
+                        }
+                        if(rockthrow==true){
+                            rockobj.health--;
+                            
+                            if(rockobj.health==99){rockdir=savedir;audio2("sounds/throw.mp3");  }
+                            
+                            if(rockobj.health<70){rockobj.health=100;rockthrow=false;rockobj.ghost=false;}
+                            else{
+                                if(rockdir==0||rockdir==1){if(rockobj.health>70)rockobj.y=rockobj.y+11;}
+                                if(rockdir==2||rockdir==3){if(rockobj.health>70)rockobj.x=rockobj.x-10;if(rockobj.health<90)rockobj.y=rockobj.y+4;}
+                                if(rockdir==4||rockdir==5){if(rockobj.health>70)rockobj.y=rockobj.y-10;}
+                                if(rockdir==6||rockdir==7){if(rockobj.health>70)rockobj.x=rockobj.x+10;if(rockobj.health<90)rockobj.y=rockobj.y+4;}
+                                
+                                
+                                
+                            }
+                        } 
+                         
+                       
+                         
+                        if(havepot==false&&isbracelet==true&&buttonA.objects[0].health==100&&buttonB.objects[0].mousepressed==true){
+                            
+                            bpressed++;
+                            if(game.collideswiths(link.objects[0],"rock")){
+                                if(haverock==false&&rockthrow==false){
+                                    haverock=true;
+                                    audio2("sounds/lift.mp3");
+                                    rockobj=game.collideswithobject(link.objects[0],"rock");
+                                    
+                                }
+                                
+                            }
+                        
+                        
+                        }
+                        else{
+                            bpressed=-1;
+                            
+                        }
+                        if((havepot==false&&isbow==true&&buttonA.objects[0].health==100&&buttonB.objects[0].mousepressed==true)||(isbow==true && buttonB.objects[0].health<100)){
+                            
+                            buttonB.objects[0].health--;
+                            if(buttonB.objects[0].health==50){buttonB.objects[0].health=100;if(arrows>0){firearrow=true;arrows--;audio2("sounds/arrow.mp3");}}
+                            
+                            if(savedir==3||savedir==11||savedir==2||savedir==15){
+                                bow.objects[0].fliped=true;
+                                bow.objects[0].rot=0;
+                                bow.objects[0].animation=0;
+                                bow.objects[0].x=link.objects[0].x-10;
+                                bow.objects[0].y=link.objects[0].y+10;
+                                bow.objects[0].dimy=70;
+                                if(firearrow==true){game.addobject(arrow,bow.objects[0].x,bow.objects[0].y+20,60,20,0,true);firearrow=false;arrow.objects[arrow.objects.length-1].health=0;}
+                            }
+                            else if(savedir==7||savedir==9||savedir==6||savedir==17){
+                                bow.objects[0].fliped=false;
+                                bow.objects[0].rot=0;
+                                bow.objects[0].animation=0;
+                                bow.objects[0].x=link.objects[0].x+90;
+                                bow.objects[0].y=link.objects[0].y+10;
+                                bow.objects[0].dimy=70;
+                                if(firearrow==true){game.addobject(arrow,bow.objects[0].x,bow.objects[0].y+20,60,20,0,false);firearrow=false;arrow.objects[arrow.objects.length-1].health=1;}
+                            }
+                            else if(savedir==1||savedir==8||savedir==0||savedir==14){
+                                bow.objects[0].fliped=false;
+                                bow.objects[0].rot=90;
+                                bow.objects[0].animation=0;
+                                bow.objects[0].x=link.objects[0].x+30;
+                                bow.objects[0].y=link.objects[0].y+50;
+                                bow.objects[0].dimy=70;
+                                if(firearrow==true){game.addobject(arrow,bow.objects[0].x-15,bow.objects[0].y+20,60,20,90,false);firearrow=false;arrow.objects[arrow.objects.length-1].health=2;}
+                                
+                                
+                            }
+                            else if(savedir==5||savedir==10||savedir==4||savedir==16){
+                                bow.objects[0].fliped=true;
+                                bow.objects[0].rot=90;
+                                bow.objects[0].animation=0;
+                                bow.objects[0].x=link.objects[0].x+30;
+                                bow.objects[0].y=link.objects[0].y-35;
+                                bow.objects[0].dimy=70;
+                                if(firearrow==true){game.addobject(arrow,bow.objects[0].x-15,bow.objects[0].y+20,60,20,90,true);firearrow=false;arrow.objects[arrow.objects.length-1].health=3;}
+                                
+                                
+                                
+                                
+                            }
+                            
+                            
+                        } 
+                        else{
+                            if(havebow==true)bow.objects[0].animation=10;
+                            
+                        }
+                        
+                        for(let i=0;i<arrow.objects.length;i++){
+                            
+                            if(arrow.objects[i].health==0){arrow.objects[i].x=arrow.objects[i].x-10;}
+                            if(arrow.objects[i].health==1){arrow.objects[i].x=arrow.objects[i].x+10;}
+                            if(arrow.objects[i].health==2){arrow.objects[i].y=arrow.objects[i].y+10;}
+                            if(arrow.objects[i].health==3){arrow.objects[i].y=arrow.objects[i].y-10;}
+                            
+                        }
+                        
+                        if((havepot==false&&isbomb==true&&buttonA.objects[0].health==100&&buttonB.objects[0].mousepressed==true)){
+                            bpressed2++;
+                            
+                            if(holdingbombs==true&&bpressed2==0){trowbomb=true;holdingbombs=false;}
+                            else{
+                                if(bpressed2==0&&bombs>0){bombs--;game.addobject(bomb,link.objects[0].x,link.objects[0].y,50,50,0,false);bombobj=bomb.objects[bomb.objects.length-1];holdingbombs=true;}
+                                
+                            }
+                        }
+                        else{
+                            bpressed2=-1;
+                            
+                        }
+                        
+                        if(holdingbombs==true){
+                            
+                            
+                            bombobj.x=link.objects[0].x+25;
+                            bombobj.y=link.objects[0].y-30;
+                            bombobj.ghost=true;
+                        }
+                        if(trowbomb==true){
+                            
+                            bombobj.health--;
+                            if(bombobj.health==99){bombdir=savedir;audio2("sounds/throw.mp3");  }
+                            
+                            
+                            if(bombobj.health<70){bombobj.health=100;trowbomb=false;}
+                            else{
+                                if(bombdir==0){bombobj.y=bombobj.y+100;trowbomb=false;bombobj.health=100;}
+                                if(bombdir==2){bombobj.x=bombobj.x-70;bombobj.y=bombobj.y+75;trowbomb=false;bombobj.health=100;}
+                                if(bombdir==4){bombobj.y=bombobj.y-10;trowbomb=false;bombobj.health=100;}
+                                if(bombdir==6){bombobj.x=bombobj.x+70;bombobj.y=bombobj.y+75;trowbomb=false;bombobj.health=100;}
+                                if(bombdir==1){if(bombobj.health>70)bombobj.y=bombobj.y+11;}
+                                if(bombdir==3){if(bombobj.health>70)bombobj.x=bombobj.x-10;if(bombobj.health<90)bombobj.y=bombobj.y+4;}
+                                if(bombdir==5){if(bombobj.health>70)bombobj.y=bombobj.y-10;}
+                                if(bombdir==7){if(bombobj.health>70)bombobj.x=bombobj.x+10;if(bombobj.health<90)bombobj.y=bombobj.y+4;}
+                            }
+                        }
+                        
+                        
+                        
+                        
+                        for(let i=0;i<bomb.objects.length;i++){
+                            
+                            bomb.objects[i].counter++;
+                            
+                            if(bomb.objects[i].counter==200)bomb.objects[i].animation=1;
+                            if(bomb.objects[i].counter==300){
+                                bomb.objects[i].animation=2;
+                                
+                                game.addobject(explotion,bomb.objects[i].x-75,bomb.objects[i].y-75,200,200,0,false);
+                                
+                                
+                            }
+                            if(bomb.objects[i].counter>400)bomb.objects[i].counter=350;
+                        }
+                        for(let i=0;i<explotion.objects.length;i++){
+                            
+                            explotion.objects[i].counter++;
+                            
+                            if(explotion.objects[i].counter==1){explotion.images[0].ani=0;explotion.images[0].counter=0;audio2("sounds/explotion.mp3");}
+                            
+                            if(explotion.objects[i].counter==50)explotion.objects[i].animation=1;
+                            
+                            if(explotion.objects[i].counter>100)explotion.objects[i].counter=55;
+                            
+                        }
+                        
+                        if(havepot==false&&potthrow==false&&((islantern==true&&buttonA.objects[0].health==100&&buttonB.objects[0].mousepressed==true)||(islantern==true && buttonB.objects[0].health<100))){
+                            
+                            buttonB.objects[0].health--;
+                            if(buttonB.objects[0].health==50){buttonB.objects[0].health=100;}
+                            
+                            if(savedir==3||savedir==11||savedir==2||savedir==15){
+                                lantern.objects[0].fliped=true;
+                                lantern.objects[0].rot=0;
+                                lantern.objects[0].animation=0;
+                                lantern.objects[0].x=link.objects[0].x-10;
+                                lantern.objects[0].y=link.objects[0].y+10;
+                                lantern.objects[0].dimy=70;
+                                
+                            }
+                            else if(savedir==7||savedir==9||savedir==6||savedir==17){
+                                lantern.objects[0].fliped=false;
+                                lantern.objects[0].rot=0;
+                                lantern.objects[0].animation=0;
+                                lantern.objects[0].x=link.objects[0].x+90;
+                                lantern.objects[0].y=link.objects[0].y+10;
+                                lantern.objects[0].dimy=70;
+                                
+                            }
+                            else if(savedir==1||savedir==8||savedir==0||savedir==14){
+                                lantern.objects[0].fliped=false;
+                                lantern.objects[0].rot=0;
+                                lantern.objects[0].animation=0;
+                                lantern.objects[0].x=link.objects[0].x+40;
+                                lantern.objects[0].y=link.objects[0].y+50;
+                                lantern.objects[0].dimy=70;
+                                
+                                
+                                
+                            }
+                            else if(savedir==5||savedir==10||savedir==4||savedir==16){
+                                lantern.objects[0].fliped=true;
+                                lantern.objects[0].rot=90;
+                                lantern.objects[0].animation=0;
+                                lantern.objects[0].x=link.objects[0].x+40;
+                                lantern.objects[0].y=link.objects[0].y-35;
+                                lantern.objects[0].dimy=70;
+                                
+                                
+                                
+                                
+                                
+                            }
+                            
+                            
+                        } 
+                        else{
+                            if(havelantern==true)lantern.objects[0].animation=10;
+                            
+                        }
+                        if(havelantern==true&&game.collideswiths(lantern.objects[0],"torch")){
+                            
+                            if(game.collideswithobject(lantern.objects[0],"torch").animation==0)audio2("sounds/fire.mp3");
+                            game.collideswithobject(lantern.objects[0],"torch").animation=1;
+                            
+                            
+                        }
+                        
+                        if((havepot==false&&isbomerang==true&&buttonA.objects[0].health==100&&buttonB.objects[0].mousepressed==true)){
+                            
+                            
+                            if(bomerang.objects[0].health==100){
+                            
+                                if(savedir==3||savedir==11||savedir==2||savedir==15){
+                                    bomerang.objects[0].animation=0;
+                                    bomerang.objects[0].x=link.objects[0].x-10;
+                                    bomerang.objects[0].y=link.objects[0].y+10;
+                                    bomerang.objects[0].health=0;
+
+
+                                }
+                                else if(savedir==7||savedir==9||savedir==6||savedir==17){
+                                    bomerang.objects[0].animation=0;
+                                    bomerang.objects[0].x=link.objects[0].x+90;
+                                    bomerang.objects[0].y=link.objects[0].y+10;
+                                    bomerang.objects[0].health=1;
+
+
+                                }
+                                else if(savedir==1||savedir==8||savedir==0||savedir==14){
+                                    bomerang.objects[0].animation=0;
+                                    bomerang.objects[0].x=link.objects[0].x+30;
+                                    bomerang.objects[0].y=link.objects[0].y+50;
+                                    bomerang.objects[0].health=2;
+
+
+
+                                }
+                                else if(savedir==5||savedir==10||savedir==4||savedir==16){
+                                    bomerang.objects[0].animation=0;
+                                    bomerang.objects[0].x=link.objects[0].x+30;
+                                    bomerang.objects[0].y=link.objects[0].y-35;
+                                    bomerang.objects[0].health=3; 
+                                }
+                            
+                            }
+                        }
+                        
+                        if(havebomerang==true&&(bomerang.objects[0].health==0||bomerang.objects[0].health==1||bomerang.objects[0].health==2||bomerang.objects[0].health==3)){
+                            bomerang.objects[0].counter++;
+                            
+                            if(bomerang.objects[0].counter<40){
+                            
+                                if(bomerang.objects[0].health==0){bomerang.objects[0].x=bomerang.objects[0].x-10;}
+                                if(bomerang.objects[0].health==1){bomerang.objects[0].x=bomerang.objects[0].x+10;}
+                                if(bomerang.objects[0].health==2){bomerang.objects[0].y=bomerang.objects[0].y+10;}
+                                if(bomerang.objects[0].health==3){bomerang.objects[0].y=bomerang.objects[0].y-10;}
+                            
+                            }
+                            else{
+                                
+                                if(bomerang.objects[0].x<link.objects[0].x)bomerang.objects[0].x=bomerang.objects[0].x+10;
+                                if(bomerang.objects[0].x>link.objects[0].x)bomerang.objects[0].x=bomerang.objects[0].x-10;
+                                
+                                if(bomerang.objects[0].y<link.objects[0].y)bomerang.objects[0].y=bomerang.objects[0].y+10;
+                                if(bomerang.objects[0].y>link.objects[0].y)bomerang.objects[0].y=bomerang.objects[0].y-10;
+                                
+                                
+                                if((bomerang.objects[0].x-10)<link.objects[0].x&&(bomerang.objects[0].x+10)>link.objects[0].x&&(bomerang.objects[0].y-10)<link.objects[0].y&&(bomerang.objects[0].y+10)>link.objects[0].y){bomerang.objects[0].counter=0;bomerang.objects[0].health=100;bomerang.objects[0].animation=1;}
+                                //if(bomerang.objects[0].counter==80){bomerang.objects[0].counter=0;bomerang.objects[0].health=100;bomerang.objects[0].animation=1;}
+                                    
+                                    
+                                
+                            }
+                            
+                            
+                            
+                            
+                        }
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        if(haveshield==true){
+                            if(savedir==7||savedir==9||savedir==6||savedir==17){
+                                shield.objects[0].animation=0;
+                                shield.objects[0].fliped=false;
+                                shieldjump.objects[0].animation=0;
+                                shieldjump.objects[0].fliped=false;
+
+                                if(linkjump.objects[0].animation==1){
+                                    shield.objects[0].animation=55;
+                                    shieldjump.objects[0].x=linkjump.objects[0].x+75;
+                                    shieldjump.objects[0].y=linkjump.objects[0].y+55;
+                                    shieldjump.objects[0].dimx=15;
+                                }
+                                else{
+                                    shieldjump.objects[0].animation=55;
+                                    shield.objects[0].x=linkjump.objects[0].x+90;
+                                    shield.objects[0].y=linkjump.objects[0].y+40;
+                                    shield.objects[0].dimx=15;
+
+                                }
+                            }
+                            else if(savedir==3||savedir==11||savedir==2||savedir==15){
+                                shield.objects[0].animation=0;
+                                shield.objects[0].fliped=true;
+                                shieldjump.objects[0].animation=0;
+                                shieldjump.objects[0].fliped=true;
+                                
+                                if(linkjump.objects[0].animation==3){
+                                    shield.objects[0].animation=55;
+                                    shieldjump.objects[0].x=linkjump.objects[0].x;
+                                    shieldjump.objects[0].y=linkjump.objects[0].y+40;
+                                    shieldjump.objects[0].dimx=15;
+                                }
+                                else{
+                                    shieldjump.objects[0].animation=55;
+                                    shield.objects[0].x=linkjump.objects[0].x;
+                                    shield.objects[0].y=linkjump.objects[0].y+40;
+                                    shield.objects[0].dimx=15;
+
+                                }
+                            }
+                            else if(savedir==1||savedir==8||savedir==0||savedir==14){
+                                shield.objects[0].animation=1;
+                                shieldjump.objects[0].animation=1;
+                                if(linkjump.objects[0].animation==0){
+                                    shield.objects[0].animation=55;
+                                    shieldjump.objects[0].x=linkjump.objects[0].x+5;
+                                    shieldjump.objects[0].y=linkjump.objects[0].y+50;
+                                    shieldjump.objects[0].dimx=40;
+
+                                }
+                                else{
+                                    shieldjump.objects[0].animation=55;
+                                    shield.objects[0].x=linkjump.objects[0].x+5;
+                                    shield.objects[0].y=linkjump.objects[0].y+50;
+                                    shield.objects[0].dimx=40;
+                                }
+
+
+                            }
+                            else if(savedir==5||savedir==10||savedir==4||savedir==16){
+                                shield.objects[0].animation=2;
+                                shieldjump.objects[0].animation=2;
+                                if(linkjump.objects[0].animation==2){
+                                    shield.objects[0].animation=55;
+                                    shieldjump.objects[0].x=linkjump.objects[0].x+65;
+                                    shieldjump.objects[0].y=linkjump.objects[0].y+49;
+                                    shieldjump.objects[0].dimx=40;
+                                    shieldjump.objects[0].fliped=false;
+                                }
+                                else{
+                                    shieldjump.objects[0].animation=55;
+                                    shield.objects[0].x=linkjump.objects[0].x+65;
+                                    shield.objects[0].y=linkjump.objects[0].y+39;
+                                    shield.objects[0].dimx=40;
+                                    shield.objects[0].fliped=false;
+
+                                }
+
+                            }
+                        
+                        }
+                        if(havesword==true&&havemediumsword==false){
+                            sword.objects[0].x=link.objects[0].x-60;
+                            sword.objects[0].y=link.objects[0].y+25;
+                            
+                            if(link.objects[0].animation==11){
+                                sword.objects[0].dimx=90;
+                                sword.objects[0].dimy=100;
+                                sword.objects[0].animation=0;
+                                sword.objects[0].x=link.objects[0].x-50;
+                                sword.objects[0].y=link.objects[0].y+25;
+                               // sword.objects[0].animation=5;
+                                
+                            }
+                            else if(link.objects[0].animation==9){
+                                sword.objects[0].dimx=90;
+                                sword.objects[0].dimy=100;
+                                sword.objects[0].animation=1;
+                                sword.objects[0].x=link.objects[0].x+50;
+                                sword.objects[0].y=link.objects[0].y+25;
+                              //  sword.objects[0].animation=5;
+                                
+                            }
+                            else if(link.objects[0].animation==8){
+                                sword.objects[0].animation=2;
+                                sword.objects[0].dimx=100;
+                                sword.objects[0].dimy=60;
+                                
+                                sword.objects[0].x=link.objects[0].x+10;
+                                sword.objects[0].y=link.objects[0].y+70;
+                              //  sword.objects[0].animation=5;
+                            }
+                            else if(link.objects[0].animation==10){
+                                sword.objects[0].animation=3;
+                                sword.objects[0].dimx=100;
+                                sword.objects[0].dimy=50;
+                                
+                                sword.objects[0].x=link.objects[0].x-10;
+                                sword.objects[0].y=link.objects[0].y-20;
+                              //  sword.objects[0].animation=5;
+                            }
+                            
+                            
+                            
+                            else{
+                                sword.objects[0].animation=11;
+                                
+                            }
+                        }
+                        if(havemediumsword==true){
+                            mediumsword.objects[0].x=link.objects[0].x-60;
+                            mediumsword.objects[0].y=link.objects[0].y+25;
+                            
+                            if(link.objects[0].animation==11){
+                                mediumsword.objects[0].dimx=120;
+                                mediumsword.objects[0].dimy=100;
+                                mediumsword.objects[0].animation=0;
+                                mediumsword.objects[0].x=link.objects[0].x-70;
+                                mediumsword.objects[0].y=link.objects[0].y+25;
+                               // sword.objects[0].animation=5;
+                                
+                            }
+                            else if(link.objects[0].animation==9){
+                                mediumsword.objects[0].dimx=120;
+                                mediumsword.objects[0].dimy=100;
+                                mediumsword.objects[0].animation=1;
+                                mediumsword.objects[0].x=link.objects[0].x+60;
+                                mediumsword.objects[0].y=link.objects[0].y+25;
+                              //  sword.objects[0].animation=5;
+                                
+                            }
+                            else if(link.objects[0].animation==8){
+                                mediumsword.objects[0].animation=2;
+                                mediumsword.objects[0].dimx=100;
+                                mediumsword.objects[0].dimy=90;
+                                
+                                mediumsword.objects[0].x=link.objects[0].x+10;
+                                mediumsword.objects[0].y=link.objects[0].y+70;
+                              //  sword.objects[0].animation=5;
+                            }
+                            else if(link.objects[0].animation==10){
+                                mediumsword.objects[0].animation=3;
+                                mediumsword.objects[0].dimx=100;
+                                mediumsword.objects[0].dimy=80;
+                                
+                                mediumsword.objects[0].x=link.objects[0].x-10;
+                                mediumsword.objects[0].y=link.objects[0].y-50;
+                              //  sword.objects[0].animation=5;
+                            }
+                            
+                            
+                            
+                            else{
+                                mediumsword.objects[0].animation=11;
+                                
+                            }     
+                        }
+
+                    } if(mobileAndTabletCheck())joy.redraw();
+                    
+                    if(!xbox.isButtonPressed('A'))buttonA.objects[0].mousepressed=false;
+                    if(!xbox.isButtonPressed('B'))buttonB.objects[0].mousepressed=false;
+                    
+                    
+                    for(let i=0;i<crab.objects.length;i++){
+                        
+                        if(crab.objects[i].ghost==false){
+                            crab.objects[i].counter++;
+                            
+                            if(crab.objects[i].counter==0)crab.objects[i].counter2=Math.floor(Math.random() * 2);
+                            
+                            if(crab.objects[i].counter2==0){
+                                if(crab.objects[i].counter<201){crab.objects[i].x=crab.objects[i].x+0.5;}
+                                else {crab.objects[i].x=crab.objects[i].x-0.5;}
+                                if(crab.objects[i].counter==401){crab.objects[i].counter=1;crab.objects[i].counter2=Math.floor(Math.random() * 2);}
+                            }
+                            else{
+                                if(crab.objects[i].counter<201){crab.objects[i].x=crab.objects[i].x-0.5;}
+                                else {crab.objects[i].x=crab.objects[i].x+0.5;}
+                                if(crab.objects[i].counter==401){crab.objects[i].counter=1;crab.objects[i].counter2=Math.floor(Math.random() * 2);}
+                            }
+                        
+                            if(game.collideswithanoterobject(crab.objects[i],link.objects[0])){
+                                link.objects[0].health=0;
+                                if(savedir==1||savedir==0){linkhurtdir=0;}
+                                if(savedir==3||savedir==2){linkhurtdir=1;}
+                                if(savedir==5||savedir==4){linkhurtdir=2;}
+                                if(savedir==7||savedir==6){linkhurtdir=3;}
+                            }
+                            
+                            if(sword.objects.length>0&&sword.objects[0].animation!=11&&game.collideswithanoterobject(sword.objects[0],crab.objects[i])){
+                                crab.objects[i].ghost=true;
+                                
+
+                            }
+                            else if(mediumsword.objects.length>0&&mediumsword.objects[0].animation!=11&&game.collideswithanoterobject(mediumsword.objects[0],guard.objects[i])){
+                                crab.objects[i].ghost=true;
+                            }
+                            else if(rockthrow==true&&game.collideswithanoterobject(rockobj,crab.objects[i])){
+                                crab.objects[i].ghost=true;
+                            }
+                            
+                            for(let k=0;k<arrow.objects.length;k++){
+                            
+                                if(arrow.objects[k].animation==0&&game.collideswithanoterobject(arrow.objects[k],crab.objects[i])){
+                                    arrow.objects[k].animation=1;
+                                    crab.objects[i].ghost=true;
+                                }
+                            }
+                            for(let k=0;k<explotion.objects.length;k++){
+                                
+                                if(explotion.objects[k].animation==0&&game.collideswithanoterobject(explotion.objects[k],crab.objects[i])){
+                                    crab.objects[i].ghost=true;
+                                }
+                            }
+                            if(havebomerang==true&&bomerang.objects[0].animation==0&&game.collideswithanoterobject(bomerang.objects[0],crab.objects[i])){
+                                bomerang.objects[0].counter=50;
+                                crab.objects[i].ghost=true;
+                                
+                                
+                            }
+                        }
+                        else{if(crab.objects[i].health==100){audio2("sounds/enemydies.mp3");}crab.objects[i].animation=1;crab.objects[i].health--;if(crab.objects[i].health<50){crab.objects[i].animation=60;crab.objects[i].health=40;}}
+                        
+                        
+                    }
+                    
+                    
+                    
+                    
+                    for(let i=0;i<guard.objects.length;i++){
+                        
+                        
+                        if(guard.objects[i].ghost==false){
+                            
+                            if(guard.objects[i].counter4>0){guard.objects[i].counter4--;}
+                            else{
+                                value1=(Math.round(guard.objects[i].x)-Math.round(link.objects[0].x));
+                                if(value1>0)value1=Math.round(link.objects[0].x)-(Math.round(guard.objects[i].x));
+
+                                value2=(Math.round(guard.objects[i].y)-Math.round(link.objects[0].y));
+                                if(value2>0)value2=(Math.round(link.objects[0].y)-(Math.round(guard.objects[i].y)));
+
+                                if(value1>value2){
+                                    if((!(guard.objects[i].x+600<link.objects[0].x)&&!(guard.objects[i].x-600>link.objects[0].x))&&(!(guard.objects[i].y+600<link.objects[0].y)&&!(guard.objects[i].y-600>link.objects[0].y))){
+                                        if(Math.round(guard.objects[i].x)<Math.round(link.objects[0].x)){guard.objects[i].x++;guard.objects[i].animation=2;}
+                                        else if(Math.round(guard.objects[i].x)>Math.round(link.objects[0].x)){guard.objects[i].x--;guard.objects[i].animation=1;}
+                                    }
+                                    if((!(guard.objects[i].x+600<link.objects[0].x)&&!(guard.objects[i].x-600>link.objects[0].x))&&(!(guard.objects[i].y+600<link.objects[0].y)&&!(guard.objects[i].y-600>link.objects[0].y))){
+                                        if(Math.round(guard.objects[i].y)<Math.round(link.objects[0].y)){guard.objects[i].y++;guard.objects[i].animation=0;}      
+                                        else if(Math.round(guard.objects[i].y)>Math.round(link.objects[0].y)){guard.objects[i].y--;guard.objects[i].animation=3;}
+                                    }
+
+
+
+
+                                }
+                                else{
+                                    if((!(guard.objects[i].x+600<link.objects[0].x)&&!(guard.objects[i].x-600>link.objects[0].x))&&(!(guard.objects[i].y+600<link.objects[0].y)&&!(guard.objects[i].y-600>link.objects[0].y))){
+                                        if(Math.round(guard.objects[i].y)<Math.round(link.objects[0].y)){guard.objects[i].y++;guard.objects[i].animation=0;}      
+                                        else if(Math.round(guard.objects[i].y)>Math.round(link.objects[0].y)){guard.objects[i].y--;guard.objects[i].animation=3;}
+                                    }
+
+                                    if((!(guard.objects[i].x+600<link.objects[0].x)&&!(guard.objects[i].x-600>link.objects[0].x))&&(!(guard.objects[i].y+600<link.objects[0].y)&&!(guard.objects[i].y-600>link.objects[0].y))){
+                                        if(Math.round(guard.objects[i].x)<Math.round(link.objects[0].x)){guard.objects[i].x++;guard.objects[i].animation=2;}
+                                        else if(Math.round(guard.objects[i].x)>Math.round(link.objects[0].x)){guard.objects[i].x--;guard.objects[i].animation=1;}
+                                    }
+
+                                }
+                            }
+                        }
+                        else{if(guard.objects[i].health==100&&guard.objects[i].animation!=5){audio2("sounds/enemydies.mp3");}if(guard.objects[i].animation==5&&guard.objects[i].health==100){audio2("sounds/fall.mp3");guard.images[5].ani=0;guard.images[5].counter=0; }else if(guard.objects[i].animation!=5){guard.objects[i].animation=4;}swordguard.objects[i].animation=20;guard.objects[i].health=guard.objects[i].health-1;if(guard.objects[i].health<50){guard.objects[i].animation=60;guard.objects[i].health=40;}}
+                        
+                    }
+                    for(let i=0;i<swordguard.objects.length;i++){
+                        swordguard.objects[i].ghost=true;
+                        if(guard.objects[i].counter>0&&guard.objects[i].counter<20){
+                            if(guard.objects[i].counter==1){audio2("sounds/enemyhit.mp3");guard.objects[i].counter3++;}
+                            if(guard.objects[i].counter>0&&guard.objects[i].counter2==8){guard.objects[i].y=guard.objects[i].y+14;swordguard.objects[i].y=swordguard.objects[i].y+14;guard.objects[i].counter++;if(guard.objects[i].counter<10)guard.objects[i].animation=9;}
+                            if(guard.objects[i].counter>0&&guard.objects[i].counter2==9){guard.objects[i].x=guard.objects[i].x+14;swordguard.objects[i].x=swordguard.objects[i].x+14;guard.objects[i].counter++;if(guard.objects[i].counter<10)guard.objects[i].animation=7;}//R
+                            if(guard.objects[i].counter>0&&guard.objects[i].counter2==10){guard.objects[i].y=guard.objects[i].y-14;swordguard.objects[i].y=swordguard.objects[i].y-14;guard.objects[i].counter++;if(guard.objects[i].counter<10)guard.objects[i].animation=6;}//R
+                            if(guard.objects[i].counter>0&&guard.objects[i].counter2==11){guard.objects[i].x=guard.objects[i].x-14;swordguard.objects[i].x=swordguard.objects[i].x-14;guard.objects[i].counter++;if(guard.objects[i].counter<10)guard.objects[i].animation=8;}
+                        }
+                        if(guard.objects[i].counter>20)guard.objects[i].counter=0;
+                        
+                        if(guard.objects[i].ghost==false){
+                            if(game.collideswithanoterobject(swordguard.objects[i],link.objects[0])&&buttonB.objects[0].health==100){
+                                link.objects[0].health=0;
+                                
+                                if(guard.objects[i].animation==0)linkhurtdir=0;
+                                if(guard.objects[i].animation==1)linkhurtdir=1;
+                                if(guard.objects[i].animation==2)linkhurtdir=2;
+                                if(guard.objects[i].animation==3)linkhurtdir=3;
+                                
+
+                            }
+                            
+                            if(game.collideswithanoterobject(guard.objects[i],link.objects[0])&&buttonB.objects[0].health==100){
+
+                                link.objects[0].health=0;
+                                if(guard.objects[i].animation==0)linkhurtdir=0;
+                                if(guard.objects[i].animation==1)linkhurtdir=1;
+                                if(guard.objects[i].animation==2)linkhurtdir=2;
+                                if(guard.objects[i].animation==3)linkhurtdir=3;
+
+                            }
+                            if(sword.objects.length>0&&sword.objects[0].animation!=11&&game.collideswithanoterobject(guard.objects[i],sword.objects[0])){
+                                guard.objects[i].counter++;
+                                
+                                if(link.objects[0].animation==8)guard.objects[i].counter2=8;
+                                else if(link.objects[0].animation==9)guard.objects[i].counter2=9;
+                                else if(link.objects[0].animation==10)guard.objects[i].counter2=10;
+                                else if(link.objects[0].animation==11)guard.objects[i].counter2=11;
+                                else guard.objects[i].counter2=11;
+                                
+                                if(guard.objects[i].counter3>2)guard.objects[i].ghost=true;
+                                
+
+                            }
+                            else if(mediumsword.objects.length>0&&mediumsword.objects[0].animation!=11&&game.collideswithanoterobject(guard.objects[i],mediumsword.objects[0])){
+                                guard.objects[i].counter++;
+                                
+                                if(link.objects[0].animation==8)guard.objects[i].counter2=8;
+                                else if(link.objects[0].animation==9)guard.objects[i].counter2=9;
+                                else if(link.objects[0].animation==10)guard.objects[i].counter2=10;
+                                else if(link.objects[0].animation==11)guard.objects[i].counter2=11;
+                                else guard.objects[i].counter2=11;
+                                
+                                if(guard.objects[i].counter3>1)guard.objects[i].ghost=true;
+                                
+                                
+                                
+                                
+                                
+                            }
+                            else if(rockthrow==true&&game.collideswithanoterobject(guard.objects[i],rockobj)){
+                                guard.objects[i].counter++;
+                                
+                                if(rockdir==0||rockdir==1)guard.objects[i].counter2=8;
+                                if(rockdir==2||rockdir==3)guard.objects[i].counter2=11;
+                                if(rockdir==4||rockdir==5)guard.objects[i].counter2=10;
+                                if(rockdir==6||rockdir==7)guard.objects[i].counter2=9;
+                                
+                                
+                                if(guard.objects[i].counter3>2)guard.objects[i].ghost=true;
+                                
+                                
+                            }
+                            
+                            for(let k=0;k<arrow.objects.length;k++){
+                            
+                                if(arrow.objects[k].animation==0&&game.collideswithanoterobject(guard.objects[i],arrow.objects[k])){
+                                    
+                                    arrow.objects[k].animation=1;
+                                    guard.objects[i].counter++;
+                                
+                                    if(arrow.objects[k].health==0)guard.objects[i].counter2=11;
+                                    if(arrow.objects[k].health==1)guard.objects[i].counter2=9;
+                                    if(arrow.objects[k].health==2)guard.objects[i].counter2=8;
+                                    if(arrow.objects[k].health==3)guard.objects[i].counter2=10;
+               
+                                    
+                                    if(guard.objects[i].counter3>1)guard.objects[i].ghost=true;
+                                }
+                            }
+                            for(let k=0;k<explotion.objects.length;k++){
+                                
+                                if(explotion.objects[k].animation==0&&game.collideswithanoterobject(guard.objects[i],explotion.objects[k])){
+                                    
+                                    guard.objects[i].counter++;
+                                
+                                
+                                    if((guard.objects[i].x>(explotion.objects[k].x+explotion.objects[k].dimx/2))&&(guard.objects[i].y>(explotion.objects[k].y+explotion.objects[k].dimy/2)))guard.objects[i].counter2=11;
+                                    if((guard.objects[i].x<(explotion.objects[k].x+explotion.objects[k].dimx/2))&&(guard.objects[i].y>(explotion.objects[k].y+explotion.objects[k].dimy/2)))guard.objects[i].counter2=8;
+                                    if((guard.objects[i].x>(explotion.objects[k].x+explotion.objects[k].dimx/2))&&(guard.objects[i].y<(explotion.objects[k].y+explotion.objects[k].dimy/2)))guard.objects[i].counter2=10;
+                                    if((guard.objects[i].x<(explotion.objects[k].x+explotion.objects[k].dimx/2))&&(guard.objects[i].y<(explotion.objects[k].y+explotion.objects[k].dimy/2)))guard.objects[i].counter2=9;
+                                    
+
+               
+                                    
+                                    if(guard.objects[i].counter3>1)guard.objects[i].ghost=true;
+                                    
+                                    
+                                    
+                                }
+                            }
+                            if(havebomerang==true&&bomerang.objects[0].animation==0&&game.collideswithanoterobject(bomerang.objects[0],guard.objects[i])){
+                                bomerang.objects[0].counter=50;
+                                guard.objects[i].counter4=200;
+                                
+                                
+                            }
+                            
+                            
+                            
+                            
+                        }
+                        
+                        
+                        if(guard.objects[i].animation==0){
+                            swordguard.objects[i].rot=0;
+                            swordguard.objects[i].x=guard.objects[i].x+5;
+                            swordguard.objects[i].y=guard.objects[i].y+70;
+                        }
+                        else if(guard.objects[i].animation==3){
+                            swordguard.objects[i].rot=180;
+                            swordguard.objects[i].x=guard.objects[i].x+66;
+                            swordguard.objects[i].y=guard.objects[i].y-40;
+                            
+                        }
+                        else if(guard.objects[i].animation==1){
+                            swordguard.objects[i].rot=90;
+                            swordguard.objects[i].x=guard.objects[i].x-30;
+                            swordguard.objects[i].y=guard.objects[i].y+40;
+                            
+                        }
+                        else if(guard.objects[i].animation==2){
+                            swordguard.objects[i].rot=270;
+                            swordguard.objects[i].x=guard.objects[i].x+100;
+                            swordguard.objects[i].y=guard.objects[i].y+40;
+                            
+                        }
+                        
+                        
+                    }
+                    
+                    
+                    for(let i=0;i<hole.objects.length;i++){
+                        
+                        if(link.objects[0].animation!=18&&game.collideswithanoterobject(link.objects[0],hole.objects[i])){
+                            
+                            
+                            
+                            if(link.objects[0].y>(hole.objects[i].y+(hole.objects[i].dimy/2))){
+                                
+                                if(link.objects[0].y+(link.objects[0].dimy)<(hole.objects[i].y+hole.objects[i].dimy)){
+                                    if(link.objects[0].x>(hole.objects[i].x+(hole.objects[i].dimx/2))){
+                                        if((hole.objects[i].x+hole.objects[i].dimx-(link.objects[0].dimx/2))>link.objects[0].x){
+                                            link.objects[0].animation=19;
+                                            linkjump.objects[0].animation=19;
+                                            link.objects[0].health=0;
+
+                                        }
+                                    }
+                                    else if((hole.objects[i].x)<link.objects[0].x+link.objects[0].dimx/2){
+                                        link.objects[0].animation=19;
+                                        linkjump.objects[0].animation=19;
+                                        link.objects[0].health=0;
+                                    }
+                                }
+                                
+                                
+                            }
+                            else{
+                                if(link.objects[0].y>(hole.objects[i].y-(link.objects[0].dimy/2))){
+                                    if(link.objects[0].x>(hole.objects[i].x+(hole.objects[i].dimx/2))){
+                                        if((hole.objects[i].x+hole.objects[i].dimx-(link.objects[0].dimx/2))>link.objects[0].x){
+                                            link.objects[0].animation=19;
+                                            linkjump.objects[0].animation=19;
+                                            link.objects[0].health=0;
+
+                                        }
+                                    }
+                                    else if((hole.objects[i].x)<link.objects[0].x+link.objects[0].dimx/2){
+                                        link.objects[0].animation=19;
+                                        linkjump.objects[0].animation=19;
+                                        link.objects[0].health=0;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        for(let f=0;f<guard.objects.length;f++){
+
+                            
+                            if(guard.objects[f].ghost==false&&game.collideswithanoterobject(guard.objects[f],hole.objects[i])){
+
+                                if(guard.objects[f].y>(hole.objects[i].y+(hole.objects[i].dimy/2))){
+                                    guard.objects[f].y=guard.objects[f].y+2;
+                                    if(guard.objects[f].y+(guard.objects[f].dimy)<(hole.objects[i].y+hole.objects[i].dimy)){
+                                        if(guard.objects[f].x>(hole.objects[i].x+(hole.objects[i].dimx/2))){
+                                            guard.objects[f].x=guard.objects[f].x+2;
+                                            if((hole.objects[i].x+hole.objects[i].dimx-(guard.objects[f].dimx/2))>guard.objects[f].x){
+                                                guard.objects[f].ghost=true;
+                                                if(guard.objects[f].animation!=60)guard.objects[f].animation=5;
+                                            }
+                                        }
+                                        else{ 
+                                            guard.objects[f].x=guard.objects[f].x-2;;
+                                            if((hole.objects[i].x)<guard.objects[f].x+guard.objects[f].dimx/2){
+                                            guard.objects[f].ghost=true;
+                                            if(guard.objects[f].animation!=60)guard.objects[f].animation=5;
+                                            }
+                                        }
+                                    }
+
+
+                                }
+                                else{
+                                    guard.objects[f].y=guard.objects[f].y-2;
+                                    if(guard.objects[f].y>(hole.objects[i].y-(guard.objects[f].dimy/2))){
+                                        
+                                        if(guard.objects[f].x>(hole.objects[i].x+(hole.objects[i].dimx/2))){
+                                            guard.objects[f].x=guard.objects[f].x+2;
+                                            if((hole.objects[i].x+hole.objects[i].dimx-(guard.objects[f].dimx/2))>guard.objects[f].x){
+                                                guard.objects[f].ghost=true;
+                                                if(guard.objects[f].animation!=60)guard.objects[f].animation=5;
+
+                                            }
+                                        }
+                                        else{ 
+                                            guard.objects[f].x=guard.objects[f].x-2;
+                                            if((hole.objects[i].x)<guard.objects[f].x+guard.objects[f].dimx/2){
+                                            guard.objects[f].ghost=true;
+                                            if(guard.objects[f].animation!=60)guard.objects[f].animation=5;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        for(let f=0;f<rock.objects.length;f++){
+                            
+                            if(rock.objects[f].ghost==false&&rock.objects[f].animation!=1&&game.collideswithanoterobject(rock.objects[f],hole.objects[i])){
+                                
+                                if(rock.objects[f].y>(hole.objects[i].y+(hole.objects[i].dimy/2))){
+                                    if(rock.objects[f].y+(rock.objects[f].dimy)<(hole.objects[i].y+hole.objects[i].dimy)){
+                                        if(rock.objects[f].x>(hole.objects[i].x+(hole.objects[i].dimx/2))){
+                                            if((hole.objects[i].x+hole.objects[i].dimx-(rock.objects[f].dimx/2))>rock.objects[f].x){
+                                                rock.objects[f].animation=1;
+                                                rock.images[1].ani=0;rock.images[1].counter=0;
+                                                audio2("sounds/fall.mp3");
+                                                rock.objects[f].ghost=true;
+
+
+                                            }
+                                        }
+                                        else if((hole.objects[i].x)<rock.objects[f].x+rock.objects[f].dimx/2){
+                                            rock.objects[f].animation=1;
+                                            rock.images[1].ani=0;rock.images[1].counter=0;
+                                            audio2("sounds/fall.mp3");
+                                            rock.objects[f].ghost=true;
+                                        }
+                                    }
+
+
+                                }
+                                else{
+                                    if(rock.objects[f].y>(hole.objects[i].y-(rock.objects[f].dimy/2))){
+                                        if(rock.objects[f].x>(hole.objects[i].x+(hole.objects[i].dimx/2))){
+                                            if((hole.objects[i].x+hole.objects[i].dimx-(rock.objects[f].dimx/2))>rock.objects[f].x){
+                                                rock.objects[f].animation=1;
+                                                rock.images[1].ani=0;rock.images[1].counter=0;
+                                                audio2("sounds/fall.mp3");
+                                                rock.objects[f].ghost=true;
+
+                                            }
+                                        }
+                                        else if((hole.objects[i].x)<rock.objects[f].x+rock.objects[f].dimx/2){
+                                            rock.objects[f].animation=1;
+                                            rock.images[1].ani=0;rock.images[1].counter=0;
+                                            audio2("sounds/fall.mp3");
+                                            rock.objects[f].ghost=true;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            if(rock.objects[f].animation==1){
+                                rock.objects[f].health--;
+                                if(rock.objects[f].health<50){rock.objects[f].animation=2;} 
+                            }
+                        }
+                        if(bombobj!=null&&bombobj.health==100&&bombobj.animation<2&&game.collideswithanoterobject(bombobj,hole.objects[i])){
+                            
+                            if(bombobj.y>(hole.objects[i].y+(hole.objects[i].dimy/2))){
+                                    if(bombobj.y+(bombobj.dimy)<(hole.objects[i].y+hole.objects[i].dimy)){
+                                        if(bombobj.x>(hole.objects[i].x+(hole.objects[i].dimx/2))){
+                                            if((hole.objects[i].x+hole.objects[i].dimx-(bombobj.dimx/2))>bombobj.x){
+                                                bombobj.animation=2;
+                                                bombobj.counter=350;
+                                                audio2("sounds/fall.mp3");
+
+
+                                            }
+                                        }
+                                        else if((hole.objects[i].x)<bombobj.x+bombobj.dimx/2){
+                                            bombobj.animation=2;
+                                            bombobj.counter=350;
+                                            audio2("sounds/fall.mp3");
+                                        }
+                                    }
+
+
+                                }
+                                else{
+                                    if(bombobj.y>(hole.objects[i].y-(bombobj.dimy/2))){
+                                        if(bombobj.x>(hole.objects[i].x+(hole.objects[i].dimx/2))){
+                                            if((hole.objects[i].x+hole.objects[i].dimx-(bombobj.dimx/2))>bombobj.x){
+                                                bombobj.animation=2;
+                                                bombobj.counter=350;
+                                                audio2("sounds/fall.mp3");
+
+                                            }
+                                        }
+                                        else if((hole.objects[i].x)<bombobj.x+bombobj.dimx/2){
+                                            bombobj.animation=2;
+                                            bombobj.counter=350;
+                                            audio2("sounds/fall.mp3");
+                                        }
+                                    }
+                                }
+                            }
+
+                    }
+                    
+                    
+                    for(let i=0;i<buch.objects.length;i++){
+                        
+                        if(sword.objects.length>0&&sword.objects[0].animation!=11&&buch.objects[i].ghost==false&&grasdestroyed==false&&game.collideswithanoterobject(sword.objects[0],buch.objects[i])){
+                            
+                            if(grasdestroyed==false&&buch.objects[i].ghost==false){if((Math.floor(Math.random() * 5))==0)game.addobject(rupees,buch.objects[i].x+35,buch.objects[i].y+25,30,50,0,false);else if((Math.floor(Math.random() * 5))==0)game.addobject(health,buch.objects[i].x+35,buch.objects[i].y+25,40,40,0,false);else if(havebow&&(Math.floor(Math.random() * 5))==0)game.addobject(arrowfind,buch.objects[i].x+25,buch.objects[i].y+25,60,20,270,false);else if(havebombs&&(Math.floor(Math.random() * 5))==0)game.addobject(bombfind,buch.objects[i].x+25,buch.objects[i].y+25,50,50,0,false);       audio2("sounds/grass.mp3");}
+                            buch.objects[i].animation=1;
+                            buch.objects[i].ghost=true;
+                            grasdestroyed=true;
+                            
+                        }
+                        else if(mediumsword.objects.length>0&&mediumsword.objects[0].animation!=11&&buch.objects[i].ghost==false&&grasdestroyed==false&&game.collideswithanoterobject(mediumsword.objects[0],buch.objects[i])){
+                            
+                            if(grasdestroyed==false&&buch.objects[i].ghost==false){if((Math.floor(Math.random() * 5))==0)game.addobject(rupees,buch.objects[i].x+35,buch.objects[i].y+25,30,50,0,false);else if((Math.floor(Math.random() * 5))==0)game.addobject(health,buch.objects[i].x+35,buch.objects[i].y+25,40,40,0,false);else if(havebow&&(Math.floor(Math.random() * 5))==0)game.addobject(arrowfind,buch.objects[i].x+25,buch.objects[i].y+25,60,20,270,false);else if(havebombs&&(Math.floor(Math.random() * 5))==0)game.addobject(bombfind,buch.objects[i].x+25,buch.objects[i].y+25,50,50,0,false);       audio2("sounds/grass.mp3");}
+                            buch.objects[i].animation=1;
+                            buch.objects[i].ghost=true;
+                            grasdestroyed=true;
+                            
+                        }
+                        for(let k=0;k<explotion.objects.length;k++){
+                            if(game.collideswithanoterobject(explotion.objects[k],buch.objects[i])){
+                                if(buch.objects[i].ghost==false){if((Math.floor(Math.random() * 5))==0)game.addobject(rupees,buch.objects[i].x+35,buch.objects[i].y+25,30,50,0,false);else if((Math.floor(Math.random() * 5))==0)game.addobject(health,buch.objects[i].x+35,buch.objects[i].y+25,40,40,0,false);else if(havebow&&(Math.floor(Math.random() * 5))==0)game.addobject(arrowfind,buch.objects[i].x+25,buch.objects[i].y+25,60,20,270,false);else if(havebombs&&(Math.floor(Math.random() * 5))==0)game.addobject(bombfind,buch.objects[i].x+25,buch.objects[i].y+25,50,50,0,false);       audio2("sounds/grass.mp3");}
+                                buch.objects[i].animation=1;
+                                buch.objects[i].ghost=true;
+                                grasdestroyed=true;
+
+
+                            }
+                        }
+                        
+                        
+                        
+                    }
+                    for(let i=0;i<rupees.objects.length;i++){
+                        
+                        if(rupees.objects[i].animation==0&&game.collideswithanoterobject(link.objects[0],rupees.objects[i])){
+                            
+                            audio2("sounds/rupee.mp3");
+                            rupees.objects[i].animation=1;
+                            rupeescount++;
+                            
+                        }
+                        
+                        
+                    }
+                    for(let i=0;i<arrowfind.objects.length;i++){
+                        
+                        if(arrowfind.objects[i].animation==0&&game.collideswithanoterobject(link.objects[0],arrowfind.objects[i])){
+                            
+                            audio2("sounds/arrow.mp3");
+                            arrowfind.objects[i].animation=1;
+                            arrows=arrows+1;
+                            
+                        }
+                    }
+                    for(let i=0;i<bombfind.objects.length;i++){
+                        
+                        if(bombfind.objects[i].animation==0&&game.collideswithanoterobject(link.objects[0],bombfind.objects[i])){
+                            
+                            audio2("sounds/arrow.mp3");
+                            bombfind.objects[i].animation=1;
+                            bombs=bombs+1;
+                            
+                        }
+                    }
+                    for(let i=0;i<health.objects.length;i++){
+                        
+                        if(health.objects[i].animation==0&&game.collideswithanoterobject(link.objects[0],health.objects[i])){
+                            
+                            audio2("sounds/health.mp3");
+                            health.objects[i].animation=1;
+                            healthnumber++;
+                            
+                            if(heart.objects[1].animation==1){heart.objects[1].animation=0;}
+                            else if(heart.objects[2].animation==1){heart.objects[2].animation=0;}
+                            else if(heart.objects.length>3&&heart.objects[3].animation==1){heart.objects[3].animation=0;}
+                            else if(heart.objects.length>4&&heart.objects[4].animation==1){heart.objects[4].animation=0;}
+                            else if(heart.objects.length>5&&heart.objects[5].animation==1){heart.objects[5].animation=0;}
+                            else if(heart.objects.length>6&&heart.objects[6].animation==1){heart.objects[6].animation=0;}
+                            else if(heart.objects.length>7&&heart.objects[7].animation==1){heart.objects[7].animation=0;}
+                            else if(heart.objects.length>8&&heart.objects[8].animation==1){heart.objects[8].animation=0;}
+                            else if(heart.objects.length>9&&heart.objects[9].animation==1){heart.objects[9].animation=0;}
+                            else if(heart.objects.length>10&&heart.objects[10].animation==1){heart.objects[10].animation=0;}
+                           
+                            
+                            
+
+                            
+                        }
+                        
+                        
+                    }
+                    
+                    
+                    
+                    
+                    
+  
+                    if(link.objects[0].animation==19||link.objects[0].animation==40){
+                        
+                        if(haveshield==true)shield.objects[0].animation=10;
+                        if(havesword==true && havemediumsword==false)sword.objects[0].animation=40;
+                        if(havemediumsword==true)mediumsword.objects[0].animation=40;
+                        if(havefether==true)fether.objects[0].animation=40;
+                        
+                    }
+                    
+                    
+                    immortalcount++;
+                    if(heart.objects.length>0&&heart.objects[0].animation==0&&link.objects[0].animation==19&&immortalcount==1){link.images[19].ani=0;link.images[19].counter=0;}
+                    if(heart.objects.length>0&&heart.objects[0].animation==0&&link.objects[0].animation==19&&immortalcount==50){
+                        
+                        if(savedir==1||savedir==0){link.objects[0].y=link.objects[0].y-150;}
+                        if(savedir==3||savedir==2){link.objects[0].x=link.objects[0].x+150;}
+                        if(savedir==5||savedir==4){link.objects[0].y=link.objects[0].y+150;}
+                        if(savedir==7||savedir==6){link.objects[0].x=link.objects[0].x-150;}
+                        link.objects[0].animation=savedir;
+                    
+                    }
+                    
+                    
+                    if(immortalcount<10&&heart.objects[0].animation==0&&link.objects[0].animation!=19){
+                        if(savedir==1||savedir==0){link.objects[0].animation=20;}
+                        if(savedir==3||savedir==2){link.objects[0].animation=21;}
+                        if(savedir==5||savedir==4){link.objects[0].animation=22;}
+                        if(savedir==7||savedir==6){link.objects[0].animation=23;}
+                        
+                        if(linkhurtdir==0)link.objects[0].y=link.objects[0].y+10;
+                        if(linkhurtdir==1)link.objects[0].x=link.objects[0].x-10;
+                        if(linkhurtdir==2)link.objects[0].x=link.objects[0].x+10;
+                        if(linkhurtdir==3)link.objects[0].y=link.objects[0].y-10;
+                        
+                        
+                    }
+                    else if(link.objects[0].animation==20||link.objects[0].animation==21||link.objects[0].animation==22||link.objects[0].animation==23)link.objects[0].animation=savedir;
+
+                    if(link.objects[0].health<=0){
+
+                        if(immortalcount<75){link.objects[0].health=100;}
+                        else if(heart.objects.length>10&&heart.objects[10].animation==0){healthnumber--;heart.objects[10].animation=1;immortalcount=0;link.objects[0].health=100;if(link.objects[0].animation!=19)audio2("sounds/linkhurt.mp3");if(link.objects[0].animation==19)audio2("sounds/linkfall.mp3");}
+                        else if(heart.objects.length>9&&heart.objects[9].animation==0){healthnumber--;heart.objects[9].animation=1;immortalcount=0;link.objects[0].health=100;if(link.objects[0].animation!=19)audio2("sounds/linkhurt.mp3");if(link.objects[0].animation==19)audio2("sounds/linkfall.mp3");}
+                        else if(heart.objects.length>8&&heart.objects[8].animation==0){healthnumber--;heart.objects[8].animation=1;immortalcount=0;link.objects[0].health=100;if(link.objects[0].animation!=19)audio2("sounds/linkhurt.mp3");if(link.objects[0].animation==19)audio2("sounds/linkfall.mp3");}
+                        else if(heart.objects.length>7&&heart.objects[7].animation==0){healthnumber--;heart.objects[7].animation=1;immortalcount=0;link.objects[0].health=100;if(link.objects[0].animation!=19)audio2("sounds/linkhurt.mp3");if(link.objects[0].animation==19)audio2("sounds/linkfall.mp3");}
+                        else if(heart.objects.length>6&&heart.objects[6].animation==0){healthnumber--;heart.objects[6].animation=1;immortalcount=0;link.objects[0].health=100;if(link.objects[0].animation!=19)audio2("sounds/linkhurt.mp3");if(link.objects[0].animation==19)audio2("sounds/linkfall.mp3");}
+                        else if(heart.objects.length>5&&heart.objects[5].animation==0){healthnumber--;heart.objects[5].animation=1;immortalcount=0;link.objects[0].health=100;if(link.objects[0].animation!=19)audio2("sounds/linkhurt.mp3");if(link.objects[0].animation==19)audio2("sounds/linkfall.mp3");}
+                        else if(heart.objects.length>4&&heart.objects[4].animation==0){healthnumber--;heart.objects[4].animation=1;immortalcount=0;link.objects[0].health=100;if(link.objects[0].animation!=19)audio2("sounds/linkhurt.mp3");if(link.objects[0].animation==19)audio2("sounds/linkfall.mp3");}
+                        else if(heart.objects.length>3&&heart.objects[3].animation==0){healthnumber--;heart.objects[3].animation=1;immortalcount=0;link.objects[0].health=100;if(link.objects[0].animation!=19)audio2("sounds/linkhurt.mp3");if(link.objects[0].animation==19)audio2("sounds/linkfall.mp3");}
+                        else if(heart.objects[2].animation==0){healthnumber--;heart.objects[2].animation=1;immortalcount=0;link.objects[0].health=100;if(link.objects[0].animation!=19)audio2("sounds/linkhurt.mp3");if(link.objects[0].animation==19)audio2("sounds/linkfall.mp3");}
+                        else if(heart.objects[1].animation==0){healthnumber--;heart.objects[1].animation=1;immortalcount=0;link.objects[0].health=100;if(link.objects[0].animation!=19)audio2("sounds/linkhurt.mp3");if(link.objects[0].animation==19)audio2("sounds/linkfall.mp3");}
+                        else if(heart.objects[0].animation==0){healthnumber--;heart.objects[0].animation=1;}
+                        else{
+                        
+                        
+                        
+                            if(link.objects[0].animation!=19&&link.objects[0].animation!=40){
+                                if(havefether==true){
+                                    fether.objects[0].animation=0;
+                                    fether.objects[0].x=link.objects[0].x-30;
+                                    fether.objects[0].y=link.objects[0].y-30;
+                                }
+                                if(havesword==true && havemediumsword==false){
+
+                                    sword.objects[0].animation=4;
+                                    sword.objects[0].x=link.objects[0].x+60;
+                                    sword.objects[0].y=link.objects[0].y-30;
+                                }
+                                if(havemediumsword==true)
+                                    mediumsword.objects[0].animation=4;
+
+                                if(haveshield==true){
+
+                                    shield.objects[0].animation=1;
+                                    shield.objects[0].dimx=40;
+                                }
+                            }
+                            else{
+                                if(haveshield==true)shield.objects[0].animation=10;
+                                if(havesword==true && havemediumsword==false)sword.objects[0].animation=40;
+                                if(havemediumsword==true)mediumsword.objects[0].animation=40;
+                            }
+
+                            if(daethcounter==0&&link.objects[0].animation==19)audio2("sounds/linkfall.mp3");
+                            else if(daethcounter==0)audio2("sounds/linkdies.mp3");
+                            daethcounter++;
+
+
+                            if(link.objects[0].animation==19||link.objects[0].animation==40){
+                                if(daethcounter==1){link.images[19].ani=0;link.images[19].counter=0;}
+                                if(daethcounter>50){link.objects[0].animation=40;}
+                            }
+                            else{
+                                 if(daethcounter<40){link.objects[0].animation=12;}
+                                else{link.objects[0].animation=13;}
+
+                            }
+                            if(!audio.paused){audio.pause();}
+                            if(daethcounter==300){
+                                daethcounter=0;
+                                audio.currentTime = 0;
+                                haveshield=false;
+                                havesword=false;
+                                havefether=false;
+                                havebracelet=false;
+                                linkdubble=false;
+                                isbracelet=false;
+                                isfether=false;
+                                havemediumsword=false;
+                                haveitems=2;
+                                grasdestroyed=false;
+                                haverock=false;
+                                havebow=false;
+                                havebomb=false;
+                                isbow=false;
+                                isbomb=false;
+                                firearrow=false;
+                                havebombs=false;
+                                bpressed2=0;
+                                holdingbombs=false;
+                                trowbomb=false;
+                                bombdir=0;
+                                arrows=0;
+                                bombs=0;
+                                savedir=0;
+                                rupeescount=0;
+                                heartpeases=0;
+                                islantern=false;
+                                havelantern=false;
+                                isbomerang=false;
+                                havebomerang=false;
+                                havepot=false;
+                                potthrow=false;
+                                potdir=false;
+                                bpressed3=0;
+                                havehearts=0;
+                                extralifes=3;
+                                healthnumber=0;
+                                game.load();
+                            }
+
+                        }
+                    
+                    }
+                    
+                }
+                window.requestAnimationFrame(check);   
+            };check();
+            
+
+            
+            
+            
+            
+            
+        </script>
+    </body>
+</html>
