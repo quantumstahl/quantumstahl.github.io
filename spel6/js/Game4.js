@@ -405,7 +405,7 @@ class Game4 {
                     else if (this.maps[this.currentmap].layer[i2].ghost == true || this.maps[this.currentmap].layer[i2].objectype[i3].objects[i4].ghost == true) {
                         o.rakna = 0;
                         o.rakna2 = 0;
-                        o.collideslistfull(this.maps, this.currentmap, "ghost");
+                        o.collideslistfull(this.maps, this.currentmap, "ghost",this.maps[this.currentmap].layer[i2].objectype[i3].name);
                     }
                     else {
                         if (-(this.maps[this.currentmap].camerax / 100 * this.maps[this.currentmap].layer[i2].moving) - o.dimx <= o.x + o.dimx &&
@@ -877,7 +877,7 @@ class Object {
         }
         return false;
     }
-    collideslistfull(maps, currentmap, dir) {
+    collideslistfull(maps, currentmap, dir,name) {
         for (let i2 = 0; i2 < maps[currentmap].layer.length; i2++) {
             let layer = maps[currentmap].layer[i2];
             for (let i3 = 0; i3 < layer.objectype.length; i3++) {
@@ -892,11 +892,19 @@ class Object {
                                     this.collideslistan.push(objType.name);
                                     this.collideslistandir.push("ghost");
                                     this.collideslistanobj.push(objType.objects[i4]);
+                                    
+                                    objType.objects[i4].collideslistan.push(name);
+                                    objType.objects[i4].collideslistandir.push("ghost");
+                                    objType.objects[i4].collideslistanobj.push(this);
                                 }
                                 else {
                                     this.collideslistan.push(objType.name);
                                     this.collideslistandir.push(dir);
                                     this.collideslistanobj.push(objType.objects[i4]);
+                                    
+                                    objType.objects[i4].collideslistan.push(name);
+                                    objType.objects[i4].collideslistandir.push(dir);
+                                    objType.objects[i4].collideslistanobj.push(this);
                                 }
                             }
                         }
@@ -906,11 +914,19 @@ class Object {
                                     this.collideslistan.push(objType.name);
                                     this.collideslistandir.push("ghost");
                                     this.collideslistanobj.push(objType.objects[i4]);
+                                    
+                                    objType.objects[i4].collideslistan.push(name);
+                                    objType.objects[i4].collideslistandir.push("ghost");
+                                    objType.objects[i4].collideslistanobj.push(this);
                                 }
                                 else {
                                     this.collideslistan.push(objType.name);
                                     this.collideslistandir.push(dir);
                                     this.collideslistanobj.push(objType.objects[i4]);
+                                    
+                                    objType.objects[i4].collideslistan.push(name);
+                                    objType.objects[i4].collideslistandir.push(dir);
+                                    objType.objects[i4].collideslistanobj.push(this);
                                 }
                             }
                         }
