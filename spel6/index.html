@@ -45,7 +45,7 @@
             daethcounter=0;
             soundstarter=false;
   
-            var audio = new Audio('sounds/opening.mp3');
+            var audio = new Audio('sounds/overworld.mp3');
             audio.loop2 = true;
             
             const context = new (window.AudioContext || window.webkitAudioContext)();
@@ -238,8 +238,8 @@
                 canvas.width=document.body.clientWidth;
                 canvas.height=document.body.clientHeight-8;
                 
-                //if(soundstarter==true&&audio.currentTime>55){audio.currentTime = 13.35;}
-                if(soundstarter==true&&audio.currentTime>60.5){audio.currentTime = 13.6;}
+                if(soundstarter==true&&audio.currentTime>55){audio.currentTime = 13.35;}
+               // if(soundstarter==true&&audio.currentTime>60.5){audio.currentTime = 13.6;}
                 game.updateanimation(ctx);
                 
                 
