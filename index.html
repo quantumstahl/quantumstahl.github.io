@@ -6,62 +6,89 @@
   <title>QuantumStahl – Mina Projekt</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --primary: #00bcd4;
+      --primary-dark: #007b9e;
+      --background: #1e2a3a;
+      --card-bg: #2f3f55;
+      --text-light: #ccc;
+      --text-muted: #999;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font-family: 'Inter', sans-serif;
-      background: linear-gradient(to bottom right, #1e2a3a, #2b3b52);
+      background: linear-gradient(to bottom right, var(--background), #2b3b52);
       color: white;
-      padding: 0 20px;
+      padding: 0;
     }
+
     header {
       text-align: center;
-      padding: 40px 0 20px 0;
+      padding: 40px 20px 20px 20px;
     }
+
     header img.logo {
       width: 64px;
       height: 64px;
       margin-bottom: 10px;
       opacity: 0.9;
     }
+
     h1 {
       font-size: 2.4em;
       margin-bottom: 0.2em;
     }
+
     p.subtitle {
-      color: #ccc;
+      color: var(--text-light);
       margin-top: 0;
     }
-    section {
-      max-width: 600px;
-      margin: 0 auto 40px auto;
+
+    main {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
     }
+
     .category {
       margin-top: 40px;
     }
+
     .category h2 {
       border-bottom: 1px solid #555;
       padding-bottom: 8px;
+      margin-bottom: 20px;
     }
+
     .project {
-      background: #2f3f55;
+      background: var(--card-bg);
       padding: 20px;
       border-radius: 12px;
       margin-bottom: 20px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.4);
       transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
+
     .project:hover {
       transform: translateY(-4px);
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     }
+
     .project h3 {
       margin: 0 0 10px 0;
     }
+
     .project p {
       margin: 0 0 15px 0;
     }
+
     .project a {
-      background: linear-gradient(to right, #00bcd4, #007b9e);
+      background: linear-gradient(to right, var(--primary), var(--primary-dark));
       color: white;
       padding: 10px 16px;
       text-decoration: none;
@@ -69,15 +96,18 @@
       font-weight: bold;
       display: inline-block;
     }
+
     .project a:hover {
-      background: #0097a7;
+      background: var(--primary-dark);
     }
+
     footer {
       text-align: center;
-      margin-top: 40px;
+      margin: 40px 0;
       font-size: 0.9em;
-      color: #999;
+      color: var(--text-muted);
     }
+
     footer a {
       color: #66ccff;
       text-decoration: none;
@@ -88,30 +118,29 @@
   <header>
     <img src="loggatrans.png" alt="QuantumStahl logotyp" class="logo">
     <h1>QuantumStahl – Mina Projekt</h1>
-    <p class="subtitle">Spel och verktyg för PC och mobil</p>
+    <p class="subtitle">Spel och verktyg utvecklade i JavaScript, anpassade för PC och mobil</p>
   </header>
 
-  <section>
+  <main>
     <div class="category">
-      <h2>🛠 Verktyg</h2>
+      <h2>🔧 Verktyg</h2>
 
       <div class="project">
         <h3>MaxPaint</h3>
-        <p>Måla på mobilen eller datorn.</p>
+        <p>Ritprogram som fungerar med mus eller pekskärm. Flood fill, rutnät och mycket mer.</p>
         <a href="/paint/">Starta</a>
       </div>
 
       <div class="project">
         <h3>Golvläggningsprogram</h3>
-        <p>Planera golv med bilder och olika material.</p>
+        <p>Planera golvläggning med bilder och material. Dra och släpp-funktion.</p>
         <a href="/golv/">Starta</a>
       </div>
 
       <div class="project">
         <h3>Creator</h3>
-        <p>Verktyg för att bygga egna kartor och nivåer.</p>
-        <p><strong>OBS:</strong> Creator fungerar bäst på PC (Windows/Mac) och endast fullt ut om du laddar ner programmet.</p>
-        <p>Uppladdning av bilder och animationer fungerar inte i webbläsarversionen. Skapade kartor är anpassade för min egen spelmotor.</p>
+        <p>Bygg egna banor/kartor. <strong>OBS:</strong> Full funktionalitet endast via nedladdning på PC.</p>
+        <p>Webbläsaren stöder ej uppladdning av animationer/bilder. Fungerar med min egen spelmotor.</p>
         <a href="/tradet/">Starta</a>
       </div>
     </div>
@@ -121,42 +150,41 @@
 
       <div class="project">
         <h3>Mario-spel</h3>
-        <p>Hopp-baserat retrospel inspirerat av NES-tiden.</p>
+        <p>Hopp- och plattformsspel inspirerat av klassiska NES-spel.</p>
         <a href="/spel1/">Spela</a>
       </div>
 
       <div class="project">
         <h3>Diablo-inspirerat spel</h3>
-        <p>Strider mot monster med piltangenter och attackknappar.</p>
+        <p>Slåss mot monster med vapen och piltangenter. Retro-action från ovanperspektiv.</p>
         <a href="/spel3/">Spela</a>
       </div>
 
       <div class="project">
-        <h3>Mario spel2</h3>
-        <p>Platforms spel.</p>
+        <h3>Mario spel 2</h3>
+        <p>Uppföljare med nya banor och utmaningar.</p>
         <a href="/spel2/">Spela</a>
       </div>
 
       <div class="project">
         <h3>DuckTales spel</h3>
-        <p>Klassiskt plattformsspel med retrostil.</p>
+        <p>Inspirerat av klassikern från NES. Studsa med staven!</p>
         <a href="/spel4/">Spela</a>
       </div>
 
       <div class="project">
         <h3>Zelda spel</h3>
-        <p>Äventyrs spel med top-down vy.</p>
+        <p>Äventyr med svärd och magi i top-down stil. Utforska grottor och lös pussel.</p>
         <a href="/spel5/">Spela</a>
       </div>
+
       <div class="project">
         <h3>Zelda spel test</h3>
-        <p>Testa alla items.</p>
+        <p>Debug-version för att testa alla objekt och items i spelet.</p>
         <a href="/spel6/">Spela</a>
       </div>
-      
-      
     </div>
-  </section>
+  </main>
 
   <footer>
     © 2025 QuantumStahl | <a href="https://github.com/quantumstahl">GitHub</a>
