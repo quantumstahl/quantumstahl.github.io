@@ -13,6 +13,7 @@
       --card-bg: #2f3f55;
       --text-light: #ccc;
       --text-muted: #999;
+      --transition: 0.3s ease;
     }
 
     * {
@@ -25,6 +26,22 @@
       background: linear-gradient(to bottom right, var(--background), #2b3b52);
       color: white;
       padding: 0;
+      transition: background var(--transition), color var(--transition);
+    }
+
+    body.light {
+      background: #f1f1f1;
+      color: #222;
+    }
+
+    body.light .project {
+      background: #ffffff;
+      color: #222;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    body.light footer {
+      color: #555;
     }
 
     header {
@@ -72,6 +89,13 @@
       margin-bottom: 20px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.4);
       transition: transform 0.2s ease, box-shadow 0.2s ease;
+      animation: fadeInUp 0.5s ease forwards;
+      opacity: 0;
+    }
+
+    @keyframes fadeInUp {
+      0% { transform: translateY(20px); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
     }
 
     .project:hover {
@@ -101,6 +125,25 @@
       background: var(--primary-dark);
     }
 
+    .theme-toggle {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      background: var(--card-bg);
+      border: none;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background var(--transition);
+    }
+
+    body.light .theme-toggle {
+      background: #ddd;
+      color: #222;
+    }
+
     footer {
       text-align: center;
       margin: 40px 0;
@@ -115,6 +158,7 @@
   </style>
 </head>
 <body>
+  <button class="theme-toggle" onclick="toggleTheme()">🌝 / 🌑</button>
   <header>
     <img src="loggatrans.png" alt="QuantumStahl logotyp" class="logo">
     <h1>QuantumStahl – Mina Projekt</h1>
@@ -189,5 +233,11 @@
   <footer>
     © 2025 QuantumStahl | <a href="https://github.com/quantumstahl">GitHub</a>
   </footer>
+
+  <script>
+    function toggleTheme() {
+      document.body.classList.toggle('light');
+    }
+  </script>
 </body>
 </html>
