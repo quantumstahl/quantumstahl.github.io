@@ -2533,7 +2533,7 @@ function handleTouchMove(e) {
     movecorners2 = false;
     movecorners3 = false;
     movecorners4 = false;
-    if(isDrawing==true)endAction();
+    endAction();
     // Handle selection completion
     
     if(currentTool == 'move'&&isMovingImage==false)switchTool('select');
