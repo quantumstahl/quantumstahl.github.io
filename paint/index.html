@@ -942,6 +942,7 @@ function floodFill(startX, startY) {
     const targetR = targetData[0];
     const targetG = targetData[1];
     const targetB = targetData[2];
+    const targetA = targetData[3];
 
     let fillR = 0, fillG = 0, fillB = 0, fillA = 255;
     if (brushColor === "checkerboard") {
@@ -965,15 +966,16 @@ function floodFill(startX, startY) {
         fillA = fillData[3];
     }
 
+    // Undvik att fylla om färgen redan är samma
+    const tolerance = 10;
     if (Math.abs(targetR - fillR) <= 2 &&
         Math.abs(targetG - fillG) <= 2 &&
-        Math.abs(targetB - fillB) <= 2) {
+        Math.abs(targetB - fillB) <= 2 &&
+        Math.abs(targetA - fillA) <= 2) {
         return;
     }
 
-    const tolerance = 10;
     const chunkSize = 1024;
-
     const chunkX = Math.max(0, startX - chunkSize / 2);
     const chunkY = Math.max(0, startY - chunkSize / 2);
     const chunkWidth = Math.min(chunkSize, drawingCanvas.width - chunkX);
@@ -996,15 +998,16 @@ function floodFill(startX, startY) {
     function matchesTarget(x, y) {
         const idx = (y * chunkWidth + x) * 4;
         return (
-            Math.abs(data[idx] - targetR) <= tolerance &&
+            Math.abs(data[idx]     - targetR) <= tolerance &&
             Math.abs(data[idx + 1] - targetG) <= tolerance &&
-            Math.abs(data[idx + 2] - targetB) <= tolerance
+            Math.abs(data[idx + 2] - targetB) <= tolerance &&
+            Math.abs(data[idx + 3] - targetA) <= tolerance
         );
     }
 
     function setPixel(x, y) {
         const idx = (y * chunkWidth + x) * 4;
-        data[idx] = fillR;
+        data[idx]     = fillR;
         data[idx + 1] = fillG;
         data[idx + 2] = fillB;
         data[idx + 3] = fillA;
@@ -1031,7 +1034,6 @@ function floodFill(startX, startY) {
 
     console.timeEnd("Fill");
 
-    // 🔁 Rita via offscreen canvas
     const offscreen = document.createElement('canvas');
     offscreen.width = chunkWidth;
     offscreen.height = chunkHeight;
