@@ -1,12 +1,13 @@
 <!DOCTYPE html>
+
 <html>
-    <head>
-        <title>MaxPaint</title>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="user-scalable=no, shrink-to-fit=no">
-        <meta name="keywords" content="maxpaint,paint">
-        <link rel="icon" href="loggo.png" type="image/vnd.microsoft.icon" />
-        <style>
+<head>
+<title>MaxPaint</title>
+<meta charset="utf-8"/>
+<meta content="user-scalable=no, shrink-to-fit=no" name="viewport"/>
+<meta content="maxpaint,paint" name="keywords"/>
+<link href="loggo.png" rel="icon" type="image/vnd.microsoft.icon"/>
+<style>
             
               body {
     overscroll-behavior: none;
@@ -311,127 +312,122 @@
         
         
         </style>
-    </head>
-    <body>
-        
+</head>
+<body>
 <label for="directFileInput" style="position:absolute; top:10px; left:0px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; min-width:90px; text-align:center; font-size:16px;">Open Image</label>
-<input type="file" id="directFileInput" accept="image/*" style="position:absolute; left:-200px;">
-
+<input accept="image/*" id="directFileInput" style="position:absolute; left:-200px;" type="file"/>
 <!-- Save Image button, positioned much lower -->
 <button id="saveImageBtn" style="position:absolute; top:130px; left:0px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:90px; text-align:center; font-size:16px;">Save Image</button>
-
-    <button id="project1Btn" style="position:absolute; top:150px; left:0px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:60px; text-align:center; font-size:16px; ">Canvas 1</button>
-    <button id="project2Btn" style="position:absolute; top:150px; left:100px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:60px; text-align:center; font-size:16px; ">Canvas 2</button>
-    <button id="project3Btn" style="position:absolute; top:150px; left:202px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:60px; text-align:center; font-size:16px; ">Canvas 3</button>
-     
-    <button id="ResizeBtn" style="position: absolute;right: 0%; top:150px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:60px; text-align:center; font-size:16px; ">Resize</button>    
-
-<div class="tool-buttons" style="position: absolute; top: 120px; z-index: 110; display: grid; grid-template-columns: 40px 40px; grid-gap: 5px; transform: translateY(-50%);">
-  <!-- Pen Tool -->
-  <button class="tool-btn" id="penTool" title="Pen Tool (P)" style="width: 40px; height: 40px; background-color: #d4ffd4; border: 2px solid #4CAF50; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;">
-    <svg viewBox="0 0 24 24" style="width: 100%; height: 100%;">
-      <path d="M3,17.25V21h3.75L17.81,9.94l-3.75-3.75L3,17.25z M20.71,7.04c0.39-0.39,0.39-1.02,0-1.41l-2.34-2.34c-0.39-0.39-1.02-0.39-1.41,0 l-1.83,1.83l3.75,3.75L20.71,7.04z" fill="#333"/>
-    </svg>
-  </button>
-  
-  <!-- Fill Tool (Watering Can) -->
-  <button class="tool-btn" id="fillTool" title="Fill Tool (F)" style="width: 40px; height: 40px; background-color: #f1f1f1; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;">
-    <svg viewBox="0 0 24 24" style="width: 100%; height: 100%;">
-      <path d="M19,11.5c0,0-2,2.17-2,3.5c0,1.1,0.9,2,2,2s2-0.9,2-2C21,13.67,19,11.5,19,11.5z M5.21,10L10,5.21L14.79,10H5.21z M16.56,8.94L7.62,0L6.21,1.41l2.38,2.38L3.44,8.94c-0.59,0.59-0.59,1.54,0,2.12l5.5,5.5C9.23,16.85,9.62,17,10,17 s0.77-0.15,1.06-0.44l5.5-5.5C17.15,10.46,17.15,9.5,16.56,8.94z" fill="#333"/>
-    </svg>
-  </button>
-  
-  <!-- Select Tool -->
-  <button class="tool-btn" id="selectTool" title="Selection Tool (S)" style="width: 40px; height: 40px; background-color: #f1f1f1; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;">
-    <svg viewBox="0 0 24 24" style="width: 100%; height: 100%;">
-      <path d="M3,5h2V3C3,3,3,5,3,5z M7,3v2h2V3H7z M11,3v2h2V3H11z M15,3v2h2V3H15z M19,3v2h2V3H19z M3,9h2V7H3V9z M19,7v2h2V7H19z M3,13h2 v-2H3V13z M19,11v2h2v-2H19z M3,17h2v-2H3V17z M19,15v2h2v-2H19z M3,21h2v-2H3V21z M7,21h2v-2H7V21z M11,21h2v-2h-2V21z M15,21h2 v-2h-2V21z M19,21h2v-2h-2V21z" fill="#333"/>
-    </svg>
-  </button>
-  <!-- New C Tool -->
-  <button class="tool-btn" id="cTool" title="C Tool" style="width: 40px; height: 40px; background-color: #f1f1f1; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;">
-    <svg viewBox="0 0 24 24" style="width: 100%; height: 100%;">
-      <path d="M3,5h2V3C3,3,3,5,3,5z M7,3v2h2V3H7z M11,3v2h2V3H11z M15,3v2h2V3H15z M19,3v2h2V3H19z M3,9h2V7H3V9z M19,7v2h2V7H19z M3,13h2 v-2H3V13z M19,11v2h2v-2H19z M3,17h2v-2H3V17z M19,15v2h2v-2H19z M3,21h2v-2H3V21z M7,21h2v-2H7V21z M11,21h2v-2h-2V21z M15,21h2 v-2h-2V21z M19,21h2v-2h-2V21z" fill="#333"/>
-      <text x="12" y="16" font-family="Arial" font-size="12" fill="#333" text-anchor="middle" dominant-baseline="alphabetic">C</text>
-    </svg>
-  </button>
-  
-  
-  <!-- Eyedropper/Pipette Tool -->
-  <button class="tool-btn" id="eyedropperTool" title="Color Picker (E)" style="width: 40px; height: 40px; background-color: #f1f1f1; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;">
-    <svg viewBox="0 0 24 24" style="width: 100%; height: 100%;">
-      <path d="M20.71,5.63l-2.34-2.34c-0.39-0.39-1.02-0.39-1.41,0l-3.12,3.12l-1.93-1.91l-1.41,1.41l1.42,1.42L3,16.25V21h4.75l8.92-8.92 l1.42,1.42l1.41-1.41l-1.92-1.92l3.12-3.12C21.1,6.65,21.1,6.02,20.71,5.63z M6.92,19L5,17.08l8.06-8.06l1.92,1.92L6.92,19z" fill="#333"/>
-    </svg>
-  </button>
-  
-  <!-- Text Tool -->
-  <button class="tool-btn" id="textTool" title="Text Tool (T)" style="width: 40px; height: 40px; background-color: #f1f1f1; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;">
-      <svg viewBox="0 0 24 24" style="width: 100%; height: 100%;">
-          <rect x="2" y="2" width="20" height="20" fill="none" stroke="#333" stroke-width="2"/>
-          <text x="12" y="16" font-family="Arial" font-size="12" fill="#333" text-anchor="middle" dominant-baseline="alphabetic">T</text>
-      </svg>
-  </button>
-  
+<button id="project1Btn" style="position:absolute; top:150px; left:0px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:60px; text-align:center; font-size:16px; ">Canvas 1</button>
+<button id="project2Btn" style="position:absolute; top:150px; left:100px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:60px; text-align:center; font-size:16px; ">Canvas 2</button>
+<button id="project3Btn" style="position:absolute; top:150px; left:202px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:60px; text-align:center; font-size:16px; ">Canvas 3</button>
+<button id="ResizeBtn" style="position: absolute;right: 0%; top:150px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:60px; text-align:center; font-size:16px; ">Resize</button>
+<div class="tool-buttons" style="position: absolute; top: 120px; z-index: 110; display: grid; grid-template-columns: 40px 40px 40px; grid-gap: 5px; transform: translateY(-50%);">
+<!-- Pen Tool -->
+<button class="tool-btn" id="penTool" style="width: 40px; height: 40px; background-color: #d4ffd4; border: 2px solid #4CAF50; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;" title="Pen Tool (P)">
+<svg style="width: 100%; height: 100%;" viewbox="0 0 24 24">
+<path d="M3,17.25V21h3.75L17.81,9.94l-3.75-3.75L3,17.25z M20.71,7.04c0.39-0.39,0.39-1.02,0-1.41l-2.34-2.34c-0.39-0.39-1.02-0.39-1.41,0 l-1.83,1.83l3.75,3.75L20.71,7.04z" fill="#333"></path>
+</svg>
+</button>
+<!-- Fill Tool (Watering Can) -->
+<button class="tool-btn" id="fillTool" style="width: 40px; height: 40px; background-color: #f1f1f1; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;" title="Fill Tool (F)">
+<svg style="width: 100%; height: 100%;" viewbox="0 0 24 24">
+<path d="M19,11.5c0,0-2,2.17-2,3.5c0,1.1,0.9,2,2,2s2-0.9,2-2C21,13.67,19,11.5,19,11.5z M5.21,10L10,5.21L14.79,10H5.21z M16.56,8.94L7.62,0L6.21,1.41l2.38,2.38L3.44,8.94c-0.59,0.59-0.59,1.54,0,2.12l5.5,5.5C9.23,16.85,9.62,17,10,17 s0.77-0.15,1.06-0.44l5.5-5.5C17.15,10.46,17.15,9.5,16.56,8.94z" fill="#333"></path>
+</svg>
+</button>
+<!-- Select Tool -->
+<button class="tool-btn" id="selectTool" style="width: 40px; height: 40px; background-color: #f1f1f1; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;" title="Selection Tool (S)">
+<svg style="width: 100%; height: 100%;" viewbox="0 0 24 24">
+<path d="M3,5h2V3C3,3,3,5,3,5z M7,3v2h2V3H7z M11,3v2h2V3H11z M15,3v2h2V3H15z M19,3v2h2V3H19z M3,9h2V7H3V9z M19,7v2h2V7H19z M3,13h2 v-2H3V13z M19,11v2h2v-2H19z M3,17h2v-2H3V17z M19,15v2h2v-2H19z M3,21h2v-2H3V21z M7,21h2v-2H7V21z M11,21h2v-2h-2V21z M15,21h2 v-2h-2V21z M19,21h2v-2h-2V21z" fill="#333"></path>
+</svg>
+</button>
+<!-- New C Tool -->
+<button class="tool-btn" id="cTool" style="width: 40px; height: 40px; background-color: #f1f1f1; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;" title="C Tool">
+<svg style="width: 100%; height: 100%;" viewbox="0 0 24 24">
+<path d="M3,5h2V3C3,3,3,5,3,5z M7,3v2h2V3H7z M11,3v2h2V3H11z M15,3v2h2V3H15z M19,3v2h2V3H19z M3,9h2V7H3V9z M19,7v2h2V7H19z M3,13h2 v-2H3V13z M19,11v2h2v-2H19z M3,17h2v-2H3V17z M19,15v2h2v-2H19z M3,21h2v-2H3V21z M7,21h2v-2H7V21z M11,21h2v-2h-2V21z M15,21h2 v-2h-2V21z M19,21h2v-2h-2V21z" fill="#333"></path>
+<text dominant-baseline="alphabetic" fill="#333" font-family="Arial" font-size="12" text-anchor="middle" x="12" y="16">C</text>
+</svg>
+</button>
+<!-- Eyedropper/Pipette Tool -->
+<button class="tool-btn" id="eyedropperTool" style="width: 40px; height: 40px; background-color: #f1f1f1; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;" title="Color Picker (E)">
+<svg style="width: 100%; height: 100%;" viewbox="0 0 24 24">
+<path d="M20.71,5.63l-2.34-2.34c-0.39-0.39-1.02-0.39-1.41,0l-3.12,3.12l-1.93-1.91l-1.41,1.41l1.42,1.42L3,16.25V21h4.75l8.92-8.92 l1.42,1.42l1.41-1.41l-1.92-1.92l3.12-3.12C21.1,6.65,21.1,6.02,20.71,5.63z M6.92,19L5,17.08l8.06-8.06l1.92,1.92L6.92,19z" fill="#333"></path>
+</svg>
+</button>
+<!-- Text Tool -->
+<button class="tool-btn" id="textTool" style="width: 40px; height: 40px; background-color: #f1f1f1; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;" title="Text Tool (T)">
+<svg style="width: 100%; height: 100%;" viewbox="0 0 24 24">
+<rect fill="none" height="20" stroke="#333" stroke-width="2" width="20" x="2" y="2"></rect>
+<text dominant-baseline="alphabetic" fill="#333" font-family="Arial" font-size="12" text-anchor="middle" x="12" y="16">T</text>
+</svg>
+</button>
+<button class="tool-btn" id="undoBtn" style="width:40px;height:40px;background-color:#f1f1f1;border:2px solid #ccc;border-radius:4px;cursor:pointer;padding:2px;position:relative;" title="Undo (Ctrl/Cmd+Z)">
+<svg style="width:100%;height:100%;" viewbox="0 0 24 24">
+<path d="M12 5v-3L7 7l5 5V9c3.31 0 6 2.69 6 6 0 .34-.03.67-.08 1h2.02c.04-.33.06-.66.06-1 0-4.42-3.58-8-8-8z" fill="#333"></path>
+</svg>
+</button>
+<button class="tool-btn" id="redoBtn" style="width:40px;height:40px;background-color:#f1f1f1;border:2px solid #ccc;border-radius:4px;cursor:pointer;padding:2px;position:relative;" title="Redo (Ctrl/Cmd+Y, Shift+Ctrl/Cmd+Z)">
+<svg style="width:100%;height:100%;" viewbox="0 0 24 24">
+<path d="M12 5V2l5 5-5 5V9c-3.31 0-6 2.69-6 6 0 .34.03.67.08 1H4.06A7.98 7.98 0 0 1 4 15c0-4.42 3.58-8 8-8z" fill="#333"></path>
+</svg>
+</button>
+<button class="tool-btn" id="gridBtn" style="width:40px;height:40px;background-color:#f1f1f1;border:2px solid #ccc;border-radius:4px;cursor:pointer;padding:2px;position:relative;" title="Toggle Grid (G)">
+<svg style="width:100%;height:100%;" viewbox="0 0 24 24">
+<path d="M3 3h18v18H3V3zm6 0v18M15 3v18M3 9h18M3 15h18" fill="none" stroke="#333" stroke-width="2"></path>
+</svg>
+</button>
 </div>
-
-
-            <!-- Zoom centered in toolbar -->
-        <div class="zoom-container">
-          <label id="zoomLabel" for="zoomSlider">Zoom: 100%</label><br>
-          <input type="range" id="zoomSlider" min="10" max="1000" value="100" style="width: 200px;"><br>
-          <label id="brushSizeLabel" for="brushSizeSlider">Brush Size: 1px</label><br>
-          <input type="range" id="brushSizeSlider" min="1" max="10" value="1" step="1" style="width: 200px;">
-        </div>
-                <div class="color-palette" style="position: absolute; top: 50px; right: 20px; transform: translateY(-50%); z-index: 100; text-align: center;">
-          
-          <div class="color-row">
-            <div class="color-swatch" data-color="black" style="background-color: black; border: 2px solid #fff;"></div>
-            <div class="color-swatch" data-color="red" style="background-color: red;"></div>
-            <div class="color-swatch" data-color="blue" style="background-color: blue;"></div>
-            <div class="color-swatch" data-color="green" style="background-color: green;"></div>
-            <div class="color-swatch" data-color="yellow" style="background-color: yellow;"></div>
-          </div>
-          <div class="color-row">
-            <div class="color-swatch" data-color="white" style="background-color: white;"></div>
-            <div class="color-swatch" data-color="purple" style="background-color: purple;"></div>
-            <div class="color-swatch" data-color="orange" style="background-color: orange;"></div>
-            <div class="color-swatch" data-color="brown" style="background-color: brown;"></div>
-            <div class="color-swatch" data-color="cyan" style="background-color: cyan;"></div>
-          </div>
-          <!-- NEW: Third row added for checkerboards color swatch -->
-          <div class="color-row">
-            <div class="color-swatch" data-color="checkerboard" style="background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%);"></div>
-            <div class="color-swatch" data-color="#c71585" style="background-color: #c71585;"></div>
-            <div class="color-swatch" data-color="#FF4433" style="background-color: #FF4433;"></div>
-            <div class="color-swatch" data-color="#9ACD32" style="background-color: #9ACD32;"></div>
-            <div class="color-swatch" data-color="gray" style="background-color: gray;"></div>
-            
-            
-            
-            
-          </div>
-        </div>    
-        <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
-        
-        <!-- Resize Modal Dialog -->
-    <div id="resizeModal" class="modal">
-      <div class="modal-content">
-        <h3>Resize Canvas</h3>
-        <div class="form-group">
-          <label for="canvasWidth">Width (pixels):</label>
-          <input type="number" id="canvasWidth" min="10">
-        </div>
-        <div class="form-group">
-          <label for="canvasHeight">Height (pixels):</label>
-          <input type="number" id="canvasHeight" min="10">
-        </div>
-        <div class="button-row">
-          <button id="cancelResizeBtn">Cancel</button>
-          <button id="confirmResizeBtn">Resize</button>
-        </div>
-      </div>
-    </div>   
-        
-        <script>
+<!-- Zoom centered in toolbar -->
+<div class="zoom-container">
+<label for="zoomSlider" id="zoomLabel">Zoom: 100%</label><br/>
+<input id="zoomSlider" max="1000" min="10" style="width: 200px;" type="range" value="100"/><br/>
+<label for="brushSizeSlider" id="brushSizeLabel">Brush Size: 1px</label><br/>
+<input id="brushSizeSlider" max="10" min="1" step="1" style="width: 200px;" type="range" value="1"/>
+</div>
+<div class="color-palette" style="position: absolute; top: 50px; right: 20px; transform: translateY(-50%); z-index: 100; text-align: center;">
+<div class="color-row">
+<div class="color-swatch" data-color="black" style="background-color: black; border: 2px solid #fff;"></div>
+<div class="color-swatch" data-color="red" style="background-color: red;"></div>
+<div class="color-swatch" data-color="blue" style="background-color: blue;"></div>
+<div class="color-swatch" data-color="green" style="background-color: green;"></div>
+<div class="color-swatch" data-color="yellow" style="background-color: yellow;"></div>
+</div>
+<div class="color-row">
+<div class="color-swatch" data-color="white" style="background-color: white;"></div>
+<div class="color-swatch" data-color="purple" style="background-color: purple;"></div>
+<div class="color-swatch" data-color="orange" style="background-color: orange;"></div>
+<div class="color-swatch" data-color="brown" style="background-color: brown;"></div>
+<div class="color-swatch" data-color="cyan" style="background-color: cyan;"></div>
+</div>
+<!-- NEW: Third row added for checkerboards color swatch -->
+<div class="color-row">
+<div class="color-swatch" data-color="checkerboard" style="background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%);"></div>
+<div class="color-swatch" data-color="#c71585" style="background-color: #c71585;"></div>
+<div class="color-swatch" data-color="#FF4433" style="background-color: #FF4433;"></div>
+<div class="color-swatch" data-color="#9ACD32" style="background-color: #9ACD32;"></div>
+<div class="color-swatch" data-color="gray" style="background-color: gray;"></div>
+</div>
+</div>
+<canvas height="10" id="myCanvas" style="border:0px solid black" width="10"></canvas>
+<!-- Resize Modal Dialog -->
+<div class="modal" id="resizeModal">
+<div class="modal-content">
+<h3>Resize Canvas</h3>
+<div class="form-group">
+<label for="canvasWidth">Width (pixels):</label>
+<input id="canvasWidth" min="10" type="number"/>
+</div>
+<div class="form-group">
+<label for="canvasHeight">Height (pixels):</label>
+<input id="canvasHeight" min="10" type="number"/>
+</div>
+<div class="button-row">
+<button id="cancelResizeBtn">Cancel</button>
+<button id="confirmResizeBtn">Resize</button>
+</div>
+</div>
+</div>
+<script>
             
             const canvas = document.getElementById("myCanvas");
             const ctx = canvas.getContext("2d");
@@ -455,7 +451,12 @@
             let currentproject=0;
             
             
+            let undoMap = new Map();
+            let redoMap = new Map();
 
+
+            let undoStack = [];
+            let redoStack = [];
        
             
             
@@ -479,6 +480,28 @@
             
             // Function to load the selected project image into the drawing canvas
             function loadProject(index) {
+                
+                
+                // Spara stackar för föregående bild
+    undoMap.set(currentproject, undoStack);
+    redoMap.set(currentproject, redoStack);
+
+undoStack = [];
+redoStack = [];
+
+
+    // Hämta stackar för nya bilden (eller tomma)
+    undoStack = undoMap.get(index) || [];
+    redoStack = redoMap.get(index) || [];
+
+
+                
+                
+                
+                
+                
+                
+                
                 
                 saveCurrentProject(currentproject);
                 currentproject=index;
@@ -828,6 +851,7 @@ confirmResizeBtn.addEventListener('click', async function() {
             let selHeight =0;
             let isTextToolActive = false;
             let currentImagecanvas=currentproject;
+            let showGrid = false;
             // Event listener for zoom slider
             document.getElementById("zoomSlider").addEventListener("input", (e) => {
                 e.preventDefault();
@@ -1707,6 +1731,7 @@ function switchTool(newTool) {
                 const patternHeight = (Math.ceil(drawareay + (drawstarty - patternY)) - 3);
                 ctx.fillRect(patternX, patternY, patternWidth, patternHeight);
 
+
                 
                 // Calculate how much of the drawing area to display
                 //const displayWidth = Math.ceil(drawareax / zoom) + EDGE_BUFFER;
@@ -1723,6 +1748,38 @@ function switchTool(newTool) {
                     const displayHeight = ensureIntDimension(drawareay / zoom);
                     ctx.drawImage(drawingCanvas, 0, 0, displayWidth, displayHeight, 0,0,displayWidth, displayHeight);
                     ctx.restore();
+            
+            
+            if (showGrid) {
+                    ctx.save();
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+
+                    for (let gx = 0; gx <= displayWidth; gx++) {
+                        const xPix = drawstartx-0.5 + gx * zoom;
+                        ctx.beginPath();
+                        ctx.moveTo(xPix + 0.5, drawstarty-0.5);
+                        ctx.lineTo(xPix + 0.5, drawstarty-0.5 + displayHeight * zoom);
+                        ctx.stroke();
+                    }
+
+                    for (let gy = 0; gy <= displayHeight; gy++) {
+                        const yPix = drawstarty-0.5 + gy * zoom;
+                        ctx.beginPath();
+                        ctx.moveTo(drawstartx-0.5, yPix + 0.5);
+                        ctx.lineTo(drawstartx-0.5 + displayWidth * zoom, yPix + 0.5);
+                        ctx.stroke();
+                    }
+
+                    ctx.restore();
+                }
+            
+            
+            
+            
+            
+            
+            
             
                 // ********** NEW: Draw the image layer overlay if an image is loaded **********
                 if(currentImage){
@@ -1778,6 +1835,14 @@ function switchTool(newTool) {
                     
                     
                     ctx.drawImage(currentImage, currentImageX, currentImageY, currentImageWidth, currentImageHeight);
+
+
+
+                    
+
+
+
+
 
                     // Draw a green border around the image to indicate it's movable
                     ctx.strokeStyle = "#4CAF50"; // Green color matching the UI
@@ -2022,22 +2087,29 @@ function switchTool(newTool) {
         }
         else if (currentTool === 'fill') {
             // Fill tool
+            beginAction();
             floodFill(canvasX, canvasY);
+            endAction();
             
         }
         else if ((currentTool === 'select'|| currentTool === 'copy')) {
             // Selection tool
+            
             isSelecting = true;
             selectionStartX = canvasX;
             selectionStartY = canvasY;
             selectionEndX = canvasX;
             selectionEndY = canvasY;
             
+            
         }
         else if(currentTool === 'text'){
+             
             const text = prompt("Enter your text:"); // Prompt user for text input
             if (text) {
+                beginAction();
                 drawText(x, y, text); // Draw the text on the canvas
+                endAction();
             }
         }
         
@@ -2045,10 +2117,12 @@ function switchTool(newTool) {
         
         else if (currentTool === 'pen') {
             // Draw with pen
+             beginAction();
             isDrawing = true;
             lastX = 0;
             lastY = 0;
             drawPixel(x, y);
+            
            
         }
     }
@@ -2065,6 +2139,7 @@ function switchTool(newTool) {
     scrollx = movescrollxvalue;
     scrolly = movescrollyvalue;
     
+    if(isDrawing==true)endAction();
     // Stop drawing
     isDrawing = false;
     lastX = 0;
@@ -2100,6 +2175,7 @@ function switchTool(newTool) {
     
     // Only proceed if we have a valid selection (non-zero area)
     if (selWidth > 0 && selHeight > 0) {
+        beginAction();
         // Create a temporary canvas to hold the selection
         const selectionCanvas = document.createElement('canvas');
         selectionCanvas.width = selWidth;
@@ -2161,6 +2237,7 @@ function switchTool(newTool) {
     
         
         currentImage.src = selectionCanvas.toDataURL();
+        endAction();
     }
 }
 });
@@ -2362,8 +2439,9 @@ function switchTool(newTool) {
             }
              else if (currentTool === 'fill') {
                 // Fill tool
+                beginAction();
                 floodFill(canvasX, canvasY);
-
+                endAction();
             }
              else if ((currentTool === 'select'|| currentTool === 'copy')) {
                 // Selection tool
@@ -2377,7 +2455,9 @@ function switchTool(newTool) {
            else if(currentTool === 'text'){
                 const text = prompt("Enter your text:"); // Prompt user for text input
                 if (text) {
+                    beginAction();
                     drawText(touchX, touchY, text); // Draw the text on the canvas
+                    endAction();
                 }
            }
            
@@ -2386,6 +2466,7 @@ function switchTool(newTool) {
                 isDrawing = true;
                 lastX = 0;
                 lastY = 0;
+                beginAction();
                 drawPixel(touchX, touchY);
                 
                 
@@ -2451,7 +2532,7 @@ function handleTouchMove(e) {
     movecorners2 = false;
     movecorners3 = false;
     movecorners4 = false;
-    
+    if(isDrawing==true)endAction();
     // Handle selection completion
     
     if(currentTool == 'move'&&isMovingImage==false)switchTool('select');
@@ -2473,6 +2554,7 @@ function handleTouchMove(e) {
     
     // Only proceed if we have a valid selection (non-zero area)
     if (selWidth > 0 && selHeight > 0) {
+        beginAction();
         // Create a temporary canvas to hold the selection
         const selectionCanvas = document.createElement('canvas');
         selectionCanvas.width = selWidth;
@@ -2532,6 +2614,7 @@ function handleTouchMove(e) {
       
         
         currentImage.src = selectionCanvas.toDataURL();
+        endAction();
     }
 }
 }
@@ -2821,5 +2904,200 @@ img.onload = function() {
             resizeCanvas();
             
         </script>
-    </body>
+<script>
+// Assuming drawingCanvas, drawingCtx, undoStack, redoStack are defined globally or accessible.
+// Also assuming drawareax, drawareay, zoom, showGrid, gridBtn, lastSaveTime, actionInProgress are defined.
+
+
+
+let actionInProgress = false;
+let lastSaveTime = 0;
+
+
+
+///1
+const MAX_UNDO = 20;
+// The canvasPool holds all pre-allocated canvas elements.
+// These elements are reused to avoid creating/destroying DOM nodes frequently.
+// The memory for these elements themselves (not just pixel data) will persist.
+let canvasPool = Array.from({ length: MAX_UNDO * 2 }, () => {
+    const c = document.createElement('canvas');
+    // Set initial dimensions. Ensure drawingCanvas is defined and has dimensions when this runs.
+    // If drawingCanvas can resize, you'll need a mechanism to resize pool canvases too.
+    c.width = Math.floor(drawareax / zoom);
+    c.height = Math.floor(drawareay / zoom);
+    return c;
+});
+
+let canvasPools = new Map(); // Map<imageIndex, { pool: Canvas[], index: number }>
+// Gets the next available canvas element from the pool.
+// It does NOT clear the canvas's content; the caller is responsible for that.
+function getNextCanvasFromPoolFor(index) {
+    let entry = canvasPools.get(index);
+    if (!entry) {
+        // Skapa ny pool för bilden
+        const pool = Array.from({ length: MAX_UNDO * 2 }, () => {
+            const c = document.createElement('canvas');
+            c.width = Math.floor(drawareax / zoom);
+            c.height = Math.floor(drawareay / zoom);
+            return c;
+        });
+        entry = { pool, index: 0 };
+        canvasPools.set(index, entry);
+    }
+
+    const canvas = entry.pool[entry.index % entry.pool.length];
+    entry.index++;
+    return canvas;
+}
+
+// Helper function to explicitly clear a canvas's pixel data.
+// This is the primary mechanism to release GPU/CPU memory associated with the canvas content.
+// This should be called when a canvas is no longer needed for display or history.
+function clearCanvasMemory(canvas) {
+    if (canvas) {
+        // Store current dimensions to restore them after clearing.
+        // This is crucial because the canvas element itself remains in the pool
+        // and needs to be ready for future use with its original dimensions.
+        const currentWidth = Math.floor(drawareax / zoom);
+        const currentHeight = Math.floor(drawareay / zoom);
+
+        // Setting width/height to 0 then back to original size is a common
+        // trick to force the browser to release the pixel buffer memory.
+        canvas.width = 0;
+        canvas.height = 0;
+
+        // Restore dimensions for future use in the pool.
+        canvas.width = Math.floor(drawareax / zoom);
+        canvas.height = Math.floor(drawareay / zoom);
+
+        // Optional: Explicitly clear the context as well, though width/height reset usually handles this.
+        // canvas.getContext('2d').clearRect(0, 0, currentWidth, currentHeight);
+    }
+}
+
+function saveState() {
+    const now = Date.now();
+    if (now - lastSaveTime < 100) return; // Debounce saves
+    lastSaveTime = now;
+
+    // When a new state is saved, the redo stack becomes invalid.
+    // All canvases in the redoStack are no longer needed, so clear their pixel data.
+    while (redoStack.length > 0) {
+        const oldRedoCanvas = redoStack.pop();
+        clearCanvasMemory(oldRedoCanvas); // Release pixel memory
+    }
+
+    // Get a canvas from the pool for the new snapshot.
+   const snapshot = getNextCanvasFromPoolFor(currentproject);
+    // Clear its content before drawing the current state onto it.
+    snapshot.getContext('2d').clearRect(0, 0, snapshot.width, snapshot.height);
+    snapshot.getContext('2d').drawImage(drawingCanvas, 0, 0);
+    undoStack.push(snapshot);
+
+    // If the undoStack exceeds MAX_UNDO, remove the oldest state.
+    // This oldest canvas is no longer needed for undo, so clear its pixel data.
+    if (undoStack.length > MAX_UNDO) {
+        const oldestUndoCanvas = undoStack.shift();
+        clearCanvasMemory(oldestUndoCanvas); // Release pixel memory
+    }
+}
+
+function beginActionIfNeeded() { // Original function name
+    if (!actionInProgress) {
+        saveState();
+        actionInProgress = true;
+    }
+}
+
+function endAction() {
+    actionInProgress = false;
+}
+
+function undo() {
+    if (undoStack.length === 0) return;
+
+    // Save the current state of drawingCanvas to the redoStack
+    // so it can be redone later.
+    const currentCanvasForRedo = getNextCanvasFromPoolFor(currentproject);;
+    currentCanvasForRedo.getContext('2d').clearRect(0, 0, currentCanvasForRedo.width, currentCanvasForRedo.height);
+    currentCanvasForRedo.getContext('2d').drawImage(drawingCanvas, 0, 0);
+    redoStack.push(currentCanvasForRedo);
+
+    // Get the previous state from undoStack.
+    const prevCanvas = undoStack.pop();
+
+    // Apply the previous state to the drawingCanvas.
+    drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+    drawingCtx.drawImage(prevCanvas, 0, 0);
+
+    // No explicit clearCanvasMemory here for prevCanvas or currentCanvasForRedo
+    // because they are now part of the active undo/redo history (or the current display).
+    // Their memory will be managed when they are shifted off the stack or replaced later.
+}
+
+function redo() {
+    if (redoStack.length === 0) return;
+
+    // Save the current state of drawingCanvas to the undoStack
+    // so it can be undone later.
+    const currentCanvasForUndo = getNextCanvasFromPoolFor(currentproject);;
+    currentCanvasForUndo.getContext('2d').clearRect(0, 0, currentCanvasForUndo.width, currentCanvasForUndo.height);
+    currentCanvasForUndo.getContext('2d').drawImage(drawingCanvas, 0, 0);
+    undoStack.push(currentCanvasForUndo);
+
+    // If undoStack exceeds MAX_UNDO after pushing the current state,
+    // the oldest state is no longer needed for undo, so clear its pixel data.
+    if (undoStack.length > MAX_UNDO) {
+        const oldestUndoCanvas = undoStack.shift();
+        clearCanvasMemory(oldestUndoCanvas); // Release pixel memory
+    }
+
+    // Get the next state from redoStack.
+    const nextCanvas = redoStack.pop();
+
+    // Apply the next state to the drawingCanvas.
+    drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+    drawingCtx.drawImage(nextCanvas, 0, 0);
+
+    // No explicit clearCanvasMemory here for nextCanvas or currentCanvasForUndo
+    // because they are now part of the active undo/redo history (or the current display).
+}
+
+// Original beginAction function (duplicate of beginActionIfNeeded, but preserving original structure)
+function beginAction() {
+    if (!actionInProgress) {
+        saveState();
+        actionInProgress = true;
+    }
+}
+
+function cloneCurrentCanvas() {
+    let c = document.createElement('canvas');
+    c.width = drawingCanvas.width;
+    c.height = drawingCanvas.height;
+    c.getContext('2d').drawImage(drawingCanvas, 0, 0);
+    return c;
+}
+
+const gridBtn = document.getElementById('gridBtn');
+function updateGridButton() {
+    if (!gridBtn) return;
+    gridBtn.style.backgroundColor = showGrid ? '#d4ffd4' : '#f1f1f1';
+    gridBtn.style.borderColor = showGrid ? '#4CAF50' : '#ccc';
+}
+
+gridBtn.addEventListener('click', () => { showGrid = !showGrid; updateGridButton(); });
+document.getElementById('undoBtn').addEventListener('click', undo);
+document.getElementById('redoBtn').addEventListener('click', redo);
+window.addEventListener('keydown', function(e) {
+  const z = e.key.toLowerCase() === 'z';
+  const y = e.key.toLowerCase() === 'y';
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && z && !e.shiftKey) { e.preventDefault(); undo(); }
+  else if (mod && (y || (z && e.shiftKey))) { e.preventDefault(); redo(); }
+  if (e.key.toLowerCase() === 'g') { showGrid = !showGrid; updateGridButton(); }
+});
+updateGridButton();</script>
+</body>
 </html>
