@@ -2096,7 +2096,7 @@ function switchTool(newTool) {
         }
         else if ((currentTool === 'select'|| currentTool === 'copy')) {
             // Selection tool
-            
+            beginAction();
             isSelecting = true;
             selectionStartX = canvasX;
             selectionStartY = canvasY;
@@ -2177,7 +2177,7 @@ function switchTool(newTool) {
     
     // Only proceed if we have a valid selection (non-zero area)
     if (selWidth > 0 && selHeight > 0) {
-        beginAction();
+        
         // Create a temporary canvas to hold the selection
         const selectionCanvas = document.createElement('canvas');
         selectionCanvas.width = selWidth;
@@ -2447,6 +2447,7 @@ function switchTool(newTool) {
             }
              else if ((currentTool === 'select'|| currentTool === 'copy')) {
                 // Selection tool
+                beginAction();
                 isSelecting = true;
                 selectionStartX = canvasX;
                 selectionStartY = canvasY;
@@ -2557,7 +2558,7 @@ function handleTouchMove(e) {
     
     // Only proceed if we have a valid selection (non-zero area)
     if (selWidth > 0 && selHeight > 0) {
-        beginAction();
+        
         // Create a temporary canvas to hold the selection
         const selectionCanvas = document.createElement('canvas');
         selectionCanvas.width = selWidth;
