@@ -2493,10 +2493,10 @@ function handleTouchMove(e) {
 
         // 🔍 Zooma in/ut beroende på distansändring
         if (Math.abs(delta) > 5) {
-            if (delta > 0) zoomvalue *= 1.05;
-            else zoomvalue *= 0.95;
+            if (delta > 0) zoom *= 1.05;
+            else zoom *= 0.95;
 
-            zoomvalue = Math.max(0.25, Math.min(zoomvalue, 20)); // begränsa zoomnivå
+            zoomvalue = Math.max(0.25, Math.min(zoom, 20))*100; // begränsa zoomnivå
             lastPinchDistance = newDistance;
         }
         return;
