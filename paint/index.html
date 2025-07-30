@@ -2477,9 +2477,9 @@ function switchTool(newTool) {
                 lastX = 0;
                 lastY = 0;
                 beginAction();
-                delatare=true;
+                
                 drawPixel(touchX, touchY);
-                endAction();
+                
                 
                 
 
@@ -2568,7 +2568,7 @@ function handleTouchMove(e) {
     }
     movescrollx = false;
     movescrolly = false;
-    
+    if(isDrawing==true){endAction();delatare=true;}
     // Stop drawing
     isDrawing = false;
     lastX = 0;
