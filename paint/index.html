@@ -441,9 +441,14 @@
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             
+            const eyedropperCanvas = document.createElement('canvas');
+            const eyedropperCtx = eyedropperCanvas.getContext('2d');
             
-            
-        
+            function updateEyedropperBuffer() {
+                eyedropperCanvas.width = Math.floor(drawareax / zoom);
+                eyedropperCanvas.height = Math.floor(drawareay / zoom);
+                eyedropperCtx.drawImage(drawingCanvas, 0, 0);
+            }
             
                         
                         
@@ -2069,24 +2074,15 @@ function switchTool(newTool) {
         const canvasX = Math.floor((x - drawstartx) / zoom);
         const canvasY = Math.floor((y - drawstarty) / zoom);
         
-        if (currentTool === 'eyedropper') {
-            // Sample color with eyedropper
-            const pixelData = drawingCtx.getImageData(canvasX, canvasY, 1, 1).data;
-            const hexColor = '#' + 
-                (pixelData[0] < 16 ? '0' : '') + pixelData[0].toString(16) +
-                (pixelData[1] < 16 ? '0' : '') + pixelData[1].toString(16) +
-                (pixelData[2] < 16 ? '0' : '') + pixelData[2].toString(16);
-            
-            brushColor = hexColor;
-            isTransparentBrush = false;
-            
-            // Update color swatch selection in UI
-            document.querySelectorAll('.color-swatch').forEach(swatch => {
-                swatch.classList.remove('active');
-            });
-            switchTool('pen');
-            
-        }
+    if (currentTool === 'eyedropper') {
+        const data = eyedropperCtx.getImageData(canvasX, canvasY, 1, 1).data;
+        const hexColor = `#${data[0].toString(16).padStart(2, '0')}${data[1].toString(16).padStart(2, '0')}${data[2].toString(16).padStart(2, '0')}`;
+
+        brushColor = hexColor;
+        isTransparentBrush = false;
+        switchTool('pen');
+        return;
+    }
         else if (currentTool === 'fill') {
             // Fill tool
             beginAction();
@@ -2422,22 +2418,13 @@ function switchTool(newTool) {
             const canvasY = Math.floor((touchY - drawstarty) / zoom);
 
             if (currentTool === 'eyedropper') {
-                // Sample color with eyedropper
-                const pixelData = drawingCtx.getImageData(canvasX, canvasY, 1, 1).data;
-                const hexColor = '#' + 
-                    (pixelData[0] < 16 ? '0' : '') + pixelData[0].toString(16) +
-                    (pixelData[1] < 16 ? '0' : '') + pixelData[1].toString(16) +
-                    (pixelData[2] < 16 ? '0' : '') + pixelData[2].toString(16);
+                const data = eyedropperCtx.getImageData(canvasX, canvasY, 1, 1).data;
+                const hexColor = `#${data[0].toString(16).padStart(2, '0')}${data[1].toString(16).padStart(2, '0')}${data[2].toString(16).padStart(2, '0')}`;
 
                 brushColor = hexColor;
                 isTransparentBrush = false;
-
-                // Update color swatch selection in UI
-                document.querySelectorAll('.color-swatch').forEach(swatch => {
-                    swatch.classList.remove('active');
-                });
                 switchTool('pen');
-
+                return;
             }
              else if (currentTool === 'fill') {
                 // Fill tool
@@ -3016,6 +3003,7 @@ function beginActionIfNeeded() { // Original function name
 
 function endAction() {
     actionInProgress = false;
+    updateEyedropperBuffer();
 }
 
 function undo() {
