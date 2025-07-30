@@ -2492,13 +2492,15 @@ function handleTouchMove(e) {
         const delta = newDistance - lastPinchDistance;
 
         // 🔍 Zooma in/ut beroende på distansändring
+        let newzoom =zoom;
+        
         if (Math.abs(delta) > 5) {
-            if (delta > 0) zoom *= 1.05;
-            else zoom *= 0.95;
+            if (delta > 0) newzoom *= 1.05;
+            else newzoom *= 0.95;
 
-            zoom = Math.max(0.25, Math.min(zoom, 20)); // begränsa zoomnivå
+            newzoom = Math.max(0.25, Math.min(newzoom, 20)); // begränsa zoomnivå
             
-                    zoomvalue = Math.round(zoom * 100);
+                    zoomvalue = Math.round(newzoom * 100);
                     document.getElementById("zoomSlider").value = zoomvalue;
                     document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
             
