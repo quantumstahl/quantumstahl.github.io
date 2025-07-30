@@ -2498,7 +2498,7 @@ function handleTouchMove(e) {
             if (delta > 0) newzoom *= 1.05;
             else newzoom *= 0.95;
 
-            newzoom = Math.max(0.25, Math.min(newzoom, 20)); // begränsa zoomnivå
+            newzoom = Math.max(0.10, Math.min(newzoom, 50)); // begränsa zoomnivå
             
                     zoomvalue = Math.round(newzoom * 100);
                     document.getElementById("zoomSlider").value = zoomvalue;
