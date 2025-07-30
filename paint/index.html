@@ -2075,6 +2075,7 @@ function switchTool(newTool) {
         const canvasY = Math.floor((y - drawstarty) / zoom);
         
     if (currentTool === 'eyedropper') {
+        updateEyedropperBuffer();
         const data = eyedropperCtx.getImageData(canvasX, canvasY, 1, 1).data;
         const hexColor = `#${data[0].toString(16).padStart(2, '0')}${data[1].toString(16).padStart(2, '0')}${data[2].toString(16).padStart(2, '0')}`;
 
@@ -2418,6 +2419,7 @@ function switchTool(newTool) {
             const canvasY = Math.floor((touchY - drawstarty) / zoom);
 
             if (currentTool === 'eyedropper') {
+                updateEyedropperBuffer();
                 const data = eyedropperCtx.getImageData(canvasX, canvasY, 1, 1).data;
                 const hexColor = `#${data[0].toString(16).padStart(2, '0')}${data[1].toString(16).padStart(2, '0')}${data[2].toString(16).padStart(2, '0')}`;
 
@@ -3003,7 +3005,6 @@ function beginActionIfNeeded() { // Original function name
 
 function endAction() {
     actionInProgress = false;
-    updateEyedropperBuffer();
 }
 
 function undo() {
