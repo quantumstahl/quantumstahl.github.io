@@ -2479,7 +2479,7 @@ function switchTool(newTool) {
                 beginAction();
                 delatare=true;
                 drawPixel(touchX, touchY);
-                
+                endAction();
                 
                 
 
@@ -2563,7 +2563,6 @@ function handleTouchMove(e) {
    function handleTouchEnd(e) {
     e.preventDefault();
     clearTimeout(touchTimer);
-    delatare=false;
     if (e.touches.length < 2) {
         lastPinchDistance = null;
     }
@@ -2579,8 +2578,7 @@ function handleTouchMove(e) {
     movecorners2 = false;
     movecorners3 = false;
     movecorners4 = false;
-    if(isDrawing==true){endAction();}
-  
+    
     // Handle selection completion
     
     if(currentTool == 'move'&&isMovingImage==false)switchTool('select');
