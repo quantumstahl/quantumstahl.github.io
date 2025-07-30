@@ -2477,7 +2477,7 @@ function switchTool(newTool) {
                 lastX = 0;
                 lastY = 0;
                 beginAction();
-                
+                delatare=true;
                 drawPixel(touchX, touchY);
                 
                 
@@ -2579,7 +2579,7 @@ function handleTouchMove(e) {
     movecorners2 = false;
     movecorners3 = false;
     movecorners4 = false;
-    if(isDrawing==true){endAction();delatare=true;}
+    if(isDrawing==true){endAction();}
   
     // Handle selection completion
     
