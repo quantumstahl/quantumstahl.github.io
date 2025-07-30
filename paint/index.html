@@ -2253,18 +2253,26 @@ function switchTool(newTool) {
             canvas.addEventListener('touchstart', handleTouchStart, {passive: false});
             canvas.addEventListener('touchmove', handleTouchMove, {passive: false});
             canvas.addEventListener('touchend', handleTouchEnd, {passive: false}); 
-           
+            let touchTimer = null;
            
             function handleTouchStart(e) {
         e.preventDefault();
         
         if (e.touches.length === 2) {
+            clearTimeout(touchTimer);
             const dx = e.touches[0].clientX - e.touches[1].clientX;
             const dy = e.touches[0].clientY - e.touches[1].clientY;
             lastPinchDistance = Math.hypot(dx, dy);
             return;
         }
-        
+        if (e.touches.length === 1){
+            
+            touchTimer = setTimeout(() => {
+            
+        }, 80); // Vänta 80 ms
+            
+            
+        }
         
         
         
@@ -2554,6 +2562,7 @@ function handleTouchMove(e) {
 
    function handleTouchEnd(e) {
     e.preventDefault();
+    clearTimeout(touchTimer);
     if (e.touches.length < 2) {
         lastPinchDistance = null;
     }
