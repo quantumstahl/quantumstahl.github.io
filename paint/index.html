@@ -2670,6 +2670,7 @@ function handleTouchMove(e) {
                 
 document.addEventListener('DOMContentLoaded', function() {
     // Get direct file input
+    
     const directInput = document.getElementById('directFileInput');
 
     // Add proper event listener
@@ -2681,6 +2682,7 @@ document.addEventListener('DOMContentLoaded', function() {
         reader.onload = function(evt) {
             const img = new Image();
 img.onload = function() {
+                    beginAction();
                     // Make sure the drawing canvas is big enough
                     ensureCanvasSize(img.width, img.height);
 
@@ -2764,6 +2766,7 @@ img.onload = function() {
                    
                     isImageWaiting = true;
                     isMovingImage = false; // Don't move until clicked
+                    endAction();
                 };
             img.src = evt.target.result;
         };
