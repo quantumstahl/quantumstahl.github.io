@@ -464,7 +464,7 @@
             let redoStack = [];
        
             let lastPinchDistance = null;
-            
+            let canvasPools = new Map();
             
             
             // Function to save the current drawing to the selected project
@@ -2477,7 +2477,7 @@ function switchTool(newTool) {
                 lastX = 0;
                 lastY = 0;
                 beginAction();
-                
+                delatare=true;
                 drawPixel(touchX, touchY);
                 
                 
@@ -2568,7 +2568,7 @@ function handleTouchMove(e) {
     }
     movescrollx = false;
     movescrolly = false;
-    if(isDrawing==true){endAction();delatare=true;}
+    if(isDrawing==true){endAction();}
     // Stop drawing
     isDrawing = false;
     lastX = 0;
@@ -2759,7 +2759,7 @@ img.onload = function() {
                     if(currentproject==0)firstImageLoaded1=true;
                     if(currentproject==1)firstImageLoaded2=true;
                     if(currentproject==2)firstImageLoaded3=true;
-                    
+                    canvasPools = new Map();
                    
                     isImageWaiting = true;
                     isMovingImage = false; // Don't move until clicked
@@ -2966,16 +2966,9 @@ const MAX_UNDO = 20;
 // The canvasPool holds all pre-allocated canvas elements.
 // These elements are reused to avoid creating/destroying DOM nodes frequently.
 // The memory for these elements themselves (not just pixel data) will persist.
-let canvasPool = Array.from({ length: MAX_UNDO * 2 }, () => {
-    const c = document.createElement('canvas');
-    // Set initial dimensions. Ensure drawingCanvas is defined and has dimensions when this runs.
-    // If drawingCanvas can resize, you'll need a mechanism to resize pool canvases too.
-    c.width = Math.floor(drawareax / zoom);
-    c.height = Math.floor(drawareay / zoom);
-    return c;
-});
 
-let canvasPools = new Map(); // Map<imageIndex, { pool: Canvas[], index: number }>
+
+ // Map<imageIndex, { pool: Canvas[], index: number }>
 // Gets the next available canvas element from the pool.
 // It does NOT clear the canvas's content; the caller is responsible for that.
 function getNextCanvasFromPoolFor(index) {
