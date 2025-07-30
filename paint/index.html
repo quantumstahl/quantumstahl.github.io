@@ -2496,7 +2496,13 @@ function handleTouchMove(e) {
             if (delta > 0) zoom *= 1.05;
             else zoom *= 0.95;
 
-            zoomvalue = Math.max(0.25, Math.min(zoom, 20))*100; // begränsa zoomnivå
+            zoom = Math.max(0.25, Math.min(zoom, 20))*100; // begränsa zoomnivå
+            
+                    zoomvalue = Math.round(zoom * 100);
+                    document.getElementById("zoomSlider").value = zoomvalue;
+                    document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
+            
+            
             lastPinchDistance = newDistance;
         }
         return;
