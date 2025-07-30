@@ -2563,6 +2563,7 @@ function handleTouchMove(e) {
    function handleTouchEnd(e) {
     e.preventDefault();
     clearTimeout(touchTimer);
+    delatare=false;
     if (e.touches.length < 2) {
         lastPinchDistance = null;
     }
