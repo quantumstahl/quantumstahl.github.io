@@ -5,8 +5,7 @@
         <meta charset="utf-8">
 
         
-         <script src="js/Game4.js"></script>
-        <script src="js/joy.js"></script>
+
         
         
         
@@ -26,8 +25,7 @@
             var audio = new Audio('wow.mp3');
             audio.loop = true;
              
-            game = new Game4("Spelet");
-            joy = new JoyStick('myCanvas'); 
+
              
              
              const context = new (window.AudioContext || window.webkitAudioContext)();
@@ -76,11 +74,14 @@
                 canvas.width=document.body.clientWidth;
                 canvas.height=document.body.clientHeight-8;
                  
-                ctx.fillStyle = "red";
+                ctx.fillStyle = "white";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);  
                  
-                 game.updateanimation(ctx);
-                 
+                try{if(audio.paused){ 
+                        audio.play();
+                    }
+                    }catch(error){};
+                 if(context.state === 'suspended'){context.suspend();context.resume();}               
                 window.requestAnimationFrame(check);   
             };check();
             
