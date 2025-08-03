@@ -42,6 +42,8 @@
     }
     .compact input { width: 120px; }
     .hidden { display: none; }
+    .winner { background-color: #334422 !important; }
+    .loser { opacity: 0.6; }
     ol#rankingList li:nth-child(1) { color: gold; font-weight: bold; }
     ol#rankingList li:nth-child(2) { color: silver; }
     ol#rankingList li:nth-child(3) { color: peru; }
@@ -131,68 +133,126 @@
     let rounds = [];
     let results = [];
 
-    function generateRounds() {
-      players = [];
-      const requireHealer = document.getElementById("requireHealer").checked;
-      const teamSize = parseInt(document.getElementById("teamSize").value);
+function generateRounds() {
+  players = [];
+  const requireHealer = document.getElementById("requireHealer").checked;
+  const teamSize = parseInt(document.getElementById("teamSize").value);
 
-      for (let i = 0; i < 10; i++) {
-        const container = document.getElementById(`playerContainer${i}`);
-        if (container.classList.contains("hidden")) continue;
-        const name = document.getElementById(`player${i}`).value.trim();
-        const role = document.getElementById(`role${i}`).value;
-        if (name) players.push({ name, role });
-      }
+  for (let i = 0; i < 10; i++) {
+    const container = document.getElementById(`playerContainer${i}`);
+    if (container.classList.contains("hidden")) continue;
+    const name = document.getElementById(`player${i}`).value.trim();
+    const role = document.getElementById(`role${i}`).value;
+    if (name) players.push({ name, role });
+  }
 
-      if (players.length < teamSize * 2) {
-        alert(`Minst ${teamSize * 2} hjältar krävs för ${teamSize}v${teamSize}.`);
+  if (players.length < teamSize * 2) {
+    alert(`Minst ${teamSize * 2} hjältar krävs för ${teamSize}v${teamSize}.`);
+    return;
+  }
+
+  const desiredMatchCount = parseInt(document.getElementById("matchCount").value);
+  if (isNaN(desiredMatchCount) || desiredMatchCount < 1 || desiredMatchCount > 1000) {
+    alert("Ange ett giltigt antal matcher (1–1000).");
+    return;
+  }
+
+  function combinations(arr, k) {
+    const res = [];
+    function helper(start, combo) {
+      if (combo.length === k) {
+        res.push(combo);
         return;
       }
-
-      const matchCount = parseInt(document.getElementById("matchCount").value);
-      if (isNaN(matchCount) || matchCount < 1 || matchCount > 20) {
-        alert("Ange ett giltigt antal matcher (1–20).");
-        return;
+      for (let i = start; i < arr.length; i++) {
+        helper(i + 1, combo.concat([arr[i]]));
       }
-
-      rounds = [];
-      results = [];
-
-      for (let i = 0; i < matchCount; i++) {
-        const shuffled = [...players].sort(() => Math.random() - 0.5);
-        const team1 = shuffled.slice(0, teamSize);
-        const team2 = shuffled.slice(teamSize, teamSize * 2);
-
-        let attempt = 0;
-        let success = false;
-        while (attempt < 50 && !success) {
-          attempt++;
-          const shuffled = [...players].sort(() => Math.random() - 0.5);
-          const team1 = shuffled.slice(0, teamSize);
-          const team2 = shuffled.slice(teamSize, teamSize * 2);
-
-          if (requireHealer) {
-            const t1H = team1.filter(p => p.role === "healer");
-            const t2H = team2.filter(p => p.role === "healer");
-            if (t1H.length !== 1 || t2H.length !== 1) continue;
-          }
-
-        
-          success = true;
-        }
-
-        if (!success) {
-            
-          alert("Kunde inte skapa tillräckligt balanserade matcher. Kontrollera att det finns tillräckligt med healers.");
-          break;
-        }
-
-        rounds.push({ team1, team2 });
-        results.push(null);
-      }
-
-      showRounds();
     }
+    helper(0, []);
+    return res;
+  }
+
+  function teamKey(team) {
+    return team.map(p => p.name).sort().join(",");
+  }
+
+  const healers = players.filter(p => p.role === "healer");
+  const dps = players.filter(p => p.role === "dps");
+  const possibleTeams = [];
+
+  if (requireHealer) {
+    if (healers.length < 2) {
+      alert("Minst två healers krävs för att skapa lag med healer-krav.");
+      return;
+    }
+    const dpsCombos = combinations(dps, teamSize - 1);
+    healers.forEach(healer => {
+      dpsCombos.forEach(dpsGroup => {
+        possibleTeams.push([healer, ...dpsGroup]);
+      });
+    });
+  } else {
+    possibleTeams.push(...combinations(players, teamSize));
+  }
+
+  const baseRounds = [];
+  const usedCombos = new Set();
+
+  for (let i = 0; i < possibleTeams.length; i++) {
+    for (let j = i + 1; j < possibleTeams.length; j++) {
+      const team1 = possibleTeams[i];
+      const team2 = possibleTeams[j];
+      const names1 = team1.map(p => p.name);
+      const names2 = team2.map(p => p.name);
+      if (names1.some(name => names2.includes(name))) continue;
+      const key = [...names1.sort(), '|', ...names2.sort()].join("");
+      if (usedCombos.has(key)) continue;
+      usedCombos.add(key);
+      baseRounds.push({ team1, team2 });
+    }
+  }
+
+  if (baseRounds.length === 0) {
+    alert("Kunde inte skapa några matcher med givna begränsningar.");
+    return;
+  }
+
+  rounds = [];
+  results = [];
+  const usedRecently = new Set();
+  const shuffledBase = [...baseRounds];
+
+  while (rounds.length < desiredMatchCount) {
+    const available = shuffledBase.filter(match => {
+      const key = teamKey(match.team1) + '|' + teamKey(match.team2);
+      return !usedRecently.has(key);
+    });
+
+    if (available.length === 0) usedRecently.clear();
+
+    const matchPool = available.length > 0 ? available : shuffledBase;
+    const nextMatch = matchPool[Math.floor(Math.random() * matchPool.length)];
+    const key = teamKey(nextMatch.team1) + '|' + teamKey(nextMatch.team2);
+
+    rounds.push({
+      team1: nextMatch.team1,
+      team2: nextMatch.team2
+    });
+    results.push(null);
+    usedRecently.add(key);
+  }
+
+  if (baseRounds.length < desiredMatchCount) {
+    const info = document.createElement("p");
+    info.style.color = "#ccc";
+    info.textContent = `${baseRounds.length} unika matcher hittades. Matcher upprepas för att nå ${desiredMatchCount} rundor.`;
+    roundsContainer.innerHTML = "";
+    roundsContainer.appendChild(info);
+  }
+
+  showRounds();
+}
+
 
     function showRounds() {
       roundsContainer.innerHTML = "";
