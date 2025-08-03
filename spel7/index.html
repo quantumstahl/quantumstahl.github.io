@@ -267,11 +267,12 @@
   let isMuted = false;
   
   function playEffects() {
-    if (!bgStarted) {
-      bgMusic.volume = 0.3;
-      bgMusic.play();
-      bgStarted = true;
+        
+    try{if(bgMusic.paused){ 
+       bgMusic.play();
+       bgMusic.volume = 0.3;
     }
+    }catch(error){};  
     }
     function toggleMute() {
         isMuted = !isMuted;
