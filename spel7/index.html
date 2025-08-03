@@ -311,6 +311,19 @@
 
   document.addEventListener("click", playEffects);
   document.addEventListener("touchstart", playEffects);
+  
+   document.addEventListener("visibilitychange", event => {
+                if (document.visibilityState === "visible") {
+                        audio.pause();audio.src = 'wow.mp3';context.resume();
+                        
+                }
+                else {
+                   audio.pause(); audio.src = "";context.suspend();
+              }
+          });
+  
+  
+  
 </script>
 </body>
 </html>
