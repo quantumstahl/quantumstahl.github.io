@@ -25,8 +25,6 @@
             document.getElementById("myCanvas").style.width=window.innerWidth;
             document.getElementById("myCanvas").style.height=window.innerHeight;
 
-            game = new Game4("Spelet");
-            joy = new JoyStick('myCanvas');
             daethcounter=0;
             var audio = new Audio('wow.mp3');
             audio.loop = true;
@@ -74,6 +72,13 @@
             
             
              var check = function(){
+                canvas.width=document.body.clientWidth;
+                canvas.height=document.body.clientHeight-8;
+                 
+                ctx.fillStyle = "black";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);  
+                 
+                 
                  
                 window.requestAnimationFrame(check);   
             };check();
