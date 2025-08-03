@@ -268,10 +268,10 @@
   const bgMusic = document.getElementById("bgMusic");
   let bgStarted = false;
   let isMuted = false;
-  
+  let musicstopped=false;
   function playEffects() {
         
-    try{if(bgMusic.paused){ 
+    try{if(bgMusic.paused&&musicstopped==false){ 
        bgMusic.play();
        bgMusic.volume = 0.3;
     }
@@ -312,17 +312,23 @@
   document.addEventListener("click", playEffects);
   document.addEventListener("touchstart", playEffects);
   
-   document.addEventListener("visibilitychange", event => {
-                if (document.visibilityState === "visible") {
-                        audio.pause();audio.src = 'wow.mp3';context.resume();
-                        
-                }
-                else {
-                   audio.pause(); audio.src = "";context.suspend();
-              }
-          });
-  
-  
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden"||document.visibilityState != "visible") {
+        // When the page is hidden, pause the music and clear its source to release resources
+        bgMusic.pause();
+        bgMusic.src = ""; // This stops the download and releases the audio stream
+        musicstopped = true; // Mark that music was stopped due to visibility
+    } else {
+        // When the page becomes visible again
+        if (!isMuted) { // Only attempt to play if the user hasn't manually muted it
+            bgMusic.src = "wow.mp3"; // Re-assign the source
+            bgMusic.load(); // Load the new source
+            bgMusic.play().catch(e => console.log("Autoplay prevented:", e)); // Attempt to play, catch potential autoplay errors
+            bgMusic.volume = 0.3; // Ensure volume is set
+            musicstopped = false; // Mark that music is no longer stopped by visibility
+        }
+    }
+});
   
 </script>
 </body>
