@@ -31,7 +31,6 @@
     const roundsContainer = document.getElementById("rounds");
     const rankingList = document.getElementById("rankingList");
 
-    // Funktion för att skapa spelarinmatningar
     function createPlayerInputs() {
       playerInputs.innerHTML = "";
       for (let i = 0; i < 10; i++) {
@@ -76,11 +75,8 @@
 
       rounds = [];
       results = [];
-      const usedCombinations = new Set();
 
-      let tries = 0;
-      while (rounds.length < matchCount && tries < 1000) {
-        tries++;
+      for (let i = 0; i < matchCount; i++) {
         const shuffled = [...players].sort(() => Math.random() - 0.5);
         const mid = Math.ceil(shuffled.length / 2);
         const team1 = shuffled.slice(0, mid);
@@ -89,20 +85,14 @@
         if (requireHealer) {
           const t1H = team1.filter(p => p.role === "healer");
           const t2H = team2.filter(p => p.role === "healer");
-          if (t1H.length !== 1 || t2H.length !== 1) continue;
+          if (t1H.length !== 1 || t2H.length !== 1) {
+            i--;
+            continue;
+          }
         }
 
-        const key = [...team1.map(p => p.name).sort(), ...team2.map(p => p.name).sort()].join("|");
-        if (usedCombinations.has(key)) continue;
-
-        usedCombinations.add(key);
         rounds.push({ team1, team2 });
         results.push(null);
-      }
-
-      if (rounds.length < matchCount) {
-        alert("Kunde inte skapa tillräckligt många unika matcher. Prova färre antal matcher eller ändra inställningarna.");
-        return;
       }
 
       showRounds();
