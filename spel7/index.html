@@ -1,322 +1,83 @@
-<!DOCTYPE html>
-<html lang="sv">
-<head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta charset="UTF-8">
-  <title>Turnering (Fantasy Edition)</title>
-  <style>
-    body {
-      font-family: 'Papyrus', fantasy;
-      background: #1c1c1c;
-      color: #f2e8c9;
-      padding: 1rem;
-      text-align: center;
-    }
-    h1, h2 {
-      color: #ffe680;
-      text-shadow: 1px 1px #000;
-    }
-    input, button, select {
-      margin: 0.2rem;
-      padding: 0.3rem 0.6rem;
-      border-radius: 5px;
-      border: 1px solid #8c7c5b;
-      background: #2e2e2e;
-      color: #f2e8c9;
-    }
-    button {
-      background-color: #5e4b2b;
-      color: #ffe680;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #7b5f36;
-    }
-    .team {
-      margin: 0.5rem 0;
-      padding: 0.5rem;
-      border: 1px solid #8c7c5b;
-      background: #2e2e2e;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
-    }
-    .compact input { width: 120px; }
-    .hidden { display: none; }
-    ol#rankingList li:nth-child(1) { color: gold; font-weight: bold; }
-    ol#rankingList li:nth-child(2) { color: silver; }
-    ol#rankingList li:nth-child(3) { color: peru; }
-    
-    ol#rankingList {
-  list-style-position: inside;
-  padding-left: 0;
-  text-align: center;
 
-  margin: 0 auto;
-}
-    
-  </style>
-</head>
-<body>
-  <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>  
-  <h1>⚔️ Turnering: Hjältarnas Prövning ⚔️</h1>
-  <label for="requireHealer">🧙‍♀️ Måste varje lag ha en healer? </label>
-  <input type="checkbox" id="requireHealer" checked>
-  <br>
-  <label for="teamSize">👥 Lagstorlek: </label>
-  <select id="teamSize" onchange="adjustInputSize()">
-    <option value="2">2v2</option>
-    <option value="3">3v3</option>
-    <option value="5" selected>5v5</option>
-  </select>
-
-  <h2>🧝‍♂️ Hjältar</h2>
-  <div id="playerInputs"></div>
-  <label for="matchCount">🌀 Antal matcher: </label>
-  <input type="number" id="matchCount" value="5" min="1" max="20">
-  <button onclick="generateRounds()">🎮 Skapa rundor</button>
-
-  <h2>🗡️ Strider</h2>
-  <div id="rounds"></div>
-
-  <h2>🏅 Ranking</h2>
-  <button onclick="showRanking()">🔮 Beräkna ranking</button>
-  <ol id="rankingList"></ol>
-
-  <script>
-    const playerInputs = document.getElementById("playerInputs");
-    const roundsContainer = document.getElementById("rounds");
-    const rankingList = document.getElementById("rankingList");
-
-
-
-
-    function createPlayerInputs() {
-      playerInputs.innerHTML = "";
-      for (let i = 0; i < 10; i++) {
-        const container = document.createElement("div");
-        container.id = `playerContainer${i}`;
-        const input = document.createElement("input");
-        input.placeholder = `Namn på hjälte ${i + 1}`;
-        input.id = `player${i}`;
-        const select = document.createElement("select");
-        select.id = `role${i}`;
-        select.innerHTML = `<option value="dps">DPS</option><option value="healer">Healer</option>`;
-        container.appendChild(input);
-        container.appendChild(select);
-        playerInputs.appendChild(container);
-      }
-    }
-    const canvas = document.getElementById("myCanvas");
+<html>
+    <head>
+        <meta name="viewport" content="user-scalable=no, shrink-to-fit=no">
+        <meta charset="utf-8">
+        <meta name="keywords" content="mobilspel, mobilegames, js games, javascript games">
+        <link rel="icon" href="images/duckstand.png" type="image/vnd.microsoft.icon" />
+	<title>Test4</title>
+        
+        <script src="js/Game4.js"></script>
+        <script src="js/joy.js"></script>
+        
+        
+        
+        
+    </head>
+    <body>
+        <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
+        
+        <script>
+   
+            const canvas = document.getElementById("myCanvas");
             const ctx = canvas.getContext("2d");
-document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
+            document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
             document.getElementById("myCanvas").style.width=window.innerWidth;
             document.getElementById("myCanvas").style.height=window.innerHeight;
-    function adjustInputSize() {
-      const size = parseInt(document.getElementById("teamSize").value);
-      if (size <= 3) {
-        playerInputs.classList.add("compact");
-      } else {
-        playerInputs.classList.remove("compact");
-      }
 
-      const visibleCount = size * 2;
-      for (let i = 0; i < 10; i++) {
-        const container = document.getElementById(`playerContainer${i}`);
-        if (i < visibleCount) {
-          container.classList.remove("hidden");
-        } else {
-          container.classList.add("hidden");
-        }
-      }
-    }
+            game = new Game4("Spelet");
+            joy = new JoyStick('myCanvas');
+            daethcounter=0;
+            var audio = new Audio('wow.mp3');
+            audio.loop = true;
+             
+             const context = new (window.AudioContext || window.webkitAudioContext)();
+             const audio2 = async url => {   
+             const source = context.createBufferSource(); 
+                const audioBuffer = await fetch(url)
+                  .then(res => res.arrayBuffer())
+                  .then(ArrayBuffer => context.decodeAudioData(ArrayBuffer)); 
+                source.buffer = audioBuffer;
+                source.connect(context.destination);
+                source.start();
+            };
 
-    createPlayerInputs();
-    adjustInputSize();
-
-    let players = [];
-    let rounds = [];
-    let results = [];
-
-    function generateRounds() {
-      players = [];
-      const requireHealer = document.getElementById("requireHealer").checked;
-      const teamSize = parseInt(document.getElementById("teamSize").value);
-
-      for (let i = 0; i < 10; i++) {
-        const container = document.getElementById(`playerContainer${i}`);
-        if (container.classList.contains("hidden")) continue;
-        const name = document.getElementById(`player${i}`).value.trim();
-        const role = document.getElementById(`role${i}`).value;
-        if (name) players.push({ name, role });
-      }
-
-      if (players.length < teamSize * 2) {
-        alert(`Minst ${teamSize * 2} hjältar krävs för ${teamSize}v${teamSize}.`);
-        return;
-      }
-
-      const matchCount = parseInt(document.getElementById("matchCount").value);
-      if (isNaN(matchCount) || matchCount < 1 || matchCount > 20) {
-        alert("Ange ett giltigt antal matcher (1–20).");
-        return;
-      }
-
-      rounds = [];
-      results = [];
-
-      for (let i = 0; i < matchCount; i++) {
-        const shuffled = [...players].sort(() => Math.random() - 0.5);
-        const team1 = shuffled.slice(0, teamSize);
-        const team2 = shuffled.slice(teamSize, teamSize * 2);
-
-        let attempt = 0;
-        let success = false;
-        while (attempt < 50 && !success) {
-          attempt++;
-          const shuffled = [...players].sort(() => Math.random() - 0.5);
-          const team1 = shuffled.slice(0, teamSize);
-          const team2 = shuffled.slice(teamSize, teamSize * 2);
-
-          if (requireHealer) {
-            const t1H = team1.filter(p => p.role === "healer");
-            const t2H = team2.filter(p => p.role === "healer");
-            if (t1H.length !== 1 || t2H.length !== 1) continue;
-          }
-
-        
-          success = true;
-        }
-
-        if (!success) {
             
-          alert("Kunde inte skapa tillräckligt balanserade matcher. Kontrollera att det finns tillräckligt med healers.");
-          break;
-        }
+            document.addEventListener("touchstart" , function(e) {
+                e.preventDefault();
+                    try{if(audio.paused){ 
+                        audio.play();
+                    }
+                    }catch(error){};
+                    if(context.state === 'suspended'){context.suspend();context.resume();}           
+            });
 
-        rounds.push({ team1, team2 });
-        results.push(null);
-      }
+            
+            
+            document.addEventListener("visibilitychange", event => {
+                if (document.visibilityState === "visible") {
+                        audio.pause();if(game.currentmap==0)audio.src = 'wow.mp3';context.resume();
+                        
+                }
+                else {
+                   audio.pause(); audio.src = "";context.suspend();
+              }
+          });
 
-      showRounds();
-    }
-
-    function showRounds() {
-      roundsContainer.innerHTML = "";
-      rounds.forEach((round, index) => {
-        const div = document.createElement("div");
-        div.className = "team";
-        div.innerHTML = `
-          <strong>🧩 Runda ${index + 1} (${round.team1.length}v${round.team2.length})</strong><br>
-          <b>⚔️ Lag 1:</b> ${round.team1.map(p => p.name).join(", ")}<br>
-          <b>🛡️ Lag 2:</b> ${round.team2.map(p => p.name).join(", ")}<br>
-          <label>Vinnare: </label>
-          <select onchange="setWinner(${index}, this.value)">
-            <option value="">-</option>
-            <option value="team1">Lag 1</option>
-            <option value="team2">Lag 2</option>
-          </select>
-        `;
-        roundsContainer.appendChild(div);
-      });
-    }
-
-    function setWinner(index, value) {
-      results[index] = value;
-    }
-
-    function showRanking() {
-      if (results.includes(null)) {
-        alert("Alla rundor måste ha en vinnare.");
-        return;
-      }
-
-      const scores = {};
-      const wins = {};
-      const games = {};
-      players.forEach(p => {
-        scores[p.name] = 0;
-        wins[p.name] = 0;
-        games[p.name] = 0;
-      });
-
-      rounds.forEach((round, i) => {
-        const winners = round[results[i]];
-        const losers = results[i] === "team1" ? round.team2 : round.team1;
-
-        winners.forEach(p => {
-          scores[p.name] += 1;
-          wins[p.name] += 1;
-          games[p.name] += 1;
-        });
-        losers.forEach(p => {
-          games[p.name] += 1;
-        });
-      });
-
-      const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-      rankingList.innerHTML = "";
-      sorted.forEach(([name, score], i) => {
-        const percent = ((wins[name] / games[name]) * 100).toFixed(1);
-        const li = document.createElement("li");
-        li.textContent = `${name} (${score} poäng, ${percent}% vinster)`;
-        rankingList.appendChild(li);
-      });
-
-      const winner = sorted[0][0];
-      const message = document.createElement("p");
-      message.innerHTML = `<strong>🏆 ${winner} är turneringens mästare! 🥳</strong>`;
-      rankingList.parentElement.appendChild(message);
-    }
-  </script>
-<audio id="bgMusic" src="wow.mp3" loop></audio>
-<button id="muteBtn" onclick="toggleMute()">🔈 Mute</button>
-<script>
-  const bgMusic = document.getElementById("bgMusic");
-  let bgStarted = false;
-  let isMuted = false;
-  
-  function playEffects() {
-        
-    try{if(bgMusic.paused){ 
-       bgMusic.play();
-       bgMusic.volume = 0.3;
-    }
-    }catch(error){};  
-    }
-    function toggleMute() {
-        isMuted = !isMuted;
-        bgMusic.muted = isMuted;
-        muteBtn.textContent = isMuted ? "🔇 Unmute" : "🔈 Mute";
-    }
-   const originalColors = ["#2e2e2e", "#443a29", "#3a2f2f", "#2c3e50", "#2f2f2f"];
-  function randomColor() {
-    return originalColors[Math.floor(Math.random() * originalColors.length)];
-  }
-
-  const originalShowRounds = showRounds;
-  showRounds = function() {
-    roundsContainer.innerHTML = "";
-    rounds.forEach((round, index) => {
-      const div = document.createElement("div");
-      div.className = "team";
-      div.style.background = randomColor();
-      div.innerHTML = `
-        <strong>🧩 Runda ${index + 1} (${round.team1.length}v${round.team2.length})</strong><br>
-        <b>⚔️ Lag 1:</b> ${round.team1.map(p => p.name).join(", ")}<br>
-        <b>🛡️ Lag 2:</b> ${round.team2.map(p => p.name).join(", ")}<br>
-        <label>Vinnare: </label>
-        <select onchange="setWinner(${index}, this.value)">
-          <option value="">-</option>
-          <option value="team1">Lag 1</option>
-          <option value="team2">Lag 2</option>
-        </select>
-      `;
-      roundsContainer.appendChild(div);
-    });
-  }
-
-  document.addEventListener("click", playEffects);
-  document.addEventListener("touchstart", playEffects);
-</script>
-</body>
+            
+           
+            
+            
+            
+            
+            
+            
+            
+             var check = function(){
+                 
+                window.requestAnimationFrame(check);   
+            };check();
+            
+        </script>
+    </body>
 </html>
