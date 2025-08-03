@@ -307,7 +307,38 @@
   }
 
   document.addEventListener("click", playEffects);
-  document.addEventListener("touchstart", playEffects);
+                const context = new (window.AudioContext || window.webkitAudioContext)();
+             const audio2 = async url => {   
+             const source = context.createBufferSource(); 
+                const audioBuffer = await fetch(url)
+                  .then(res => res.arrayBuffer())
+                  .then(ArrayBuffer => context.decodeAudioData(ArrayBuffer)); 
+                source.buffer = audioBuffer;
+                source.connect(context.destination);
+                source.start();
+            };
+
+            
+            document.addEventListener("touchstart" , function(e) {
+                e.preventDefault();
+                    try{if(bgMusic.paused){ 
+                        bgMusic.play();
+                    }
+                    }catch(error){};
+                    if(context.state === 'suspended'){context.suspend();context.resume();}           
+            });
+
+            
+            
+            document.addEventListener("visibilitychange", event => {
+                if (document.visibilityState === "visible") {
+                        bgMusic.pause();bgMusic.src = 'sounds/the_moon.mp3';context.resume();
+                        
+                }
+                else {
+                   bgMusic.pause(); bgMusic.src = "";context.suspend();
+              }
+          });
 </script>
 </body>
 </html>
