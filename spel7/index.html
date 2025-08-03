@@ -1,1218 +1,316 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta charset="UTF-8">
+  <title>Turnering (Fantasy Edition)</title>
+  <style>
+    body {
+      font-family: 'Papyrus', fantasy;
+      background: #1c1c1c;
+      color: #f2e8c9;
+      padding: 1rem;
+      text-align: center;
+    }
+    h1, h2 {
+      color: #ffe680;
+      text-shadow: 1px 1px #000;
+    }
+    input, button, select {
+      margin: 0.2rem;
+      padding: 0.3rem 0.6rem;
+      border-radius: 5px;
+      border: 1px solid #8c7c5b;
+      background: #2e2e2e;
+      color: #f2e8c9;
+    }
+    button {
+      background-color: #5e4b2b;
+      color: #ffe680;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #7b5f36;
+    }
+    .team {
+      margin: 0.5rem 0;
+      padding: 0.5rem;
+      border: 1px solid #8c7c5b;
+      background: #2e2e2e;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+    .compact input { width: 120px; }
+    .hidden { display: none; }
+    ol#rankingList li:nth-child(1) { color: gold; font-weight: bold; }
+    ol#rankingList li:nth-child(2) { color: silver; }
+    ol#rankingList li:nth-child(3) { color: peru; }
+    
+    ol#rankingList {
+  list-style-position: inside;
+  padding-left: 0;
+  text-align: center;
 
-<html>
-    <head>
-        <meta name="viewport" content="user-scalable=no, shrink-to-fit=no">
-        <meta charset="utf-8">
-        <meta name="keywords" content="mobilspel, mobilegames, js games, javascript games">
-        <link rel="icon" href="images/duckstand.png" type="image/vnd.microsoft.icon" />
-	<title>Test4</title>
+  margin: 0 auto;
+}
+    
+  </style>
+</head>
+<body>
+  <h1>⚔️ Turnering: Hjältarnas Prövning ⚔️</h1>
+  <label for="requireHealer">🧙‍♀️ Måste varje lag ha en healer? </label>
+  <input type="checkbox" id="requireHealer" checked>
+  <br>
+  <label for="teamSize">👥 Lagstorlek: </label>
+  <select id="teamSize" onchange="adjustInputSize()">
+    <option value="2">2v2</option>
+    <option value="3">3v3</option>
+    <option value="5" selected>5v5</option>
+  </select>
+
+  <h2>🧝‍♂️ Hjältar</h2>
+  <div id="playerInputs"></div>
+  <label for="matchCount">🌀 Antal matcher: </label>
+  <input type="number" id="matchCount" value="5" min="1" max="20">
+  <button onclick="generateRounds()">🎮 Skapa rundor</button>
+
+  <h2>🗡️ Strider</h2>
+  <div id="rounds"></div>
+
+  <h2>🏅 Ranking</h2>
+  <button onclick="showRanking()">🔮 Beräkna ranking</button>
+  <ol id="rankingList"></ol>
+
+  <script>
+    const playerInputs = document.getElementById("playerInputs");
+    const roundsContainer = document.getElementById("rounds");
+    const rankingList = document.getElementById("rankingList");
+
+
+
+
+    function createPlayerInputs() {
+      playerInputs.innerHTML = "";
+      for (let i = 0; i < 10; i++) {
+        const container = document.createElement("div");
+        container.id = `playerContainer${i}`;
+        const input = document.createElement("input");
+        input.placeholder = `Namn på hjälte ${i + 1}`;
+        input.id = `player${i}`;
+        const select = document.createElement("select");
+        select.id = `role${i}`;
+        select.innerHTML = `<option value="dps">DPS</option><option value="healer">Healer</option>`;
+        container.appendChild(input);
+        container.appendChild(select);
+        playerInputs.appendChild(container);
+      }
+    }
+    function adjustInputSize() {
+      const size = parseInt(document.getElementById("teamSize").value);
+      if (size <= 3) {
+        playerInputs.classList.add("compact");
+      } else {
+        playerInputs.classList.remove("compact");
+      }
+
+      const visibleCount = size * 2;
+      for (let i = 0; i < 10; i++) {
+        const container = document.getElementById(`playerContainer${i}`);
+        if (i < visibleCount) {
+          container.classList.remove("hidden");
+        } else {
+          container.classList.add("hidden");
+        }
+      }
+    }
+
+    createPlayerInputs();
+    adjustInputSize();
+
+    let players = [];
+    let rounds = [];
+    let results = [];
+
+    function generateRounds() {
+      players = [];
+      const requireHealer = document.getElementById("requireHealer").checked;
+      const teamSize = parseInt(document.getElementById("teamSize").value);
+
+      for (let i = 0; i < 10; i++) {
+        const container = document.getElementById(`playerContainer${i}`);
+        if (container.classList.contains("hidden")) continue;
+        const name = document.getElementById(`player${i}`).value.trim();
+        const role = document.getElementById(`role${i}`).value;
+        if (name) players.push({ name, role });
+      }
+
+      if (players.length < teamSize * 2) {
+        alert(`Minst ${teamSize * 2} hjältar krävs för ${teamSize}v${teamSize}.`);
+        return;
+      }
+
+      const matchCount = parseInt(document.getElementById("matchCount").value);
+      if (isNaN(matchCount) || matchCount < 1 || matchCount > 20) {
+        alert("Ange ett giltigt antal matcher (1–20).");
+        return;
+      }
+
+      rounds = [];
+      results = [];
+
+      for (let i = 0; i < matchCount; i++) {
+        const shuffled = [...players].sort(() => Math.random() - 0.5);
+        const team1 = shuffled.slice(0, teamSize);
+        const team2 = shuffled.slice(teamSize, teamSize * 2);
+
+        let attempt = 0;
+        let success = false;
+        while (attempt < 50 && !success) {
+          attempt++;
+          const shuffled = [...players].sort(() => Math.random() - 0.5);
+          const team1 = shuffled.slice(0, teamSize);
+          const team2 = shuffled.slice(teamSize, teamSize * 2);
+
+          if (requireHealer) {
+            const t1H = team1.filter(p => p.role === "healer");
+            const t2H = team2.filter(p => p.role === "healer");
+            if (t1H.length !== 1 || t2H.length !== 1) continue;
+          }
+
         
-        <script src="js/Game4.js"></script>
-        <script src="js/joy.js"></script>
+          success = true;
+        }
+
+        if (!success) {
+            
+          alert("Kunde inte skapa tillräckligt balanserade matcher. Kontrollera att det finns tillräckligt med healers.");
+          break;
+        }
+
+        rounds.push({ team1, team2 });
+        results.push(null);
+      }
+
+      showRounds();
+    }
+
+    function showRounds() {
+      roundsContainer.innerHTML = "";
+      rounds.forEach((round, index) => {
+        const div = document.createElement("div");
+        div.className = "team";
+        div.innerHTML = `
+          <strong>🧩 Runda ${index + 1} (${round.team1.length}v${round.team2.length})</strong><br>
+          <b>⚔️ Lag 1:</b> ${round.team1.map(p => p.name).join(", ")}<br>
+          <b>🛡️ Lag 2:</b> ${round.team2.map(p => p.name).join(", ")}<br>
+          <label>Vinnare: </label>
+          <select onchange="setWinner(${index}, this.value)">
+            <option value="">-</option>
+            <option value="team1">Lag 1</option>
+            <option value="team2">Lag 2</option>
+          </select>
+        `;
+        roundsContainer.appendChild(div);
+      });
+    }
+
+    function setWinner(index, value) {
+      results[index] = value;
+    }
+
+    function showRanking() {
+      if (results.includes(null)) {
+        alert("Alla rundor måste ha en vinnare.");
+        return;
+      }
+
+      const scores = {};
+      const wins = {};
+      const games = {};
+      players.forEach(p => {
+        scores[p.name] = 0;
+        wins[p.name] = 0;
+        games[p.name] = 0;
+      });
+
+      rounds.forEach((round, i) => {
+        const winners = round[results[i]];
+        const losers = results[i] === "team1" ? round.team2 : round.team1;
+
+        winners.forEach(p => {
+          scores[p.name] += 1;
+          wins[p.name] += 1;
+          games[p.name] += 1;
+        });
+        losers.forEach(p => {
+          games[p.name] += 1;
+        });
+      });
+
+      const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+      rankingList.innerHTML = "";
+      sorted.forEach(([name, score], i) => {
+        const percent = ((wins[name] / games[name]) * 100).toFixed(1);
+        const li = document.createElement("li");
+        li.textContent = `${name} (${score} poäng, ${percent}% vinster)`;
+        rankingList.appendChild(li);
+      });
+
+      const winner = sorted[0][0];
+      const message = document.createElement("p");
+      message.innerHTML = `<strong>🏆 ${winner} är turneringens mästare! 🥳</strong>`;
+      rankingList.parentElement.appendChild(message);
+    }
+  </script>
+<audio id="bgMusic" src="wow.mp3" loop></audio>
+<button id="muteBtn" onclick="toggleMute()">🔈 Mute</button>
+<script>
+  const bgMusic = document.getElementById("bgMusic");
+  let bgStarted = false;
+  let isMuted = false;
+  
+  function playEffects() {
         
-        
-        
-        
-    </head>
-    <body>
-        <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
-        
-        <script>
-            function mobileAndTabletCheck() {const isMobile = {Android: function() {return navigator.userAgent.match(/Android/i);},BlackBerry: function() {return navigator.userAgent.match(/BlackBerry/i);},iOS: function() {return navigator.userAgent.match(/iPhone|iPod/i);},Opera: function() {return navigator.userAgent.match(/Opera Mini/i);},Windows: function() {return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i);},any: function() {return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows()|| (navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints && navigator.maxTouchPoints > 1));}};return isMobile.any();}
+    try{if(bgMusic.paused){ 
+       bgMusic.play();
+       bgMusic.volume = 0.3;
+    }
+    }catch(error){};  
+    }
+    function toggleMute() {
+        isMuted = !isMuted;
+        bgMusic.muted = isMuted;
+        muteBtn.textContent = isMuted ? "🔇 Unmute" : "🔈 Mute";
+    }
+   const originalColors = ["#2e2e2e", "#443a29", "#3a2f2f", "#2c3e50", "#2f2f2f"];
+  function randomColor() {
+    return originalColors[Math.floor(Math.random() * originalColors.length)];
+  }
 
+  const originalShowRounds = showRounds;
+  showRounds = function() {
+    roundsContainer.innerHTML = "";
+    rounds.forEach((round, index) => {
+      const div = document.createElement("div");
+      div.className = "team";
+      div.style.background = randomColor();
+      div.innerHTML = `
+        <strong>🧩 Runda ${index + 1} (${round.team1.length}v${round.team2.length})</strong><br>
+        <b>⚔️ Lag 1:</b> ${round.team1.map(p => p.name).join(", ")}<br>
+        <b>🛡️ Lag 2:</b> ${round.team2.map(p => p.name).join(", ")}<br>
+        <label>Vinnare: </label>
+        <select onchange="setWinner(${index}, this.value)">
+          <option value="">-</option>
+          <option value="team1">Lag 1</option>
+          <option value="team2">Lag 2</option>
+        </select>
+      `;
+      roundsContainer.appendChild(div);
+    });
+  }
 
-            const canvas = document.getElementById("myCanvas");
-            const ctx = canvas.getContext("2d");
-            document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
-            document.getElementById("myCanvas").style.width=window.innerWidth;
-            document.getElementById("myCanvas").style.height=window.innerHeight;
-
-            game = new Game4("Spelet");
-            joy = new JoyStick('myCanvas');
-            daethcounter=0;
-            var audio = new Audio('sounds/boss2.mp3');
-            audio.loop = true;
-             
-             const context = new (window.AudioContext || window.webkitAudioContext)();
-             const audio2 = async url => {   
-             const source = context.createBufferSource(); 
-                const audioBuffer = await fetch(url)
-                  .then(res => res.arrayBuffer())
-                  .then(ArrayBuffer => context.decodeAudioData(ArrayBuffer)); 
-                source.buffer = audioBuffer;
-                source.connect(context.destination);
-                source.start();
-            };
-
-            
-            document.addEventListener("touchstart" , function(e) {
-                e.preventDefault();
-                    try{if(audio.paused){ 
-                        audio.play();
-                    }
-                    }catch(error){};
-                    if(context.state === 'suspended'){context.suspend();context.resume();}           
-            });
-
-            
-            
-            document.addEventListener("visibilitychange", event => {
-                if (document.visibilityState === "visible") {
-                        audio.pause();if(game.currentmap==0)audio.src = 'sounds/boss2.mp3';context.resume();
-                        
-                }
-                else {
-                   audio.pause(); audio.src = "";context.suspend();
-              }
-          });
-
-            
-
-            jump=false;
-            falling=false;
-            count=0;
-            cont2=0;;
-            start=false;
-            jumplength=30;
-            femman=100;
-            climb=false;
-            audiopause=0;
-            rnummer=0;
-            ratlives=10;
-            diecounter=0;
-            wincounter=0;
-            havebombs=false;
-            bombtime=0;
-            havekeys=false;
-            gatecounter=0;
-            immortalcount=150;
-            money=0;
-            dp=false; 
-            ap=false; 
-            sp=false; 
-            wp=false;
-            p=false; 
-            
-            
-            let keysPressed = {};
-                document.addEventListener('keydown', (event) => {
-                keysPressed[event.key] = true;
-               
-                try{if(audio.paused){ 
-                        audio.play();
-                    }
-                }catch(error){};
-
-                if (keysPressed['w']) {
-                    wp=true;
-
-                }
-                if (keysPressed['s']) {
-                    sp=true;
-
-                }
-                if (keysPressed['d']) {
-                    dp=true;
-
-                }
-                if (keysPressed['a']) {
-                    ap=true;
-
-                }
-                if (keysPressed[' ']) {
-                    p=true;
-
-                }
-             });
-
-            document.addEventListener('keyup', (event) => {
-                delete keysPressed[event.key];
-
-                if (event.key == 'w'){
-                    wp=false;
-
-                }
-                if (event.key == 's'){
-                    sp=false;
-
-                }
-                if (event.key == 'd'){
-                    dp=false;
-
-                }
-                if (event.key == 'a'){
-                    ap=false;
-
-                }
-                if (event.key == ' '){
-                    p=false;
-
-                }
-            });
-            
-            
-            
-            
-            
-            
-            
-             var check = function(){
-                 
-                
-                 
-                canvas.width=document.body.clientWidth;
-                canvas.height=document.body.clientHeight-8;
-                 
-                ctx.fillStyle = "black";
-                ctx.fillRect(0, 0, canvas.width, canvas.height); 
-                
-                if(game.currentmap==1){
-                    audio.pause();
-                    ctx.fillStyle = "red";
-                    ctx.font = "bold 48px serif";
-                    ctx.fillText("Fin", 100, 100);
-                    ctx.fillText("$ "+money, 400, 75);
-                } 
-                
-                game.updateanimation(ctx);
-                duck =game.getobjecttype("duck");
-                abutton=game.getobjecttype("abutton");
-                bbutton=game.getobjecttype("bbutton");
-                stone =game.getobjecttype("stone");
-                death =game.getobjecttype("death");
-                camera=game.getobjecttype("camera");
-                enemy=game.getobjecttype("enemy");
-                enemy2=game.getobjecttype("enemy2");
-                enemy3=game.getobjecttype("enemy3");
-                enemy4=game.getobjecttype("enemy4");
-                trigger=game.getobjecttype("trigger");
-                gate=game.getobjecttype("gate");
-                rat=game.getobjecttype("rat");
-                chestcheese=game.getobjecttype("chestcheese");
-                cheese=game.getobjecttype("cheese");
-                bomb=game.getobjecttype("bomb");
-                bombwall=game.getobjecttype("bombwall");
-                chestkey=game.getobjecttype("chestkey");
-                key=game.getobjecttype("key");
-                hpdot=game.getobjecttype("hpdot");
-                chesttressure=game.getobjecttype("chesttressure");
-                tressure=game.getobjecttype("tressure");
-                
-                chestdiamondM=game.getobjecttype("chestdiamondM");
-                chestdiamondB=game.getobjecttype("chestdiamondB");
-                chestcake=game.getobjecttype("chestcake");
-                diamondM=game.getobjecttype("diamondM");
-                diamondB=game.getobjecttype("diamondB");
-                cake=game.getobjecttype("cake");
-                
-                invdiamond=game.getobjecttype("invdiamond");
-                invdiamondM=game.getobjecttype("invdiamondM");
-                invcake=game.getobjecttype("invcake");
-                
-                back=game.getobjecttype("back");
-                
-                
-                if(duck!=null){
-                    
-                    
-                    
-                    bbutton.objects[0].x=canvas.width-400;bbutton.objects[0].y=canvas.height-400;
-                    abutton.objects[0].x=canvas.width-250;abutton.objects[0].y=canvas.height-250;
-                    
-                    
-                    back.objects[0].x=0;back.objects[0].y=0;
-                    back.objects[0].dimx=canvas.width;
-                    back.objects[0].dimy=canvas.height*0.65;
-                    
-                    if(!mobileAndTabletCheck()){abutton.objects[0].x=canvas.width+300;abutton.objects[0].y=canvas.height+400;bbutton.objects[0].x=canvas.width+300;bbutton.objects[0].y=canvas.height+400;}
-                    
-                    duck.images[3].counter=0;
-                    if(start==false){game.setcameraobj(camera.objects[1],null,canvas.height-1000);start=true;}
-                    game.setcameraobj(duck.objects[0],canvas.width,null);//null
-                    
-                    if("ontouchstart" in document.documentElement){
-                        if(duck.objects[0].health>0&&climb==false){
-                            if(joy.GetDir()=="N"){}
-                            else if(joy.GetDir()=="NE"){if(duck.objects[0].animation!=3)duck.objects[0].animation=1;duck.objects[0].fliped=true;duck.objects[0].x=duck.objects[0].x+4;}    
-                            else if(joy.GetDir()=="E"){if(duck.objects[0].animation!=3)duck.objects[0].animation=1;duck.objects[0].fliped=true;duck.objects[0].x=duck.objects[0].x+4;}
-                            else if(joy.GetDir()=="SE"){if(duck.objects[0].animation!=3)duck.objects[0].animation=1;duck.objects[0].fliped=true;duck.objects[0].x=duck.objects[0].x+4;}    
-                            else if(joy.GetDir()=="S"){}
-                            else if(joy.GetDir()=="SW"){if(duck.objects[0].animation!=3)duck.objects[0].animation=1;duck.objects[0].fliped=false;duck.objects[0].x=duck.objects[0].x-4;}    
-                            else if(joy.GetDir()=="W"){if(duck.objects[0].animation!=3)duck.objects[0].animation=1;duck.objects[0].fliped=false;duck.objects[0].x=duck.objects[0].x-4;}    
-                            else if(joy.GetDir()=="NW"){if(duck.objects[0].animation!=3)duck.objects[0].animation=1;duck.objects[0].fliped=false;duck.objects[0].x=duck.objects[0].x-4;}     
-                            else if(joy.GetDir()=="C") {
-                                if(duck.objects[0].animation!=3)duck.objects[0].animation=0;
-                           
-                            }
-                        }
-                         joy.redraw();
-                    }
-                    else{
-                        if(duck.objects[0].health>0&&climb==false){
-                            if(wp==true){}
-                            if(dp==true){if(duck.objects[0].animation!=3)duck.objects[0].animation=1;duck.objects[0].fliped=true;duck.objects[0].x=duck.objects[0].x+4;}
-                            if(sp==true){}
-                            if(ap==true){if(duck.objects[0].animation!=3)duck.objects[0].animation=1;duck.objects[0].fliped=false;duck.objects[0].x=duck.objects[0].x-4;}
-                            if(dp==false&&ap==false&&wp==false&&sp==false){if(duck.objects[0].animation!=3)duck.objects[0].animation=0;}
-                        
-                        }
-                    }
-                    
-                    
-                    
-                    
-                    
-                    
-                    if(climb==false)duck.objects[0].y=duck.objects[0].y+12;
-                    
-                    
-                    if(duck.objects[0].health>0){
-                        if(abutton.objects[0].mousepressed==true|| p==true)if(falling==false)jump=true;
-                        if(jump==true){
-                            if((duck.objects[0].animation==3&&bbutton.objects[0].mousepressed==true)||(duck.objects[0].animation==3&&p==true) ){duck.objects[0].animation=3;if(duck.images[3].ani==1&&cont2<13){cont2++;}else duck.images[3].ani=0;
-                                                                                                    }
-                            else duck.objects[0].animation=2;
-                            if(count==0){}
-                            if(count<jumplength){duck.objects[0].y=duck.objects[0].y-22;count++;}
-
-
-
-                            if((joy.GetDir()=="SE"||joy.GetDir()=="S"||joy.GetDir()=="SW")|| sp==true){
-
-                                if(bbutton.objects[0].mousepressed==true||p==true){
-
-                                    duck.objects[0].animation=3;
-                                    if(duck.images[3].ani==1&&cont2<13){cont2++;}else duck.images[3].ani=0;
-                                }
-                            }
-
-
-                        }
-                    }
-                    if(game.collideswith(duck.objects[0],"any","down")){
-                            falling=false;
-                            if(jump==true&& count>10)audio2("sounds/jump.mp3");
-                            if(duck.objects[0].animation==3)duck.images[3].ani=1;
-                            if(jump==true&&count<10){}
-                            else{
-                                if(duck.objects[0].animation!=3){jump=false;jumplength=20;}else {audio2("sounds/pogo.mp3");jumplength=35;}
-                                count=0;
-                                cont2=0;
-                            }
-                    }
-                    else{
-                        falling=true;
-                        if(duck.objects[0].animation!=3)duck.objects[0].animation=2;
-                    }
-                    if(duck.objects[0].animation==2)jumplength=20;
-                    
-                    
-                    if(game.collideswith(duck.objects[0],"any","down")){
-                        
-                        if(duck.objects[0].animation==1||duck.objects[0].animation==4){
-                            
-                            if(game.collideswith(duck.objects[0],"stone","right")){
-                                duck.objects[0].animation=4;
-                                if(bbutton.objects[0].mousepressed==true){
-                                    femman=0;
-                                    game.collideswithobject(duck.objects[0],"stone","right").health=2;
-                                    audio2("sounds/cane.mp3");
-                                }
-                                
-                            }
-                            if(game.collideswith(duck.objects[0],"stone","left")){
-                                duck.objects[0].animation=4;
-                                if(bbutton.objects[0].mousepressed==true){
-                                    
-                                    femman=0;
-                                    game.collideswithobject(duck.objects[0],"stone","left").health=1;
-                                    audio2("sounds/cane.mp3");
-
-                                }
-                                
-                            }
-                        
-                            
-                            
-                        }
-                    }
-                    if(femman<10){duck.objects[0].animation=5;femman++;}
-                    
-                    if(game.collideswith(duck.objects[0],"any","up")){
-                        
-                        if(game.collideswithobject(duck.objects[0],"any","up").ghost==false){
-                            
-                            count=100;
-                            cont2=100;
-                            
-                        }
-                        
-                        
-                    }
-
-
-
-
-                    
-                    for(let x=0;x<stone.objects.length;x++){
-                        
-                        if(game.collideswith(stone.objects[x],"any","up")){stone.objects[x].health=100;}
-                        
-                        if(stone.objects[x].health==1){
-                   
-                            stone.objects[x].x=stone.objects[x].x-6;///stone.objects[x].freex=stone.objects[x].x;
-                            stone.objects[x].y=stone.objects[x].y-6;//stone.objects[x].freey=stone.objects[x].y;
-                        }
-                        if(stone.objects[x].health==2){
-                  
-                            stone.objects[x].x=stone.objects[x].x+6;//stone.objects[x].freex=stone.objects[x].x;
-                            stone.objects[x].y=stone.objects[x].y-6;//stone.objects[x].freey=stone.objects[x].y;
-                            
-                        }
-                        if(stone.objects[x].ghost==true)stone.objects[x].y=stone.objects[x].y+6;
-                        
-                    }
-                    
-                    
-                    if(duck.objects[0].animation==3&&game.collideswith(duck.objects[0],"stone","down")){
-                        
-                        obj=game.collideswithobject(duck.objects[0],"stone","down");
-                        obj.ghost=true;
-                        obj.rot=45;
- 
-                        jump=true;
-                        count=0;
-                        cont2=0;
-                        
-                    }
-               
-                    for(let x=0;x<death.objects.length;x++){
-                        
-                        death.objects[x].animation=2;
-                        
-                    }
-                    
-                    
-                    if(game.collideswiths(duck.objects[0],"death")){
-                        duck.objects[0].health=-1;
-                        hpdot.objects[2].animation=1;
-                        hpdot.objects[1].animation=1;
-                        hpdot.objects[0].animation=1;
-                        immortalcount=150;
-                        
-                    }
-                    if(game.collideswiths(duck.objects[0],"spikes")){
-                        
-                        if(game.collideswith(duck.objects[0],"spikes","down")&&duck.objects[0].animation==3){}
-                        else{
-                            duck.objects[0].health=-1;
-                        }
-                    }
-                    if(game.collideswiths(duck.objects[0],"rope")){
-                        
-                        if((joy.GetDir()=="N"||(joy.GetDir()=="S"&&jump==false))||(wp==true||(sp==true&&jump==false))){
-                            
-                            duck.objects[0].x=game.collideswithobject(duck.objects[0],"rope").x-(duck.objects[0].dimx/2);
-                            
-                            
-                            jump=false;
-                            count=0;
-                            cont2=0;
-                            climb=true;
-                            falling=false;
-                            duck.objects[0].animation=9;
-                            
-                            
-                        }
-                    }
-                    
-                    
-                    if(climb==true){
-                        
-                        count=0;
-                        cont2=0;
-                        falling=false;
-                        if(audiopause>10)audiopause=0;
-                        
-                        if(joy.GetDir()=="N"|| wp==true){
-                            duck.objects[0].y=duck.objects[0].y-4;
-                            duck.objects[0].animation=9;
-                            falling=true;
-                            if(audiopause==0)audio2("sounds/climb.mp3");
-                            audiopause++;
-                            if(!game.collideswiths(duck.objects[0],"rope"))climb=false;
-                            
-                        }
-                        else if(joy.GetDir()=="S"||sp==true){
-                            duck.objects[0].y=duck.objects[0].y+4;
-                            duck.objects[0].animation=9;
-                            falling=true;
-                            if(audiopause==0)audio2("sounds/climb.mp3");
-                            audiopause++;
-                            if(!game.collideswiths(duck.objects[0],"rope"))climb=false;
-                            
-                            
-                            
-                        }
-                        else{
-                            duck.objects[0].animation=9;
-                            duck.images[9].ani=0;
-                            
-                        }
-                        if(jump==true)climb=false;
-                        
-                        
-                        
-                    }
-                    
-                    
-                    camera.objects[0].animation=2;
-                    camera.objects[1].animation=2;
-                    camera.objects[2].animation=2;
-                    camera.objects[3].animation=2;
-                    
-                    camera.objects[4].animation=2;
-                    camera.objects[5].animation=2;
-                    camera.objects[6].animation=2;
-                    camera.objects[7].animation=2;
-                    
-                    camera.objects[8].animation=2;
-                    camera.objects[9].animation=2;
-                    camera.objects[10].animation=2;
-                    camera.objects[11].animation=2;
-                    
-                    camera.objects[12].animation=2;
-                    camera.objects[13].animation=2;
-                    
-                    camera.objects[14].animation=2;
-                    
-                    camera.objects[15].animation=2;
-                    
-                    if(game.collideswiths(duck.objects[0],"camera")){
-                        
-                        
-                        if(game.collideswithobject(duck.objects[0],"camera")==camera.objects[0]) game.setcameraobj(camera.objects[0],null,canvas.height-300);
-                        
-                        if(game.collideswithobject(duck.objects[0],"camera")==camera.objects[1]) game.setcameraobj(camera.objects[1],null,canvas.height-1000);
-                        
-                        if(game.collideswithobject(duck.objects[0],"camera")==camera.objects[2]) game.setcameraobj(camera.objects[2],null,canvas.height-100);
-                        
-                        if(game.collideswithobject(duck.objects[0],"camera")==camera.objects[3]) game.setcameraobj(camera.objects[0],null,canvas.height-300);
-                        
-                        
-                        
-                        if(game.collideswithobject(duck.objects[0],"camera")==camera.objects[4]) game.setcameraobj(camera.objects[4],null,canvas.height-100);
-                        if(game.collideswithobject(duck.objects[0],"camera")==camera.objects[5]) game.setcameraobj(camera.objects[5],null,canvas.height-100);
-                        
-                        
-                        if(game.collideswithobject(duck.objects[0],"camera")==camera.objects[6]) game.setcameraobj(camera.objects[2],null,canvas.height-100);
-                        if(game.collideswithobject(duck.objects[0],"camera")==camera.objects[7]) game.setcameraobj(camera.objects[2],null,canvas.height-100);
-                        
-                        
-                        if(game.collideswithobject(duck.objects[0],"camera")==camera.objects[8]) game.setcameraobj(camera.objects[8],null,canvas.height-100);
-                        if(game.collideswithobject(duck.objects[0],"camera")==camera.objects[9]) game.setcameraobj(camera.objects[9],null,canvas.height-100);
-                        
-                        
-                        if(game.collideswithobject(duck.objects[0],"camera")==camera.objects[10]) game.setcameraobj(camera.objects[4],null,canvas.height-100);
-                        if(game.collideswithobject(duck.objects[0],"camera")==camera.objects[11]) game.setcameraobj(camera.objects[5],null,canvas.height-100);
-                        
-                        if(game.collideswithobject(duck.objects[0],"camera")==camera.objects[12]) game.setcameraobj(camera.objects[12],null,canvas.height-100);
-                        if(game.collideswithobject(duck.objects[0],"camera")==camera.objects[13]) game.setcameraobj(camera.objects[8],null,canvas.height-100);
-                        
-                        if(game.collideswithobject(duck.objects[0],"camera")==camera.objects[14]) game.setcameraobj(camera.objects[14],null,canvas.height-1500);
-                        
-                        if(game.collideswithobject(duck.objects[0],"camera")==camera.objects[15]) game.setcameraobj(camera.objects[14],null,canvas.height-1500);
-                        if(game.collideswithobject(duck.objects[0],"camera")==camera.objects[15]) game.setcameraobj(camera.objects[15],canvas.width-900,null);
-                        
-                    }
-           
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    trigger.objects[0].animation=2;
-                    trigger.objects[1].animation=2;
-                    trigger.objects[2].animation=2;
-                    if(game.collideswiths(duck.objects[0],"trigger")){
-                        
-                        if(game.collideswithobject(duck.objects[0],"trigger")==trigger.objects[0]) {
-                            
-                            if(gate.objects[0].health==100){
-                                gate.objects[0].y=gate.objects[0].y+100;
-                                gate.objects[0].health=99;
-                                
-                                audio.pause();
-                                audio.src = 'sounds/boss.mp3';
-                                audio.play();
-                                rat.objects[0].health=99;
-                                
-                            }
-                            
-                        }
-                        
-                        if(game.collideswithobject(duck.objects[0],"trigger")==trigger.objects[1]){
-                            
-                            
-                            if(havebombs==false&&bomb.objects.length==1){
-                                ctx.fillStyle = "red";
-                                ctx.font = "bold 100px serif";
-                                ctx.fillText("Need bombs", 100, 200);
-                            }
-                            if(havebombs==true){
-                                havebombs=false;
-                                
-                                game.addobject(bomb,duck.objects[0].x,duck.objects[0].y-100,80,80,0,true);
-                                
-                                
-                                
-                                
-                                
-                            }
-                            
-                        }
-                        if(game.collideswithobject(duck.objects[0],"trigger")==trigger.objects[2]){
-                            
-                            
-                            if(havekeys==false){
-                                
-                                ctx.fillStyle = "red";
-                                ctx.font = "bold 150px serif";
-                                ctx.fillText("Need Key", 200, 200);
-                                
-                                
-                                
-                                
-                            }
-                            else if(gatecounter<140){
-                                
-                                gate.objects[1].y=gate.objects[1].y-1;
-                                gatecounter++;
-                                
-                            }
-                            
-                            
-                            
-                            
-                        }
-                        
-                        
-                        
-                        
-                    }
-                    
-                    if(game.collideswiths(duck.objects[0],"bomb")){
-                        
-                        if(game.collideswithobject(duck.objects[0],"bomb")==bomb.objects[0]){
-                            
-                            bomb.objects[0].ghost=true;
-                            bomb.objects[0].animation=2;
-                            
-                            if(havebombs==false)audio2("sounds/complete.mp3");
-                            
-                            havebombs=true;
-                            
-                        }
-                        
-                        
-                    }
-                    
-                    
-                    
-                        if(bomb.objects.length==2){
-                            
-                            bomb.objects[1].x=bomb.objects[1].x+6;
-                            bomb.objects[1].y=bomb.objects[1].y+4;
-                            bombtime++;
-                        }
-                        
-                        
-                       if(bombtime==150){
-                           
-                           bombwall.objects[1].ghost=true;
-                           bombwall.objects[1].animation=2;
-                           bomb.objects[1].ghost=true;
-                           bomb.objects[1].animation=2;
-                           audio2("sounds/explotion.mp3");
-                           
-                       }
-                        
-                    
-                    if(game.collideswith(duck.objects[0],"chestkey","down")&&duck.objects[0].animation==3){
-                            chestkey.objects[0].animation=1;
-                            chestkey.objects[0].ghost=true;
-                            game.addobject(key,chestkey.objects[0].x, chestkey.objects[0].y,50,50,0,true);
-                            duck.objects[0].y=duck.objects[0].y-20;
-                        
-                    }
-                    if(game.collideswiths(duck.objects[0],"key")){
-                        havekeys=true;
-                        if(key.objects[0].animation==0)audio2("sounds/complete.mp3");
-                        key.objects[0].animation=1;
-                        key.objects[0].ghost=true;
-                        
-                    }
-                    
-                    if(game.collideswith(duck.objects[0],"chesttressure","down")&&duck.objects[0].animation==3){
-                            chesttressure.objects[0].animation=1;
-                            chesttressure.objects[0].ghost=true;
-                            game.addobject(tressure,chesttressure.objects[0].x, chesttressure.objects[0].y,50,50,0,true);
-                            duck.objects[0].y=duck.objects[0].y-20;
-                        
-                    }
-                    if(game.collideswiths(duck.objects[0],"tressure")){
-                        if(tressure.objects[0].animation==0){audio2("sounds/complete.mp3");money=money+1000000;}
-                        
-                        
-                        tressure.objects[0].animation=1;
-                        tressure.objects[0].ghost=true;
-                        
-                        
-                    }
-                    if(game.collideswith(duck.objects[0],"chestdiamondM","down")&&duck.objects[0].animation==3){
-                        
-                        o=game.collideswithobject(duck.objects[0],"chestdiamondM");
-                        while(o.ghost==true){o=game.collideswithobject(duck.objects[0],"chestdiamondM");}
-                        
-                        
-                        o.animation=1;
-                        o.ghost=true;
-                        game.addobject(diamondM,o.x, o.y,50,50,0,true);
-                        duck.objects[0].y=duck.objects[0].y-20;
-                        
-                        
-                        
-                    }
-                    if(game.collideswiths(duck.objects[0],"diamondM")){
-                        o=game.collideswithobject(duck.objects[0],"diamondM");
-                        if(o.animation==0){audio2("sounds/diamond.mp3");money=money+10000;}
-                        o.animation=1;
-                        o.ghost=true;
-
-                    }
-                    if(game.collideswith(duck.objects[0],"chestdiamondB","down")&&duck.objects[0].animation==3){
-                        o=game.collideswithobject(duck.objects[0],"chestdiamondB");
-                        while(o.ghost==true){o=game.collideswithobject(duck.objects[0],"chestdiamondB");}
-                        o.animation=1;
-                        o.ghost=true;
-                        game.addobject(diamondB,o.x, o.y,50,50,0,true);
-                        duck.objects[0].y=duck.objects[0].y-20;
-                        
-                        
-                        
-                    }
-                    if(game.collideswiths(duck.objects[0],"diamondB")){
-                        o=game.collideswithobject(duck.objects[0],"diamondB");
-                        if(o.animation==0){audio2("sounds/diamond.mp3");money=money+50000;}
-                        o.animation=1;
-                        o.ghost=true;
-
-                    }
-                    if(game.collideswith(duck.objects[0],"chestcake","down")&&duck.objects[0].animation==3){
-                        o=game.collideswithobject(duck.objects[0],"chestcake");
-                        while(o.ghost==true){o=game.collideswithobject(duck.objects[0],"chestcake");}
-                        o.animation=1;
-                        o.ghost=true;
-                        game.addobject(cake,o.x, o.y,50,50,0,true);
-                        duck.objects[0].y=duck.objects[0].y-20;
-                        
-                        
-                        
-                    }
-                    if(game.collideswiths(duck.objects[0],"cake")){
-                        o=game.collideswithobject(duck.objects[0],"cake");
-                        if(o.animation==0){audio2("sounds/diamond.mp3");
-                            
-                            if(hpdot.objects[1].animation==1)hpdot.objects[1].animation=0;
-                            else if(hpdot.objects[2].animation==1)hpdot.objects[2].animation=0;
-                
-                        }
-                        o.animation=1;
-                        o.ghost=true;
-
-                    }
-                    
-                    for(let x=0;x<invdiamond.objects.length;x++){
-                        if(invdiamond.objects[x].health==100){invdiamond.objects[x].animation=1;}
-                        if(game.collideswithanoterobject(duck.objects[0],invdiamond.objects[x])){
-                            
-                            if(invdiamond.objects[x].health!=98)invdiamond.objects[x].health=99;
-                            
-                            if(invdiamond.objects[x].animation==0){
-                               audio2("sounds/diamond.mp3");money=money+1000;
-                               invdiamond.objects[x].animation=1;invdiamond.objects[x].health=98;
-                            }
-                        }
-                        else if(invdiamond.objects[x].health==99){
-                            
-                            invdiamond.objects[x].animation=0;
-                        }
-                    }
-                    for(let x=0;x<invdiamondM.objects.length;x++){
-                        if(invdiamondM.objects[x].health==100){invdiamondM.objects[x].animation=1;}
-                        if(game.collideswithanoterobject(duck.objects[0],invdiamondM.objects[x])){
-                            
-                            if(invdiamondM.objects[x].health!=98)invdiamondM.objects[x].health=99;
-                            
-                            if(invdiamondM.objects[x].animation==0){
-                               audio2("sounds/diamond.mp3");money=money+10000;
-                               invdiamondM.objects[x].animation=1;invdiamondM.objects[x].health=98;
-                            }
-                        }
-                        else if(invdiamondM.objects[x].health==99){
-                            
-                            invdiamondM.objects[x].animation=0;
-                        }
-                    }
-                    for(let x=0;x<invcake.objects.length;x++){
-                        if(invcake.objects[x].health==100){invcake.objects[x].animation=1;}
-                        if(game.collideswithanoterobject(duck.objects[0],invcake.objects[x])){
-                            
-                            if(invcake.objects[x].health!=98)invcake.objects[x].health=99;
-                            
-                            if(invcake.objects[x].animation==0){
-                               audio2("sounds/diamond.mp3");
-                               if(hpdot.objects[1].animation==1)hpdot.objects[1].animation=0;
-                               else if(hpdot.objects[2].animation==1)hpdot.objects[2].animation=0;
-                               
-                               
-                               invcake.objects[x].animation=1;invcake.objects[x].health=98;
-                            }
-                        }
-                        else if(invcake.objects[x].health==99){
-                            
-                            invcake.objects[x].animation=0;
-                        }
-                    }
-                    
-                    
-                    
-                    
-                    
-                    
-                    if(rat.objects[0].ghost==false){
-                        chestcheese.objects[0].animation=1;
-                        chestcheese.objects[0].ghost=true;
-
-                    }
-                    
-                    
-                    
-                    
-                    if(rat.objects[0].health<=99){
-                        
-                        if(game.collideswith(rat.objects[0],"duck","up")&&duck.objects[0].animation==3){rat.objects[0].rot=180;}
-                        else if(game.collideswiths(rat.objects[0],"duck"))duck.objects[0].health=-1;
-                        
-                        if(rat.objects[0].rot==180){if(diecounter==0)ratlives--;diecounter++;if(diecounter==25){diecounter=0;rat.objects[0].rot=0;}}
-                        if(ratlives==0){rat.objects[0].health=-1000;rat.objects[0].ghost=true;audio2("sounds/deathsound.mp3");ratlives=10;chestcheese.objects[0].ghost=false;chestcheese.objects[0].animation=0;}
-                        if(cheese.objects.length==1&&cheese.objects[0].ghost==true){audio.pause();wincounter++;}
-                        
-                        
-                        if(wincounter==300)game.currentmap=1;
-                        
-                        
-                        if(game.collideswiths(duck.objects[0],"cheese")&&!game.collideswith(duck.objects[0],"cheese","ghost")){
-                            cheese.objects[0].ghost=true;
-                            cheese.objects[0].animation=1;
-                            audio2("sounds/complete.mp3");
-                            money=money+1000000;
-                            audio.pause();
-                            
-                        }
-                        
-                        
-                        if(game.collideswith(duck.objects[0],"chestcheese","down")&&duck.objects[0].animation==3){
-                            chestcheese.objects[0].animation=1;
-                            chestcheese.objects[0].ghost=true;
-                            game.addobject(cheese,chestcheese.objects[0].x, chestcheese.objects[0].y,50,50,0,true);
-                            duck.objects[0].y=duck.objects[0].y-20;
-                        
-                        }
-                        
-                        
-                        
-                        rat.objects[0].y=rat.objects[0].y+12;
-                        
-                        if(rat.objects[0].health>45){
-                            rat.objects[0].x=rat.objects[0].x+6;
-                            rat.objects[0].y=rat.objects[0].y-20;
-                            rat.objects[0].animation=1;
-                                                        
-                        }
-                        else if(rat.objects[0].health==45){
-                            rat.objects[0].animation=0;
-                            rat.objects[0].fliped=true;
-                            
-                            rnummer=Math.floor(Math.random() * 2);
-                            
-                        }
-                        
-                        if(rat.objects[0].health<0){
-                        
-                            if(rnummer==0){
-                                if(rat.objects[0].health>-110){
-                                    rat.objects[0].x=rat.objects[0].x-6;
-                                    rat.objects[0].animation=2;
-                                }
-                            }
-                            else{
-
-
-                                if(rat.objects[0].health>-25){
-                                    rat.objects[0].y=rat.objects[0].y-20;
-                                    rat.objects[0].animation=1;
-                                }
-                                if(rat.objects[0].health>-90&&rat.objects[0].health<-55){
-                                    rat.objects[0].y=rat.objects[0].y-20;
-                                }
-
-                                if(rat.objects[0].health>-110){
-                                    rat.objects[0].x=rat.objects[0].x-6;
-                                }
-                            }
-                        }
-                        if(rat.objects[0].health==-110){
-                            rat.objects[0].animation=0;
-                            rat.objects[0].fliped=false;
-                            rnummer=Math.floor(Math.random() * 2);
-                            
-                        }
-                        
-                         if(rat.objects[0].health<-155){
-                        
-                        
-                            if(rnummer==0){
-
-                                if(rat.objects[0].health>-290){
-                                    rat.objects[0].x=rat.objects[0].x+6;
-                                    rat.objects[0].animation=2;
-                                }
-
-                            }
-                            else{
-
-                                if(rat.objects[0].health>-240&&rat.objects[0].health<-200){
-                                    rat.objects[0].y=rat.objects[0].y-20;
-                                    rat.objects[0].x=rat.objects[0].x+6;
-                                    rat.objects[0].animation=1;
-                                }
-                                else if(rat.objects[0].health>-290){
-                                    rat.objects[0].x=rat.objects[0].x+6;
-                                    rat.objects[0].animation=2;
-                                }
-                            }
-                        }
-                        if(rat.objects[0].health==-290){
-                            rat.objects[0].health=46;
-                            
-                            
-                        }
-                        
-                        
-                        
-                        
-                        
-                        
-                        
-                        
-                        rat.objects[0].health--;
-                       
-                    }
-                    
-                    if(game.collideswith(duck.objects[0],"rat","down")&&duck.objects[0].animation==3&&game.collideswithobject(duck.objects[0],"rat").ghost==false){
-                        
-                      
-                        
-                        rat.objects[0].rot=180;
-                        
-                        
-                        
-                    }
-                    else if(game.collideswiths(duck.objects[0],"rat")&&game.collideswithobject(duck.objects[0],"rat").ghost==false){
-                        duck.objects[0].health=-1;
-                        
-                    }
-                    
-                    
-                    
-                    
-                    for(let x=0;x<enemy.objects.length;x++){
-                        
-
-                        
-                        if(enemy.objects[x].ghost==false){
-                        
-                            if((enemy.objects[x].y>duck.objects[0].y&&(enemy.objects[x].y-duck.objects[0].y)<600)||(enemy.objects[x].y<duck.objects[0].y&&(duck.objects[0].y-enemy.objects[x].y)<600)){
-                                if(enemy.objects[x].x>duck.objects[0].x&&(enemy.objects[x].x-duck.objects[0].x)<600){enemy.objects[x].x=enemy.objects[x].x-2;enemy.objects[x].fliped=false;enemy.objects[x].animation=0;}
-                                if(enemy.objects[x].x<duck.objects[0].x&&(duck.objects[0].x-enemy.objects[x].x)<600){enemy.objects[x].x=enemy.objects[x].x+2;enemy.objects[x].fliped=true;enemy.objects[x].animation=0;}
-                                if(enemy.objects[x].x>duck.objects[0].x&&(enemy.objects[x].x-duck.objects[0].x)<150){enemy.objects[x].animation=1;enemy.objects[x].health=99;}
-                                if(enemy.objects[x].x<duck.objects[0].x&&(duck.objects[0].x-enemy.objects[x].x)<150){enemy.objects[x].animation=1;enemy.objects[x].health=99;}
-                            }
-                            if(enemy.objects[x].health==99)enemy.objects[x].y=enemy.objects[x].y+2;
-                            
-                            if(game.collideswith(enemy.objects[x],"duck","up")){}
-                            else if(game.collideswiths(enemy.objects[x],"duck"))duck.objects[0].health=-1;
-                            
-                            
-                            
-                        }
-                        if(enemy.objects[x].ghost==true)enemy.objects[x].y=enemy.objects[x].y+4;
-                        
-                        if(enemy.objects[x].ghost==true&& ((enemy.objects[x].origonx>duck.objects[0].x&&(enemy.objects[x].origonx-duck.objects[0].x)>800)||(enemy.objects[x].origonx<duck.objects[0].x&&(duck.objects[0].x-enemy.objects[x].origonx))>800)&&((enemy.objects[x].x>duck.objects[0].x&&(enemy.objects[x].x-duck.objects[0].x)>800)||(enemy.objects[x].x<duck.objects[0].x&&(duck.objects[0].x-enemy.objects[x].x))>800)){
-                            
-                           
-                            enemy.objects[x].x=enemy.objects[x].origonx;
-                            enemy.objects[x].y=enemy.objects[x].origony;
-                            enemy.objects[x].freex=enemy.objects[x].origonx;
-                            enemy.objects[x].freey=enemy.objects[x].origony;
-                            
-                            enemy.objects[x].rot=0;
-                            enemy.objects[x].ghost=false;
-                           
-                        }
-                        
-                        
-                        
-                    }
-                    
-                    
-                    if(game.collideswith(duck.objects[0],"enemy","down")&&duck.objects[0].animation==3&&game.collideswithobject(duck.objects[0],"enemy").ghost==false){
-                        
-                      
-                        
-                        game.collideswithobject(duck.objects[0],"enemy").health=100;
-                        game.collideswithobject(duck.objects[0],"enemy").ghost=true;
-                        game.collideswithobject(duck.objects[0],"enemy").rot=90;
-                        audio2("sounds/deathsound.mp3");
-                        
-                        
-                    }
-                    else if(game.collideswiths(duck.objects[0],"enemy")&&game.collideswithobject(duck.objects[0],"enemy").ghost==false){
-                        duck.objects[0].health=-1;
-                        
-                    }
-                    
-                    
-                    
-                    for(let x=0;x<enemy2.objects.length;x++){
-                        
-                        
-                        if(enemy2.objects[x].ghost==false){
-                            if(enemy2.objects[x].health<=100)enemy2.objects[x].y=enemy2.objects[x].y+2;
-                            if(enemy2.objects[x].health<60)enemy2.objects[x].y=enemy2.objects[x].y-4;
-                            if(enemy2.objects[x].health<=20)enemy2.objects[x].health=100;
-                            enemy2.objects[x].health--;
-                            
-                            if(game.collideswith(enemy2.objects[x],"duck","up")){}
-                            else if(game.collideswiths(enemy2.objects[x],"duck"))duck.objects[0].health=-1;
-                            
-                            
-                        }
-                        
-                        if(enemy2.objects[x].ghost==true)enemy2.objects[x].y=enemy2.objects[x].y+4;
-                        
-                        if(enemy2.objects[x].ghost==true&& ((enemy2.objects[x].origonx>duck.objects[0].x&&(enemy2.objects[x].origonx-duck.objects[0].x)>800)||(enemy2.objects[x].origonx<duck.objects[0].x&&(duck.objects[0].x-enemy2.objects[x].origonx))>800)&&((enemy2.objects[x].x>duck.objects[0].x&&(enemy2.objects[x].x-duck.objects[0].x)>800)||(enemy2.objects[x].x<duck.objects[0].x&&(duck.objects[0].x-enemy2.objects[x].x))>800)){
-                            
-                           
-                            enemy2.objects[x].x=enemy2.objects[x].origonx;
-                            enemy2.objects[x].y=enemy2.objects[x].origony;
-                            enemy2.objects[x].freex=enemy2.objects[x].origonx;
-                            enemy2.objects[x].freey=enemy2.objects[x].origony;
-                            enemy2.objects[x].health=100;
-                            enemy2.objects[x].rot=0;
-                            enemy2.objects[x].ghost=false;
-                           
-                        } 
-                    }
-                    
-                    if(game.collideswith(duck.objects[0],"enemy2","down")&&duck.objects[0].animation==3&&game.collideswithobject(duck.objects[0],"enemy2").ghost==false){
-                        game.collideswithobject(duck.objects[0],"enemy2").health=100;
-                        game.collideswithobject(duck.objects[0],"enemy2").ghost=true;
-                        game.collideswithobject(duck.objects[0],"enemy2").rot=90;
-                        audio2("sounds/deathsound.mp3");
-                    }
-                    else if(game.collideswiths(duck.objects[0],"enemy2")&&game.collideswithobject(duck.objects[0],"enemy2").ghost==false){
-                        duck.objects[0].health=-1;
-                        
-                    }
-                    
-                    for(let x=0;x<enemy3.objects.length;x++){
-                        
-                        
-                        if(enemy3.objects[x].ghost==false&&((enemy3.objects[x].y>duck.objects[0].y&&(enemy3.objects[x].y-duck.objects[0].y)<600)||(enemy3.objects[x].y<duck.objects[0].y&&(duck.objects[0].y-enemy3.objects[x].y)<600))){
-                            
-                            if(enemy3.objects[x].fliped==false)
-                                enemy3.objects[x].x=enemy3.objects[x].x+2;
-                            else
-                                enemy3.objects[x].x=enemy3.objects[x].x-2;
- 
-                             enemy3.objects[x].y=enemy3.objects[x].y+4;
-                            
-                            if(game.collideswith(enemy3.objects[x],"any","left")){enemy3.objects[x].fliped=false;}
-                            if(game.collideswith(enemy3.objects[x],"any","right")){enemy3.objects[x].fliped=true;}
-                            
-                            
-                            if((game.collideswith(enemy3.objects[x],"any","down"))){enemy3.objects[x].health=100;}
-                            else{
-                              
-                                if(enemy3.objects[x].health==99){
-                                    if(enemy3.objects[x].fliped==true){enemy3.objects[x].fliped=false;enemy3.objects[x].y=enemy3.objects[x].y-8;enemy3.objects[x].freey=enemy3.objects[x].freey-8;enemy3.objects[x].x=enemy3.objects[x].x+4;enemy3.objects[x].freex=enemy3.objects[x].freex+4;enemy3.objects[x].health=100;}
-                                    else if(enemy3.objects[x].fliped==false){enemy3.objects[x].fliped=true;enemy3.objects[x].y=enemy3.objects[x].y-8;enemy3.objects[x].x=enemy3.objects[x].x-4;enemy3.objects[x].health=100;enemy3.objects[x].freey=enemy3.objects[x].freey-8;enemy3.objects[x].freex=enemy3.objects[x].freex-4;}
-                                }
-                                else 
-                                    enemy3.objects[x].health=99;
-                            
-                            }
-                            
-                            
-                            if(game.collideswith(enemy3.objects[x],"duck","up")){}
-                            else if(game.collideswiths(enemy3.objects[x],"duck"))duck.objects[0].health=-1;
-                            
-                            
-                            
-                        }
-                        
-                        if(enemy3.objects[x].ghost==true)enemy3.objects[x].y=enemy3.objects[x].y+4;
-                        
-                        if(((enemy3.objects[x].origonx>duck.objects[0].x&&(enemy3.objects[x].origonx-duck.objects[0].x)>600)||
-                            (enemy3.objects[x].origonx<duck.objects[0].x&&(duck.objects[0].x-enemy3.objects[x].origonx))>600)&&
-                            ((enemy3.objects[x].x>duck.objects[0].x&&(enemy3.objects[x].x-duck.objects[0].x)>600)||
-                            (enemy3.objects[x].x<duck.objects[0].x&&(duck.objects[0].x-enemy3.objects[x].x))>600)){
-                        
-                        
-                        
-                        
-                        
-                        
-                    
-                           
-                            enemy3.objects[x].x=enemy3.objects[x].origonx;
-                            enemy3.objects[x].y=enemy3.objects[x].origony;
-                            enemy3.objects[x].freex=enemy3.objects[x].origonx;
-                            enemy3.objects[x].freey=enemy3.objects[x].origony;
-                            enemy3.objects[x].health=100;
-                            enemy3.objects[x].rot=0;
-                            enemy3.objects[x].ghost=false;
-                           
-                        }
-                    }
-                    
-                    if(game.collideswith(duck.objects[0],"enemy3","down")&&duck.objects[0].animation==3&&game.collideswithobject(duck.objects[0],"enemy3").ghost==false){
-                        game.collideswithobject(duck.objects[0],"enemy3").health=100;
-                        game.collideswithobject(duck.objects[0],"enemy3").ghost=true;
-                        game.collideswithobject(duck.objects[0],"enemy3").rot=90;
-                        audio2("sounds/deathsound.mp3");
-                    }
-                    else if(game.collideswiths(duck.objects[0],"enemy3")&&game.collideswithobject(duck.objects[0],"enemy3").ghost==false){
-                        duck.objects[0].health=-1;
-                        
-                    }
-                    
-                      for(let x=0;x<enemy4.objects.length;x++){
-                        
-
-                        
-                        if(enemy4.objects[x].ghost==false){
-                        
-                            if((enemy4.objects[x].y>duck.objects[0].y&&(enemy4.objects[x].y-duck.objects[0].y)<600)||(enemy4.objects[x].y<duck.objects[0].y&&(duck.objects[0].y-enemy4.objects[x].y)<600)){
-                                if(enemy4.objects[x].x>duck.objects[0].x&&(enemy4.objects[x].x-duck.objects[0].x)<600){enemy4.objects[x].x=enemy4.objects[x].x-2;enemy4.objects[x].fliped=true;enemy4.objects[x].animation=0;}
-                                if(enemy4.objects[x].x<duck.objects[0].x&&(duck.objects[0].x-enemy4.objects[x].x)<600){enemy4.objects[x].x=enemy4.objects[x].x+2;enemy4.objects[x].fliped=false;enemy4.objects[x].animation=0;}
-                                
-                                enemy4.objects[x].y=enemy4.objects[x].y+4;
-                                if(game.collideswith(enemy4.objects[x],"any","left")||game.collideswith(enemy4.objects[x],"any","right")){enemy4.objects[x].y=enemy4.objects[x].y-16;}
-                            }
-                            
-                            
-                            if(game.collideswith(enemy4.objects[x],"duck","up")){}
-                            else if(game.collideswiths(enemy4.objects[x],"duck"))duck.objects[0].health=-1;
-                            
-                            
-                            
-                            
-                            
-                            
-                        }
-                        if(enemy4.objects[x].ghost==true)enemy4.objects[x].y=enemy4.objects[x].y+4;
-                        
-                        if(((enemy4.objects[x].origonx>duck.objects[0].x&&(enemy4.objects[x].origonx-duck.objects[0].x)>600)||(enemy4.objects[x].origonx<duck.objects[0].x&&(duck.objects[0].x-enemy4.objects[x].origonx))>600)&&((enemy4.objects[x].x>duck.objects[0].x&&(enemy4.objects[x].x-duck.objects[0].x)>600)||(enemy4.objects[x].x<duck.objects[0].x&&(duck.objects[0].x-enemy4.objects[x].x))>600)){
-                            
-                           
-                            enemy4.objects[x].x=enemy4.objects[x].origonx;
-                            enemy4.objects[x].y=enemy4.objects[x].origony;
-                            enemy4.objects[x].freex=enemy4.objects[x].origonx;
-                            enemy4.objects[x].freey=enemy4.objects[x].origony;
-                            
-                            enemy4.objects[x].rot=0;
-                            enemy4.objects[x].ghost=false;
-                           
-                        }
-                        
-                        
-                        
-                    }
-                    
-                    
-                    if(game.collideswith(duck.objects[0],"enemy4","down")&&duck.objects[0].animation==3&&game.collideswithobject(duck.objects[0],"enemy4").ghost==false){
-                        
-                      
-                        
-                        game.collideswithobject(duck.objects[0],"enemy4").health=100;
-                        game.collideswithobject(duck.objects[0],"enemy4").ghost=true;
-                        game.collideswithobject(duck.objects[0],"enemy4").rot=90;
-                        audio2("sounds/deathsound.mp3");
-                        
-                        
-                    }
-                    else if(game.collideswiths(duck.objects[0],"enemy4")&&game.collideswithobject(duck.objects[0],"enemy4").ghost==false){
-                        duck.objects[0].health=-1;
-                        
-                    }
-                    //hpdot
-                    ctx.fillStyle = "red";
-                    ctx.font = "bold 48px serif";
-                    ctx.fillText("HP", 150, 75);
-                    ctx.fillText("$ "+money, 400, 75);
-                    
-                    
-                    
-                    immortalcount++;
-                    if(immortalcount<75)duck.objects[0].animation=8;
-                    
-                    if(duck.objects[0].health<=0){
-                        
-                        if(immortalcount<75){duck.objects[0].health=100;}
-                        else if(hpdot.objects[2].animation==0){hpdot.objects[2].animation=1;immortalcount=0;duck.objects[0].health=100;}
-                        else if(hpdot.objects[1].animation==0){hpdot.objects[1].animation=1;immortalcount=0;duck.objects[0].health=100;}
-                        else if(hpdot.objects[0].animation==0){hpdot.objects[0].animation=1;}
-                        else{
-                            duck.objects[0].animation=8;
-                            daethcounter++;
-                            if(!audio.paused)audio.pause();
-
-                            if(daethcounter==150){
-                                audio.src = 'sounds/the_moon.mp3';
-                                audio.currentTime = 0;
-                                audio.play();
-                                daethcounter=0;
-                                diecounter=0;
-                                ratlives=10;
-                                bombtime=0;
-                                money=0;
-                                gatecounter=0;
-                                havebombs=false;
-                                havekeys=false;
-                                start=false;
-                                game.load();
-                            }
-                        }
-                    }
-                 }
-                window.requestAnimationFrame(check);   
-            };check();
-            
-        </script>
-    </body>
+  document.addEventListener("click", playEffects);
+  document.addEventListener("touchstart", playEffects);
+</script>
+</body>
 </html>
