@@ -307,7 +307,7 @@
     });
   }
 
-  document.addEventListener("click", playEffects);
+  //document.addEventListener("click", playEffects);
                 const context = new (window.AudioContext || window.webkitAudioContext)();
              const audio2 = async url => {   
              const source = context.createBufferSource(); 
@@ -333,7 +333,7 @@
             
             document.addEventListener("visibilitychange", event => {
                 if (document.visibilityState === "visible") {
-                        bgMusic.pause();bgMusic.src = 'sounds/the_moon.mp3';context.resume();
+                        bgMusic.pause();bgMusic.src = 'wow.mp3';context.resume();
                         
                 }
                 else {
