@@ -5,7 +5,8 @@
         <meta charset="utf-8">
 
         
-        
+         <script src="js/Game4.js"></script>
+        <script src="js/joy.js"></script>
         
         
         
@@ -24,6 +25,10 @@
             daethcounter=0;
             var audio = new Audio('wow.mp3');
             audio.loop = true;
+             
+            game = new Game4("Spelet");
+            joy = new JoyStick('myCanvas'); 
+             
              
              const context = new (window.AudioContext || window.webkitAudioContext)();
              const audio2 = async url => {   
@@ -71,10 +76,10 @@
                 canvas.width=document.body.clientWidth;
                 canvas.height=document.body.clientHeight-8;
                  
-                ctx.fillStyle = "blue";
+                ctx.fillStyle = "red";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);  
                  
-                 
+                 game.updateanimation(ctx);
                  
                 window.requestAnimationFrame(check);   
             };check();
