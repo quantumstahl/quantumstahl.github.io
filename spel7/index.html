@@ -13,6 +13,8 @@
   <h1>5v5 Turnering</h1>
   <h2>Spelare (10)</h2>
   <div id="playerInputs"></div>
+  <label for="matchCount">Antal matcher: </label>
+  <input type="number" id="matchCount" value="5" min="1" max="20">
   <button onclick="generateRounds()">Skapa rundor</button>
 
   <h2>Rundor</h2>
@@ -53,11 +55,19 @@
         players.push({ name, role });
       }
 
+      const matchCount = parseInt(document.getElementById("matchCount").value);
+      if (isNaN(matchCount) || matchCount < 1 || matchCount > 20) {
+        alert("Ange ett giltigt antal matcher (1–20).");
+        return;
+      }
+
       rounds = [];
       results = [];
       const usedCombinations = new Set();
 
-      while (rounds.length < 5) {
+      let tries = 0;
+      while (rounds.length < matchCount && tries < 1000) {
+        tries++;
         const shuffled = [...players].sort(() => Math.random() - 0.5);
         const team1 = shuffled.slice(0, 5);
         const team2 = shuffled.slice(5);
@@ -72,6 +82,11 @@
         usedCombinations.add(key);
         rounds.push({ team1, team2 });
         results.push(null);
+      }
+
+      if (rounds.length < matchCount) {
+        alert("Kunde inte skapa tillräckligt många unika matcher. Prova färre antal matcher.");
+        return;
       }
 
       showRounds();
@@ -108,21 +123,35 @@
       }
 
       const scores = {};
-      players.forEach(p => scores[p.name] = 0);
+      const wins = {};
+      const games = {};
+      players.forEach(p => {
+        scores[p.name] = 0;
+        wins[p.name] = 0;
+        games[p.name] = 0;
+      });
 
       rounds.forEach((round, i) => {
         const winners = round[results[i]];
         const losers = results[i] === "team1" ? round.team2 : round.team1;
 
-        winners.forEach(p => scores[p.name] += 1);
-        losers.forEach(p => scores[p.name] -= 1);
+        winners.forEach(p => {
+          scores[p.name] += 1;
+          wins[p.name] += 1;
+          games[p.name] += 1;
+        });
+        losers.forEach(p => {
+          scores[p.name] -= 1;
+          games[p.name] += 1;
+        });
       });
 
       const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
       rankingList.innerHTML = "";
       sorted.forEach(([name, score]) => {
+        const percent = ((wins[name] / games[name]) * 100).toFixed(1);
         const li = document.createElement("li");
-        li.textContent = `${name} (${score} poäng)`;
+        li.textContent = `${name} (${score} poäng, ${percent}% vinster)`;
         rankingList.appendChild(li);
       });
     }
