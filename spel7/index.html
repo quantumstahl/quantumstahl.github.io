@@ -283,8 +283,12 @@
         muteBtn.textContent = isMuted ? "🔇 Unmute" : "🔈 Mute";
     }
    const originalColors = ["#2e2e2e", "#443a29", "#3a2f2f", "#2c3e50", "#2f2f2f"];
+   let conter=0;
   function randomColor() {
-    return originalColors[Math.floor(Math.random() * originalColors.length)];
+      conter++;
+      if(conter==5)conter=1;
+      
+    return originalColors[conter];
   }
 
   const originalShowRounds = showRounds;
