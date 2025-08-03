@@ -11,7 +11,9 @@
 </head>
 <body>
   <h1>5v5 Turnering</h1>
-  <h2>Spelare (10)</h2>
+  <label for="requireHealer">Måste varje lag ha en healer? </label>
+  <input type="checkbox" id="requireHealer" checked>
+  <h2>Spelare</h2>
   <div id="playerInputs"></div>
   <label for="matchCount">Antal matcher: </label>
   <input type="number" id="matchCount" value="5" min="1" max="20">
@@ -29,18 +31,23 @@
     const roundsContainer = document.getElementById("rounds");
     const rankingList = document.getElementById("rankingList");
 
-    // Skapa 10 inputfält
-    for (let i = 0; i < 10; i++) {
-      const input = document.createElement("input");
-      input.placeholder = `Namn på spelare ${i + 1}`;
-      input.id = `player${i}`;
-      const select = document.createElement("select");
-      select.id = `role${i}`;
-      select.innerHTML = `<option value="dps">DPS</option><option value="healer">Healer</option>`;
-      playerInputs.appendChild(input);
-      playerInputs.appendChild(select);
-      playerInputs.appendChild(document.createElement("br"));
+    // Funktion för att skapa spelarinmatningar
+    function createPlayerInputs() {
+      playerInputs.innerHTML = "";
+      for (let i = 0; i < 10; i++) {
+        const input = document.createElement("input");
+        input.placeholder = `Namn på spelare ${i + 1}`;
+        input.id = `player${i}`;
+        const select = document.createElement("select");
+        select.id = `role${i}`;
+        select.innerHTML = `<option value="dps">DPS</option><option value="healer">Healer</option>`;
+        playerInputs.appendChild(input);
+        playerInputs.appendChild(select);
+        playerInputs.appendChild(document.createElement("br"));
+      }
     }
+
+    createPlayerInputs();
 
     let players = [];
     let rounds = [];
@@ -48,11 +55,17 @@
 
     function generateRounds() {
       players = [];
+      const requireHealer = document.getElementById("requireHealer").checked;
+
       for (let i = 0; i < 10; i++) {
-        const name = document.getElementById(`player${i}`).value;
+        const name = document.getElementById(`player${i}`).value.trim();
         const role = document.getElementById(`role${i}`).value;
-        if (!name) return alert("Alla namn måste vara ifyllda.");
-        players.push({ name, role });
+        if (name) players.push({ name, role });
+      }
+
+      if (players.length < 4) {
+        alert("Minst 4 spelare krävs.");
+        return;
       }
 
       const matchCount = parseInt(document.getElementById("matchCount").value);
@@ -69,12 +82,15 @@
       while (rounds.length < matchCount && tries < 1000) {
         tries++;
         const shuffled = [...players].sort(() => Math.random() - 0.5);
-        const team1 = shuffled.slice(0, 5);
-        const team2 = shuffled.slice(5);
+        const mid = Math.ceil(shuffled.length / 2);
+        const team1 = shuffled.slice(0, mid);
+        const team2 = shuffled.slice(mid);
 
-        const t1H = team1.filter(p => p.role === "healer");
-        const t2H = team2.filter(p => p.role === "healer");
-        if (t1H.length !== 1 || t2H.length !== 1) continue;
+        if (requireHealer) {
+          const t1H = team1.filter(p => p.role === "healer");
+          const t2H = team2.filter(p => p.role === "healer");
+          if (t1H.length !== 1 || t2H.length !== 1) continue;
+        }
 
         const key = [...team1.map(p => p.name).sort(), ...team2.map(p => p.name).sort()].join("|");
         if (usedCombinations.has(key)) continue;
@@ -85,7 +101,7 @@
       }
 
       if (rounds.length < matchCount) {
-        alert("Kunde inte skapa tillräckligt många unika matcher. Prova färre antal matcher.");
+        alert("Kunde inte skapa tillräckligt många unika matcher. Prova färre antal matcher eller ändra inställningarna.");
         return;
       }
 
@@ -98,7 +114,7 @@
         const div = document.createElement("div");
         div.className = "team";
         div.innerHTML = `
-          <strong>Runda ${index + 1}</strong><br>
+          <strong>Runda ${index + 1} (${round.team1.length}v${round.team2.length})</strong><br>
           <b>Lag 1:</b> ${round.team1.map(p => p.name).join(", ")}<br>
           <b>Lag 2:</b> ${round.team2.map(p => p.name).join(", ")}<br>
           <label>Vinnare: </label>
