@@ -30,7 +30,7 @@
             game = new Game4("Spelet");
             joy = new JoyStick('myCanvas');
             daethcounter=0;
-            var audio = new Audio('sounds/wow.mp3');
+            var audio = new Audio('sounds/boss2.mp3');
             audio.loop = true;
              
              const context = new (window.AudioContext || window.webkitAudioContext)();
@@ -58,7 +58,7 @@
             
             document.addEventListener("visibilitychange", event => {
                 if (document.visibilityState === "visible") {
-                        audio.pause();if(game.currentmap==0)audio.src = 'sounds/wow.mp3';context.resume();
+                        audio.pause();if(game.currentmap==0)audio.src = 'sounds/boss2.mp3';context.resume();
                         
                 }
                 else {
