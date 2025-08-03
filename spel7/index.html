@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <title>5v5 Rankningssystem</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; }
+    input, button, select { margin: 0.2rem; }
+    .team { margin: 0.5rem 0; padding: 0.5rem; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <h1>5v5 Turnering</h1>
+  <h2>Spelare (10)</h2>
+  <div id="playerInputs"></div>
+  <button onclick="generateRounds()">Skapa rundor</button>
+
+  <h2>Rundor</h2>
+  <div id="rounds"></div>
+
+  <h2>Ranking</h2>
+  <button onclick="showRanking()">Beräkna ranking</button>
+  <ol id="rankingList"></ol>
+
+  <script>
+    const playerInputs = document.getElementById("playerInputs");
+    const roundsContainer = document.getElementById("rounds");
+    const rankingList = document.getElementById("rankingList");
+
+    // Skapa 10 inputfält
+    for (let i = 0; i < 10; i++) {
+      const input = document.createElement("input");
+      input.placeholder = `Namn på spelare ${i + 1}`;
+      input.id = `player${i}`;
+      const select = document.createElement("select");
+      select.id = `role${i}`;
+      select.innerHTML = `<option value="dps">DPS</option><option value="healer">Healer</option>`;
+      playerInputs.appendChild(input);
+      playerInputs.appendChild(select);
+      playerInputs.appendChild(document.createElement("br"));
+    }
+
+    let players = [];
+    let rounds = [];
+    let results = [];
+
+    function generateRounds() {
+      players = [];
+      for (let i = 0; i < 10; i++) {
+        const name = document.getElementById(`player${i}`).value;
+        const role = document.getElementById(`role${i}`).value;
+        if (!name) return alert("Alla namn måste vara ifyllda.");
+        players.push({ name, role });
+      }
+
+      rounds = [];
+      results = [];
+      const usedCombinations = new Set();
+
+      while (rounds.length < 5) {
+        const shuffled = [...players].sort(() => Math.random() - 0.5);
+        const team1 = shuffled.slice(0, 5);
+        const team2 = shuffled.slice(5);
+
+        const t1H = team1.filter(p => p.role === "healer");
+        const t2H = team2.filter(p => p.role === "healer");
+        if (t1H.length !== 1 || t2H.length !== 1) continue;
+
+        const key = [...team1.map(p => p.name).sort(), ...team2.map(p => p.name).sort()].join("|");
+        if (usedCombinations.has(key)) continue;
+
+        usedCombinations.add(key);
+        rounds.push({ team1, team2 });
+        results.push(null);
+      }
+
+      showRounds();
+    }
+
+    function showRounds() {
+      roundsContainer.innerHTML = "";
+      rounds.forEach((round, index) => {
+        const div = document.createElement("div");
+        div.className = "team";
+        div.innerHTML = `
+          <strong>Runda ${index + 1}</strong><br>
+          <b>Lag 1:</b> ${round.team1.map(p => p.name).join(", ")}<br>
+          <b>Lag 2:</b> ${round.team2.map(p => p.name).join(", ")}<br>
+          <label>Vinnare: </label>
+          <select onchange="setWinner(${index}, this.value)">
+            <option value="">-</option>
+            <option value="team1">Lag 1</option>
+            <option value="team2">Lag 2</option>
+          </select>
+        `;
+        roundsContainer.appendChild(div);
+      });
+    }
+
+    function setWinner(index, value) {
+      results[index] = value;
+    }
+
+    function showRanking() {
+      if (results.includes(null)) {
+        alert("Alla rundor måste ha en vinnare.");
+        return;
+      }
+
+      const scores = {};
+      players.forEach(p => scores[p.name] = 0);
+
+      rounds.forEach((round, i) => {
+        const winners = round[results[i]];
+        const losers = results[i] === "team1" ? round.team2 : round.team1;
+
+        winners.forEach(p => scores[p.name] += 1);
+        losers.forEach(p => scores[p.name] -= 1);
+      });
+
+      const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+      rankingList.innerHTML = "";
+      sorted.forEach(([name, score]) => {
+        const li = document.createElement("li");
+        li.textContent = `${name} (${score} poäng)`;
+        rankingList.appendChild(li);
+      });
+    }
+  </script>
+</body>
+</html>
