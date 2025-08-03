@@ -2,38 +2,82 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
-  <title>Rankningssystem</title>
+  <title>Turnering (Fantasy Edition)</title>
   <style>
-    body { font-family: sans-serif; padding: 1rem; }
-    input, button, select { margin: 0.2rem; }
-    .team { margin: 0.5rem 0; padding: 0.5rem; border: 1px solid #ccc; }
+    body {
+      font-family: 'Papyrus', fantasy;
+      background: #1c1c1c;
+      color: #f2e8c9;
+      padding: 1rem;
+      text-align: center;
+    }
+    h1, h2 {
+      color: #ffe680;
+      text-shadow: 1px 1px #000;
+    }
+    input, button, select {
+      margin: 0.2rem;
+      padding: 0.3rem 0.6rem;
+      border-radius: 5px;
+      border: 1px solid #8c7c5b;
+      background: #2e2e2e;
+      color: #f2e8c9;
+    }
+    button {
+      background-color: #5e4b2b;
+      color: #ffe680;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #7b5f36;
+    }
+    .team {
+      margin: 0.5rem 0;
+      padding: 0.5rem;
+      border: 1px solid #8c7c5b;
+      background: #2e2e2e;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
     .compact input { width: 120px; }
     .hidden { display: none; }
+    ol#rankingList li:nth-child(1) { color: gold; font-weight: bold; }
+    ol#rankingList li:nth-child(2) { color: silver; }
+    ol#rankingList li:nth-child(3) { color: peru; }
+    
+    ol#rankingList {
+  list-style-position: inside;
+  padding-left: 0;
+  text-align: center;
+
+  margin: 0 auto;
+}
+    
   </style>
 </head>
 <body>
-  <h1>Turnering</h1>
-  <label for="requireHealer">Måste varje lag ha en healer? </label>
+  <h1>⚔️ Turnering: Hjältarnas Prövning ⚔️</h1>
+  <label for="requireHealer">🧙‍♀️ Måste varje lag ha en healer? </label>
   <input type="checkbox" id="requireHealer" checked>
   <br>
-  <label for="teamSize">Lagstorlek: </label>
+  <label for="teamSize">👥 Lagstorlek: </label>
   <select id="teamSize" onchange="adjustInputSize()">
     <option value="2">2v2</option>
     <option value="3">3v3</option>
     <option value="5" selected>5v5</option>
   </select>
 
-  <h2>Spelare</h2>
+  <h2>🧝‍♂️ Hjältar</h2>
   <div id="playerInputs"></div>
-  <label for="matchCount">Antal matcher: </label>
+  <label for="matchCount">🌀 Antal matcher: </label>
   <input type="number" id="matchCount" value="5" min="1" max="20">
-  <button onclick="generateRounds()">Skapa rundor</button>
+  <button onclick="generateRounds()">🎮 Skapa rundor</button>
 
-  <h2>Rundor</h2>
+  <h2>🗡️ Strider</h2>
   <div id="rounds"></div>
 
-  <h2>Ranking</h2>
-  <button onclick="showRanking()">Beräkna ranking</button>
+  <h2>🏅 Ranking</h2>
+  <button onclick="showRanking()">🔮 Beräkna ranking</button>
   <ol id="rankingList"></ol>
 
   <script>
@@ -47,7 +91,7 @@
         const container = document.createElement("div");
         container.id = `playerContainer${i}`;
         const input = document.createElement("input");
-        input.placeholder = `Namn på spelare ${i + 1}`;
+        input.placeholder = `Namn på hjälte ${i + 1}`;
         input.id = `player${i}`;
         const select = document.createElement("select");
         select.id = `role${i}`;
@@ -98,7 +142,7 @@
       }
 
       if (players.length < teamSize * 2) {
-        alert(`Minst ${teamSize * 2} spelare krävs för ${teamSize}v${teamSize}.`);
+        alert(`Minst ${teamSize * 2} hjältar krävs för ${teamSize}v${teamSize}.`);
         return;
       }
 
@@ -116,13 +160,28 @@
         const team1 = shuffled.slice(0, teamSize);
         const team2 = shuffled.slice(teamSize, teamSize * 2);
 
-        if (requireHealer) {
-          const t1H = team1.filter(p => p.role === "healer");
-          const t2H = team2.filter(p => p.role === "healer");
-          if (t1H.length !== 1 || t2H.length !== 1) {
-            i--;
-            continue;
+        let attempt = 0;
+        let success = false;
+        while (attempt < 50 && !success) {
+          attempt++;
+          const shuffled = [...players].sort(() => Math.random() - 0.5);
+          const team1 = shuffled.slice(0, teamSize);
+          const team2 = shuffled.slice(teamSize, teamSize * 2);
+
+          if (requireHealer) {
+            const t1H = team1.filter(p => p.role === "healer");
+            const t2H = team2.filter(p => p.role === "healer");
+            if (t1H.length !== 1 || t2H.length !== 1) continue;
           }
+
+        
+          success = true;
+        }
+
+        if (!success) {
+            
+          alert("Kunde inte skapa tillräckligt balanserade matcher. Kontrollera att det finns tillräckligt med healers.");
+          break;
         }
 
         rounds.push({ team1, team2 });
@@ -138,9 +197,9 @@
         const div = document.createElement("div");
         div.className = "team";
         div.innerHTML = `
-          <strong>Runda ${index + 1} (${round.team1.length}v${round.team2.length})</strong><br>
-          <b>Lag 1:</b> ${round.team1.map(p => p.name).join(", ")}<br>
-          <b>Lag 2:</b> ${round.team2.map(p => p.name).join(", ")}<br>
+          <strong>🧩 Runda ${index + 1} (${round.team1.length}v${round.team2.length})</strong><br>
+          <b>⚔️ Lag 1:</b> ${round.team1.map(p => p.name).join(", ")}<br>
+          <b>🛡️ Lag 2:</b> ${round.team2.map(p => p.name).join(", ")}<br>
           <label>Vinnare: </label>
           <select onchange="setWinner(${index}, this.value)">
             <option value="">-</option>
@@ -181,19 +240,73 @@
           games[p.name] += 1;
         });
         losers.forEach(p => {
-          games[p.name] += 1; // Förlust ger 0 poäng
+          games[p.name] += 1;
         });
       });
 
       const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
       rankingList.innerHTML = "";
-      sorted.forEach(([name, score]) => {
+      sorted.forEach(([name, score], i) => {
         const percent = ((wins[name] / games[name]) * 100).toFixed(1);
         const li = document.createElement("li");
         li.textContent = `${name} (${score} poäng, ${percent}% vinster)`;
         rankingList.appendChild(li);
       });
+
+      const winner = sorted[0][0];
+      const message = document.createElement("p");
+      message.innerHTML = `<strong>🏆 ${winner} är turneringens mästare! 🥳</strong>`;
+      rankingList.parentElement.appendChild(message);
     }
   </script>
+<audio id="bgMusic" src="wow.mp3" loop></audio>
+<button id="muteBtn" onclick="toggleMute()">🔈 Mute</button>
+<script>
+  const bgMusic = document.getElementById("bgMusic");
+  let bgStarted = false;
+  let isMuted = false;
+  
+  function playEffects() {
+    if (!bgStarted) {
+      bgMusic.volume = 0.3;
+      bgMusic.play();
+      bgStarted = true;
+    }
+    }
+    function toggleMute() {
+        isMuted = !isMuted;
+        bgMusic.muted = isMuted;
+        muteBtn.textContent = isMuted ? "🔇 Unmute" : "🔈 Mute";
+    }
+   const originalColors = ["#2e2e2e", "#443a29", "#3a2f2f", "#2c3e50", "#2f2f2f"];
+  function randomColor() {
+    return originalColors[Math.floor(Math.random() * originalColors.length)];
+  }
+
+  const originalShowRounds = showRounds;
+  showRounds = function() {
+    roundsContainer.innerHTML = "";
+    rounds.forEach((round, index) => {
+      const div = document.createElement("div");
+      div.className = "team";
+      div.style.background = randomColor();
+      div.innerHTML = `
+        <strong>🧩 Runda ${index + 1} (${round.team1.length}v${round.team2.length})</strong><br>
+        <b>⚔️ Lag 1:</b> ${round.team1.map(p => p.name).join(", ")}<br>
+        <b>🛡️ Lag 2:</b> ${round.team2.map(p => p.name).join(", ")}<br>
+        <label>Vinnare: </label>
+        <select onchange="setWinner(${index}, this.value)">
+          <option value="">-</option>
+          <option value="team1">Lag 1</option>
+          <option value="team2">Lag 2</option>
+        </select>
+      `;
+      roundsContainer.appendChild(div);
+    });
+  }
+
+  document.addEventListener("click", playEffects);
+  document.addEventListener("touchstart", playEffects);
+</script>
 </body>
 </html>
