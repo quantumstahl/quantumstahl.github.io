@@ -598,22 +598,11 @@ class Game4 {
               
                     }
                     else {
-                        if (-(this.maps[this.currentmap].camerax / 100 * this.maps[this.currentmap].layer[i2].moving) - o.dimx <= o.x + o.dimx &&
-                            ((o.dimx + document.body.clientWidth / (1 + (1 * this.maps[this.currentmap].zoom / 100)) - 8 + 300) - (this.maps[this.currentmap].camerax / 100 * this.maps[this.currentmap].layer[i2].moving)) >= o.x + o.dimx &&
-                            -(this.maps[this.currentmap].cameray / 100 * this.maps[this.currentmap].layer[i2].moving) - o.dimy <= o.y + o.dimy+300 &&
-                            ((o.dimy + document.body.clientHeight / (1 + (1 * this.maps[this.currentmap].zoom / 100)) - 8 + 300) - (this.maps[this.currentmap].cameray / 100 * this.maps[this.currentmap].layer[i2].moving)) >= o.y + o.dimy) {
-                            
-                            o.rakna = o.x - o.freex;
-                            o.rakna2 = o.y - o.freey;
-                            o.x = o.freex;
-                            o.y = o.freey;
-                        }
-                        else {
-                            o.rakna = 0;
-                            o.rakna2 = 0;
-                            o.freex = o.x;
-                            o.freey = o.y;
-                        }
+                        o.rakna = o.x - o.freex;
+                        o.rakna2 = o.y - o.freey;
+                        o.x = o.freex;
+                        o.y = o.freey;
+                        
                     }
                 }
             }
