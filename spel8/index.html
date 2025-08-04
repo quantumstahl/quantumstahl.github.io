@@ -1,0 +1,123 @@
+
+<html>
+    <head>
+        <meta name="viewport" content="user-scalable=no, shrink-to-fit=no">
+        <meta charset="utf-8">
+        <meta name="keywords" content="mobilspel, mobilegames, js games, javascript games">
+        <link rel="icon" href="images/guarddown1.png" type="image/vnd.microsoft.icon" />
+	<title>Test4</title>
+        
+        <script src="js/Game4.js"></script>
+        
+        
+        
+        
+    </head>
+    <body>
+        <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
+        
+        <script>
+            function mobileAndTabletCheck() {const isMobile = {Android: function() {return navigator.userAgent.match(/Android/i);},BlackBerry: function() {return navigator.userAgent.match(/BlackBerry/i);},iOS: function() {return navigator.userAgent.match(/iPhone|iPod/i);},Opera: function() {return navigator.userAgent.match(/Opera Mini/i);},Windows: function() {return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i);},any: function() {return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows()|| (navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints && navigator.maxTouchPoints > 1));}};return isMobile.any();}
+
+
+            const canvas = document.getElementById("myCanvas");
+            const ctx = canvas.getContext("2d");
+            document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
+            document.getElementById("myCanvas").style.width=window.innerWidth;
+            document.getElementById("myCanvas").style.height=window.innerHeight;
+
+            game = new Game4("Spelet");
+            var audio = new Audio('sounds/wow.mp3');
+            audio.loop = true;
+             
+             const context = new (window.AudioContext || window.webkitAudioContext)();
+             const audio2 = async url => {   
+             const source = context.createBufferSource(); 
+                const audioBuffer = await fetch(url)
+                  .then(res => res.arrayBuffer())
+                  .then(ArrayBuffer => context.decodeAudioData(ArrayBuffer)); 
+                source.buffer = audioBuffer;
+                source.connect(context.destination);
+                source.start();
+            };
+
+            
+            document.addEventListener("touchstart" , function(e) {
+                e.preventDefault();
+                    try{if(audio.paused){ 
+                        audio.play();
+                    }
+                    }catch(error){};
+                    if(context.state === 'suspended'){context.suspend();context.resume();}           
+            });
+
+            
+            
+            document.addEventListener("visibilitychange", event => {
+                if (document.visibilityState === "visible") {
+                        audio.pause();if(game.currentmap==0)audio.src = 'sounds/the_moon.mp3';context.resume();
+                        
+                }
+                else {
+                   audio.pause(); audio.src = "";context.suspend();
+              }
+          });
+
+            
+            
+            
+            let keysPressed = {};
+                document.addEventListener('keydown', (event) => {
+                keysPressed[event.key] = true;
+               
+                try{if(audio.paused){ 
+                        audio.play();
+                    }
+                }catch(error){};
+             });
+
+            
+            
+            
+            
+            
+            
+            
+             var check = function(){
+                 
+                
+                 
+                canvas.width=document.body.clientWidth;
+                canvas.height=document.body.clientHeight-8;
+                 
+                ctx.fillStyle = "black";
+                ctx.fillRect(0, 0, canvas.width, canvas.height); 
+                
+                game.updateanimation(ctx);
+                    
+                guard =game.getobjecttype("guard"); 
+                
+                if(guard!=null){
+                    for(let i=0;i<guard.objects.length;i++){
+
+                        guard.objects[i].selectable=true;
+                        
+                        if ( guard.objects[i].direction === "up")  guard.objects[i].animation = 0;
+                        else if ( guard.objects[i].direction === "right")  guard.objects[i].animation = 1;
+                        else if ( guard.objects[i].direction === "down")  guard.objects[i].animation = 2;
+                        else if ( guard.objects[i].direction === "left")  guard.objects[i].animation = 3;
+                        
+                        
+
+                    }
+                
+                }
+                 
+                 
+                 
+                window.requestAnimationFrame(check);   
+            };check();
+            
+        </script>
+    </body>
+</html>
