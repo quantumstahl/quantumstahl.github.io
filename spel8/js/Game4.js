@@ -84,6 +84,7 @@ let dragSelectStart = null;
 let dragSelectEnd = null;
 let lastPanX = null;
 let lastPanY = null;
+let dragWasActive = false;
 
 class Game4 {
     
@@ -151,6 +152,7 @@ class Game4 {
                 const x = e.touches[0].clientX / zoomFactor - currentMap.camerax;
                 const y = e.touches[0].clientY / zoomFactor - currentMap.cameray;
                 dragSelectEnd = { x, y };
+                dragWasActive = true;
             }
             if (e.touches.length === 2 && lastPanX !== null && lastPanY !== null) {
                 const currentMap = game.maps[game.currentmap];
@@ -224,9 +226,10 @@ class Game4 {
             }
             dragSelectStart = null;
             dragSelectEnd = null;
+            dragWasActive = false;
             
             
-            if (e.changedTouches.length === 1 && !dragSelectStart && !dragSelectEnd) {
+            if (e.changedTouches.length === 1 && !dragWasActive) {
                 const currentMap = game.maps[game.currentmap];
                 const zoomFactor = 1 + (1 * currentMap.zoom / 100);
                 const x = e.changedTouches[0].clientX / zoomFactor - currentMap.camerax;
