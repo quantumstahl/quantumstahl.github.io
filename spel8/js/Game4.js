@@ -267,7 +267,7 @@ class Game4 {
             }
             
             dragWasActive = false;
-            allowSingleTap = true;
+            
         });
         
         canvas.addEventListener("mousedown", function(e) {
