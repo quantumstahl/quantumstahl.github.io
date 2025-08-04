@@ -82,6 +82,8 @@ var colli;
 let counter;
 let dragSelectStart = null;
 let dragSelectEnd = null;
+let lastPanX = null;
+let lastPanY = null;
 
 class Game4 {
     
@@ -136,6 +138,10 @@ class Game4 {
                 dragSelectStart = { x, y };
                 dragSelectEnd = null;
             }
+            if (e.touches.length === 2) {
+                lastPanX = e.touches[0].clientX;
+                lastPanY = e.touches[0].clientY;
+            }
             
         });
         canvas.addEventListener("touchmove", function(e) {
@@ -145,6 +151,20 @@ class Game4 {
                 const x = e.touches[0].clientX / zoomFactor - currentMap.camerax;
                 const y = e.touches[0].clientY / zoomFactor - currentMap.cameray;
                 dragSelectEnd = { x, y };
+            }
+            if (e.touches.length === 2 && lastPanX !== null && lastPanY !== null) {
+                const currentMap = game.maps[game.currentmap];
+
+                const deltaX = e.touches[0].clientX - lastPanX;
+                const deltaY = e.touches[0].clientY - lastPanY;
+
+                currentMap.camerax -= deltaX;
+                currentMap.cameray -= deltaY;
+
+                lastPanX = e.touches[0].clientX;
+                lastPanY = e.touches[0].clientY;
+
+                e.preventDefault(); // förhindra att sidan scrollar
             }
         });
         canvas.addEventListener("touchend", function(e) {
@@ -204,6 +224,27 @@ class Game4 {
             }
             dragSelectStart = null;
             dragSelectEnd = null;
+            
+            
+            if (e.changedTouches.length === 1 && !dragSelectStart && !dragSelectEnd) {
+                const currentMap = game.maps[game.currentmap];
+                const zoomFactor = 1 + (1 * currentMap.zoom / 100);
+                const x = e.changedTouches[0].clientX / zoomFactor - currentMap.camerax;
+                const y = e.changedTouches[0].clientY / zoomFactor - currentMap.cameray;
+
+                for (let obj of game.getAllObjects()) {
+                    if (obj.selected) {
+                        obj.targetX = x;
+                        obj.targetY = y;
+                    }
+                }
+            }
+            if (e.touches.length < 2) {
+                lastPanX = null;
+                lastPanY = null;
+            }
+            
+            
         });
         
         canvas.addEventListener("mousedown", function(e) {
