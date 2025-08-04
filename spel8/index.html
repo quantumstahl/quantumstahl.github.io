@@ -174,11 +174,7 @@
                 if (buildMode && ghostBuilding) {
                     
 
-                    // Kolla platsen först
-                    if (!isBuildPlacementValid(ghostBuilding)) {
-                        console.log("Ogiltig plats – avbryter");
-                        return;
-                    }
+                    
 
                     // Placera byggnaden
                     ghostBuilding.ghost = false;
