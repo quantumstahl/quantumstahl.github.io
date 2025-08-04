@@ -168,39 +168,37 @@
             });
             
             document.addEventListener("touchend", function(e) {
-                                    if (e.target.closest("#build-ui")) {
-        return;
-    }
-    if(isBuildPlacementValid(ghostBuilding)==false)return;
-    
-                if (buildMode && ghostBuilding) {
-                    const currentMap = game.maps[game.currentmap];
-                    const x = ghostBuilding.x;
-                    const y = ghostBuilding.y;
+                if (e.target.closest("#build-ui")) return;
 
-                    
-                  
+                if (buildMode && ghostBuilding) {
+                    // Säkerställ att kollisionsdata är uppdaterad
+                    game.collisionEngine();
+
+                    // Kolla platsen först
+                    if (!isBuildPlacementValid(ghostBuilding)) {
+                        console.log("Ogiltig plats – avbryter");
+                        return;
+                    }
+
+                    // Placera byggnaden
                     ghostBuilding.ghost = false;
                     ghostBuilding.selectable = true;
-                    ghostBuilding.canMove=false;
-                    
+                    ghostBuilding.canMove = false;
+                    ghostBuilding.buildProgress = 0;
+
                     pendingBuilds.push(ghostBuilding);
-                    
-                                            // Tilldela sparade workers detta bygge:
-                        for (let w of selectedWorkersBeforeBuild) {
-                            w.targetX = ghostBuilding.x;
-                            w.targetY = ghostBuilding.y;
-                            w.buildingTarget = ghostBuilding;
-                        }
 
-                        // Rensa och avsluta
-                        selectedWorkersBeforeBuild = [];
-                        buildMode = false;
-                        buildType = null;
-                        ghostBuilding = null;
+                    for (let w of selectedWorkersBeforeBuild) {
+                        w.targetX = ghostBuilding.x;
+                        w.targetY = ghostBuilding.y;
+                        w.buildingTarget = ghostBuilding;
+                    }
+
+                    selectedWorkersBeforeBuild = [];
+                    buildMode = false;
+                    buildType = null;
+                    ghostBuilding = null;
                 }
-
-                
             });
             
             
