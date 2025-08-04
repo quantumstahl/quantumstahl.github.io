@@ -65,7 +65,9 @@
                 source.connect(context.destination);
                 source.start();
             };
-
+            window.allowSelection = function() {
+                return !buildMode; // tillåt bara selektion när man inte bygger
+            };
             
             document.addEventListener("touchstart" , function(e) {
                 e.preventDefault();
