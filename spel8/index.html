@@ -135,6 +135,11 @@
             buildMode = true;
             buildType = "base";
             selectedWorkersBeforeBuild = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
+            game.getAllObjects().forEach(o => {
+                if (!selectedWorkersBeforeBuild.includes(o)) {
+                    o.selected = false;
+                }
+            });
             ghostBuilding = game.addobject(game.getobjecttype("base"), 0, 0, 150, 150, 0, false);
             ghostBuilding.ghost = true;
             ghostBuilding.selectable = false;
