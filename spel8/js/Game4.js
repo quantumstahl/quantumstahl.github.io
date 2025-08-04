@@ -226,7 +226,7 @@ class Game4 {
             }
             dragSelectStart = null;
             dragSelectEnd = null;
-            dragWasActive = false;
+            
             
             
             if (e.changedTouches.length === 1 && !dragWasActive) {
@@ -247,7 +247,7 @@ class Game4 {
                 lastPanY = null;
             }
             
-            
+            dragWasActive = false;
         });
         
         canvas.addEventListener("mousedown", function(e) {
