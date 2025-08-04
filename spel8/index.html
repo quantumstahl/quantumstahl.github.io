@@ -142,18 +142,23 @@
             
             
             document.addEventListener("touchmove", function(e) {
-            
+                                if (e.target.closest("#build-ui")) {
+        return;
+    }
                 if (buildMode && ghostBuilding) {
                 let zoomFactor = 1 + (1 * game.maps[game.currentmap].zoom / 100);
                 let touch = e.touches[0];
-                ghostBuilding.x = touch.clientX ;
-                ghostBuilding.y = touch.clientY ;
+                ghostBuilding.x = touch.clientX / zoomFactor - game.maps[game.currentmap].camerax - ghostBuilding.dimx / 2;
+                ghostBuilding.y = touch.clientY / zoomFactor - game.maps[game.currentmap].cameray - ghostBuilding.dimy / 2;
             }
             
             
             });
             
             document.addEventListener("touchend", function(e) {
+                                    if (e.target.closest("#build-ui")) {
+        return;
+    }
                 if (buildMode && ghostBuilding) {
                     const currentMap = game.maps[game.currentmap];
                     const x = ghostBuilding.x;
@@ -180,7 +185,7 @@
                         buildType = null;
                         ghostBuilding = null;
                 }
-                
+
                 
             });
             
