@@ -158,8 +158,8 @@ class Game4 {
                 const deltaX = e.touches[0].clientX - lastPanX;
                 const deltaY = e.touches[0].clientY - lastPanY;
 
-                currentMap.camerax -= deltaX;
-                currentMap.cameray -= deltaY;
+                currentMap.camerax += deltaX;
+                currentMap.cameray += deltaY;
 
                 lastPanX = e.touches[0].clientX;
                 lastPanY = e.touches[0].clientY;
@@ -169,6 +169,23 @@ class Game4 {
         });
         canvas.addEventListener("touchend", function(e) {
             e.preventDefault();
+            
+            
+            if (e.changedTouches.length === 1 && !dragSelectStart && !dragSelectEnd) {
+                const currentMap = game.maps[game.currentmap];
+                const zoomFactor = 1 + (1 * currentMap.zoom / 100);
+                const x = e.changedTouches[0].clientX / zoomFactor - currentMap.camerax;
+                const y = e.changedTouches[0].clientY / zoomFactor - currentMap.cameray;
+
+                for (let obj of game.getAllObjects()) {
+                    if (obj.selected) {
+                        obj.targetX = x;
+                        obj.targetY = y;
+                    }
+                }
+            }
+            
+            
             const currentMap = game.maps[game.currentmap];
             const zoomFactor = 1 + (1 * currentMap.zoom / 100);
             if (e.touches.length == 0) {
@@ -226,19 +243,7 @@ class Game4 {
             dragSelectEnd = null;
             
             
-            if (e.changedTouches.length === 1 && !dragSelectStart && !dragSelectEnd) {
-                const currentMap = game.maps[game.currentmap];
-                const zoomFactor = 1 + (1 * currentMap.zoom / 100);
-                const x = e.changedTouches[0].clientX / zoomFactor - currentMap.camerax;
-                const y = e.changedTouches[0].clientY / zoomFactor - currentMap.cameray;
-
-                for (let obj of game.getAllObjects()) {
-                    if (obj.selected) {
-                        obj.targetX = x;
-                        obj.targetY = y;
-                    }
-                }
-            }
+            
             if (e.touches.length < 2) {
                 lastPanX = null;
                 lastPanY = null;
