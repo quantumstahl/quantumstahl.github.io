@@ -1146,6 +1146,9 @@ class Object {
         this.direction = "up";
         this.canMove = true;
         this.buildProgress=0;
+        this.workobject=null;
+        this.deliveryTarget=null;
+        this.returning=false;
     }
     collideslist(maps, currentmap, dir) {
         for (let i2 = 0; i2 < maps[currentmap].layer.length; i2++) {

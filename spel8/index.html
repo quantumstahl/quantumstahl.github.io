@@ -129,6 +129,7 @@
             let ghostBuilding = null;
             let pendingBuilds = [];
             let selectedWorkersBeforeBuild = [];
+            let selectedWorkers = [];
             let lastTouchPos = null;
             
             document.getElementById("build-base-btn").addEventListener("click", function() {
@@ -237,6 +238,16 @@
                         buildType = null;
                         ghostBuilding = null;
                 }
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
             });
             
             
@@ -261,6 +272,9 @@
                 if (keyState.a) currentMap.camerax += camSpeed;
                 if (keyState.d) currentMap.camerax -= camSpeed;
                 
+                
+                
+                
                 let anyWorkerSelected = false;
                 if (game.maps.length > 0) {
                     const workers = game.getobjecttype("worker");
@@ -275,8 +289,8 @@
                     
                 guard =game.getobjecttype("guard"); 
                 worker =game.getobjecttype("worker"); 
-                
-                
+                 tree =game.getobjecttype("tree"); 
+                 goldmine =game.getobjecttype("goldmine"); 
                 
                 if (buildMode && ghostBuilding&& lastTouchPos === null) {
                     let zoomFactor = 1 + (1 * game.maps[game.currentmap].zoom / 100);
@@ -286,10 +300,29 @@
                 
                 
                 
+                
+                
+                
+                
+                
                 if(guard!=null){
                     
+                    selectedWorkers = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
+                    for(let i=0;i<goldmine.objects.length;i++){
+                    
+                    if(goldmine.objects[i].mousepressed==true&&anyWorkerSelected){
+                        
+                        for (let w of selectedWorkers) {
+                            
+                            w.workobject=goldmine.objects[i];
+                        }
+                        
+                        
+                        
+                    }
                     
                     
+                }
                     
                     
                     for(let i=0;i<guard.objects.length;i++){
@@ -343,9 +376,70 @@
                                 
                             }
                         }
+                        if(worker.objects[i].workobject!=null&&worker.objects[i].returning==false){
+                            
+                         
+                            worker.objects[i].targetX = worker.objects[i].workobject.x;
+                            worker.objects[i].targetY = worker.objects[i].workobject.y;
+                            
+                            
+                            
+                            let dx = worker.objects[i].x - worker.objects[i].workobject.x;
+                            let dy = worker.objects[i].y - worker.objects[i].workobject.y;
+                            let dist = Math.sqrt(dx * dx + dy * dy);
+                            if (dist < 170&&worker.objects[i].counter<202) {
+                                worker.objects[i].animation=100;
+                                worker.objects[i].counter++;
+                                
+                            }
+                            if (worker.objects[i].counter > 200) {
+                                // Hitta närmsta base
+                                
+                                let bases = game.getAllObjectsoftype(game.getobjecttype("base")).filter(b => b.buildProgress == null);
+                                let closest = null;
+                                let closestDist = Infinity;
+                                for (let b of bases) {
+                                    let dx = worker.objects[i].x - b.x;
+                                    let dy = worker.objects[i].y - b.y;
+                                    let dist = Math.sqrt(dx * dx + dy * dy);
+                                    if (dist < closestDist) {
+                                        closestDist = dist;
+                                        closest = b;
+                                    }
+                                }
 
+                                if (closest) {
+                                    
+                                    worker.objects[i].targetX = closest.x;
+                                    worker.objects[i].targetY = closest.y;
+                                    worker.objects[i].returning = true; // ny flagga
+                                    worker.objects[i].deliveryTarget = closest;
+                                }
+
+                                
+                            }
+                            
+                            
+                        }
                    
-                        
+                        if (worker.objects[i].returning && worker.objects[i].deliveryTarget) {
+                            let dx = worker.objects[i].x - worker.objects[i].deliveryTarget.x;
+                            let dy = worker.objects[i].y - worker.objects[i].deliveryTarget.y;
+                            let dist = Math.sqrt(dx * dx + dy * dy);
+                            if (dist < 170) {
+                                // Levererat resurser!
+                                worker.objects[i].returning = false;
+                                worker.objects[i].deliveryTarget = null;
+                                worker.objects[i].counter = 0;
+                                worker.objects[i].animation = 0; // idle
+                                
+                               
+                                
+                                
+                                // (Valfritt) Öka guldmängd här
+                                // gold += 10;
+                            }
+                        }
                         
                         
                         
