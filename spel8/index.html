@@ -127,7 +127,7 @@
             let ghostBuilding = null;
             let pendingBuilds = [];
             let selectedWorkersBeforeBuild = [];
-            
+            let lastTouchPos = null;
             
             document.getElementById("build-base-btn").addEventListener("click", function() {
             buildMode = true;
@@ -146,14 +146,16 @@
         return;
     }
     
-    cursorX=touch.clientX;
-            cursorY=touch.clientY;
-                if (buildMode && ghostBuilding) {
-                let zoomFactor = 1 + (1 * game.maps[game.currentmap].zoom / 100);
-                let touch = e.touches[0];
-                ghostBuilding.x = touch.clientX / zoomFactor - game.maps[game.currentmap].camerax - ghostBuilding.dimx / 2;
-                ghostBuilding.y = touch.clientY / zoomFactor - game.maps[game.currentmap].cameray - ghostBuilding.dimy / 2;
-            }
+              if (buildMode && ghostBuilding) {
+    let zoomFactor = 1 + (1 * game.maps[game.currentmap].zoom / 100);
+    let touch = e.touches[0];
+    lastTouchPos = {
+        x: touch.clientX / zoomFactor - game.maps[game.currentmap].camerax - ghostBuilding.dimx / 2,
+        y: touch.clientY / zoomFactor - game.maps[game.currentmap].cameray - ghostBuilding.dimy / 2
+    };
+    ghostBuilding.x = lastTouchPos.x;
+    ghostBuilding.y = lastTouchPos.y;
+}
             
             
             });
@@ -198,6 +200,7 @@
             document.addEventListener("mousemove", function(e) {
                 cursorX = e.clientX;
                 cursorY = e.clientY;
+                lastTouchPos = null; // ← detta säger "vi är i PC-läge"
             });
             document.addEventListener("mousedown", function(e) {
                 if (buildMode && ghostBuilding) {
@@ -267,7 +270,7 @@
                 
                 
                 
-                if (buildMode && ghostBuilding) {
+                if (buildMode && ghostBuilding&& lastTouchPos === null) {
                     let zoomFactor = 1 + (1 * game.maps[game.currentmap].zoom / 100);
                     ghostBuilding.x = cursorX / zoomFactor - game.maps[game.currentmap].camerax - ghostBuilding.dimx / 2;
                     ghostBuilding.y = cursorY / zoomFactor - game.maps[game.currentmap].cameray - ghostBuilding.dimy / 2;
