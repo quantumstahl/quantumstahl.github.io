@@ -333,7 +333,6 @@ function generateRounds() {
         
     try{if(bgMusic.paused&&musicstopped==false){ 
        bgMusic.play();
-       bgMusic.volume = 0.3;
     }
     }catch(error){};  
     }
@@ -388,7 +387,6 @@ document.addEventListener("visibilitychange", () => {
             bgMusic.src = "wow.mp3"; // Re-assign the source
             bgMusic.load(); // Load the new source
             bgMusic.play().catch(e => console.log("Autoplay prevented:", e)); // Attempt to play, catch potential autoplay errors
-            bgMusic.volume = 0.3; // Ensure volume is set
             musicstopped = false; // Mark that music is no longer stopped by visibility
         }
     }
