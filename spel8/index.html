@@ -169,8 +169,8 @@
             });
             
             document.addEventListener("touchend", function(e) {
-                 if(isBuildPlacementValid(ghostBuilding)==false){alert("JAAA");return;}
-                 else{alert("NEJJ");}
+                 if(ghostBuilding!=null&&isBuildPlacementValid(ghostBuilding)==false){alert("JAAA2");return;}
+        
                 if (buildMode && ghostBuilding) {
                     const currentMap = game.maps[game.currentmap];
                     const x = ghostBuilding.x;
@@ -186,9 +186,9 @@
                     
                                             // Tilldela sparade workers detta bygge:
                         for (let w of selectedWorkersBeforeBuild) {
-                            w.targetX = ghostBuilding.x;
-                            w.targetY = ghostBuilding.y;
-                            w.buildingTarget = ghostBuilding;
+                            //w.targetX = ghostBuilding.x;
+                            //w.targetY = ghostBuilding.y;
+                           // w.buildingTarget = ghostBuilding;
                         }
 
                         // Rensa och avsluta
