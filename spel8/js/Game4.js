@@ -85,6 +85,8 @@ let dragSelectEnd = null;
 let lastPanX = null;
 let lastPanY = null;
 let dragWasActive = false;
+let tapTimeout = null;
+let allowSingleTap = true;
 
 class Game4 {
     
@@ -143,6 +145,23 @@ class Game4 {
                 lastPanX = e.touches[0].clientX;
                 lastPanY = e.touches[0].clientY;
             }
+            if (e.touches.length === 1) {
+                allowSingleTap = true;
+
+                // Vänta 150ms för att se om ett andra finger läggs till
+                tapTimeout = setTimeout(() => {
+                    tapTimeout = null;
+                }, 150);
+            } else {
+                allowSingleTap = false;
+
+                // Andra fingret kom – avbryt eventuell förflyttning
+                if (tapTimeout !== null) {
+                    clearTimeout(tapTimeout);
+                    tapTimeout = null;
+                }
+            }
+            
             
         });
         canvas.addEventListener("touchmove", function(e) {
@@ -229,7 +248,7 @@ class Game4 {
             
             
             
-            if (e.changedTouches.length === 1 && !dragWasActive) {
+            if (e.changedTouches.length === 1 && !dragWasActive&&allowSingleTap) {
                 const currentMap = game.maps[game.currentmap];
                 const zoomFactor = 1 + (1 * currentMap.zoom / 100);
                 const x = e.changedTouches[0].clientX / zoomFactor - currentMap.camerax;
@@ -248,6 +267,7 @@ class Game4 {
             }
             
             dragWasActive = false;
+            allowSingleTap = true;
         });
         
         canvas.addEventListener("mousedown", function(e) {
