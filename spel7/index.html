@@ -275,14 +275,38 @@ function generateRounds() {
     }
 
     function setWinner(index, value) {
-      results[index] = value;
+    results[index] = value;
+
+    // Uppdatera färgmarkering direkt i DOM
+    const roundDiv = roundsContainer.children[index];
+    roundDiv.querySelectorAll(".winner, .loser").forEach(el => {
+      el.classList.remove("winner", "loser");
+    });
+
+    const lines = roundDiv.querySelectorAll("b");
+    if (value === "team1") {
+      lines[0].classList.add("winner");
+      lines[1].classList.add("loser");
+    } else if (value === "team2") {
+      lines[1].classList.add("winner");
+      lines[0].classList.add("loser");
     }
+  }
 
     function showRanking() {
+        
+
+        
       if (results.includes(null)) {
         alert("Alla rundor måste ha en vinnare.");
         return;
       }
+
+        // Ta bort tidigare mästar-meddelande
+const existingMessage = rankingList.parentElement.querySelector("p");
+if (existingMessage) existingMessage.remove();
+
+
 
       const scores = {};
       const wins = {};
