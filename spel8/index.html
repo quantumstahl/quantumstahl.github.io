@@ -169,7 +169,8 @@
             });
             
             document.addEventListener("touchend", function(e) {
-                 if(isBuildPlacementValid(ghostBuilding)==false)return;
+                 if(isBuildPlacementValid(ghostBuilding)==false){alert("JAAA");return;}
+                 else{alert("NEJJ");}
                 if (buildMode && ghostBuilding) {
                     const currentMap = game.maps[game.currentmap];
                     const x = ghostBuilding.x;
@@ -464,10 +465,8 @@
             };check();
             
             function isBuildPlacementValid(o) {
-                
-                if(o.collideslistan.length>0)return false;
-                
-                return true;
+                if (!o || !o.collideslistan) return false;
+                return o.collideslistan.length === 0;
             }
            
         </script>
