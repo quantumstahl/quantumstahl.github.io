@@ -145,6 +145,9 @@
                                 if (e.target.closest("#build-ui")) {
         return;
     }
+    
+    cursorX=touch.clientX;
+            cursorY=touch.clientY;
                 if (buildMode && ghostBuilding) {
                 let zoomFactor = 1 + (1 * game.maps[game.currentmap].zoom / 100);
                 let touch = e.touches[0];
