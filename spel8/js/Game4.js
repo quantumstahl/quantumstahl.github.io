@@ -1050,6 +1050,21 @@ class Objecttype {
                         
                                 ctx.restore();
                             }
+                            
+                            if (this.objects[i].ghost) {
+                                ctx.globalAlpha = 0.5;
+
+                                let valid = true;
+                                if (typeof window.isBuildPlacementValid === "function") {
+                                    valid = window.isBuildPlacementValid(this.objects[i]);
+                                }
+
+                                ctx.strokeStyle = valid ? "lime" : "red";
+                                ctx.lineWidth = 2;
+                                ctx.strokeRect(this.objects[i].x+ camerax, this.objects[i].y+ cameray, this.objects[i].dimx, this.objects[i].dimy);
+                            }
+                            
+                            
                         }
                     }
                 }
