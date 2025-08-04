@@ -14,6 +14,33 @@
         
     </head>
     <body>
+        
+        
+        <div id="build-ui" style="
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(0,0,0,0.8);
+  padding: 10px;
+  display: none;
+  flex-direction: row;
+  justify-content: center;
+  gap: 10px;
+  z-index: 1000;
+">
+  <button id="build-base-btn" style="
+    font-size: 16px;
+    padding: 10px 20px;
+    background: darkgreen;
+    color: white;
+    border: none;
+    border-radius: 5px;
+  ">Bygg bas</button>
+</div>
+        
+        
+        
         <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
         
         <script>
@@ -95,6 +122,105 @@
                 if (e.key === "s") keyState.s = false;
                 if (e.key === "d") keyState.d = false;
             });
+            let buildMode = false;
+            let buildType = null;
+            let ghostBuilding = null;
+            let pendingBuilds = [];
+            let selectedWorkersBeforeBuild = [];
+            
+            
+            document.getElementById("build-base-btn").addEventListener("click", function() {
+            buildMode = true;
+            buildType = "base";
+            selectedWorkersBeforeBuild = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
+            ghostBuilding = game.addobject(game.getobjecttype("base"), 0, 0, 150, 150, 0, false);
+            ghostBuilding.ghost = true;
+            ghostBuilding.selectable = false;
+        });
+            
+            
+            
+            
+            document.addEventListener("touchmove", function(e) {
+            
+                if (buildMode && ghostBuilding) {
+                let zoomFactor = 1 + (1 * game.maps[game.currentmap].zoom / 100);
+                let touch = e.touches[0];
+                ghostBuilding.x = touch.clientX / zoomFactor - game.maps[game.currentmap].camerax - ghostBuilding.dimx / 2;
+                ghostBuilding.y = touch.clientY / zoomFactor - game.maps[game.currentmap].cameray - ghostBuilding.dimy / 2;
+            }
+            
+            
+            });
+            
+            document.addEventListener("touchend", function(e) {
+                if (buildMode && ghostBuilding) {
+                    const currentMap = game.maps[game.currentmap];
+                    const x = ghostBuilding.x;
+                    const y = ghostBuilding.y;
+
+                    
+                  
+                    ghostBuilding.ghost = false;
+                    ghostBuilding.selectable = true;
+                    ghostBuilding.canMove=false;
+                    
+                    pendingBuilds.push(ghostBuilding);
+                    
+                                            // Tilldela sparade workers detta bygge:
+                        for (let w of selectedWorkersBeforeBuild) {
+                            w.targetX = ghostBuilding.x;
+                            w.targetY = ghostBuilding.y;
+                            w.buildingTarget = ghostBuilding;
+                        }
+
+                        // Rensa och avsluta
+                        selectedWorkersBeforeBuild = [];
+                        buildMode = false;
+                        buildType = null;
+                        ghostBuilding = null;
+                }
+                
+                
+            });
+            
+            
+
+            
+            document.addEventListener("mousemove", function(e) {
+                cursorX = e.clientX;
+                cursorY = e.clientY;
+            });
+            document.addEventListener("mousedown", function(e) {
+                if (buildMode && ghostBuilding) {
+                    const currentMap = game.maps[game.currentmap];
+                    const x = ghostBuilding.x;
+                    const y = ghostBuilding.y;
+
+                    
+                  
+                    ghostBuilding.ghost = false;
+                    ghostBuilding.selectable = true;
+                    ghostBuilding.canMove=false;
+                    
+                    pendingBuilds.push(ghostBuilding);
+                    
+                                            // Tilldela sparade workers detta bygge:
+                        for (let w of selectedWorkersBeforeBuild) {
+                            w.targetX = ghostBuilding.x;
+                            w.targetY = ghostBuilding.y;
+                            w.buildingTarget = ghostBuilding;
+                        }
+
+                        // Rensa och avsluta
+                        selectedWorkersBeforeBuild = [];
+                        buildMode = false;
+                        buildType = null;
+                        ghostBuilding = null;
+                }
+            });
+            
+            
             
             
             
@@ -116,7 +242,14 @@
                 if (keyState.a) currentMap.camerax += camSpeed;
                 if (keyState.d) currentMap.camerax -= camSpeed;
                 
-                
+                let anyWorkerSelected = false;
+                if (game.maps.length > 0) {
+                    const workers = game.getobjecttype("worker");
+                    if (workers) {
+                        anyWorkerSelected = workers.objects.some(o => o.selected);
+                    }
+                }
+                document.getElementById("build-ui").style.display = anyWorkerSelected ? "flex" : "none";
                 
                 
                 game.updateanimation(ctx);
@@ -124,7 +257,22 @@
                 guard =game.getobjecttype("guard"); 
                 worker =game.getobjecttype("worker"); 
                 
+                
+                
+                if (buildMode && ghostBuilding) {
+                    let zoomFactor = 1 + (1 * game.maps[game.currentmap].zoom / 100);
+                    ghostBuilding.x = cursorX / zoomFactor - game.maps[game.currentmap].camerax - ghostBuilding.dimx / 2;
+                    ghostBuilding.y = cursorY / zoomFactor - game.maps[game.currentmap].cameray - ghostBuilding.dimy / 2;
+                }
+                
+                
+                
                 if(guard!=null){
+                    
+                    
+                    
+                    
+                    
                     for(let i=0;i<guard.objects.length;i++){
 
                         guard.objects[i].selectable=true;
@@ -147,6 +295,42 @@
                         else if ( worker.objects[i].direction === "left") { worker.objects[i].animation = 1;worker.objects[i].fliped=true;}
                         
                         
+                         for (let j = 0; j < pendingBuilds.length; j++) {
+                            let building = pendingBuilds[j];
+
+
+                            // När nära → bygg
+                            let dx = worker.objects[i].x - building.x;
+                            let dy = worker.objects[i].y - building.y;
+                            let dist = Math.sqrt(dx * dx + dy * dy);
+                            if (dist < 200) {
+                                building.buildProgress = (building.buildProgress || 0) + 1;
+                                
+                                if(worker.objects[i].animation==0)worker.objects[i].animation = 3;
+                                if(worker.objects[i].animation==1&&worker.objects[i].fliped==false)worker.objects[i].animation = 4;
+                                if(worker.objects[i].animation==2)worker.objects[i].animation = 5;
+                                if(worker.objects[i].animation==1&&worker.objects[i].fliped==true)worker.objects[i].animation = 4;
+                                
+                                 // bygg-animation
+
+                                if (building.buildProgress > 1000) {
+                                    // Klar – ta bort från pendingBuilds
+                                    pendingBuilds.splice(j, 1);
+                                    building.buildProgress = null;
+                                    worker.objects[i].buildingTarget = null;
+                                    worker.objects[i].animation = 0; // idle
+                                    building.animation=1;
+                                }
+                                
+                            }
+                        }
+
+                   
+                        
+                        
+                        
+                        
+                        
 
                     }
                     
@@ -154,7 +338,7 @@
                     
                 
                 }
-                 
+
                  
                  
                 window.requestAnimationFrame(check);   

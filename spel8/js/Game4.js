@@ -304,7 +304,7 @@ class Game4 {
                 if (clickedObj) clickedObj.selected = true;
             } else if (e.button === 2) { // Högerklick – flytta valda
                 for (let obj of game.getAllObjects()) {
-                    if (obj.selected) {
+                    if (obj.selected&& obj.canMove) {
                         obj.targetX = mouseX - currentMap.camerax;
                         obj.targetY = mouseY - currentMap.cameray;
                     }
@@ -773,6 +773,7 @@ class Game4 {
     }
     addobject(objtype, x, y, dimx, dimy, rot, fliped) {
         objtype.objects.push(new Object(x, y, dimx, dimy, rot, fliped));
+        return objtype.objects[objtype.objects.length-1];
     }
     
     
@@ -914,6 +915,22 @@ class Game4 {
         }
         return list;
     }
+    getAllObjectsoftype(objtype){
+        
+        const list = [];
+
+
+                    list.push(...objtype.objects);
+
+
+        return list;
+        
+        
+        
+    }
+    
+    
+    
 
     deselectAll() {
         for (let obj of this.getAllObjects()) {
@@ -1102,6 +1119,8 @@ class Object {
         this.speed = 1.0;
         this.selectable = false;
         this.direction = "up";
+        this.canMove = true;
+        this.buildProgress=0;
     }
     collideslist(maps, currentmap, dir) {
         for (let i2 = 0; i2 < maps[currentmap].layer.length; i2++) {

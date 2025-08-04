@@ -650,7 +650,7 @@ B*?
 buildings
 false
 100
-false
+true
 false
 false
 C*?
