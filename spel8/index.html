@@ -129,7 +129,6 @@
             let ghostBuilding = null;
             let pendingBuilds = [];
             let selectedWorkersBeforeBuild = [];
-            let selectedWorkers = [];
             let lastTouchPos = null;
             
             document.getElementById("build-base-btn").addEventListener("click", function() {
@@ -272,9 +271,6 @@
                 if (keyState.a) currentMap.camerax += camSpeed;
                 if (keyState.d) currentMap.camerax -= camSpeed;
                 
-                
-                
-                
                 let anyWorkerSelected = false;
                 if (game.maps.length > 0) {
                     const workers = game.getobjecttype("worker");
@@ -307,12 +303,12 @@
                 
                 if(guard!=null){
                     
-                    selectedWorkers = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
+                    
                     for(let i=0;i<goldmine.objects.length;i++){
                     
                     if(goldmine.objects[i].mousepressed==true&&anyWorkerSelected){
                         
-                        for (let w of selectedWorkers) {
+                        for (let w of selectedWorkersBeforeBuild) {
                             w.targetX = goldmine.objects[i].x;
                             w.targetY = goldmine.objects[i].y;
                             w.workobject=goldmine.objects[i];
@@ -379,7 +375,7 @@
                         }
                         if(worker.objects[i].workobject!=null){
                             
-                         
+                            
                             worker.objects[i].targetX = worker.objects[i].workobject.x;
                             worker.objects[i].targetY = worker.objects[i].workobject.y;
                             
@@ -388,18 +384,9 @@
                             let dx = worker.objects[i].x - worker.objects[i].workobject.x;
                             let dy = worker.objects[i].y - worker.objects[i].workobject.y;
                             let dist = Math.sqrt(dx * dx + dy * dy);
-                            if (dist < 170&&worker.objects[i].counter<200) {
+                            if (dist < 200) {
                                 worker.objects[i].animation=100;
-                                worker.objects[i].counter++;
-                                
                             }
-                            if(worker.objects[i].counter>200){
-                                
-                                //gå till closest 
-                                
-                                
-                            }
-                            
                             
                         }
                    
