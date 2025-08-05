@@ -481,11 +481,11 @@
                                 // gold += 10;
                             }
                         }
-                        if (o.counter==1) {
-							o.workobject = null;
-							o.returning = false;
-							o.deliveryTarget = null;
-							o.counter=0;
+                        if (worker.objects[i].counter==1) {
+							worker.objects[i].workobject = null;
+							worker.objects[i].returning = false;
+							worker.objects[i].deliveryTarget = null;
+							worker.objects[i].counter=0;
 							return;
 						}
                         
