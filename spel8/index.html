@@ -177,30 +177,6 @@
             document.addEventListener("touchend", function(e) {
                 
                 
-				selectedWorkers = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
-                    for(let i=0;i<goldmine.objects.length;i++){
-                    
-                        goldmine.objects[i].selectable=true;
-                        goldmine.objects[i].canMove=false;
-                    
-                        if(goldmine.objects[i].mousepressed==true&&anyWorkerSelected){
-
-                            for (let w of selectedWorkers) {
-
-                                w.workobject=goldmine.objects[i];
-                            }
-                        }
-						else{
-							for (let w of selectedWorkers) {
-								w.workobject=null;
-								w.returning=false;
-								w.deliveryTarget=null;
-							}
-						}
-
-                    }
-				
-				
                 
                  if(ghostBuilding!=null&&isBuildPlacementValid(ghostBuilding)==false){return;}
         
@@ -314,7 +290,7 @@
                 canvas.width=document.body.clientWidth;
                 canvas.height=document.body.clientHeight-8;
                  
-                ctx.fillStyle = "green";
+                ctx.fillStyle = "black";
                 ctx.fillRect(0, 0, canvas.width, canvas.height); 
                 
                 const camSpeed = 15;
@@ -360,7 +336,22 @@
                 
                 if(guard!=null){
                     
+                    selectedWorkers = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
+                    for(let i=0;i<goldmine.objects.length;i++){
                     
+                        goldmine.objects[i].selectable=true;
+                        goldmine.objects[i].canMove=false;
+                    
+                        if(goldmine.objects[i].mousepressed==true&&anyWorkerSelected){
+
+                            for (let w of selectedWorkers) {
+
+                                w.workobject=goldmine.objects[i];
+                            }
+                        }
+
+
+                    }
                     
                     
                     for(let i=0;i<guard.objects.length;i++){
