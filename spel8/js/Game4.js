@@ -263,7 +263,7 @@ class Game4 {
                 const y = e.changedTouches[0].clientY / zoomFactor - currentMap.cameray;
 
                 for (let obj of game.getAllObjects()) {
-                    if (obj.selected) {
+                    if (obj.selected&&obj.canMove) {
                         obj.targetX = x;
                         obj.targetY = y;
                     }
