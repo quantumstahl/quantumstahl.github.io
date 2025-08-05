@@ -338,22 +338,8 @@
                 if(guard!=null){
                     
                     selectedWorkers = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
-                    for(let i=0;i<goldmine.objects.length;i++){
-                    
-                        goldmine.objects[i].selectable=true;
-                        goldmine.objects[i].canMove=false;
-                    
-                        if(goldmine.objects[i].mousepressed==true&&anyWorkerSelected){
-
-                            for (let w of selectedWorkers) {
-
-                                w.workobject=goldmine.objects[i];
-                            }
-                        }
-
-
-                    }
-                    for(let i=0;i<gras.objects.length;i++){
+					
+					for(let i=0;i<gras.objects.length;i++){
                     
                         
                     
@@ -369,6 +355,23 @@
 
 
                     }
+					
+                    for(let i=0;i<goldmine.objects.length;i++){
+                    
+                        goldmine.objects[i].selectable=true;
+                        goldmine.objects[i].canMove=false;
+                    
+                        if(goldmine.objects[i].mousepressed==true&&anyWorkerSelected){
+
+                            for (let w of selectedWorkers) {
+
+                                w.workobject=goldmine.objects[i];
+                            }
+                        }
+
+
+                    }
+                    
                     
                     for(let i=0;i<guard.objects.length;i++){
 
