@@ -128,6 +128,10 @@ class Game4 {
 
                         if (game.collideCircleWithRotatedRectangle(touch0x, touch0y, 10, calcX, calcY, Number(object.dimx), Number(object.dimy), calcRot)) {
                             object.mousepressed = true;
+                            var units=game.getAllObjects().filter(o => o.selected);
+                            if(object.selectable){
+                                for (let obj of units) {obj.selected=false;}
+                                object.selected=true;}
                         }
                         
                         if (e.touches.length > 1) {
@@ -135,6 +139,10 @@ class Game4 {
                             let touch1y = e.touches[1].clientY / zoomFactor;
                             if (game.collideCircleWithRotatedRectangle(touch1x, touch1y, 10, calcX, calcY, Number(object.dimx), Number(object.dimy), calcRot)) {
                                 object.mousepressed = true;
+                                var units=game.getAllObjects().filter(o => o.selected);
+                               if(object.selectable){
+                                for (let obj of units) {obj.selected=false;}
+                                object.selected=true;}
                             }
                         }
                     }
@@ -227,6 +235,10 @@ class Game4 {
                             
                             if (!game.collideCircleWithRotatedRectangle(touch0x, touch0y, 10, calcX, calcY, Number(object.dimx), Number(object.dimy), calcRot)) {
                                 object.mousepressed = false;
+                                
+                                
+                                
+                                
                             }
                         }
                     }
@@ -301,6 +313,7 @@ class Game4 {
 
                         if (game.collideCircleWithRotatedRectangle(touch0x, touch0y, 10, calcX, calcY, Number(object.dimx), Number(object.dimy), calcRot)) {
                             object.mousepressed = true;
+                        
                         }
                     }
                 }
