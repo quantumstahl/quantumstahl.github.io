@@ -441,6 +441,14 @@
                         if (worker.objects[i].returning && worker.objects[i].deliveryTarget) {
                             let dx = worker.objects[i].x - worker.objects[i].deliveryTarget.x;
                             let dy = worker.objects[i].y - worker.objects[i].deliveryTarget.y;
+                            
+                            if(worker.objects[i].animation==0)worker.objects[i].animation = 6;
+                            if(worker.objects[i].animation==1&&worker.objects[i].fliped==false)worker.objects[i].animation = 7;
+                            if(worker.objects[i].animation==2)worker.objects[i].animation = 8;
+                            if(worker.objects[i].animation==1&&worker.objects[i].fliped==true)worker.objects[i].animation = 7;
+                            
+                            
+                            
                             let dist = Math.sqrt(dx * dx + dy * dy);
                             if (dist < 170) {
                                 // Levererat resurser!
