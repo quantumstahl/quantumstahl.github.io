@@ -788,7 +788,12 @@ class Game4 {
         objtype.objects.push(new Object(x, y, dimx, dimy, rot, fliped));
         return objtype.objects[objtype.objects.length-1];
     }
-    
+    removeobject(objtype, obj) {
+        const index = objtype.objects.indexOf(obj);
+        if (index !== -1) {
+            objtype.objects.splice(index, 1);
+        }
+    }
     
     getobjecttype(obj) {
         try {

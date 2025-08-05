@@ -213,7 +213,15 @@
                 
             });
             
+            document.addEventListener("contextmenu", function(e) {
+                e.preventDefault(); // förhindra browserns meny
+                
+                
+                if (buildMode) {
             
+                    cancelBuildMode();
+                }
+            });
 
             
             document.addEventListener("mousemove", function(e) {
@@ -223,6 +231,13 @@
             });
             document.addEventListener("mousedown", function(e) {
                 if(isBuildPlacementValid(ghostBuilding)==false)return;
+                
+                if (e.button === 2 && buildMode) {
+                    e.preventDefault(); // hindra fokus/kontext
+                    return; // inget mer körs
+                }
+                
+                
                 if (buildMode && ghostBuilding) {
                     const currentMap = game.maps[game.currentmap];
                     const x = ghostBuilding.x;
@@ -250,12 +265,7 @@
                         ghostBuilding = null;
                 }
             });
-            document.addEventListener("contextmenu", function(e) {
-                e.preventDefault(); // förhindra browserns meny
-                if (buildMode) {
-                    cancelBuildMode();
-                }
-            });
+            
             
             
             
@@ -468,11 +478,18 @@
                 return o.collideslistan.length === 0;
             }
             function cancelBuildMode() {
-                ghostBuilding = null;
+   
+                
+                if (ghostBuilding) {
+                    
+                    game.removeobject(game.getobjecttype("base"),ghostBuilding); // ⬅️ Viktigt!
+                    ghostBuilding = null;
+                }
                 buildMode = false;
                 buildType = null;
                 selectedWorkersBeforeBuild = [];
                 isPlacingBuilding = false;
+                console.log("Byggläge avbrutet");
             }
            
         </script>
