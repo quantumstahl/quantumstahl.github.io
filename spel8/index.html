@@ -176,11 +176,7 @@
             });
             
             document.addEventListener("touchend", function(e) {
-				selectedWorkers2 = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
-					for (let w of selectedWorkers2) {
-						w.counter = 1;
-					}
-				});
+				
                 
                 
                  if(ghostBuilding!=null&&isBuildPlacementValid(ghostBuilding)==false){return;}
@@ -481,13 +477,7 @@
                                 // gold += 10;
                             }
                         }
-                        if (worker.objects[i].counter==1) {
-							worker.objects[i].workobject = null;
-							worker.objects[i].returning = false;
-							worker.objects[i].deliveryTarget = null;
-							worker.objects[i].counter=0;
-							
-						}
+                        
                         
                         
                         
