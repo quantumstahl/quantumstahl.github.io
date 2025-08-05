@@ -176,12 +176,14 @@
             
             document.addEventListener("touchend", function(e) {
                 
-              //  selectedWorkers2 = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
-            //    for (let w of selectedWorkers2) {
-            //                w.workobject=null;
-            //                w.returning=false;
-             //               w.deliveryTarget=null;
-             //   }
+                selectedWorkers2 = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
+                for (let w of selectedWorkers2) {
+					if(workobject.mousepressed==false ){
+                            w.workobject=null;
+                            w.returning=false;
+                            w.deliveryTarget=null;
+					}
+                }
                 
                  if(ghostBuilding!=null&&isBuildPlacementValid(ghostBuilding)==false){return;}
         
@@ -295,7 +297,7 @@
                 canvas.width=document.body.clientWidth;
                 canvas.height=document.body.clientHeight-8;
                  
-                ctx.fillStyle = "red";
+                ctx.fillStyle = "black";
                 ctx.fillRect(0, 0, canvas.width, canvas.height); 
                 
                 const camSpeed = 15;
