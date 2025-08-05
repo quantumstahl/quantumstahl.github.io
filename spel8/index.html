@@ -131,6 +131,8 @@
             let selectedWorkersBeforeBuild = [];
             let selectedWorkers = [];
             let lastTouchPos = null;
+            window.isPlacingBuilding = false;
+            
             
             document.getElementById("build-base-btn").addEventListener("click", function() {
             buildMode = true;
@@ -163,13 +165,14 @@
     };
     ghostBuilding.x = lastTouchPos.x;
     ghostBuilding.y = lastTouchPos.y;
+    isPlacingBuilding = true;
 }
             
             
             });
             
             document.addEventListener("touchend", function(e) {
-                 if(ghostBuilding!=null&&isBuildPlacementValid(ghostBuilding)==false){alert("JAAA2");return;}
+                 if(ghostBuilding!=null&&isBuildPlacementValid(ghostBuilding)==false){return;}
         
                 if (buildMode && ghostBuilding) {
                     const currentMap = game.maps[game.currentmap];
@@ -181,14 +184,14 @@
                     ghostBuilding.ghost = false;
                     ghostBuilding.selectable = true;
                     ghostBuilding.canMove=false;
-                    
+                    isPlacingBuilding = false;
                     pendingBuilds.push(ghostBuilding);
                     
                                             // Tilldela sparade workers detta bygge:
                         for (let w of selectedWorkersBeforeBuild) {
-                            //w.targetX = ghostBuilding.x;
-                            //w.targetY = ghostBuilding.y;
-                           // w.buildingTarget = ghostBuilding;
+                            w.targetX = ghostBuilding.x;
+                            w.targetY = ghostBuilding.y;
+                            w.buildingTarget = ghostBuilding;
                         }
 
                         // Rensa och avsluta
