@@ -384,12 +384,7 @@
                          for (let j = 0; j < pendingBuilds.length; j++) {
                             let building = pendingBuilds[j];
 
-
-                            // När nära → bygg
-                            let dx = worker.objects[i].x - building.x;
-                            let dy = worker.objects[i].y - building.y;
-                            let dist = Math.sqrt(dx * dx + dy * dy);
-                            if (dist < 200) {
+                            if (game.collideswithanoterobject(worker.objects[i],building)) {
                                 building.buildProgress = (building.buildProgress || 0) + 1;
                                 
                                 if(worker.objects[i].animation==0)worker.objects[i].animation = 3;
@@ -418,10 +413,11 @@
                             
                             
                             
-                            let dx = worker.objects[i].x - worker.objects[i].workobject.x;
-                            let dy = worker.objects[i].y - worker.objects[i].workobject.y;
-                            let dist = Math.sqrt(dx * dx + dy * dy);
-                            if (dist < 170&&worker.objects[i].counter<202) {
+                        
+                            
+                            
+                            
+                            if (game.collideswithanoterobject(worker.objects[i],worker.objects[i].workobject)&&worker.objects[i].counter<202) {
                                 worker.objects[i].animation=100;
                                 worker.objects[i].counter++;
                                 
@@ -457,8 +453,6 @@
                         }
                    
                         if (worker.objects[i].returning && worker.objects[i].deliveryTarget) {
-                            let dx = worker.objects[i].x - worker.objects[i].deliveryTarget.x;
-                            let dy = worker.objects[i].y - worker.objects[i].deliveryTarget.y;
                             
                             if(worker.objects[i].animation==0)worker.objects[i].animation = 6;
                             if(worker.objects[i].animation==1&&worker.objects[i].fliped==false)worker.objects[i].animation = 7;
@@ -467,8 +461,11 @@
                             
                             
                             
-                            let dist = Math.sqrt(dx * dx + dy * dy);
-                            if (dist < 170) {
+               
+                            
+                            
+                            
+                            if (game.collideswithanoterobject(worker.objects[i],worker.objects[i].deliveryTarget)) {
                                 // Levererat resurser!
                                 worker.objects[i].returning = false;
                                 worker.objects[i].deliveryTarget = null;
