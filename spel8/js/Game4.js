@@ -195,7 +195,9 @@ class Game4 {
         });
         canvas.addEventListener("touchend", function(e) {
             e.preventDefault();
-            if (window.isPlacingBuilding) return;
+            if (typeof window.allowSelection === "function" && !window.allowSelection()) {
+                return;
+            }
             const currentMap = game.maps[game.currentmap];
             const zoomFactor = 1 + (1 * currentMap.zoom / 100);
             if (e.touches.length == 0) {
