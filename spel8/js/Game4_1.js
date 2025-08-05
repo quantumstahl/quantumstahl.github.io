@@ -128,6 +128,7 @@ class Game4 {
 
                         if (game.collideCircleWithRotatedRectangle(touch0x, touch0y, 10, calcX, calcY, Number(object.dimx), Number(object.dimy), calcRot)) {
                             object.mousepressed = true;
+                            targetObject=object;
                         }
                         
                         if (e.touches.length > 1) {
@@ -135,6 +136,7 @@ class Game4 {
                             let touch1y = e.touches[1].clientY / zoomFactor;
                             if (game.collideCircleWithRotatedRectangle(touch1x, touch1y, 10, calcX, calcY, Number(object.dimx), Number(object.dimy), calcRot)) {
                                 object.mousepressed = true;
+                                targetObject=object;
                             }
                         }
                     }
@@ -261,13 +263,16 @@ class Game4 {
                 const zoomFactor = 1 + (1 * currentMap.zoom / 100);
                 const x = e.changedTouches[0].clientX / zoomFactor - currentMap.camerax;
                 const y = e.changedTouches[0].clientY / zoomFactor - currentMap.cameray;
-
-                for (let obj of game.getAllObjects()) {
-                    if (obj.selected&&obj.canMove) {
-                        obj.targetX = x;
-                        obj.targetY = y;
-                    }
-                }
+                var units=game.getAllObjects().filter(o => o.selected && o.canMove);
+                
+                
+                game.issueFormationMove(units, x, y);
+                //for (let obj of game.getAllObjects()) {
+               //     if (obj.selected&&obj.canMove) {
+               //         obj.targetX = x;
+               //         obj.targetY = y;
+                //    }
+              //  }
             }
             if (e.touches.length < 2) {
                 lastPanX = null;
@@ -316,12 +321,25 @@ class Game4 {
                 game.deselectAll();
                 if (clickedObj) clickedObj.selected = true;
             } else if (e.button === 2) { // Högerklick – flytta valda
-                for (let obj of game.getAllObjects()) {
-                    if (obj.selected&& obj.canMove) {
-                        obj.targetX = mouseX - currentMap.camerax;
-                        obj.targetY = mouseY - currentMap.cameray;
-                    }
-                }
+                
+                
+                
+                var units=game.getAllObjects().filter(o => o.selected && o.canMove);
+                
+                
+                game.issueFormationMove(units, mouseX - currentMap.camerax, mouseY - currentMap.cameray);
+                
+                
+                
+           //     for (let obj of game.getAllObjects()) {
+            //        if (obj.selected&& obj.canMove) {
+                        
+                        
+                        
+            //            obj.targetX = mouseX - currentMap.camerax;
+            //            obj.targetY = mouseY - currentMap.cameray;
+            //       }
+            //    }
             }
             if (e.button === 0) {
                 const currentMap = game.maps[game.currentmap];
@@ -539,8 +557,9 @@ class Game4 {
     
     updateanimation(ctx) {
         try {
-            this.updateUnitMovement();
+             this.updateUnitMovement();
             this.collitionengine();
+           
         } catch (error) {}
         
         for (let i = 0; i < this.maps.length; i++) {
@@ -668,8 +687,14 @@ class Game4 {
                             }
                         }
                     }
+                    o.blocked=false;
+                    if((o.freex==o.x&&o.rakna != 0)||(o.freey==o.y&&o.rakna2 != 0)){
+                
+                        o.blocked=true;
+                    }
                     o.freex = o.x;
                     o.freey = o.y;
+           
                 }
             }
         }
@@ -899,8 +924,11 @@ class Game4 {
     }
     updateUnitMovement() {
         const objects = this.getAllObjects();
+
         for (let obj of objects) {
             if (obj.targetX !== null && obj.targetY !== null) {
+     
+                
                 const dx = obj.targetX - obj.x;
                 const dy = obj.targetY - obj.y;
                 const dist = Math.sqrt(dx*dx + dy*dy);
@@ -913,8 +941,55 @@ class Game4 {
                         obj.direction = dy > 0 ? "down" : "up";
                     }
 
-                    obj.x += (dx / dist) * obj.speed;
-                    obj.y += (dy / dist) * obj.speed;
+                    obj.x += ((dx / dist) * obj.speed);
+                    obj.y += ((dy / dist) * obj.speed);
+                    
+                    
+                    
+                    
+                     for (let c of obj.collideslistanobj) {
+                         
+                 
+                        if (obj.targetObject && c == obj.targetObject){ obj.blocked=false;;} // Ignorera target
+                     }
+                   
+                    
+                    if (obj.blocked) {
+                        // Enkelt undvik åt sidan
+                        if (obj.direction === "right") {
+                            obj.y -= 1;
+                        } else if (obj.direction === "left") {
+                            obj.y += 1;
+                        } else if (obj.direction === "up") {
+                            obj.x += 1;
+                        } else if (obj.direction === "down") {
+                            obj.x -= 1;
+                        }
+
+                    }
+                    if (obj.blocked && obj.targetX !== null && obj.targetY !== null) {
+    for (let other of game.getAllObjects()) {
+        if (other === obj) continue;
+
+        const sameTarget = Math.abs(other.x - obj.targetX) < 2 && Math.abs(other.y - obj.targetY) < 2;
+
+        if (sameTarget && (other.targetX === null || other.targetY === null)) {
+            // Den andra står redan där, och har inget mål → byt
+            const tempX = obj.targetX;
+            const tempY = obj.targetY;
+
+            obj.targetX = other.x;
+            obj.targetY = other.y;
+
+            other.targetX = tempX;
+            other.targetY = tempY;
+
+            break;
+        }
+    }
+}
+                    
+                    
                 } else {
                     obj.targetX = null;
                     obj.targetY = null;
@@ -922,6 +997,71 @@ class Game4 {
             }
         }
     }
+    
+    
+    issueFormationMove(units, targetX, targetY, spacing = 55) {
+    if (units.length === 0) return;
+
+    const cols = Math.ceil(Math.sqrt(units.length));
+    const rows = Math.ceil(units.length / cols);
+
+    const startX = targetX - ((cols - 1) * spacing) / 2;
+    const startY = targetY - ((rows - 1) * spacing) / 2;
+
+    // Beräkna medelpunkt för enheterna
+    let avgX = 0, avgY = 0;
+    for (let u of units) {
+        avgX += u.x;
+        avgY += u.y;
+    }
+    avgX /= units.length;
+    avgY /= units.length;
+
+    // Färdriktning (vektor från medelpunkt → mål)
+    const dirX = targetX - avgX;
+    const dirY = targetY - avgY;
+    const dirLength = Math.sqrt(dirX * dirX + dirY * dirY);
+    const normX = dirX / dirLength;
+    const normY = dirY / dirLength;
+
+    // Skapa positionsmatris
+    const positions = [];
+    for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+            if (positions.length >= units.length) break;
+            positions.push({
+                x: startX + col * spacing,
+                y: startY + row * spacing
+            });
+        }
+    }
+
+    // Sortera enheter baserat på projicerat avstånd i färdriktningen (längst bort först)
+    const sortedUnits = [...units].sort((a, b) => {
+    const da = (targetX - a.x) * normX + (targetY - a.y) * normY;
+    const db = (targetX - b.x) * normX + (targetY - b.y) * normY;
+    return db - da; // längst bak först
+});
+
+    // Sortera positioner baserat på riktning (närmast i färdriktning först)
+    const sortedPositions = [...positions].sort((a, b) => {
+        const da = (a.x - targetX) * normX + (a.y - targetY) * normY;
+        const db = (b.x - targetX) * normX + (b.y - targetY) * normY;
+        return da - db; // närmast först
+    });
+
+    // Tilldela positioner
+    for (let i = 0; i < sortedUnits.length; i++) {
+        const unit = sortedUnits[i];
+        const pos = sortedPositions[i];
+        unit.targetX = pos.x;
+        unit.targetY = pos.y;
+        unit.targetObject = null;
+        unit.path = null;
+    }
+}
+    
+    
     getAllObjects() {
         const list = [];
         for (let map of this.maps) {
@@ -1157,6 +1297,8 @@ class Object {
         this.workobject=null;
         this.deliveryTarget=null;
         this.returning=false;
+        this.blocked=false;
+        this.targetObject=null;
     }
     collideslist(maps, currentmap, dir) {
         for (let i2 = 0; i2 < maps[currentmap].layer.length; i2++) {
