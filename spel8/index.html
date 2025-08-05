@@ -176,12 +176,12 @@
             
             document.addEventListener("touchend", function(e) {
                 
-                selectedWorkers2 = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
-                for (let w of selectedWorkers2) {
-                            w.workobject=null;
-                            w.returning=false;
-                            w.deliveryTarget=null;
-                }
+              //  selectedWorkers2 = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
+            //    for (let w of selectedWorkers2) {
+            //                w.workobject=null;
+            //                w.returning=false;
+             //               w.deliveryTarget=null;
+             //   }
                 
                  if(ghostBuilding!=null&&isBuildPlacementValid(ghostBuilding)==false){return;}
         
