@@ -191,10 +191,11 @@
                             }
                         }
 						else{
-							w.workobject=null;
-                            w.returning=false;
-                            w.deliveryTarget=null;
-						
+							for (let w of selectedWorkers) {
+								w.workobject=null;
+								w.returning=false;
+								w.deliveryTarget=null;
+							}
 						}
 
                     }
