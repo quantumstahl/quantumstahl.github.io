@@ -128,9 +128,8 @@ class Game4 {
 
                         if (game.collideCircleWithRotatedRectangle(touch0x, touch0y, 10, calcX, calcY, Number(object.dimx), Number(object.dimy), calcRot)) {
                             object.mousepressed = true;
-                            var units=game.getAllObjects().filter(o => o.selected);
-                            if(object.selectable){
-                                for (let obj of units) {obj.selected=false;}
+                                var units=game.getAllObjects().filter(o => o.selected);
+                               if(object.selectable&& units.length===0){
                                 object.selected=true;}
                         }
                         
@@ -140,8 +139,7 @@ class Game4 {
                             if (game.collideCircleWithRotatedRectangle(touch1x, touch1y, 10, calcX, calcY, Number(object.dimx), Number(object.dimy), calcRot)) {
                                 object.mousepressed = true;
                                 var units=game.getAllObjects().filter(o => o.selected);
-                               if(object.selectable){
-                                for (let obj of units) {obj.selected=false;}
+                               if(object.selectable&& units.length===0){
                                 object.selected=true;}
                             }
                         }
