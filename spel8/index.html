@@ -176,8 +176,8 @@
             });
             
             document.addEventListener("touchend", function(e) {
-				let selectedWorkers = game.getAllObjects().filter(o => o.role === "worker" && o.selected);
-					for (let w of selectedWorkers) {
+				selectedWorkers2 = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
+					for (let w of selectedWorkers2) {
 						w.counter = 1;
 					}
 				});
