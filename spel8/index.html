@@ -204,8 +204,9 @@
                     
                                             // Tilldela sparade workers detta bygge:
                         for (let w of selectedWorkersBeforeBuild) {
-                            w.targetX = ghostBuilding.x;
-                            w.targetY = ghostBuilding.y;
+                            w.targetX = ghostBuilding.x+ghostBuilding.dimx/2;
+                            w.targetY = ghostBuilding.y+ghostBuilding.dimy/2;
+                            w.targetObject=ghostBuilding;
                             w.buildingTarget = ghostBuilding;
                         }
 
@@ -275,8 +276,10 @@
                     
                                             // Tilldela sparade workers detta bygge:
                         for (let w of selectedWorkersBeforeBuild) {
-                            w.targetX = ghostBuilding.x;
-                            w.targetY = ghostBuilding.y;
+
+                            w.targetX = ghostBuilding.x+ghostBuilding.dimx/2;
+                            w.targetY = ghostBuilding.y+ghostBuilding.dimy/2;
+                            w.targetObject=ghostBuilding;
                             w.buildingTarget = ghostBuilding;
                         }
 
@@ -381,7 +384,11 @@
                     for(let i=0;i<worker.objects.length;i++){
 
                         worker.objects[i].selectable=true;
-						worker.objects[i].counter2++;
+			worker.objects[i].counter2++;
+                        
+                        
+                        
+                        
                         
                         if ( worker.objects[i].direction === "up")  worker.objects[i].animation = 0;
                         else if ( worker.objects[i].direction === "right")  {worker.objects[i].animation = 1;worker.objects[i].fliped=false;}
@@ -416,9 +423,9 @@
                         if(worker.objects[i].workobject!=null&&worker.objects[i].returning==false){
                             
                          
-                            worker.objects[i].targetX = worker.objects[i].workobject.x;
-                            worker.objects[i].targetY = worker.objects[i].workobject.y;
-                            
+                            worker.objects[i].targetX = worker.objects[i].workobject.x+worker.objects[i].workobject.dimx/2;
+                            worker.objects[i].targetY = worker.objects[i].workobject.y+worker.objects[i].workobject.dimy/2;
+                            worker.objects[i].targetObject=worker.objects[i].workobject;
                             
                             
                         
@@ -448,8 +455,9 @@
 
                                 if (closest) {
                                     
-                                    worker.objects[i].targetX = closest.x;
-                                    worker.objects[i].targetY = closest.y;
+                                    worker.objects[i].targetX = closest.x+closest.dimx/2;
+                                    worker.objects[i].targetY = closest.y+closest.dimy/2;
+                                    worker.objects[i].targetObject=closest;
                                     worker.objects[i].returning = true; // ny flagga
                                     worker.objects[i].deliveryTarget = closest;
                                 }
