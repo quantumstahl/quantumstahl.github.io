@@ -176,7 +176,15 @@
             });
             
             document.addEventListener("touchend", function(e) {
+				selectedWorkers2 = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
+                for (let w of selectedWorkers2) {
 				
+							if(w.counter2>10){
+                            w.workobject=null;
+                            w.returning=false;
+                            w.deliveryTarget=null;
+							}
+                        }
                 
                 
                  if(ghostBuilding!=null&&isBuildPlacementValid(ghostBuilding)==false){return;}
@@ -350,6 +358,7 @@
                             for (let w of selectedWorkers) {
 
                                 w.workobject=goldmine.objects[i];
+								w.counter2=0;
                             }
                         }
 
@@ -372,6 +381,7 @@
                     for(let i=0;i<worker.objects.length;i++){
 
                         worker.objects[i].selectable=true;
+						worker.objects[i].counter2++;
                         
                         if ( worker.objects[i].direction === "up")  worker.objects[i].animation = 0;
                         else if ( worker.objects[i].direction === "right")  {worker.objects[i].animation = 1;worker.objects[i].fliped=false;}
