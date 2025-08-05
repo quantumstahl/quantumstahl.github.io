@@ -131,7 +131,6 @@
             let selectedWorkersBeforeBuild = [];
             let selectedWorkers = [];
             let lastTouchPos = null;
-            window.isPlacingBuilding = false;
             
             
             document.getElementById("build-base-btn").addEventListener("click", function() {
@@ -152,9 +151,11 @@
             
             
             document.addEventListener("touchmove", function(e) {
-                                if (e.target.closest("#build-ui")) {
-        return;
-    }
+                                if (e.target.closest("#build-ui")) {return;}
+                if (e.touches.length >= 2 && buildMode) {
+                    cancelBuildMode();
+                    return;
+                }
     
               if (buildMode && ghostBuilding) {
     let zoomFactor = 1 + (1 * game.maps[game.currentmap].zoom / 100);
@@ -248,18 +249,13 @@
                         buildType = null;
                         ghostBuilding = null;
                 }
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
             });
-            
+            document.addEventListener("contextmenu", function(e) {
+                e.preventDefault(); // förhindra browserns meny
+                if (buildMode) {
+                    cancelBuildMode();
+                }
+            });
             
             
             
@@ -470,6 +466,13 @@
             function isBuildPlacementValid(o) {
                 if (!o || !o.collideslistan) return false;
                 return o.collideslistan.length === 0;
+            }
+            function cancelBuildMode() {
+                ghostBuilding = null;
+                buildMode = false;
+                buildType = null;
+                selectedWorkersBeforeBuild = [];
+                isPlacingBuilding = false;
             }
            
         </script>
