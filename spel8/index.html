@@ -72,15 +72,6 @@
             document.addEventListener("touchstart" , function(e) {
                 e.preventDefault();
 				
-				selectedWorkers2 = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
-                for (let w of selectedWorkers2) {
-                            w.workobject=null;
-                            w.returning=false;
-                            w.deliveryTarget=null;
-                        }
-				
-				
-				
                     try{if(audio.paused){ 
                         audio.play();
                     }
@@ -185,7 +176,11 @@
             });
             
             document.addEventListener("touchend", function(e) {
-              
+				let selectedWorkers = game.getAllObjects().filter(o => o.role === "worker" && o.selected);
+					for (let w of selectedWorkers) {
+						w.counter = 1;
+					}
+				});
                 
                 
                  if(ghostBuilding!=null&&isBuildPlacementValid(ghostBuilding)==false){return;}
@@ -300,7 +295,7 @@
                 canvas.width=document.body.clientWidth;
                 canvas.height=document.body.clientHeight-8;
                  
-                ctx.fillStyle = "red";
+                ctx.fillStyle = "black";
                 ctx.fillRect(0, 0, canvas.width, canvas.height); 
                 
                 const camSpeed = 15;
@@ -486,7 +481,13 @@
                                 // gold += 10;
                             }
                         }
-                        
+                        if (o.counter==1) {
+							o.workobject = null;
+							o.returning = false;
+							o.deliveryTarget = null;
+							o.counter=0;
+							return;
+						}
                         
                         
                         
