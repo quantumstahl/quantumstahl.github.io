@@ -71,6 +71,16 @@
             
             document.addEventListener("touchstart" , function(e) {
                 e.preventDefault();
+				
+				selectedWorkers2 = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
+                for (let w of selectedWorkers2) {
+                            w.workobject=null;
+                            w.returning=false;
+                            w.deliveryTarget=null;
+                        }
+				
+				
+				
                     try{if(audio.paused){ 
                         audio.play();
                     }
@@ -338,23 +348,6 @@
                 if(guard!=null){
                     
                     selectedWorkers = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
-					
-					for(let i=0;i<gras.objects.length;i++){
-                    
-                        
-                    
-                        if(gras.objects[i].mousepressed==true&&anyWorkerSelected){
-
-                            for (let w of selectedWorkers) {
-
-                                w.workobject=null;
-								w.returning=false;
-								w.deliveryTarget=null;
-                            }
-                        }
-
-
-                    }
 					
                     for(let i=0;i<goldmine.objects.length;i++){
                     
