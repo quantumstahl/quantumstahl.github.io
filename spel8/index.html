@@ -176,14 +176,30 @@
             
             document.addEventListener("touchend", function(e) {
                 
-                selectedWorkers2 = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
-                for (let w of selectedWorkers2) {
-					if(w.workobject!=null&&w.workobject.mousepressed==false ){
-                            w.workobject=null;
+                
+				selectedWorkers = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
+                    for(let i=0;i<goldmine.objects.length;i++){
+                    
+                        goldmine.objects[i].selectable=true;
+                        goldmine.objects[i].canMove=false;
+                    
+                        if(goldmine.objects[i].mousepressed==true&&anyWorkerSelected){
+
+                            for (let w of selectedWorkers) {
+
+                                w.workobject=goldmine.objects[i];
+                            }
+                        }
+						else{
+							w.workobject=null;
                             w.returning=false;
                             w.deliveryTarget=null;
-					}
-                }
+						
+						}
+
+                    }
+				
+				
                 
                  if(ghostBuilding!=null&&isBuildPlacementValid(ghostBuilding)==false){return;}
         
@@ -343,22 +359,7 @@
                 
                 if(guard!=null){
                     
-                    selectedWorkers = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
-                    for(let i=0;i<goldmine.objects.length;i++){
                     
-                        goldmine.objects[i].selectable=true;
-                        goldmine.objects[i].canMove=false;
-                    
-                        if(goldmine.objects[i].mousepressed==true&&anyWorkerSelected){
-
-                            for (let w of selectedWorkers) {
-
-                                w.workobject=goldmine.objects[i];
-                            }
-                        }
-
-
-                    }
                     
                     
                     for(let i=0;i<guard.objects.length;i++){
