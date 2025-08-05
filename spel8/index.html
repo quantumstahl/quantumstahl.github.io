@@ -177,7 +177,7 @@
             document.addEventListener("touchend", function(e) {
                 selectedWorkers2 = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
                 for (let w of selectedWorkers2) {
-							if(w.workobject.mousepressed==false){
+							if(w.workobject!=null&&w.workobject.mousepressed==false){
                             w.workobject=null;
                             w.returning=false;
                             w.deliveryTarget=null;
