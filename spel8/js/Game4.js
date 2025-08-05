@@ -263,13 +263,16 @@ class Game4 {
                 const zoomFactor = 1 + (1 * currentMap.zoom / 100);
                 const x = e.changedTouches[0].clientX / zoomFactor - currentMap.camerax;
                 const y = e.changedTouches[0].clientY / zoomFactor - currentMap.cameray;
-
-                for (let obj of game.getAllObjects()) {
-                    if (obj.selected&&obj.canMove) {
-                        obj.targetX = x;
-                        obj.targetY = y;
-                    }
-                }
+                var units=game.getAllObjects().filter(o => o.selected && o.canMove);
+                
+                
+                game.issueFormationMove(units, x, y);
+                //for (let obj of game.getAllObjects()) {
+               //     if (obj.selected&&obj.canMove) {
+               //         obj.targetX = x;
+               //         obj.targetY = y;
+                //    }
+              //  }
             }
             if (e.touches.length < 2) {
                 lastPanX = null;
