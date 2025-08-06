@@ -251,13 +251,20 @@ class Game4 {
 
                 for (let obj of game.getAllObjects()) {
                     if (
-                        obj.selectable &&
+                        obj.selectable && 
                         obj.x + obj.dimx > x1 &&
                         obj.x < x2 &&
                         obj.y + obj.dimy > y1 &&
                         obj.y < y2
                     ) {
                         obj.selected = true;
+                    }
+                }
+                const selectedstuff = game.getAllObjects().filter(o => o.selected);
+                const movableSelected = selectedstuff.filter(o => o.canMove);
+                if (movableSelected.length > 0) {
+                    for (let w of selectedstuff) {
+                        if (!w.canMove) w.selected = false;
                     }
                 }
             }
@@ -369,13 +376,20 @@ class Game4 {
 
                 for (let obj of game.getAllObjects()) {
                     if (
-                        obj.selectable &&    
+                        obj.selectable &&  
                         obj.x + obj.dimx > x1 &&
                         obj.x < x2 &&
                         obj.y + obj.dimy > y1 &&
                         obj.y < y2
                     ) {
                         obj.selected = true;
+                    }
+                }
+                const selectedstuff = game.getAllObjects().filter(o => o.selected);
+                const movableSelected = selectedstuff.filter(o => o.canMove);
+                if (movableSelected.length > 0) {
+                    for (let w of selectedstuff) {
+                        if (!w.canMove) w.selected = false;
                     }
                 }
             }
