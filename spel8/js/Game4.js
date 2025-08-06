@@ -943,19 +943,33 @@ class Game4 {
                         if (obj.targetObject && c == obj.targetObject){ obj.blocked=false;;} // Ignorera target
                      }
                    
-                    
+                    if(!obj.blocked)obj.blockedcounter=0;
                     if (obj.blocked) {
+                        obj.blockedcounter++;
+                        if(obj.blockedcounter<150){
                         // Enkelt undvik åt sidan
-                        if (obj.direction === "right") {
-                            obj.y -= 1;
-                        } else if (obj.direction === "left") {
-                            obj.y += 1;
-                        } else if (obj.direction === "up") {
-                            obj.x += 1;
-                        } else if (obj.direction === "down") {
-                            obj.x -= 1;
+                            if (obj.direction === "right") {
+                                obj.y -= 1;
+                            } else if (obj.direction === "left") {
+                                obj.y += 1;
+                            } else if (obj.direction === "up") {
+                                obj.x += 1;
+                            } else if (obj.direction === "down") {
+                                obj.x -= 1;
+                            }
                         }
-
+                        if(obj.blockedcounter>150&&obj.blockedcounter<300){
+                        // Enkelt undvik åt sidan
+                            if (obj.direction === "right") {
+                                obj.y += 1;
+                            } else if (obj.direction === "left") {
+                                obj.y -= 1;
+                            } else if (obj.direction === "up") {
+                                obj.x -= 1;
+                            } else if (obj.direction === "down") {
+                                obj.x += 1;
+                            }
+                        }
                     }
                     if (obj.blocked && obj.targetX !== null && obj.targetY !== null) {
     for (let other of game.getAllObjects()) {
@@ -1288,6 +1302,7 @@ class Object {
         this.blocked=false;
         this.targetObject=null;
         this.occupied=false;
+        this.blockedcounter=0;
     }
     collideslist(maps, currentmap, dir) {
         for (let i2 = 0; i2 < maps[currentmap].layer.length; i2++) {
