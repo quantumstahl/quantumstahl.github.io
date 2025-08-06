@@ -1,7 +1,7 @@
 
 <html>
     <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <meta name="viewport" content="user-scalable=no, shrink-to-fit=no">
         <meta charset="utf-8">
         <meta name="keywords" content="mobilspel, mobilegames, js games, javascript games">
         <link rel="icon" href="images/guarddown1.png" type="image/vnd.microsoft.icon" />
@@ -61,6 +61,8 @@
     border: none;
     border-radius: 5px;
   ">Träna arbetare</button>
+ 
+  
 </div>        
         
         
@@ -163,8 +165,8 @@
             let lastTouchPos = null;
             let gold = 2000;
             let wood = 2000;
-            document.getElementById("build-base-btn").innerHTML = "Bygg bas<br><small>1000 guld / 1000 trä</small>";
-document.getElementById("train-worker-btn").innerHTML = "Träna arbetare<br><small>200 guld / 100 trä</small>";
+            document.getElementById("build-base-btn").innerHTML = "Bygg bas<br>1000 guld / 1000 trä";
+document.getElementById("train-worker-btn").innerHTML = "Träna arbetare<br>200 guld / 100 trä";
             document.getElementById("build-base-btn").addEventListener("click", function() {
                 
             if(gold>=1000&&wood>=1000){gold-=1000;wood-=1000;}    
