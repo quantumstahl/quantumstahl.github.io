@@ -38,7 +38,10 @@
     border-radius: 5px;
   ">Bygg bas</button>
 </div>
-        
+<div id="resourceUI" style="position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 5px; font-family: sans-serif; font-size: 14px; z-index: 100;">
+    Guld: <span id="goldCount">0</span><br>
+    Trä: <span id="woodCount">0</span>
+</div>        
         
         
         <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
@@ -132,9 +135,13 @@
             let selectedWorkersBeforeBuild = [];
             let selectedWorkers = [];
             let lastTouchPos = null;
-            
+            let gold = 1000;
+            let wood = 1000;
             
             document.getElementById("build-base-btn").addEventListener("click", function() {
+                
+            if(gold>=1000&&wood>=1000){gold-=1000;wood-=1000;}    
+            else return;    
             buildMode = true;
             buildType = "base";
             selectedWorkersBeforeBuild = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
@@ -313,7 +320,8 @@
                 if (keyState.a) currentMap.camerax += camSpeed;
                 if (keyState.d) currentMap.camerax -= camSpeed;
                 
-                
+                document.getElementById("goldCount").textContent = gold;
+                document.getElementById("woodCount").textContent = wood;
                 
                 
                 let anyWorkerSelected = false;
@@ -546,8 +554,8 @@
                                 worker.objects[i].counter = 0;
                                 worker.objects[i].animation = 0; // idle
                                 
-                               
-                                
+                                if(worker.objects[i].workobject.occupied==false)gold += 10;
+                                if(worker.objects[i].workobject.occupied==true)wood += 10;
                                 
                                 // (Valfritt) Öka guldmängd här
                                 // gold += 10;
@@ -572,13 +580,30 @@
             
             function isBuildPlacementValid(o) {
                 if (!o || !o.collideslistan) return false;
+                
+                            // Avståndsgräns från resurser (t.ex. 100 pixlar)
+                const minDistanceToResources = 300;
+                const resourceTypes = ["tree", "goldmine"]; // eller hur du identifierar resurser
+
+                for (let type of resourceTypes) {
+                    const resources = game.getAllObjectsoftype(game.getobjecttype(type));
+                    for (let res of resources) {
+                        const dist = game.getDistance(o.x, o.y, res.x, res.y);
+                        if (dist < minDistanceToResources) {
+                            return false; // För nära en resurs
+                        }
+                    }
+                }
+                
+                
+                
                 return o.collideslistan.length === 0;
             }
             function cancelBuildMode() {
    
                 
                 if (ghostBuilding) {
-                    
+                    gold+=1000;wood+=1000;
                     game.removeobject(game.getobjecttype("base"),ghostBuilding); // ⬅️ Viktigt!
                     ghostBuilding = null;
                 }
