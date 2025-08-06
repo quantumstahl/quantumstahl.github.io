@@ -555,7 +555,7 @@
                                 worker.objects[i].animation = 0; // idle
                                 
                                 if(worker.objects[i].workobject.occupied==false)gold += 10;
-                                if(worker.objects[i].workobject.occupied==true)wood += 10;
+                                if(worker.objects[i].workobject.occupied==true){wood += 10;worker.objects[i].workobject.occupied=false;}
                                 
                                 // (Valfritt) Öka guldmängd här
                                 // gold += 10;
