@@ -38,6 +38,32 @@
     border-radius: 5px;
   ">Bygg bas</button>
 </div>
+        
+<div id="build-ui2" style="
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(0,0,0,0.8);
+  padding: 10px;
+  display: none;
+  flex-direction: row;
+  justify-content: center;
+  gap: 10px;
+  z-index: 1000;
+">
+
+  <button id="train-worker-btn" style="
+    font-size: 16px;
+    padding: 10px 20px;
+    background: darkblue;
+    color: white;
+    border: none;
+    border-radius: 5px;
+  ">Träna arbetare</button>
+</div>        
+        
+        
 <div id="resourceUI" style="position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 5px; font-family: sans-serif; font-size: 50px; z-index: 100;">
     <img src="images/gold.png" style="width:50px; vertical-align: middle;">Guld: <span id="goldCount">0</span><br>
     <img src="images/wood.png" style="width:50px; vertical-align: middle;">Trä: <span id="woodCount">0</span>
@@ -135,9 +161,10 @@
             let selectedWorkersBeforeBuild = [];
             let selectedWorkers = [];
             let lastTouchPos = null;
-            let gold = 1000;
-            let wood = 1000;
-            
+            let gold = 2000;
+            let wood = 2000;
+            document.getElementById("build-base-btn").innerHTML = "Bygg bas<br><small>1000 guld / 1000 trä</small>";
+document.getElementById("train-worker-btn").innerHTML = "Träna arbetare<br><small>200 guld / 100 trä</small>";
             document.getElementById("build-base-btn").addEventListener("click", function() {
                 
             if(gold>=1000&&wood>=1000){gold-=1000;wood-=1000;}    
@@ -154,7 +181,20 @@
             ghostBuilding.ghost = true;
             ghostBuilding.selectable = false;
         });
-            
+            document.getElementById("train-worker-btn").addEventListener("click", () => {
+                const base = game.getAllObjectsoftype(game.getobjecttype("base")).find(b => b.selected);
+                if (!base) return;
+
+                if (gold >= 200 && wood >= 100) {
+                    gold -= 200;
+                    wood -= 100;
+
+                    base.buildQueue = base.buildQueue || [];
+                    base.buildQueue.push("worker");
+                } else {
+                   
+                }
+            });    
             
             
             
@@ -338,11 +378,11 @@
                 
                 game.updateanimation(ctx);
                 
-				gras= game.getobjecttype("ground"); 				
+		gras= game.getobjecttype("ground"); 				
                 guard =game.getobjecttype("guard"); 
                 worker =game.getobjecttype("worker"); 
-                 tree =game.getobjecttype("tree"); 
-                 goldmine =game.getobjecttype("goldmine"); 
+                tree =game.getobjecttype("tree"); 
+                goldmine =game.getobjecttype("goldmine"); 
                 
                 if (buildMode && ghostBuilding&& lastTouchPos === null) {
                     let zoomFactor = 1 + (1 * game.maps[game.currentmap].zoom / 100);
@@ -359,8 +399,96 @@
                 
                 if(guard!=null){
                     
+                    
+                    const anyBaseSelected = game.getAllObjectsoftype(game.getobjecttype("base")).some(o => o.selected);
+                    document.getElementById("build-ui2").style.display = anyBaseSelected ? "flex" : "none";
+                    
+                    const canAffordBase = gold >= 1000 && wood >= 1000;
+                    const canAffordWorker = gold >= 200 && wood >= 100;
+
+                    document.getElementById("build-base-btn").style.opacity = canAffordBase ? "1" : "0.5";
+                    document.getElementById("train-worker-btn").style.opacity = canAffordWorker ? "1" : "0.5";
+                  
                     selectedWorkers = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
-					
+                    
+                    for (let base of game.getAllObjectsoftype(game.getobjecttype("base"))) {
+                        base.buildQueue = base.buildQueue || [];
+                        base.buildTimer = base.buildTimer || 0;
+
+                        if (base.buildQueue.length > 0) {
+                            base.buildTimer++;
+
+                            // När produktionen är klar
+                            if (base.buildTimer >= 1000) {
+                                    const workerType = game.getobjecttype("worker");
+
+                                    // Försök hitta en ledig plats runt basen
+                                    const offset = 10;
+                                    const spacing = 100; // hur långt från basen
+                                    const directions = [
+                                        [spacing, 0], [-spacing, 0], [0, spacing], [0, -spacing],
+                                        [spacing, spacing], [-spacing, -spacing], [spacing, -spacing], [-spacing, spacing]
+                                    ];
+
+                                    let placed = false;
+
+                                    for (let [dx, dy] of directions) {
+                                        const px = base.x + base.dimx / 2 + dx;
+                                        const py = base.y + base.dimy / 2 + dy;
+
+                                        // Temporärt testobjekt
+                                        const newWorker = game.addobject(
+                                                workerType,
+                                                px,
+                                                py,
+                                                workerType.standarddimx ,
+                                                workerType.standarddimy ,
+                                                0,
+                                                false
+                                            );
+
+                                        // Kolla om platsen är ledig
+                                        const overlaps = newWorker.collideslist(game.maps, game.currentmap, "any");
+
+                                        if (!overlaps) {
+                                            // Lägg till arbetaren här
+                                 
+
+                                            placed = true;
+                                            break;
+                                        }
+                                        else game.removeobject(workerType,newWorker);
+                                    }
+
+                                    if (placed) {
+                                        base.buildQueue.shift();
+                                        base.buildTimer = 0;
+                                    } else {
+                                        // Kunde inte placera – testa igen nästa frame
+                                        console.warn("Ingen ledig plats att placera arbetaren.");
+                                    }
+                                }
+                        }
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
                     for(let i=0;i<goldmine.objects.length;i++){
                     
                         goldmine.objects[i].selectable=true;
@@ -659,6 +787,12 @@
                 const dy = y1 - y2;
                 return Math.sqrt(dx * dx + dy * dy);
             }
+            
+            
+            
+            
+            
+            
             
         </script>
     </body>

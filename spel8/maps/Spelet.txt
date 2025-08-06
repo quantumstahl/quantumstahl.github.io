@@ -646,6 +646,13 @@ F*?
 100
 0
 false
+F*?
+1206
+523
+50
+100
+0
+false
 B*?
 buildings
 false

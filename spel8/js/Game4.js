@@ -1317,6 +1317,8 @@ class Object {
         this.targetObject=null;
         this.occupied=false;
         this.blockedcounter=0;
+        this.buildQueue=null;
+        this.buildTimer=0;
     }
     collideslist(maps, currentmap, dir) {
         for (let i2 = 0; i2 < maps[currentmap].layer.length; i2++) {
