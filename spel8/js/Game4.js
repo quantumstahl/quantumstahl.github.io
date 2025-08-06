@@ -650,6 +650,7 @@ class Game4 {
                         for (let k = 0; k < o.rakna; k++) {
                             o.x = o.x + 1;
                             if (o.collideslist(this.maps, this.currentmap, "right")) {
+                                
                                 o.x = o.x - 1;
                                 break;
                             }
@@ -699,6 +700,7 @@ class Game4 {
     
     collideswiths(obj, name) {
         for (let i = 0; i < obj.collideslistan.length; i++) {
+            
             if (name == "any")
                 return true;
             else if (obj.collideslistan[i] == name)
@@ -719,7 +721,7 @@ class Game4 {
         return false;
     }
     collideswithanoterobject(obj, obj2) {
-        for (let i = 0; i < obj.collideslistan.length; i++) {
+        for (let i = 0; i < obj.collideslistanobj.length; i++) {
             if (obj2 == obj.collideslistanobj[i])
                 return true;
         }
@@ -1285,6 +1287,7 @@ class Object {
         this.returning=false;
         this.blocked=false;
         this.targetObject=null;
+        this.occupied=false;
     }
     collideslist(maps, currentmap, dir) {
         for (let i2 = 0; i2 < maps[currentmap].layer.length; i2++) {

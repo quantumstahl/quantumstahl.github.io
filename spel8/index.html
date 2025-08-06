@@ -361,12 +361,26 @@
                             for (let w of selectedWorkers) {
 
                                 w.workobject=goldmine.objects[i];
-								w.counter2=0;
+				w.counter2=0;
                             }
                         }
 
 
                     }
+                    for(let i=0;i<tree.objects.length;i++){
+                    
+                        tree.objects[i].selectable=true;
+                        tree.objects[i].canMove=false;
+                    
+                        if(tree.objects[i].mousepressed==true&&anyWorkerSelected){
+                            
+                             assignWorkersToNearestTreesSmart();
+                        }
+
+
+                    }
+                    
+                    
                     
                     
                     for(let i=0;i<guard.objects.length;i++){
@@ -422,7 +436,7 @@
                         }
                         if(worker.objects[i].workobject!=null&&worker.objects[i].returning==false){
                             
-                         
+                            
                             worker.objects[i].targetX = worker.objects[i].workobject.x+worker.objects[i].workobject.dimx/2;
                             worker.objects[i].targetY = worker.objects[i].workobject.y+worker.objects[i].workobject.dimy/2;
                             worker.objects[i].targetObject=worker.objects[i].workobject;
@@ -430,16 +444,55 @@
                             
                         
                             
-                            
-                            
-                            if (game.collideswithanoterobject(worker.objects[i],worker.objects[i].workobject)&&worker.objects[i].counter<202) {
-                                worker.objects[i].animation=100;
-                                worker.objects[i].counter++;
+                            if(worker.objects[i].workobject.occupied==true){
+                                if (game.collideswithanoterobject(worker.objects[i],worker.objects[i].workobject)&&worker.objects[i].counter<1002) {
+                                    if(worker.objects[i].animation==0)worker.objects[i].animation = 3;
+                                    if(worker.objects[i].animation==1&&worker.objects[i].fliped==false)worker.objects[i].animation = 4;
+                                    if(worker.objects[i].animation==2)worker.objects[i].animation = 5;
+                                    if(worker.objects[i].animation==1&&worker.objects[i].fliped==true)worker.objects[i].animation = 4;
+                                    worker.objects[i].counter++;
+
+                                }
+                                if (worker.objects[i].counter > 1000) {
+                                    // Hitta närmsta base
+                           
+                                    let bases = game.getAllObjectsoftype(game.getobjecttype("base")).filter(b => b.buildProgress == null);
+                                    let closest = null;
+                                    let closestDist = Infinity;
+                                    for (let b of bases) {
+                                        let dx = worker.objects[i].x - b.x;
+                                        let dy = worker.objects[i].y - b.y;
+                                        let dist = Math.sqrt(dx * dx + dy * dy);
+                                        if (dist < closestDist) {
+                                            closestDist = dist;
+                                            closest = b;
+                                        }
+                                    }
+
+                                    if (closest) {
+
+                                        worker.objects[i].targetX = closest.x+closest.dimx/2;
+                                        worker.objects[i].targetY = closest.y+closest.dimy/2;
+                                        worker.objects[i].targetObject=closest;
+                                        worker.objects[i].returning = true; // ny flagga
+                                        worker.objects[i].deliveryTarget = closest;
+                                    }
+
+
+                                }
+                                
                                 
                             }
+                            else{
+                                if (game.collideswithanoterobject(worker.objects[i],worker.objects[i].workobject)&&worker.objects[i].counter<202) {
+                                    worker.objects[i].animation=100;
+                                    worker.objects[i].counter++;
+
+                                }
+                                
                             if (worker.objects[i].counter > 200) {
                                 // Hitta närmsta base
-                                
+                         
                                 let bases = game.getAllObjectsoftype(game.getobjecttype("base")).filter(b => b.buildProgress == null);
                                 let closest = null;
                                 let closestDist = Infinity;
@@ -454,7 +507,7 @@
                                 }
 
                                 if (closest) {
-                                    
+
                                     worker.objects[i].targetX = closest.x+closest.dimx/2;
                                     worker.objects[i].targetY = closest.y+closest.dimy/2;
                                     worker.objects[i].targetObject=closest;
@@ -462,22 +515,27 @@
                                     worker.objects[i].deliveryTarget = closest;
                                 }
 
-                                
+
+                            }
+
                             }
                             
-                            
                         }
-                   
                         if (worker.objects[i].returning && worker.objects[i].deliveryTarget) {
                             
-                            if(worker.objects[i].animation==0)worker.objects[i].animation = 6;
-                            if(worker.objects[i].animation==1&&worker.objects[i].fliped==false)worker.objects[i].animation = 7;
-                            if(worker.objects[i].animation==2)worker.objects[i].animation = 8;
-                            if(worker.objects[i].animation==1&&worker.objects[i].fliped==true)worker.objects[i].animation = 7;
                             
-                            
-                            
-               
+                            if(worker.objects[i].workobject.occupied==false){
+                                if(worker.objects[i].animation==0)worker.objects[i].animation = 6;
+                                if(worker.objects[i].animation==1&&worker.objects[i].fliped==false)worker.objects[i].animation = 7;
+                                if(worker.objects[i].animation==2)worker.objects[i].animation =8;
+                                if(worker.objects[i].animation==1&&worker.objects[i].fliped==true)worker.objects[i].animation = 7;
+                            }
+                            if(worker.objects[i].workobject.occupied==true){
+                                if(worker.objects[i].animation==0)worker.objects[i].animation = 9;
+                                if(worker.objects[i].animation==1&&worker.objects[i].fliped==false)worker.objects[i].animation = 10;
+                                if(worker.objects[i].animation==2)worker.objects[i].animation =11;
+                                if(worker.objects[i].animation==1&&worker.objects[i].fliped==true)worker.objects[i].animation = 10;
+                            }
                             
                             
                             
@@ -530,7 +588,51 @@
                 isPlacingBuilding = false;
                 console.log("Byggläge avbrutet");
             }
-           
+            function assignWorkersToNearestTreesSmart() {
+                    const allTrees = game.getAllObjectsoftype(game.getobjecttype("tree"))
+                        .filter(t => !t.occupied); // inga distansfilter här
+
+                    const assignedTrees = new Set();
+
+                    for (let w of selectedWorkers) {
+                        if(w.workobject!=null)return;
+                        
+                        let bestTree = null;
+                        let bestScore = Infinity;
+
+                        for (let t of allTrees) {
+                            if (assignedTrees.has(t)) continue;
+                            const distToWorker = getManualDistance(t.x, t.y, w.x, w.y);
+                      
+
+                            if (distToWorker < bestScore) {
+                                //alert(t.x+" "+ t.y+" "+ w.x+" "+ w.y);
+                                
+                                bestScore = distToWorker;
+                                bestTree = t;
+                            }
+                        }
+                        //alert("NY");
+                        if (bestTree) {
+                            
+                            
+                            
+                            w.targetX = bestTree.x + bestTree.dimx / 2;
+                            w.targetY = bestTree.y + bestTree.dimy / 2;
+                            w.workobject = bestTree;
+                            w.returning = false;
+                            w.counter2 = 0;
+                            bestTree.occupied = true;
+                            assignedTrees.add(bestTree);
+                        }
+                    }
+                }
+            function getManualDistance(x1, y1, x2, y2) {
+                const dx = x1 - x2;
+                const dy = y1 - y2;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+            
         </script>
     </body>
 </html>
