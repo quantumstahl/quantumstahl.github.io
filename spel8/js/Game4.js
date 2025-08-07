@@ -467,6 +467,7 @@ class Game4 {
                     else if (lines[i] == "F*?") {
                         game.getlastObjecttype().objects.push(new Object(Number(lines[i + 1]), Number(lines[i + 2]), Number(lines[i + 3]), Number(lines[i + 4]), Number(lines[i + 5]), JSON.parse(lines[i + 6])));
                         i = i + 6;
+                        game.getlastobject().name=game.getlastObjecttype().name;
                     }
                 }
             }
@@ -815,6 +816,7 @@ class Game4 {
     }
     addobject(objtype, x, y, dimx, dimy, rot, fliped) {
         objtype.objects.push(new Object(x, y, dimx, dimy, rot, fliped));
+        objtype.objects[objtype.objects.length-1].name=objtype.name;
         return objtype.objects[objtype.objects.length-1];
     }
     removeobject(objtype, obj) {
@@ -1274,6 +1276,7 @@ class Sprites {
 
 class Object {
     constructor(x, y, dimx, dimy, rot, fliped) {
+        this.name=name;
         this.x = x;
         this.y = y;
         this.origonx = x;
@@ -1311,6 +1314,7 @@ class Object {
         this.canMove = true;
         this.buildProgress=0;
         this.workobject=null;
+        this.buildobject=null;
         this.deliveryTarget=null;
         this.returning=false;
         this.blocked=false;

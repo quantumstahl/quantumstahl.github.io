@@ -204,8 +204,11 @@
             let selectedWorkersBeforeBuild = [];
             let selectedWorkers = [];
             let lastTouchPos = null;
-            let gold = 2000;
-            let wood = 2000;
+            let gold = 1000;
+            let wood = 1000;
+            let rgold = 1000;
+            let rwood = 1000;
+            
             document.getElementById("build-base-btn").innerHTML = "Bygg bas<br>1000 guld / 1000 trä";
             document.getElementById("build-barracks-btn").innerHTML = "Bygg barrack<br>500 guld / 500 trä";
             document.getElementById("train-worker-btn").innerHTML = "Träna arbetare<br>200 guld / 100 trä";
@@ -457,6 +460,16 @@
                 goldmine =game.getobjecttype("goldmine"); 
                 base=game.getobjecttype("base"); 
                 
+                
+                //ENEMYS
+                rbar =game.getobjecttype("rbar"); 
+                rbase =game.getobjecttype("rbase"); 
+                rguard =game.getobjecttype("rguard"); 
+                rworker =game.getobjecttype("rworker"); 
+                
+                
+                
+                
                 if (buildMode && ghostBuilding&& lastTouchPos === null) {
                     let zoomFactor = 1 + (1 * game.maps[game.currentmap].zoom / 100);
                     ghostBuilding.x = cursorX / zoomFactor - game.maps[game.currentmap].camerax - ghostBuilding.dimx / 2;
@@ -472,6 +485,8 @@
                 
                 if(guard!=null){
                     
+                    enemyTryToBuildBase();
+                    updateRedWorkerAI();
                     
                     const anyBaseSelected = game.getAllObjectsoftype(game.getobjecttype("base")).some(o => o.selected);
                     document.getElementById("build-ui2").style.display = anyBaseSelected ? "flex" : "none";
@@ -617,6 +632,8 @@
                         
 
                     }
+                    
+             
                     for(let i=0;i<worker.objects.length;i++){
 
                         worker.objects[i].selectable=true;
@@ -782,7 +799,149 @@
 
                     }
                     
-                    
+                    for(let i=0;i<rworker.objects.length;i++){
+
+                        rworker.objects[i].selectable=true;
+			rworker.objects[i].counter2++;
+                        
+                        
+                        if(rworker.objects[i].workobject!=null && rworker.objects[i].workobject.name=="rbase")break;
+                        
+                        
+                        if ( rworker.objects[i].direction === "up")  rworker.objects[i].animation = 0;
+                        else if ( rworker.objects[i].direction === "right")  {rworker.objects[i].animation = 1;rworker.objects[i].fliped=false;}
+                        else if ( rworker.objects[i].direction === "down")  rworker.objects[i].animation = 2;
+                        else if ( rworker.objects[i].direction === "left") { rworker.objects[i].animation = 1;rworker.objects[i].fliped=true;}
+                        
+                        
+                       
+                                
+
+                        if(rworker.objects[i].workobject!=null&&rworker.objects[i].returning==false){
+                            
+                            
+                            rworker.objects[i].targetX = rworker.objects[i].workobject.x+rworker.objects[i].workobject.dimx/2;
+                            rworker.objects[i].targetY = rworker.objects[i].workobject.y+rworker.objects[i].workobject.dimy/2;
+                            rworker.objects[i].targetObject=rworker.objects[i].workobject;
+                            
+                            
+                        
+                            
+                            if(rworker.objects[i].workobject.occupied==true){
+                                if (game.collideswithanoterobject(rworker.objects[i],rworker.objects[i].workobject)&&rworker.objects[i].counter<1002) {
+                                    if(rworker.objects[i].animation==0)rworker.objects[i].animation = 3;
+                                    if(rworker.objects[i].animation==1&&rworker.objects[i].fliped==false)rworker.objects[i].animation = 4;
+                                    if(rworker.objects[i].animation==2)rworker.objects[i].animation = 5;
+                                    if(rworker.objects[i].animation==1&&rworker.objects[i].fliped==true)rworker.objects[i].animation = 4;
+                                    rworker.objects[i].counter++;
+
+                                }
+                                if (rworker.objects[i].counter > 1000) {
+                                    // Hitta närmsta base
+                           
+                                    let bases = game.getAllObjectsoftype(game.getobjecttype("rbase"));
+                                    let closest = null;
+                                    let closestDist = Infinity;
+                                    for (let b of bases) {
+                                        let dx = rworker.objects[i].x - b.x;
+                                        let dy = rworker.objects[i].y - b.y;
+                                        let dist = Math.sqrt(dx * dx + dy * dy);
+                                        if (dist < closestDist) {
+                                            closestDist = dist;
+                                            closest = b;
+                                        }
+                                    }
+
+                                    if (closest) {
+
+                                        rworker.objects[i].targetX = closest.x+closest.dimx/2;
+                                        rworker.objects[i].targetY = closest.y+closest.dimy/2;
+                                        rworker.objects[i].targetObject=closest;
+                                        rworker.objects[i].returning = true; // ny flagga
+                                        rworker.objects[i].deliveryTarget = closest;
+                                    }
+
+
+                                }
+                                
+                                
+                            }
+                            else{
+                                if (game.collideswithanoterobject(rworker.objects[i],rworker.objects[i].workobject)&&rworker.objects[i].counter<202) {
+                                    rworker.objects[i].animation=100;
+                                    rworker.objects[i].counter++;
+
+                                }
+                                
+                            if (rworker.objects[i].counter > 200) {
+                                // Hitta närmsta base
+                         
+                                let bases = game.getAllObjectsoftype(game.getobjecttype("rbase"));
+                                let closest = null;
+                                let closestDist = Infinity;
+                                for (let b of bases) {
+                                    let dx = rworker.objects[i].x - b.x;
+                                    let dy = rworker.objects[i].y - b.y;
+                                    let dist = Math.sqrt(dx * dx + dy * dy);
+                                    if (dist < closestDist) {
+                                        closestDist = dist;
+                                        closest = b;
+                                    }
+                                }
+
+                                if (closest) {
+
+                                    rworker.objects[i].targetX = closest.x+closest.dimx/2;
+                                    rworker.objects[i].targetY = closest.y+closest.dimy/2;
+                                    rworker.objects[i].targetObject=closest;
+                                    rworker.objects[i].returning = true; // ny flagga
+                                    rworker.objects[i].deliveryTarget = closest;
+                                }
+
+
+                            }
+
+                            }
+                            
+                        }
+                        if (rworker.objects[i].returning && rworker.objects[i].deliveryTarget) {
+                            
+                            
+                            if(rworker.objects[i].workobject.occupied==false){
+                                if(rworker.objects[i].animation==0)rworker.objects[i].animation = 6;
+                                if(rworker.objects[i].animation==1&&rworker.objects[i].fliped==false)rworker.objects[i].animation = 7;
+                                if(rworker.objects[i].animation==2)rworker.objects[i].animation =8;
+                                if(rworker.objects[i].animation==1&&rworker.objects[i].fliped==true)rworker.objects[i].animation = 7;
+                            }
+                            if(rworker.objects[i].workobject.occupied==true){
+                                if(rworker.objects[i].animation==0)rworker.objects[i].animation = 9;
+                                if(rworker.objects[i].animation==1&&rworker.objects[i].fliped==false)rworker.objects[i].animation = 10;
+                                if(rworker.objects[i].animation==2)rworker.objects[i].animation =11;
+                                if(rworker.objects[i].animation==1&&rworker.objects[i].fliped==true)rworker.objects[i].animation = 10;
+                            }
+                            
+                            
+                            
+                            if (game.collideswithanoterobject(rworker.objects[i],rworker.objects[i].deliveryTarget)) {
+                                // Levererat resurser!
+                                rworker.objects[i].returning = false;
+                                rworker.objects[i].deliveryTarget = null;
+                                rworker.objects[i].counter = 0;
+                                rworker.objects[i].animation = 0; // idle
+                                
+                                if(rworker.objects[i].workobject.occupied==false)rgold += 10;
+                                if(rworker.objects[i].workobject.occupied==true){rwood += 10;}
+                                
+                                // (Valfritt) Öka guldmängd här
+                                // gold += 10;
+                            }
+                        }
+                        
+                        
+                        
+                        
+
+                    }
                     
                 
                 }
@@ -872,11 +1031,167 @@
                 return Math.sqrt(dx * dx + dy * dy);
             }
             
+ 
             
             
+            function enemyTryToBuildBase() {
+                
+                  const rworkers = game.getAllObjectsoftype(game.getobjecttype("rworker"));
+                for (let w of rworkers) {
             
-            
-            
+                    if (w.workobject && w.workobject.name=="rbase") {
+                        // Börja bygga
+                
+                        if (game.collideswithanoterobject(w,w.workobject)) {
+                            w.workobject.buildProgress += 1;
+                            if(w.animation==0)w.animation = 3;
+                                if(w.animation==1&&w.fliped==false)w.animation = 4;
+                                if(w.animation==2)w.animation = 5;
+                                if(w.animation==1&&w.fliped==true)w.animation = 4;
+                            
+                            
+                            if (w.workobject.buildProgress > 1000) {
+                                w.workobject.ghost = false;
+                                w.workobject.selectable = true;
+                                w.workobject.animation=1;
+                                w.workobject = null;
+                                
+                            }
+                        }
+                    }
+                }
+                
+                
+       if (rwood < 1000 || rgold < 1000) return;
+
+    const rbaseType = game.getobjecttype("rbase");
+
+    // Finns redan en bas eller ghost-bygge?
+    const baseExists = game.getAllObjects().some(o =>
+        o.type === rbaseType && (!o.ghost || o.ghost === true)
+    );
+    if (baseExists) return;
+
+    const mines = game.getAllObjectsoftype(game.getobjecttype("goldmine"));
+    if (mines.length === 0) return;
+
+    if (rworkers.length === 0) return;
+
+    const mine = mines[1]; // använd första gruvan
+    const spacing = 100;
+    let bestPos = null;
+    let bestScore = Infinity;
+
+    for (let dx = -5; dx <= 5; dx++) {
+        for (let dy = -5; dy <= 5; dy++) {
+            const px = mine.x + dx * spacing;
+            const py = mine.y + dy * spacing;
+
+            const temp = game.addobject(
+                rbaseType,
+                px,
+                py,
+                rbaseType.standarddimx,
+                rbaseType.standarddimy,
+                0,
+                false
+                        
+            );
+            temp.ghost = true;
+
+            if (isBuildPlacementValid(temp)) {
+                const distToMine = game.getDistance(px, py, mine.x, mine.y);
+
+                // Hitta närmaste rworker
+                let closestWorkerDist = Infinity;
+                for (let w of rworkers) {
+                    const d = game.getDistance(px, py, w.x, w.y);
+                    if (d < closestWorkerDist) closestWorkerDist = d;
+                }
+
+                const score = distToMine*1 + closestWorkerDist*0.5; // ev. viktning här
+
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestPos = { x: px, y: py };
+                }
+            }
+
+            game.removeobject(rbaseType, temp);
+        }
+    }
+
+    if (bestPos) {
+        const ghost = game.addobject(
+            rbaseType,
+            bestPos.x,
+            bestPos.y,
+            rbaseType.standarddimx,
+            rbaseType.standarddimy,
+            0,
+            false
+        );
+        ghost.ghost = false;
+        ghost.canMove = false;
+        ghost.selectable = false;
+        ghost.enemyBuild = true;
+        ghost.buildProgress = 0;
+
+        for (let w of rworkers) {
+            w.targetX = bestPos.x;
+            w.targetY = bestPos.y;
+            w.workobject = ghost;
+            w.counter2 = 0;
+        }
+
+        rwood -= 1000;
+        rgold -= 1000;
+    }
+}
+function updateRedWorkerAI() {
+    const rworkers = game.getAllObjectsoftype(game.getobjecttype("rworker"));
+    const trees = game.getAllObjectsoftype(game.getobjecttype("tree")).filter(t => !t.occupied);
+    const mines = game.getAllObjectsoftype(game.getobjecttype("goldmine"));
+
+    for (let w of rworkers) {
+        let istree=true;
+        // Hoppa över om redan jobbar
+        if (w.workobject || w.buildingTarget) continue;
+
+        let bestTarget = null;
+        let bestDist = Infinity;
+
+        // Sök träd först
+     //   for (let t of trees) {
+     //       const d = game.getDistance(w.x, w.y, t.x, t.y);
+    //        if (d < bestDist) {
+   //             bestDist = d;
+    //            bestTarget = t;
+   //         }
+   //     }
+
+        // Om inget träd, kolla gruva
+        if (!bestTarget && mines.length > 0) {
+            for (let m of mines) {
+                const d = game.getDistance(w.x, w.y, m.x, m.y);
+                if (d < bestDist) {
+                    bestDist = d;
+                    bestTarget = m;
+                    istree=false;
+                }
+            }
+        }
+
+        if (bestTarget) {
+            w.targetX = bestTarget.x;
+            w.targetY = bestTarget.y;
+            w.workobject = bestTarget;
+            w.returning = false;
+            w.counter2 = 0;
+            if(istree) bestTarget.occupied = true;
+        }
+    }
+}            
             
         </script>
     </body>
