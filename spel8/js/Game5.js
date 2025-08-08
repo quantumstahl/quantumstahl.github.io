@@ -274,17 +274,22 @@ class Pathfinder {
   return null;
 }
   // === Ny kod för reservationer ===
-  reserveOtherUnits(baseGrid, movers, ignoreUnit = null) {
-    const grid = baseGrid.map(row => [...row]);
-    for (const m of movers) {
-      if (m === ignoreUnit) continue;
-      const { tx, ty } = this.tileFromPixel(m.x, m.y);
-      if (ty >= 0 && ty < grid.length && tx >= 0 && tx < grid[0].length) {
-        grid[ty][tx] = 1; // markera som hinder
+reserveOtherUnits(baseGrid, movers, ignoreUnit = null) {
+  const grid = baseGrid.map(row => [...row]);
+  const mark = (tx, ty) => {
+    if (ty >= 0 && ty < grid.length && tx >= 0 && tx < grid[0].length) grid[ty][tx] = 1;
+  };
+  for (const m of movers) {
+    if (m === ignoreUnit) continue;
+    const { tx, ty } = this.tileFromPixel(m.x, m.y);
+    for (let oy = -1; oy <= 1; oy++) {
+      for (let ox = -1; ox <= 1; ox++) {
+        mark(tx + ox, ty + oy); // 3x3 reservation
       }
     }
-    return grid;
   }
+  return grid;
+}
 
   findPathWithReservations(startPx, startPy, endPx, endPy, movers, ignoreUnit = null) {
     const reservedGrid = this.reserveOtherUnits(this.grid, movers, ignoreUnit);
@@ -1173,8 +1178,19 @@ updateUnitMovement() {
   for (let o of movers) {
     // === Målval (slot > target) + byggnadskant ===
     let goalX = o.assignedSlot ? o.assignedSlot.x : o.targetX;
-    let goalY = o.assignedSlot ? o.assignedSlot.y : o.targetY;
+let goalY = o.assignedSlot ? o.assignedSlot.y : o.targetY;
 
+// >>> NYTT: om målet är en byggnad, patha till närmaste kant
+if (o.buildobject) {
+  const edge = this.approachEdgePoint(goalX, goalY, o.buildobject, 12);
+  goalX = edge.x;
+  goalY = edge.y;
+}
+if (o.workobject) {
+  const edge = this.approachEdgePoint(goalX, goalY, o.workobject, 12);
+  goalX = edge.x;
+  goalY = edge.y;
+}
 
     // === Stuck detection (repath i tid) ===
     if (!o.lastPos) o.lastPos = { x: o.x, y: o.y };
