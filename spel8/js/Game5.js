@@ -119,26 +119,26 @@ class Pathfinder {
     return !this.inBounds(tx, ty) || this.grid[ty][tx] === 1;
   }
 
-  updateObstacles(objects, ignore = new Set()) {
-    this.resetGrid();
-    for (const obj of objects) {
-		  if (ignore.has(obj)) continue; // 👈 ignorera målobjektet
+updateObstacles(objects, ignore = new Set()) {
+  this.resetGrid();
+  for (const obj of objects) {
+    if (ignore.has(obj)) continue;
 
-		  const dimx = (typeof obj.dimx === "number" ? obj.dimx : this.tileSize);
-		  const dimy = (typeof obj.dimy === "number" ? obj.dimy : this.tileSize);
+    const dimx = typeof obj.dimx === "number" ? obj.dimx : this.tileSize;
+    const dimy = typeof obj.dimy === "number" ? obj.dimy : this.tileSize;
 
-		  const { tx: x1, ty: y1 } = this.tileFromPixel(obj.x, obj.y);
-		  const { tx: x2, ty: y2 } = this.tileFromPixel(obj.x + dimx - 1, obj.y + dimy - 1);
+    const { tx: x1, ty: y1 } = this.tileFromPixel(obj.x, obj.y);
+    const { tx: x2, ty: y2 } = this.tileFromPixel(obj.x + dimx - 1, obj.y + dimy - 1);
 
-		  for (let ty = y1; ty <= y2; ty++) {
-			if (ty < 0 || ty >= this.rows) continue;
-			for (let tx = x1; tx <= x2; tx++) {
-			  if (tx < 0 || tx >= this.cols) continue;
-			  this.grid[ty][tx] = 1;
-			}
-		  }
-		}
+    for (let ty = y1; ty <= y2; ty++) {
+      if (ty < 0 || ty >= this.rows) continue;
+      for (let tx = x1; tx <= x2; tx++) {
+        if (tx < 0 || tx >= this.cols) continue;
+        this.grid[ty][tx] = 1;
+      }
+    }
   }
+}
 
   hCost(x1, y1, x2, y2) {
     const dx = Math.abs(x1 - x2);
@@ -1170,22 +1170,11 @@ updateUnitMovement() {
   const staticObstacles = this.getAllObjects().filter(
     o => o.isStaticObstacle || o.name === "tree" || o.name === "base"
   );
-  // bygg en Set med målobjekt att tillfälligt ignorera
 const ignoreSet = new Set();
-for (const unit of this.getAllObjects()) {
-  if (unit.workobject) {
-	//ignoreSet.add(unit.workobject);
+for (const o of this.getAllObjects()) {
+  if (o.canMove && o.buildobject) {
+    ignoreSet.add(o.buildobject); // byggnaden de ska till = inte hinder för just dem
   }
-  if (unit.buildobject) {
-    //ignoreSet.add(unit.buildobject);
-  }
-  if (unit.buildobject) {
-    //ignoreSet.add(unit.buildobject);
-  }
-  if (unit.deliveryTarget) {
-    //ignoreSet.add(unit.deliveryTarget);
-  }
-  
 }
 
 game.pathfinder.updateObstacles(staticObstacles, ignoreSet);
