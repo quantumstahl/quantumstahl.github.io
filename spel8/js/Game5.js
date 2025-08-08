@@ -119,23 +119,25 @@ class Pathfinder {
     return !this.inBounds(tx, ty) || this.grid[ty][tx] === 1;
   }
 
-  updateObstacles(objects) {
+  updateObstacles(objects, ignore = new Set()) {
     this.resetGrid();
     for (const obj of objects) {
-      const dimx = (typeof obj.dimx === "number" ? obj.dimx : this.tileSize);
-      const dimy = (typeof obj.dimy === "number" ? obj.dimy : this.tileSize);
+		  if (ignore.has(obj)) continue; // 👈 ignorera målobjektet
 
-      const { tx: x1, ty: y1 } = this.tileFromPixel(obj.x, obj.y);
-      const { tx: x2, ty: y2 } = this.tileFromPixel(obj.x + dimx - 1, obj.y + dimy - 1);
+		  const dimx = (typeof obj.dimx === "number" ? obj.dimx : this.tileSize);
+		  const dimy = (typeof obj.dimy === "number" ? obj.dimy : this.tileSize);
 
-      for (let ty = y1; ty <= y2; ty++) {
-        if (ty < 0 || ty >= this.rows) continue;
-        for (let tx = x1; tx <= x2; tx++) {
-          if (tx < 0 || tx >= this.cols) continue;
-          this.grid[ty][tx] = 1;
-        }
-      }
-    }
+		  const { tx: x1, ty: y1 } = this.tileFromPixel(obj.x, obj.y);
+		  const { tx: x2, ty: y2 } = this.tileFromPixel(obj.x + dimx - 1, obj.y + dimy - 1);
+
+		  for (let ty = y1; ty <= y2; ty++) {
+			if (ty < 0 || ty >= this.rows) continue;
+			for (let tx = x1; tx <= x2; tx++) {
+			  if (tx < 0 || tx >= this.cols) continue;
+			  this.grid[ty][tx] = 1;
+			}
+		  }
+		}
   }
 
   hCost(x1, y1, x2, y2) {
@@ -1168,7 +1170,16 @@ updateUnitMovement() {
   const staticObstacles = this.getAllObjects().filter(
     o => o.isStaticObstacle || o.name === "tree" || o.name === "base"
   );
-  game.pathfinder.updateObstacles(staticObstacles);
+  // bygg en Set med målobjekt att tillfälligt ignorera
+const ignoreSet = new Set();
+for (const unit of this.getAllObjects()) {
+  if (unit.canMove && unit.buildobject||unit.canMove && unit.workobject) {
+    ignoreSet.add(unit.buildobject);
+	ignoreSet.add(unit.workobject);
+  }
+}
+
+game.pathfinder.updateObstacles(staticObstacles, ignoreSet);
 
   // 2) Movers med mål
   const movers = this.getAllObjects().filter(
