@@ -648,7 +648,7 @@ class Game4 {
                 for (let i4 = 0; i4 < this.maps[this.currentmap].layer[i2].objectype[i3].objects.length; i4++) {
                     var o = this.maps[this.currentmap].layer[i2].objectype[i3].objects[i4];
                     
-                    if(o.rakna!=0||o.rakna!=0)o.hadcollidedobj = [];
+                    if (o.rakna !== 0 || o.rakna2 !== 0) o.hadcollidedobj = [];
                     
                     if (o.rakna < 0) {
                         
@@ -691,11 +691,7 @@ class Game4 {
                             }
                         }
                     }
-                    o.blocked=false;
-                    if((o.freex==o.x&&o.rakna != 0)||(o.freey==o.y&&o.rakna2 != 0)){
-                
-                        o.blocked=true;
-                    }
+                    
                     
                     o.freex = o.x;
                     o.freey = o.y;
@@ -717,11 +713,11 @@ class Game4 {
         for (let i = 0; i < obj.collideslistan.length; i++) {
             
             if (name == "any")
-                return true;
+                return obj.collideslistanobj[i];
             else if (obj.collideslistan[i] == name)
-                return true;
+                return obj.collideslistanobj[i];
         }
-        return false;
+        return null;
     }
     
     collideswith(obj, name, dir) {
@@ -938,29 +934,66 @@ class Game4 {
                 const dx = obj.targetX - obj.x;
                 const dy = obj.targetY - obj.y;
                 const dist = Math.sqrt(dx*dx + dy*dy);
+                
+
 
                 if (dist > 1) {
                     // Beräkna rörelseriktning
+
                     if (Math.abs(dx) > Math.abs(dy)) {
                         obj.direction = dx > 0 ? "right" : "left";
                     } else {
                         obj.direction = dy > 0 ? "down" : "up";
                     }
 
-                    obj.x += ((dx / dist) * obj.speed);
-                    obj.y += ((dy / dist) * obj.speed);
+
                     
+                    let stop=false;
                     
                     
                     
                      for (let c of obj.collideslistanobj) {
                          
                  
-                        if (obj.targetObject && c == obj.targetObject){ obj.blocked=false;;} // Ignorera target
+                        if (obj.targetObject && c == obj.targetObject||obj.workobject&&c==obj.workobject){ obj.blocked=false;obj.blocked1=0;stop=true;} // Ignorera target
+                        if(obj.workobject&&c==obj.workobject){obj.blocked=false;obj.blocked1=0;stop=true;}
+                        if(obj.deliveryTarget&&c==obj.deliveryTarget){obj.blocked=false;obj.blocked1=0;stop=true;}
                      }
-                   
-                    if(!obj.blocked)obj.blockedcounter=0;
-                    if (obj.blocked) {
+                     
+
+                     if(stop==true){
+               
+                          if (Math.abs(dx) > Math.abs(dy))obj.x += ((dx / dist) * obj.speed);
+                           else  obj.y += ((dy / dist) * obj.speed);
+                     }
+                     else{
+                         
+                         if(game.isPathClear(obj)){
+                         
+                         if (Math.abs(dx)*2 > Math.abs(dy)) {
+                             obj.x += ((dx / dist) * obj.speed);
+                        }if (Math.abs(dx) < Math.abs(dy)*2){
+                            obj.y += ((dy / dist) * obj.speed);
+                        }
+
+                        
+                     }
+                      else{    
+                          obj.y += ((dy / dist) * obj.speed);
+                          obj.x += ((dx / dist) * obj.speed);
+                        }
+                         
+                         
+                         
+                         
+                         
+                     }
+                     
+                       
+                    if(game.isPathClear(obj)){obj.blockedcounter=0;obj.blocked1=0;obj.blocked=false;}
+                    else obj.blocked=true;
+                    //if(!obj.blocked)obj.blockedcounter=0;
+                    if (obj.blocked&&stop==false) {
                         obj.blockedcounter++;
                         if(obj.blockedcounter<150){
                         // Enkelt undvik åt sidan
@@ -973,6 +1006,7 @@ class Game4 {
                             } else if (obj.direction === "down") {
                                 obj.x -= 1;
                             }
+                            
                         }
                         if(obj.blockedcounter>150&&obj.blockedcounter<300){
                         // Enkelt undvik åt sidan
@@ -985,7 +1019,11 @@ class Game4 {
                             } else if (obj.direction === "down") {
                                 obj.x += 1;
                             }
+                            
                         }
+                        if(obj.blockedcounter>300){obj.blockedcounter=0;obj.blocked1=0;}
+                        
+                        
                     }
                     if (obj.blocked && obj.targetX !== null && obj.targetY !== null) {
     for (let other of game.getAllObjects()) {
@@ -1017,9 +1055,39 @@ class Game4 {
             }
         }
     }
+    isPathClear(worker) {
+    const dx = worker.targetX - worker.x;
+    const dy = worker.targetY - worker.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const steps = Math.ceil(dist / worker.speed); // antal små steg
+    const stepX = dx / steps;
+    const stepY = dy / steps;
+
+    let buffx = worker.x;
+    let buffy = worker.y;
+
+    for (let i = 0; i < 10; i++) {
+        buffx += stepX;
+        buffy += stepY;
+
+        const oldX = worker.x;
+        const oldY = worker.y;
+        worker.x = buffx;
+        worker.y = buffy;
+
+        if (worker.collidestest()) {
+            worker.x = oldX;
+            worker.y = oldY;
+            return false;
+        }
+
+        worker.x = oldX;
+        worker.y = oldY;
+    }
+    return true;
+}
     
-    
-    issueFormationMove(units, targetX, targetY, spacing = 55) {
+    issueFormationMove(units, targetX, targetY, spacing = 50) {
     if (units.length === 0) return;
 
     const cols = Math.ceil(Math.sqrt(units.length));
@@ -1318,12 +1386,53 @@ class Object {
         this.deliveryTarget=null;
         this.returning=false;
         this.blocked=false;
+        this.blocked1=0;
         this.targetObject=null;
         this.occupied=false;
         this.blockedcounter=0;
         this.buildQueue=null;
         this.buildTimer=0;
+        this.directionx="left";
+        this.directiony="up";
     }
+    collidestest(){
+        for (let i2 = 0; i2 < game.maps[game.currentmap].layer.length; i2++) {
+            let layer = game.maps[game.currentmap].layer[i2];
+            for (let i3 = 0; i3 < layer.objectype.length; i3++) {
+                let objType = layer.objectype[i3];
+                for (let i4 = 0; i4 < objType.objects.length; i4++) {
+                    if ((objType.objects[i4] == this) || game.maps[game.currentmap].layer[i2].fysics == false) {
+                    }
+                    else {
+                        if (objType.objects[i4].rot == 0 && this.rot == 0) {
+                            if (this.collideswithfast(objType.objects[i4])) {
+                                if (game.maps[game.currentmap].layer[i2].ghost == true || objType.objects[i4].ghost == true) {
+                                }
+                                else {
+                                    return true;
+                                }
+                            }
+                        }
+                        else {
+                            if (this.collideswith(objType.objects[i4])) {
+                                if (game.maps[game.currentmap].layer[i2].ghost == true || objType.objects[i4].ghost == true) {
+                                }
+                                else {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+    
+    
+    
+    
+    
     collideslist(maps, currentmap, dir) {
         for (let i2 = 0; i2 < maps[currentmap].layer.length; i2++) {
             let layer = maps[currentmap].layer[i2];
@@ -1436,13 +1545,12 @@ class Object {
             obj.x, obj.y, obj.dimx, obj.dimy, obj.rot);
     }
     collideswithfast(obj) {
-        if (!(this.x > obj.x + obj.dimx || 
-              this.x + this.dimx < obj.x || 
-              this.y > obj.y + obj.dimy || 
-              this.y + this.dimy < obj.y)) {
-            return true;
-        }
-        return false;
+        if (!(this.x >= obj.x + obj.dimx ||
+            this.x + this.dimx <= obj.x ||
+            this.y >= obj.y + obj.dimy ||
+            this.y + this.dimy <= obj.y)) {
+          return true;
+      }
     }
     toString() {
         return `${this.x} ${this.y} ${this.dimx} ${this.dimy} ${this.rot}`;

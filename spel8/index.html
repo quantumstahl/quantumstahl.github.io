@@ -487,6 +487,7 @@
                     
                     enemyTryToBuildBase();
                     updateRedWorkerAI();
+                    updateRedTrainingAI();
                     
                     const anyBaseSelected = game.getAllObjectsoftype(game.getobjecttype("base")).some(o => o.selected);
                     document.getElementById("build-ui2").style.display = anyBaseSelected ? "flex" : "none";
@@ -498,7 +499,7 @@
                     const canAffordBase = gold >= 1000 && wood >= 1000;
                     const canAffordWorker = gold >= 200 && wood >= 100;
                     const canAffordWarrior = gold >= 300 && wood >= 100;
-                    const canAffordBar = gold >= 300 && wood >= 100;
+                    const canAffordBar = gold >= 500 && wood >= 500;
 
                     document.getElementById("build-base-btn").style.opacity = canAffordBase ? "1" : "0.5";
                     document.getElementById("train-worker-btn").style.opacity = canAffordWorker ? "1" : "0.5";
@@ -513,8 +514,12 @@
                   
                     selectedWorkers = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
                     
-                    const basesAndBars = game.getAllObjectsoftype(game.getobjecttype("base"))
-                        .concat(game.getAllObjectsoftype(game.getobjecttype("bar")));
+                    const basesAndBars = [
+                        ...game.getAllObjectsoftype(game.getobjecttype("base")),
+                        ...game.getAllObjectsoftype(game.getobjecttype("bar")),
+                        ...game.getAllObjectsoftype(game.getobjecttype("rbase")),
+                        ...game.getAllObjectsoftype(game.getobjecttype("rbar")),
+                    ];
 
                     for (let base of basesAndBars) {
                         base.buildQueue = base.buildQueue || [];
@@ -683,7 +688,12 @@
                             
                         
                             
-                            if(worker.objects[i].workobject.occupied==true){
+                            if(worker.objects[i].workobject.name=="tree"){
+                                
+                                
+                                let oo=game.collideswiths(worker.objects[i],"tree");
+                                if(oo&&worker.objects[i].workobject!=oo){worker.objects[i].workobject.occupied=false;worker.objects[i].workobject=oo;oo.occupied=true;}
+                                
                                 if (game.collideswithanoterobject(worker.objects[i],worker.objects[i].workobject)&&worker.objects[i].counter<1002) {
                                     if(worker.objects[i].animation==0)worker.objects[i].animation = 3;
                                     if(worker.objects[i].animation==1&&worker.objects[i].fliped==false)worker.objects[i].animation = 4;
@@ -763,13 +773,13 @@
                         if (worker.objects[i].returning && worker.objects[i].deliveryTarget) {
                             
                             
-                            if(worker.objects[i].workobject.occupied==false){
+                            if(worker.objects[i].workobject.name!="tree"){
                                 if(worker.objects[i].animation==0)worker.objects[i].animation = 6;
                                 if(worker.objects[i].animation==1&&worker.objects[i].fliped==false)worker.objects[i].animation = 7;
                                 if(worker.objects[i].animation==2)worker.objects[i].animation =8;
                                 if(worker.objects[i].animation==1&&worker.objects[i].fliped==true)worker.objects[i].animation = 7;
                             }
-                            if(worker.objects[i].workobject.occupied==true){
+                            if(worker.objects[i].workobject.name=="tree"){
                                 if(worker.objects[i].animation==0)worker.objects[i].animation = 9;
                                 if(worker.objects[i].animation==1&&worker.objects[i].fliped==false)worker.objects[i].animation = 10;
                                 if(worker.objects[i].animation==2)worker.objects[i].animation =11;
@@ -785,8 +795,8 @@
                                 worker.objects[i].counter = 0;
                                 worker.objects[i].animation = 0; // idle
                                 
-                                if(worker.objects[i].workobject.occupied==false)gold += 10;
-                                if(worker.objects[i].workobject.occupied==true){wood += 10;}
+                                if(worker.objects[i].workobject.name!="tree")gold += 10;
+                                if(worker.objects[i].workobject.name=="tree"){wood += 10;}
                                 
                                 // (Valfritt) Öka guldmängd här
                                 // gold += 10;
@@ -827,7 +837,13 @@
                             
                         
                             
-                            if(rworker.objects[i].workobject.occupied==true){
+                            if(rworker.objects[i].workobject.name=="tree"){
+                                
+                                
+                                let oo=game.collideswiths(rworker.objects[i],"tree");
+                                
+                                if(oo&&rworker.objects[i].workobject!=oo){rworker.objects[i].workobject.occupied=false;rworker.objects[i].workobject=oo;oo.occupied=true;}
+                                
                                 if (game.collideswithanoterobject(rworker.objects[i],rworker.objects[i].workobject)&&rworker.objects[i].counter<1002) {
                                     if(rworker.objects[i].animation==0)rworker.objects[i].animation = 3;
                                     if(rworker.objects[i].animation==1&&rworker.objects[i].fliped==false)rworker.objects[i].animation = 4;
@@ -907,13 +923,13 @@
                         if (rworker.objects[i].returning && rworker.objects[i].deliveryTarget) {
                             
                             
-                            if(rworker.objects[i].workobject.occupied==false){
+                            if(rworker.objects[i].workobject.name!="tree"){
                                 if(rworker.objects[i].animation==0)rworker.objects[i].animation = 6;
                                 if(rworker.objects[i].animation==1&&rworker.objects[i].fliped==false)rworker.objects[i].animation = 7;
                                 if(rworker.objects[i].animation==2)rworker.objects[i].animation =8;
                                 if(rworker.objects[i].animation==1&&rworker.objects[i].fliped==true)rworker.objects[i].animation = 7;
                             }
-                            if(rworker.objects[i].workobject.occupied==true){
+                            if(rworker.objects[i].workobject.name=="tree"){
                                 if(rworker.objects[i].animation==0)rworker.objects[i].animation = 9;
                                 if(rworker.objects[i].animation==1&&rworker.objects[i].fliped==false)rworker.objects[i].animation = 10;
                                 if(rworker.objects[i].animation==2)rworker.objects[i].animation =11;
@@ -925,12 +941,12 @@
                             if (game.collideswithanoterobject(rworker.objects[i],rworker.objects[i].deliveryTarget)) {
                                 // Levererat resurser!
                                 rworker.objects[i].returning = false;
-                                rworker.objects[i].deliveryTarget = null;
+                                //rworker.objects[i].deliveryTarget = null;
                                 rworker.objects[i].counter = 0;
                                 rworker.objects[i].animation = 0; // idle
                                 
-                                if(rworker.objects[i].workobject.occupied==false)rgold += 10;
-                                if(rworker.objects[i].workobject.occupied==true){rwood += 10;}
+                                if(rworker.objects[i].workobject.name!="tree")rgold += 10;
+                                if(rworker.objects[i].workobject.name=="tree"){rwood += 10;}
                                 
                                 // (Valfritt) Öka guldmängd här
                                 // gold += 10;
@@ -1153,46 +1169,104 @@ function updateRedWorkerAI() {
     const trees = game.getAllObjectsoftype(game.getobjecttype("tree")).filter(t => !t.occupied);
     const mines = game.getAllObjectsoftype(game.getobjecttype("goldmine"));
 
+    let woodWorkers = 0;
+    let goldWorkers = 0;
+
+    // Räkna redan tilldelade
     for (let w of rworkers) {
-        let istree=true;
-        // Hoppa över om redan jobbar
-        if (w.workobject || w.buildingTarget) continue;
-
-        let bestTarget = null;
-        let bestDist = Infinity;
-
-        // Sök träd först
-     //   for (let t of trees) {
-     //       const d = game.getDistance(w.x, w.y, t.x, t.y);
-    //        if (d < bestDist) {
-   //             bestDist = d;
-    //            bestTarget = t;
-   //         }
-   //     }
-
-        // Om inget träd, kolla gruva
-        if (!bestTarget && mines.length > 0) {
-            for (let m of mines) {
-                const d = game.getDistance(w.x, w.y, m.x, m.y);
-                if (d < bestDist) {
-                    bestDist = d;
-                    bestTarget = m;
-                    istree=false;
-                }
-            }
-        }
-
-        if (bestTarget) {
-            w.targetX = bestTarget.x;
-            w.targetY = bestTarget.y;
-            w.workobject = bestTarget;
-            w.returning = false;
-            w.counter2 = 0;
-            if(istree) bestTarget.occupied = true;
+        if (w.workobject) {
+            if (w.workobject.name === "tree") woodWorkers++;
+            if (w.workobject.name === "goldmine") goldWorkers++;
         }
     }
-}            
-            
+
+    // Tilldela nya arbetare
+    for (let w of rworkers) {
+        if (w.workobject || w.buildingTarget) continue; // hoppa om redan jobbar
+
+        let targetList = null;
+        let targetType = "";
+
+        // Fördela 3 av 5 till träd
+        if ((woodWorkers * 5) < (rworkers.length * 3) && trees.length > 0) {
+            targetList = trees;
+            targetType = "tree";
+        } else if (mines.length > 0) {
+            targetList = mines;
+            targetType = "goldmine";
+        }
+        
+           let nearbyTrees = trees.filter(t => 
+            game.getDistance(w.x, w.y, t.x, t.y) < 1000
+        );
+
+      
+        
+        
+        
+        if (targetList) {
+            let bestTarget = null;
+            let bestDist = Infinity;
+
+            for (let t of targetList) {
+                const d = game.getDistance(w.x, w.y, t.x, t.y);
+                if (d < bestDist && !t.occupied) {
+                    bestDist = d;
+                    bestTarget = t;
+                }
+            }
+
+            if (bestTarget) {
+                
+                if(targetType=="tree"&&nearbyTrees.length > 0){
+                    let tree = nearbyTrees[Math.floor(Math.random() * nearbyTrees.length)];
+                    tree.occupied = true;
+                    w.workobject = tree;
+                    w.targetX = tree.x;
+                    w.targetY = tree.y;
+                    w.returning = false;
+                    w.counter2 = 0;
+                    
+                }
+                else{
+                
+                    w.targetX = bestTarget.x + bestTarget.dimx / 2;
+                    w.targetY = bestTarget.y + bestTarget.dimy / 2;
+                    w.workobject = bestTarget;
+                    w.returning = false;
+                    w.counter2 = 0;
+                    if(bestTarget.name=="tree")bestTarget.occupied = true;
+                }
+                // Uppdatera räknare
+                if (targetType === "tree") woodWorkers++;
+                else if (targetType === "goldmine") goldWorkers++;
+            }
+        }
+    }
+}        
+function updateRedTrainingAI() {
+    const rbases = game.getAllObjectsoftype(game.getobjecttype("rbase"));
+
+    for (let base of rbases) {
+        base.buildQueue = base.buildQueue || [];
+        base.buildTimer = base.buildTimer || 0;
+
+        // Skippa om basen håller på att bygga något redan
+        if (base.buildQueue.length > 0) continue;
+
+        // Exempel: träna rguard om resurser finns
+        const unitToTrain = "rworker"; // kan även vara "rworker"
+        const goldCost = 20;
+        const woodCost = 10;
+
+        if (rgold >= goldCost && rwood >= woodCost) {
+            base.buildQueue.push(unitToTrain);
+            rgold -= goldCost;
+            rwood -= woodCost;
+        }
+    }
+}
+
         </script>
     </body>
 </html>
