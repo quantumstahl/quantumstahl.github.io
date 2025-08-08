@@ -119,7 +119,7 @@ class Pathfinder {
     return !this.inBounds(tx, ty) || this.grid[ty][tx] === 1;
   }
 
-updateObstacles(objects, ignore = new Set()) {
+ updateObstacles(objects, ignore = new Set()) {
   this.resetGrid();
   for (const obj of objects) {
     if (ignore.has(obj)) continue;
@@ -1166,10 +1166,11 @@ class Game5 {
         }
     }
 updateUnitMovement() {
-  // 1. Hinder: träd, baser osv.
-  const staticObstacles = this.getAllObjects().filter(o => o.isStaticObstacle);
-
-  // Ignorera varje workers målobjekt (så de kan patha till t.ex. base)
+  // 1) Statiska hinder — OBS: || (inte &&)
+  const staticObstacles = this.getAllObjects().filter(
+    o => o.isStaticObstacle || o.name === "tree" || o.name === "base"
+  );
+   // Ignorera varje workers målobjekt (så de kan patha till t.ex. base)
   const ignoreSet = new Set();
   for (const o of this.getAllObjects()) {
     if (o.canMove && o.buildobject) {
@@ -1178,75 +1179,86 @@ updateUnitMovement() {
   }
   game.pathfinder.updateObstacles(staticObstacles, ignoreSet);
 
+  // 2) Movers med mål
   const movers = this.getAllObjects().filter(
-    o => o.canMove && o.targetX != null && o.targetY != null
+    o => o.canMove && (o.targetX != null && o.targetY != null)
   );
 
   for (let o of movers) {
-    // --- Mål: använd slot eller target
+    // === Målval (slot > target) + byggnadskant ===
     let goalX = o.assignedSlot ? o.assignedSlot.x : o.targetX;
-    let goalY = o.assignedSlot ? o.assignedSlot.y : o.targetY;
+let goalY = o.assignedSlot ? o.assignedSlot.y : o.targetY;
 
-    if (o.buildobject) {
-      const edge = this.approachEdgePoint(goalX, goalY, o.buildobject, 12);
-      goalX = edge.x;
-      goalY = edge.y;
-    }
+// >>> NYTT: om målet är en byggnad, patha till närmaste kant
+if (o.buildobject) {
+  const edge = this.approachEdgePoint(goalX, goalY, o.buildobject, 12);
+  goalX = edge.x;
+  goalY = edge.y;
+}
+if (o.workobject) {
+  const edge = this.approachEdgePoint(goalX, goalY, o.workobject, 12);
+  goalX = edge.x;
+  goalY = edge.y;
+}
 
-    // --- Stuck detection
+    // === Stuck detection (repath i tid) ===
     if (!o.lastPos) o.lastPos = { x: o.x, y: o.y };
     const moved = Math.hypot(o.x - o.lastPos.x, o.y - o.lastPos.y);
     o.lastPos = { x: o.x, y: o.y };
     o.stuckFrames = (moved < 0.5) ? (o.stuckFrames || 0) + 1 : 0;
 
-    const stuck = o.stuckFrames >= 60;
-    const blockedHard = o.blocked1 >= 10;
-
-    if (stuck || blockedHard || !o.path || o.pathIndex >= (o.path?.length || 0) ||
-        o.lastGoalX !== goalX || o.lastGoalY !== goalY) {
-      o.path = game.pathfinder.findPathWithReservations(
-        o.x, o.y, goalX, goalY, movers, o
-      );
-      o.pathIndex = 0;
-      o.lastGoalX = goalX;
-      o.lastGoalY = goalY;
+    let stuck = o.stuckFrames >= 60;     // var inte 250; repatha snabbare
+    // small escape: om “stuck” men i kontakt med sitt jobb/bygg → nolla
+    if (stuck && (this.collideswithanoterobject?.(o, o.workobject) ||
+                  this.collideswithanoterobject?.(o, o.buildobject))) {
       o.stuckFrames = 0;
+      stuck = false;
     }
 
+    // === Repath villkor ===
+const blockedHard = o.blocked1 >= 10; // fysisk block i minst 10 frames
+// ...
+const goalChanged = (o.lastGoalX !== goalX || o.lastGoalY !== goalY);
+
+if (goalChanged || !o.path || o.pathIndex >= (o.path?.length || 0) || stuck || blockedHard) {
+  o.path = game.pathfinder.findPathWithReservations(
+    o.x, o.y, goalX, goalY, movers, o
+  );
+  o.pathIndex = 0;
+  o.lastGoalX = goalX;
+  o.lastGoalY = goalY;
+  o.stuckFrames = 0;
+}
+
+    // === Följ path ===
     if (!o.path || o.pathIndex >= o.path.length) continue;
 
-    // --- Följ pathen
     const wp = o.path[o.pathIndex];
     const dx = wp.x - o.x;
     const dy = wp.y - o.y;
     const dist = Math.hypot(dx, dy);
 
     if (dist > 1) {
-      const step = Math.min(o.speed, dist);
-      o.direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
-      o.x += (dx / dist) * step;
-      o.y += (dy / dist) * step;
+  const step = Math.min(o.speed, dist);
+  o.direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left")
+                                            : (dy > 0 ? "down" : "up");
+  o.x += (dx / dist) * step;
+  o.y += (dy / dist) * step;
 
-      // Snappa till punkt om vi når exakt
-      if (step === dist) {
-        o.x = wp.x;
-        o.y = wp.y;
-        o.pathIndex++;
-      }
-    } else {
-      // Inom räckvidd — snappa dit och gå vidare
-      o.x = wp.x;
-      o.y = wp.y;
-      o.pathIndex++;
-    }
-
-    if (o.pathIndex >= o.path.length) {
-      o.targetX = null;
-      o.targetY = null;
-      o.path = null;
-      o.pathIndex = 0;
-      o.assignedSlot = null;
-    }
+  // 👇 EXTRA: om vi träffade exakt, snappa vidare
+  if (step === dist) {
+    o.x = tx;
+    o.y = ty;
+    o.pathIndex++;
+  }
+} else {
+  // 👇 EXTRA: snappa ändå om vi är riktigt nära
+  if (dist <= 1) {
+    o.x = tx;
+    o.y = ty;
+    o.pathIndex++;
+  }
+}
   }
 }
 
