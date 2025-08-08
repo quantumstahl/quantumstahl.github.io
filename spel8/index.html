@@ -204,10 +204,10 @@
             let selectedWorkersBeforeBuild = [];
             let selectedWorkers = [];
             let lastTouchPos = null;
-            let gold = 1000;
-            let wood = 1000;
-            let rgold = 1000;
-            let rwood = 1000;
+            let gold = 1400;
+            let wood = 1200;
+            let rgold = 1400;
+            let rwood = 1200;
             
             document.getElementById("build-base-btn").innerHTML = "Bygg bas<br>1000 guld / 1000 trä";
             document.getElementById("build-barracks-btn").innerHTML = "Bygg barrack<br>500 guld / 500 trä";
@@ -486,6 +486,7 @@
                 if(guard!=null){
                     
                     enemyTryToBuildBase();
+                    enemyTryToBuildBar();
                     updateRedWorkerAI();
                     updateRedTrainingAI();
                     
@@ -815,8 +816,8 @@
 			rworker.objects[i].counter2++;
                         
                         
-                        if(rworker.objects[i].workobject!=null && rworker.objects[i].workobject.name=="rbase")break;
-                        
+                        if(rworker.objects[i].workobject!=null && rworker.objects[i].workobject.name=="rbase")continue;
+                        if(rworker.objects[i].buildobject!=null)continue;
                         
                         if ( rworker.objects[i].direction === "up")  rworker.objects[i].animation = 0;
                         else if ( rworker.objects[i].direction === "right")  {rworker.objects[i].animation = 1;rworker.objects[i].fliped=false;}
@@ -972,8 +973,8 @@
                 
                             // Avståndsgräns från resurser (t.ex. 100 pixlar)
                 const minDistanceToResources = 300;
-                const resourceTypes = ["tree", "goldmine"]; // eller hur du identifierar resurser
-
+                var resourceTypes = ["tree", "goldmine"]; // eller hur du identifierar resurser
+                if(o.name=="rbar")resourceTypes = ["tree", "goldmine","rbase"];
                 for (let type of resourceTypes) {
                     const resources = game.getAllObjectsoftype(game.getobjecttype(type));
                     for (let res of resources) {
@@ -1047,7 +1048,115 @@
                 return Math.sqrt(dx * dx + dy * dy);
             }
             
- 
+            function enemyTryToBuildBar() {
+                if(!game.getobjecttype("rworker").objects[0]||!game.getobjecttype("rbase").objects[0]||game.getobjecttype("rbase").objects[0].animation==0)return;
+                
+                const w = game.getobjecttype("rworker").objects[0];
+                const rbaseType = game.getobjecttype("rbar");
+                
+                
+                
+                if (w.workobject && w.workobject.name=="rbar") {
+                    
+                    if (game.collideswithanoterobject(w,w.workobject)) {
+                        
+                        w.workobject.buildProgress += 1;
+                        if(w.animation==0)w.animation = 3;
+                        if(w.animation==1&&w.fliped==false)w.animation = 4;
+                        if(w.animation==2)w.animation = 5;
+                        if(w.animation==1&&w.fliped==true)w.animation = 4;      
+                        
+                        if (w.workobject.buildProgress > 1000) {
+                            w.workobject.ghost = false;
+                            w.workobject.selectable = true;
+                            w.workobject.animation=1;
+                            w.workobject = null;
+                            w.buildobject=null;
+                        }
+                        
+                        
+                    }
+                    
+                }
+                if (rwood < 500 || rgold < 500 ||(game.getobjecttype("rbar").objects[0])) return;
+                
+                const mines = game.getAllObjectsoftype(game.getobjecttype("rbase"));
+                if (mines.length === 0) return;
+                const mine = mines[0]; // använd första gruvan
+                const spacing = 100;
+                let bestPos = null;
+                let bestScore = Infinity;
+
+                for (let dx = -5; dx <= 5; dx++) {
+                    for (let dy = -5; dy <= 5; dy++) {
+                        const px = mine.x + dx * spacing;
+                        const py = mine.y + dy * spacing;
+
+                        const temp = game.addobject(
+                            rbaseType,
+                            px,
+                            py,
+                            rbaseType.standarddimx,
+                            rbaseType.standarddimy,
+                            0,
+                            false
+
+                        );
+                        temp.ghost = true;
+
+                        if (isBuildPlacementValid(temp)) {
+                            const distToMine = game.getDistance(px, py, mine.x, mine.y);
+
+                            // Hitta närmaste rworker
+                            let closestWorkerDist = Infinity;
+                         
+                                const d = game.getDistance(px, py, w.x, w.y);
+                                if (d < closestWorkerDist) closestWorkerDist = d;
+                            
+
+                            const score = distToMine*1 + closestWorkerDist*0.5; // ev. viktning här
+
+                            if (score < bestScore) {
+                                bestScore = score;
+                                bestPos = { x: px, y: py };
+                            }
+                        }
+
+                        game.removeobject(rbaseType, temp);
+                    }
+                }
+
+                if (bestPos) {
+                    const ghost = game.addobject(
+                        rbaseType,
+                        bestPos.x,
+                        bestPos.y,
+                        rbaseType.standarddimx,
+                        rbaseType.standarddimy,
+                        0,
+                        false
+                    );
+                    ghost.ghost = false;
+                    ghost.canMove = false;
+                    ghost.selectable = false;
+                    ghost.enemyBuild = true;
+                    ghost.buildProgress = 0;
+
+                    w.targetX = bestPos.x;
+                    w.targetY = bestPos.y;
+                    w.workobject = ghost;
+                    w.buildobject=ghost;
+                    w.counter2 = 0;
+                    
+
+                    rwood -= 500;
+                    rgold -= 500;
+                }
+                
+                
+                
+                
+            }
             
             
             function enemyTryToBuildBase() {
@@ -1065,15 +1174,22 @@
                                 if(w.animation==2)w.animation = 5;
                                 if(w.animation==1&&w.fliped==true)w.animation = 4;
                             
-                            
                             if (w.workobject.buildProgress > 1000) {
-                                w.workobject.ghost = false;
-                                w.workobject.selectable = true;
-                                w.workobject.animation=1;
-                                w.workobject = null;
-                                
-                            }
+                                  w.workobject.ghost = false;
+                                  w.workobject.selectable = true;
+                                  w.workobject.animation=1;
+                                  w.workobject = null;
+
+                            }  
+                            
                         }
+                        
+                        
+                        
+                        
+                        
+                        
+                        
                     }
                 }
                 
@@ -1245,28 +1361,52 @@ function updateRedWorkerAI() {
     }
 }        
 function updateRedTrainingAI() {
-    const rbases = game.getAllObjectsoftype(game.getobjecttype("rbase"));
+    
+    
+    if(game.getobjecttype("rworker").objects.length<=10){
+    
+        const rbases = game.getAllObjectsoftype(game.getobjecttype("rbase"));
+        for (let base of rbases) {
+            base.buildQueue = base.buildQueue || [];
+            base.buildTimer = base.buildTimer || 0;
 
-    for (let base of rbases) {
-        base.buildQueue = base.buildQueue || [];
-        base.buildTimer = base.buildTimer || 0;
+            // Skippa om basen håller på att bygga något redan
+            if (base.buildQueue.length > 0&&base.animation==0) continue;
 
-        // Skippa om basen håller på att bygga något redan
-        if (base.buildQueue.length > 0) continue;
+            // Exempel: träna rguard om resurser finns
+            const unitToTrain = "rworker"; // kan även vara "rworker"
+            const goldCost = 200;
+            const woodCost = 100;
 
-        // Exempel: träna rguard om resurser finns
-        const unitToTrain = "rworker"; // kan även vara "rworker"
-        const goldCost = 20;
-        const woodCost = 10;
-
-        if (rgold >= goldCost && rwood >= woodCost) {
-            base.buildQueue.push(unitToTrain);
-            rgold -= goldCost;
-            rwood -= woodCost;
+            if (rgold >= goldCost && rwood >= woodCost) {
+                base.buildQueue.push(unitToTrain);
+                rgold -= goldCost;
+                rwood -= woodCost;
+            }
         }
     }
-}
+    const rbar = game.getAllObjectsoftype(game.getobjecttype("rbar"));
+    for (let base of rbar) {
+            base.buildQueue = base.buildQueue || [];
+            base.buildTimer = base.buildTimer || 0;
 
+            // Skippa om basen håller på att bygga något redan
+            if (base.buildQueue.length > 0&&base.animation==0) continue;
+
+            // Exempel: träna rguard om resurser finns
+            const unitToTrain = "rguard"; // kan även vara "rworker"
+            const goldCost = 300;
+            const woodCost = 100;
+
+            if (rgold >= goldCost && rwood >= woodCost) {
+                base.buildQueue.push(unitToTrain);
+                rgold -= goldCost;
+                rwood -= woodCost;
+            }
+        }
+    
+    
+}
         </script>
     </body>
 </html>
