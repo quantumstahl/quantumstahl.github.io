@@ -119,26 +119,24 @@ class Pathfinder {
     return !this.inBounds(tx, ty) || this.grid[ty][tx] === 1;
   }
 
- updateObstacles(objects, ignore = new Set()) {
-  this.resetGrid();
-  for (const obj of objects) {
-    if (ignore.has(obj)) continue;
+  updateObstacles(objects) {
+    this.resetGrid();
+    for (const obj of objects) {
+      const dimx = (typeof obj.dimx === "number" ? obj.dimx : this.tileSize);
+      const dimy = (typeof obj.dimy === "number" ? obj.dimy : this.tileSize);
 
-    const dimx = typeof obj.dimx === "number" ? obj.dimx : this.tileSize;
-    const dimy = typeof obj.dimy === "number" ? obj.dimy : this.tileSize;
+      const { tx: x1, ty: y1 } = this.tileFromPixel(obj.x, obj.y);
+      const { tx: x2, ty: y2 } = this.tileFromPixel(obj.x + dimx - 1, obj.y + dimy - 1);
 
-    const { tx: x1, ty: y1 } = this.tileFromPixel(obj.x, obj.y);
-    const { tx: x2, ty: y2 } = this.tileFromPixel(obj.x + dimx - 1, obj.y + dimy - 1);
-
-    for (let ty = y1; ty <= y2; ty++) {
-      if (ty < 0 || ty >= this.rows) continue;
-      for (let tx = x1; tx <= x2; tx++) {
-        if (tx < 0 || tx >= this.cols) continue;
-        this.grid[ty][tx] = 1;
+      for (let ty = y1; ty <= y2; ty++) {
+        if (ty < 0 || ty >= this.rows) continue;
+        for (let tx = x1; tx <= x2; tx++) {
+          if (tx < 0 || tx >= this.cols) continue;
+          this.grid[ty][tx] = 1;
+        }
       }
     }
   }
-}
 
   hCost(x1, y1, x2, y2) {
     const dx = Math.abs(x1 - x2);
@@ -1170,23 +1168,7 @@ updateUnitMovement() {
   const staticObstacles = this.getAllObjects().filter(
     o => o.isStaticObstacle || o.name === "tree" || o.name === "base"
   );
-   // Ignorera varje workers målobjekt (så de kan patha till t.ex. base)
-  const ignoreSet = new Set();
-  for (const o of this.getAllObjects()) {
-	  
-	
-	  
-    if (o.canMove && o.buildobject) {
-      ignoreSet.add(o.buildobject);
-    }
-	if (o.canMove && o.workobject) {
-      ignoreSet.add(o.workobject);
-    }
-	if (o.canMove && o.deliveryTarget) {
-      ignoreSet.add(o.deliveryTarget);
-    }
-  }
-  game.pathfinder.updateObstacles(staticObstacles, ignoreSet);
+  game.pathfinder.updateObstacles(staticObstacles);
 
   // 2) Movers med mål
   const movers = this.getAllObjects().filter(
@@ -1277,9 +1259,11 @@ approachEdgePoint(targetX, targetY, building, buffer = 12) {
   const top    = building.y - buffer;
   const bottom = building.y + building.dimy + buffer;
 
-  const cx = Math.max(left, Math.min(targetX, right));
-  const cy = Math.max(top, Math.min(targetY, bottom));
+  // klampa in mot utökad bbox
+  let cx = Math.max(left, Math.min(targetX, right));
+  let cy = Math.max(top,  Math.min(targetY, bottom));
 
+  // projektera till närmsta kant
   const dLeft   = Math.abs(cx - left);
   const dRight  = Math.abs(right - cx);
   const dTop    = Math.abs(cy - top);
@@ -1616,8 +1600,6 @@ class Object {
         this.selected = false;
         this.targetX = null;
         this.targetY = null;
-		this.pretargetX=null;
-		this.pretargetY=null;
         this.speed = 1.0;
         this.selectable = false;
         this.direction = "up";
