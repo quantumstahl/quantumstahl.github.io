@@ -306,6 +306,10 @@
                             w.workobject=null;
                             w.returning=false;
                             w.deliveryTarget=null;
+							w.path = null;
+							w.pathIndex = 0;
+							w.lastGoalX = null;
+							w.lastGoalY = null;
 							}
                         }
                 
@@ -331,6 +335,10 @@
                             w.targetY = ghostBuilding.y+ghostBuilding.dimy/2;
                             w.targetObject=ghostBuilding;
                             w.buildingTarget = ghostBuilding;
+							w.path = null;
+							w.pathIndex = 0;
+							w.lastGoalX = null;
+							w.lastGoalY = null;
                         }
 
                         // Rensa och avsluta
@@ -374,6 +382,10 @@
                             w.workobject=null;
                             w.returning=false;
                             w.deliveryTarget=null;
+							w.path = null;
+							w.pathIndex = 0;
+							w.lastGoalX = null;
+							w.lastGoalY = null;
                         }
                 
                 
@@ -405,6 +417,10 @@
                             w.targetY = ghostBuilding.y+ghostBuilding.dimy/2;
                             w.targetObject=ghostBuilding;
                             w.buildingTarget = ghostBuilding;
+							w.path = null;
+							w.pathIndex = 0;
+							w.lastGoalX = null;
+							w.lastGoalY = null;
                         }
 
                         // Rensa och avsluta
@@ -426,7 +442,7 @@
                 canvas.width=document.body.clientWidth;
                 canvas.height=document.body.clientHeight-8;
                  
-                ctx.fillStyle = "red";
+                ctx.fillStyle = "black";
                 ctx.fillRect(0, 0, canvas.width, canvas.height); 
                 
                 const camSpeed = 15;
@@ -669,6 +685,10 @@
                                     worker.objects[i].buildingTarget = null;
                                     worker.objects[i].animation = 0; // idle
                                     building.animation=1;
+									w.path = null;
+									w.pathIndex = 0;
+									w.lastGoalX = null;
+									w.lastGoalY = null;
                                 }
                                 
                             }
@@ -679,7 +699,10 @@
                             worker.objects[i].targetX = worker.objects[i].workobject.x+worker.objects[i].workobject.dimx/2;
                             worker.objects[i].targetY = worker.objects[i].workobject.y+worker.objects[i].workobject.dimy/2;
                             worker.objects[i].targetObject=worker.objects[i].workobject;
-                            
+                            w.path = null;
+							w.pathIndex = 0;
+							w.lastGoalX = null;
+							w.lastGoalY = null;
                             
                         
                             
@@ -784,7 +807,10 @@
                                 worker.objects[i].deliveryTarget = null;
                                 worker.objects[i].counter = 0;
                                 worker.objects[i].animation = 0; // idle
-                                
+                                worker.path = null;
+								worker.pathIndex = 0;
+								worker.lastGoalX = null;
+								worker.lastGoalY = null;
                                 if(worker.objects[i].workobject.occupied==false)gold += 10;
                                 if(worker.objects[i].workobject.occupied==true){wood += 10;}
                                 
@@ -823,7 +849,10 @@
                             rworker.objects[i].targetX = rworker.objects[i].workobject.x+rworker.objects[i].workobject.dimx/2;
                             rworker.objects[i].targetY = rworker.objects[i].workobject.y+rworker.objects[i].workobject.dimy/2;
                             rworker.objects[i].targetObject=rworker.objects[i].workobject;
-                            
+                            rworker.path = null;
+							rworker.pathIndex = 0;
+							rworker.lastGoalX = null;
+							rworker.lastGoalY = null;
                             
                         
                             
@@ -859,6 +888,10 @@
                                         rworker.objects[i].targetObject=closest;
                                         rworker.objects[i].returning = true; // ny flagga
                                         rworker.objects[i].deliveryTarget = closest;
+										rworker.path = null;
+										rworker.pathIndex = 0;
+										rworker.lastGoalX = null;
+										rworker.lastGoalY = null;
                                     }
 
 
@@ -896,6 +929,10 @@
                                     rworker.objects[i].targetObject=closest;
                                     rworker.objects[i].returning = true; // ny flagga
                                     rworker.objects[i].deliveryTarget = closest;
+									rworker.path = null;
+									rworker.pathIndex = 0;
+									rworker.lastGoalX = null;
+									rworker.lastGoalY = null;
                                 }
 
 
@@ -928,7 +965,10 @@
                                 rworker.objects[i].deliveryTarget = null;
                                 rworker.objects[i].counter = 0;
                                 rworker.objects[i].animation = 0; // idle
-                                
+                                rworker.path = null;
+								rworker.pathIndex = 0;
+								rworker.lastGoalX = null;
+								rworker.lastGoalY = null;
                                 if(rworker.objects[i].workobject.occupied==false)rgold += 10;
                                 if(rworker.objects[i].workobject.occupied==true){rwood += 10;}
                                 
@@ -1020,6 +1060,10 @@
                             w.workobject = bestTree;
                             w.returning = false;
                             w.counter2 = 0;
+							w.path = null;
+							w.pathIndex = 0;
+							w.lastGoalX = null;
+							w.lastGoalY = null;
                             bestTree.occupied = true;
                             assignedTrees.add(bestTree);
                         }
@@ -1142,6 +1186,10 @@
             w.targetY = bestPos.y;
             w.workobject = ghost;
             w.counter2 = 0;
+			w.path = null;
+			w.pathIndex = 0;
+			w.lastGoalX = null;
+			w.lastGoalY = null;
         }
 
         rwood -= 1000;
@@ -1188,6 +1236,10 @@ function updateRedWorkerAI() {
             w.workobject = bestTarget;
             w.returning = false;
             w.counter2 = 0;
+			w.path = null;
+			w.pathIndex = 0;
+			w.lastGoalX = null;
+			w.lastGoalY = null;
             if(istree) bestTarget.occupied = true;
         }
     }
