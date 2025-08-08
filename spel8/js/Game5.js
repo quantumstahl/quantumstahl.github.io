@@ -1203,9 +1203,9 @@ updateUnitMovement() {
     let goalY = o.assignedSlot ? o.assignedSlot.y : o.targetY;
 
     if (o.buildobject) {
-      const edge = this.approachEdgePoint(goalX, goalY, o.buildobject, 12);
-      goalX = edge.x;
-      goalY = edge.y;
+     // const edge = this.approachEdgePoint(goalX, goalY, o.buildobject, 12);
+     // goalX = edge.x;
+     // goalY = edge.y;
     }
 
     // --- Stuck detection
