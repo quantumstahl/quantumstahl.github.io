@@ -1191,17 +1191,19 @@ updateUnitMovement() {
     }
 
     // === Repath villkor ===
-    const goalChanged = (o.lastGoalX !== goalX || o.lastGoalY !== goalY);
-    if (goalChanged || !o.path || o.pathIndex >= (o.path?.length || 0) || stuck) {
-      // path med reservationer (andra movers = tillfälliga hinder)
-      o.path = game.pathfinder.findPathWithReservations(
-        o.x, o.y, goalX, goalY, movers, o
-      );
-      o.pathIndex = 0;
-      o.lastGoalX = goalX;
-      o.lastGoalY = goalY;
-      o.stuckFrames = 0;
-    }
+const blockedHard = o.blocked1 >= 10; // fysisk block i minst 10 frames
+// ...
+const goalChanged = (o.lastGoalX !== goalX || o.lastGoalY !== goalY);
+
+if (goalChanged || !o.path || o.pathIndex >= (o.path?.length || 0) || stuck || blockedHard) {
+  o.path = game.pathfinder.findPathWithReservations(
+    o.x, o.y, goalX, goalY, movers, o
+  );
+  o.pathIndex = 0;
+  o.lastGoalX = goalX;
+  o.lastGoalY = goalY;
+  o.stuckFrames = 0;
+}
 
     // === Följ path ===
     if (!o.path || o.pathIndex >= o.path.length) continue;
