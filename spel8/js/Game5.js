@@ -1174,16 +1174,16 @@ updateUnitMovement() {
 const ignoreSet = new Set();
 for (const unit of this.getAllObjects()) {
   if (unit.workobject) {
-	ignoreSet.add(unit.workobject);
+	//ignoreSet.add(unit.workobject);
   }
   if (unit.buildobject) {
-    ignoreSet.add(unit.buildobject);
+    //ignoreSet.add(unit.buildobject);
   }
   if (unit.buildobject) {
-    ignoreSet.add(unit.buildobject);
+    //ignoreSet.add(unit.buildobject);
   }
   if (unit.deliveryTarget) {
-    ignoreSet.add(unit.deliveryTarget);
+    //ignoreSet.add(unit.deliveryTarget);
   }
   
 }
