@@ -274,22 +274,17 @@ class Pathfinder {
   return null;
 }
   // === Ny kod för reservationer ===
-reserveOtherUnits(baseGrid, movers, ignoreUnit = null) {
-  const grid = baseGrid.map(row => [...row]);
-  const mark = (tx, ty) => {
-    if (ty >= 0 && ty < grid.length && tx >= 0 && tx < grid[0].length) grid[ty][tx] = 1;
-  };
-  for (const m of movers) {
-    if (m === ignoreUnit) continue;
-    const { tx, ty } = this.tileFromPixel(m.x, m.y);
-    for (let oy = -1; oy <= 1; oy++) {
-      for (let ox = -1; ox <= 1; ox++) {
-        mark(tx + ox, ty + oy); // 3x3 reservation
+  reserveOtherUnits(baseGrid, movers, ignoreUnit = null) {
+    const grid = baseGrid.map(row => [...row]);
+    for (const m of movers) {
+      if (m === ignoreUnit) continue;
+      const { tx, ty } = this.tileFromPixel(m.x, m.y);
+      if (ty >= 0 && ty < grid.length && tx >= 0 && tx < grid[0].length) {
+        grid[ty][tx] = 1; // markera som hinder
       }
     }
+    return grid;
   }
-  return grid;
-}
 
   findPathWithReservations(startPx, startPy, endPx, endPy, movers, ignoreUnit = null) {
     const reservedGrid = this.reserveOtherUnits(this.grid, movers, ignoreUnit);
@@ -325,7 +320,7 @@ class Game5 {
     constructor(name) {
         this.name = name;
         this.maps = [];
-        this.pathfinder=new Pathfinder(3000, 1000,50, -2000, 0);
+        this.pathfinder=new Pathfinder(3000, 1000,100, -2000, 0);
         this.currentmap = 0;
         game = this;
         this.load();
@@ -1178,19 +1173,8 @@ updateUnitMovement() {
   for (let o of movers) {
     // === Målval (slot > target) + byggnadskant ===
     let goalX = o.assignedSlot ? o.assignedSlot.x : o.targetX;
-let goalY = o.assignedSlot ? o.assignedSlot.y : o.targetY;
+    let goalY = o.assignedSlot ? o.assignedSlot.y : o.targetY;
 
-// >>> NYTT: om målet är en byggnad, patha till närmaste kant
-if (o.buildobject) {
-  const edge = this.approachEdgePoint(goalX, goalY, o.buildobject, 12);
-  goalX = edge.x;
-  goalY = edge.y;
-}
-if (o.workobject) {
-  const edge = this.approachEdgePoint(goalX, goalY, o.workobject, 12);
-  goalX = edge.x;
-  goalY = edge.y;
-}
 
     // === Stuck detection (repath i tid) ===
     if (!o.lastPos) o.lastPos = { x: o.x, y: o.y };
@@ -1207,19 +1191,17 @@ if (o.workobject) {
     }
 
     // === Repath villkor ===
-const blockedHard = o.blocked1 >= 10; // fysisk block i minst 10 frames
-// ...
-const goalChanged = (o.lastGoalX !== goalX || o.lastGoalY !== goalY);
-
-if (goalChanged || !o.path || o.pathIndex >= (o.path?.length || 0) || stuck || blockedHard) {
-  o.path = game.pathfinder.findPathWithReservations(
-    o.x, o.y, goalX, goalY, movers, o
-  );
-  o.pathIndex = 0;
-  o.lastGoalX = goalX;
-  o.lastGoalY = goalY;
-  o.stuckFrames = 0;
-}
+    const goalChanged = (o.lastGoalX !== goalX || o.lastGoalY !== goalY);
+    if (goalChanged || !o.path || o.pathIndex >= (o.path?.length || 0) || stuck) {
+      // path med reservationer (andra movers = tillfälliga hinder)
+      o.path = game.pathfinder.findPathWithReservations(
+        o.x, o.y, goalX, goalY, movers, o
+      );
+      o.pathIndex = 0;
+      o.lastGoalX = goalX;
+      o.lastGoalY = goalY;
+      o.stuckFrames = 0;
+    }
 
     // === Följ path ===
     if (!o.path || o.pathIndex >= o.path.length) continue;
@@ -1230,26 +1212,24 @@ if (goalChanged || !o.path || o.pathIndex >= (o.path?.length || 0) || stuck || b
     const dist = Math.hypot(dx, dy);
 
     if (dist > 1) {
-  const step = Math.min(o.speed, dist);
-  o.direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left")
-                                            : (dy > 0 ? "down" : "up");
-  o.x += (dx / dist) * step;
-  o.y += (dy / dist) * step;
+      // riktningsflagga
+      o.direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left")
+                                                : (dy > 0 ? "down" : "up");
+      // framsteg utan överskjutning
+      const step = Math.min(o.speed, dist);
+      o.x += (dx / dist) * step;
+      o.y += (dy / dist) * step;
+      // om vi landade exakt på waypointen — gå vidare
+      if (step === dist) o.pathIndex++;
+    } else {
+      o.pathIndex++;
+    }
 
-  // 👇 EXTRA: om vi träffade exakt, snappa vidare
-  if (step === dist) {
-    o.x = tx;
-    o.y = ty;
-    o.pathIndex++;
-  }
-} else {
-  // 👇 EXTRA: snappa ändå om vi är riktigt nära
-  if (dist <= 1) {
-    o.x = tx;
-    o.y = ty;
-    o.pathIndex++;
-  }
-}
+    // mål klart
+    if (o.pathIndex >= o.path.length) {
+      o.targetX = null; o.targetY = null;
+      o.path = null; o.pathIndex = 0;
+    }
   }
 }
 
