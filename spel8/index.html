@@ -7,7 +7,7 @@
         <link rel="icon" href="images/guarddown1.png" type="image/vnd.microsoft.icon" />
 	<title>Test4</title>
         
-        <script src="js/Game5.js"></script>
+        <script src="js/Game4.js"></script>
         
         
         
@@ -123,7 +123,7 @@
             document.getElementById("myCanvas").style.width=window.innerWidth;
             document.getElementById("myCanvas").style.height=window.innerHeight;
 
-            game = new Game5("Spelet");
+            game = new Game4("Spelet");
             var audio = new Audio('sounds/wow.mp3');
             audio.loop = true;
              
@@ -426,7 +426,7 @@
                 canvas.width=document.body.clientWidth;
                 canvas.height=document.body.clientHeight-8;
                  
-                ctx.fillStyle = "blue";
+                ctx.fillStyle = "black";
                 ctx.fillRect(0, 0, canvas.width, canvas.height); 
                 
                 const camSpeed = 15;
