@@ -119,24 +119,26 @@ class Pathfinder {
     return !this.inBounds(tx, ty) || this.grid[ty][tx] === 1;
   }
 
-  updateObstacles(objects) {
-    this.resetGrid();
-    for (const obj of objects) {
-      const dimx = (typeof obj.dimx === "number" ? obj.dimx : this.tileSize);
-      const dimy = (typeof obj.dimy === "number" ? obj.dimy : this.tileSize);
+ updateObstacles(objects, ignore = new Set()) {
+  this.resetGrid();
+  for (const obj of objects) {
+    if (ignore.has(obj)) continue;
 
-      const { tx: x1, ty: y1 } = this.tileFromPixel(obj.x, obj.y);
-      const { tx: x2, ty: y2 } = this.tileFromPixel(obj.x + dimx - 1, obj.y + dimy - 1);
+    const dimx = typeof obj.dimx === "number" ? obj.dimx : this.tileSize;
+    const dimy = typeof obj.dimy === "number" ? obj.dimy : this.tileSize;
 
-      for (let ty = y1; ty <= y2; ty++) {
-        if (ty < 0 || ty >= this.rows) continue;
-        for (let tx = x1; tx <= x2; tx++) {
-          if (tx < 0 || tx >= this.cols) continue;
-          this.grid[ty][tx] = 1;
-        }
+    const { tx: x1, ty: y1 } = this.tileFromPixel(obj.x, obj.y);
+    const { tx: x2, ty: y2 } = this.tileFromPixel(obj.x + dimx - 1, obj.y + dimy - 1);
+
+    for (let ty = y1; ty <= y2; ty++) {
+      if (ty < 0 || ty >= this.rows) continue;
+      for (let tx = x1; tx <= x2; tx++) {
+        if (tx < 0 || tx >= this.cols) continue;
+        this.grid[ty][tx] = 1;
       }
     }
   }
+}
 
   hCost(x1, y1, x2, y2) {
     const dx = Math.abs(x1 - x2);
@@ -274,17 +276,22 @@ class Pathfinder {
   return null;
 }
   // === Ny kod för reservationer ===
-  reserveOtherUnits(baseGrid, movers, ignoreUnit = null) {
-    const grid = baseGrid.map(row => [...row]);
-    for (const m of movers) {
-      if (m === ignoreUnit) continue;
-      const { tx, ty } = this.tileFromPixel(m.x, m.y);
-      if (ty >= 0 && ty < grid.length && tx >= 0 && tx < grid[0].length) {
-        grid[ty][tx] = 1; // markera som hinder
+reserveOtherUnits(baseGrid, movers, ignoreUnit = null) {
+  const grid = baseGrid.map(row => [...row]);
+  const mark = (tx, ty) => {
+    if (ty >= 0 && ty < grid.length && tx >= 0 && tx < grid[0].length) grid[ty][tx] = 1;
+  };
+  for (const m of movers) {
+    if (m === ignoreUnit) continue;
+    const { tx, ty } = this.tileFromPixel(m.x, m.y);
+    for (let oy = -1; oy <= 1; oy++) {
+      for (let ox = -1; ox <= 1; ox++) {
+        mark(tx + ox, ty + oy); // 3x3 reservation
       }
     }
-    return grid;
   }
+  return grid;
+}
 
   findPathWithReservations(startPx, startPy, endPx, endPy, movers, ignoreUnit = null) {
     const reservedGrid = this.reserveOtherUnits(this.grid, movers, ignoreUnit);
@@ -320,7 +327,7 @@ class Game5 {
     constructor(name) {
         this.name = name;
         this.maps = [];
-        this.pathfinder=new Pathfinder(3000, 1000,100, -2000, 0);
+        this.pathfinder=new Pathfinder(3000, 1000,50, -2000, 0);
         this.currentmap = 0;
         game = this;
         this.load();
@@ -1163,7 +1170,30 @@ updateUnitMovement() {
   const staticObstacles = this.getAllObjects().filter(
     o => o.isStaticObstacle || o.name === "tree" || o.name === "base"
   );
-  game.pathfinder.updateObstacles(staticObstacles);
+   // Ignorera varje workers målobjekt (så de kan patha till t.ex. base)
+  const ignoreSet = new Set();
+  for (const o of this.getAllObjects()) {
+	  
+	  if(o.pretargetX!=o.targetX||o.pretargetY!=o.targetY){
+		o.path = null;
+		o.pathIndex = 0;
+		o.lastGoalX = null;
+		o.lastGoalY = null;
+	  }
+	  o.pretargetX=o.targetX;
+	  o.pretargetY=o.targetY;
+	  
+    if (o.canMove && o.buildobject) {
+      ignoreSet.add(o.buildobject);
+    }
+	if (o.canMove && o.workobject) {
+      ignoreSet.add(o.workobject);
+    }
+	if (o.canMove && o.deliveryTarget) {
+      ignoreSet.add(o.deliveryTarget);
+    }
+  }
+  game.pathfinder.updateObstacles(staticObstacles, ignoreSet);
 
   // 2) Movers med mål
   const movers = this.getAllObjects().filter(
@@ -1173,8 +1203,19 @@ updateUnitMovement() {
   for (let o of movers) {
     // === Målval (slot > target) + byggnadskant ===
     let goalX = o.assignedSlot ? o.assignedSlot.x : o.targetX;
-    let goalY = o.assignedSlot ? o.assignedSlot.y : o.targetY;
+let goalY = o.assignedSlot ? o.assignedSlot.y : o.targetY;
 
+// >>> NYTT: om målet är en byggnad, patha till närmaste kant
+if (o.buildobject) {
+  const edge = this.approachEdgePoint(goalX, goalY, o.buildobject, 12);
+  goalX = edge.x;
+  goalY = edge.y;
+}
+if (o.workobject) {
+  const edge = this.approachEdgePoint(goalX, goalY, o.workobject, 12);
+  goalX = edge.x;
+  goalY = edge.y;
+}
 
     // === Stuck detection (repath i tid) ===
     if (!o.lastPos) o.lastPos = { x: o.x, y: o.y };
@@ -1191,17 +1232,19 @@ updateUnitMovement() {
     }
 
     // === Repath villkor ===
-    const goalChanged = (o.lastGoalX !== goalX || o.lastGoalY !== goalY);
-    if (goalChanged || !o.path || o.pathIndex >= (o.path?.length || 0) || stuck) {
-      // path med reservationer (andra movers = tillfälliga hinder)
-      o.path = game.pathfinder.findPathWithReservations(
-        o.x, o.y, goalX, goalY, movers, o
-      );
-      o.pathIndex = 0;
-      o.lastGoalX = goalX;
-      o.lastGoalY = goalY;
-      o.stuckFrames = 0;
-    }
+const blockedHard = o.blocked1 >= 10; // fysisk block i minst 10 frames
+// ...
+const goalChanged = (o.lastGoalX !== goalX || o.lastGoalY !== goalY);
+
+if (goalChanged || !o.path || o.pathIndex >= (o.path?.length || 0) || stuck || blockedHard) {
+  o.path = game.pathfinder.findPathWithReservations(
+    o.x, o.y, goalX, goalY, movers, o
+  );
+  o.pathIndex = 0;
+  o.lastGoalX = goalX;
+  o.lastGoalY = goalY;
+  o.stuckFrames = 0;
+}
 
     // === Följ path ===
     if (!o.path || o.pathIndex >= o.path.length) continue;
@@ -1212,24 +1255,26 @@ updateUnitMovement() {
     const dist = Math.hypot(dx, dy);
 
     if (dist > 1) {
-      // riktningsflagga
-      o.direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left")
-                                                : (dy > 0 ? "down" : "up");
-      // framsteg utan överskjutning
-      const step = Math.min(o.speed, dist);
-      o.x += (dx / dist) * step;
-      o.y += (dy / dist) * step;
-      // om vi landade exakt på waypointen — gå vidare
-      if (step === dist) o.pathIndex++;
-    } else {
-      o.pathIndex++;
-    }
+  const step = Math.min(o.speed, dist);
+  o.direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left")
+                                            : (dy > 0 ? "down" : "up");
+  o.x += (dx / dist) * step;
+  o.y += (dy / dist) * step;
 
-    // mål klart
-    if (o.pathIndex >= o.path.length) {
-      o.targetX = null; o.targetY = null;
-      o.path = null; o.pathIndex = 0;
-    }
+  // 👇 EXTRA: om vi träffade exakt, snappa vidare
+  if (step === dist) {
+    o.x = tx;
+    o.y = ty;
+    o.pathIndex++;
+  }
+} else {
+  // 👇 EXTRA: snappa ändå om vi är riktigt nära
+  if (dist <= 1) {
+    o.x = tx;
+    o.y = ty;
+    o.pathIndex++;
+  }
+}
   }
 }
 
@@ -1239,11 +1284,9 @@ approachEdgePoint(targetX, targetY, building, buffer = 12) {
   const top    = building.y - buffer;
   const bottom = building.y + building.dimy + buffer;
 
-  // klampa in mot utökad bbox
-  let cx = Math.max(left, Math.min(targetX, right));
-  let cy = Math.max(top,  Math.min(targetY, bottom));
+  const cx = Math.max(left, Math.min(targetX, right));
+  const cy = Math.max(top, Math.min(targetY, bottom));
 
-  // projektera till närmsta kant
   const dLeft   = Math.abs(cx - left);
   const dRight  = Math.abs(right - cx);
   const dTop    = Math.abs(cy - top);
@@ -1580,6 +1623,8 @@ class Object {
         this.selected = false;
         this.targetX = null;
         this.targetY = null;
+		this.pretargetX=null;
+		this.pretargetY=null;
         this.speed = 1.0;
         this.selectable = false;
         this.direction = "up";
