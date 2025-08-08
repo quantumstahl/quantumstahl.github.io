@@ -1230,24 +1230,26 @@ if (goalChanged || !o.path || o.pathIndex >= (o.path?.length || 0) || stuck || b
     const dist = Math.hypot(dx, dy);
 
     if (dist > 1) {
-      // riktningsflagga
-      o.direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left")
-                                                : (dy > 0 ? "down" : "up");
-      // framsteg utan överskjutning
-      const step = Math.min(o.speed, dist);
-      o.x += (dx / dist) * step;
-      o.y += (dy / dist) * step;
-      // om vi landade exakt på waypointen — gå vidare
-      if (step === dist) o.pathIndex++;
-    } else {
-      o.pathIndex++;
-    }
+  const step = Math.min(o.speed, dist);
+  o.direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left")
+                                            : (dy > 0 ? "down" : "up");
+  o.x += (dx / dist) * step;
+  o.y += (dy / dist) * step;
 
-    // mål klart
-    if (o.pathIndex >= o.path.length) {
-      o.targetX = null; o.targetY = null;
-      o.path = null; o.pathIndex = 0;
-    }
+  // 👇 EXTRA: om vi träffade exakt, snappa vidare
+  if (step === dist) {
+    o.x = tx;
+    o.y = ty;
+    o.pathIndex++;
+  }
+} else {
+  // 👇 EXTRA: snappa ändå om vi är riktigt nära
+  if (dist <= 1) {
+    o.x = tx;
+    o.y = ty;
+    o.pathIndex++;
+  }
+}
   }
 }
 
