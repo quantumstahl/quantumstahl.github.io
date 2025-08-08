@@ -1177,20 +1177,7 @@ updateUnitMovement() {
 
   for (let o of movers) {
     // === Målval (slot > target) + byggnadskant ===
-    let goalX = o.assignedSlot ? o.assignedSlot.x : o.targetX;
-let goalY = o.assignedSlot ? o.assignedSlot.y : o.targetY;
-
-// >>> NYTT: om målet är en byggnad, patha till närmaste kant
-if (o.buildobject) {
-  const edge = this.approachEdgePoint(goalX, goalY, o.buildobject, 12);
-  goalX = edge.x;
-  goalY = edge.y;
-}
-if (o.workobject) {
-  const edge = this.approachEdgePoint(goalX, goalY, o.workobject, 12);
-  goalX = edge.x;
-  goalY = edge.y;
-}
+ 
 
     // === Stuck detection (repath i tid) ===
     if (!o.lastPos) o.lastPos = { x: o.x, y: o.y };
