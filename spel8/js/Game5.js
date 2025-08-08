@@ -1173,9 +1173,11 @@ updateUnitMovement() {
   // bygg en Set med målobjekt att tillfälligt ignorera
 const ignoreSet = new Set();
 for (const unit of this.getAllObjects()) {
-  if (unit.canMove && unit.buildobject||unit.canMove && unit.workobject) {
-    ignoreSet.add(unit.buildobject);
+  if (unit.canMove && unit.workobject) {
 	ignoreSet.add(unit.workobject);
+  }
+  if (unit.canMove && unit.buildobject) {
+    ignoreSet.add(unit.buildobject);
   }
 }
 
