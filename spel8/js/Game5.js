@@ -325,7 +325,7 @@ class Game5 {
     constructor(name) {
         this.name = name;
         this.maps = [];
-        this.pathfinder=new Pathfinder(3000, 1000,100, -2000, 0);
+        this.pathfinder=new Pathfinder(3000, 1000,50, -2000, 0);
         this.currentmap = 0;
         game = this;
         this.load();
