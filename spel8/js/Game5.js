@@ -1173,8 +1173,24 @@ updateUnitMovement() {
    // Ignorera varje workers målobjekt (så de kan patha till t.ex. base)
   const ignoreSet = new Set();
   for (const o of this.getAllObjects()) {
+	  
+	  if(o.pretargetX!=o.targetX||o.pretargetY!=o.targetY){
+		o.path = null;
+		o.pathIndex = 0;
+		o.lastGoalX = null;
+		o.lastGoalY = null;
+	  }
+	  o.pretargetX=o.targetX;
+	  o.pretargetY=o.targetY;
+	  
     if (o.canMove && o.buildobject) {
       ignoreSet.add(o.buildobject);
+    }
+	if (o.canMove && o.workobject) {
+      ignoreSet.add(o.workobject);
+    }
+	if (o.canMove && o.deliveryTarget) {
+      ignoreSet.add(o.deliveryTarget);
     }
   }
   game.pathfinder.updateObstacles(staticObstacles, ignoreSet);
@@ -1607,6 +1623,8 @@ class Object {
         this.selected = false;
         this.targetX = null;
         this.targetY = null;
+		this.pretargetX=null;
+		this.pretargetY=null;
         this.speed = 1.0;
         this.selectable = false;
         this.direction = "up";
