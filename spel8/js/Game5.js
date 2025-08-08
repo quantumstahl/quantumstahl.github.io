@@ -1174,14 +1174,7 @@ updateUnitMovement() {
   const ignoreSet = new Set();
   for (const o of this.getAllObjects()) {
 	  
-	  if(o.pretargetX!=o.targetX||o.pretargetY!=o.targetY){
-		o.path = null;
-		o.pathIndex = 0;
-		o.lastGoalX = null;
-		o.lastGoalY = null;
-	  }
-	  o.pretargetX=o.targetX;
-	  o.pretargetY=o.targetY;
+	
 	  
     if (o.canMove && o.buildobject) {
       ignoreSet.add(o.buildobject);
