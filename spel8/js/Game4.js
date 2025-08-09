@@ -561,8 +561,9 @@ class Game4 {
     
     updateanimation(ctx) {
         try {
-            this.updateUnitMovement();
             this.collitionengine();
+            this.updateUnitMovement();
+            
         } catch (error) {}
         
         for (let i = 0; i < this.maps.length; i++) {
@@ -724,12 +725,12 @@ class Game4 {
         for (let i = 0; i < obj.collideslistan.length; i++) {
             if (name == "any") {
                 if (obj.collideslistandir[i] == dir)
-                    return true;
+                    return obj.collideslistanobj[i];
             }
             else if (obj.collideslistan[i] == name && obj.collideslistandir[i] == dir)
-                return true;
+                return obj.collideslistanobj[i];
         }
-        return false;
+        return null;
     }
     collideswithanoterobject(obj, obj2) {
         for (let i = 0; i < obj.collideslistanobj.length; i++) {
@@ -927,6 +928,33 @@ class Game4 {
     updateUnitMovement() {
         const objects = this.getAllObjects();
 
+
+function sameObj(a, b) {
+  if (!a || !b) return false;
+  // referensjämförelse räcker om motorn håller samma objektinstans
+  if (a === b) return true;
+  // fallback: om du har unika id:n
+  if (a.id != null && b.id != null) return a.id === b.id;
+  return false;
+}
+
+// Ignorera valfria objekt i “är vägen fri?”-kollen
+function isPathClearExcept(obj, ignores = []) {
+  // om din motor redan fyller collideslistanobj per frame
+  for (const c of obj.collideslistanobj) {
+    if (!c) continue;
+    let skip = false;
+    for (const ig of ignores) {
+      if (sameObj(c, ig)) { skip = true; break; }
+    }
+    if (skip) continue;
+    // spöken räknas inte
+    if (c.ghost) continue;
+    // allt annat räknas som block
+    return false;
+  }
+  return true;
+}
         for (let obj of objects) {
             if (obj.targetX !== null && obj.targetY !== null) {
      
@@ -939,13 +967,14 @@ class Game4 {
 
                 if (dist > 1) {
                     // Beräkna rörelseriktning
-
-                    if (Math.abs(dx) > Math.abs(dy)) {
-                        obj.direction = dx > 0 ? "right" : "left";
-                    } else {
-                        obj.direction = dy > 0 ? "down" : "up";
+                    
+                    if(obj.lockDirection==false){
+                        if (Math.abs(dx) > Math.abs(dy)) {
+                            obj.direction = dx > 0 ? "right" : "left";
+                        } else {
+                            obj.direction = dy > 0 ? "down" : "up";
+                        }
                     }
-
 
                     
                     let stop=false;
@@ -955,12 +984,16 @@ class Game4 {
                      for (let c of obj.collideslistanobj) {
                          
                  
-                        if (obj.targetObject && c == obj.targetObject||obj.workobject&&c==obj.workobject){ obj.blocked=false;obj.blocked1=0;stop=true;} // Ignorera target
+                        if ((obj.targetObject && c == obj.targetObject)||(obj.workobject&&c==obj.workobject)){ obj.blocked=false;obj.blocked1=0;stop=true;} // Ignorera target
                         if(obj.workobject&&c==obj.workobject){obj.blocked=false;obj.blocked1=0;stop=true;}
                         if(obj.deliveryTarget&&c==obj.deliveryTarget){obj.blocked=false;obj.blocked1=0;stop=true;}
                      }
-                     
 
+        
+        
+        
+                  //   if(obj.aiHoldTarget==true){obj.y += ((dy / dist) * obj.speed);obj.x += ((dx / dist) * obj.speed);}
+                   //  else{
                      if(stop==true){
                
                           if (Math.abs(dx) > Math.abs(dy))obj.x += ((dx / dist) * obj.speed);
@@ -990,7 +1023,7 @@ class Game4 {
                      }
                      
                        
-                    if(game.isPathClear(obj)){obj.blockedcounter=0;obj.blocked1=0;obj.blocked=false;}
+                    if(stop==false&&game.isPathClear(obj)){obj.blockedcounter=0;obj.blocked1=0;obj.blocked=false;}
                     else obj.blocked=true;
                     //if(!obj.blocked)obj.blockedcounter=0;
                     if (obj.blocked&&stop==false) {
@@ -1023,8 +1056,8 @@ class Game4 {
                         }
                         if(obj.blockedcounter>300){obj.blockedcounter=0;obj.blocked1=0;}
                         
-                        
-                    }
+                        }
+                  //  }
                     if (obj.blocked && obj.targetX !== null && obj.targetY !== null) {
     for (let other of game.getAllObjects()) {
         if (other === obj) continue;
@@ -1066,7 +1099,7 @@ class Game4 {
     let buffx = worker.x;
     let buffy = worker.y;
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 1; i++) {
         buffx += stepX;
         buffy += stepY;
 
@@ -1367,6 +1400,7 @@ class Object {
         this.mousepressed = false;
         this.ghost = false;
         this.health = 100;
+        this.maxhealth = null;
         this.counter = 0;
         this.counter2 = 0;
         this.counter3 = 0;
@@ -1394,6 +1428,8 @@ class Object {
         this.buildTimer=0;
         this.directionx="left";
         this.directiony="up";
+        this.lockDirection=false;
+        this.aiHoldTarget=false;
     }
     collidestest(){
         for (let i2 = 0; i2 < game.maps[game.currentmap].layer.length; i2++) {

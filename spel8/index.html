@@ -106,6 +106,23 @@
  
   
 </div>            
+
+<div id="end-screen" style="
+  position:fixed; inset:0; display:none; 
+  align-items:center; justify-content:center; 
+  background:rgba(0,0,0,0.8); z-index:2000; color:#fff; font-family:sans-serif;">
+  <div style="text-align:center;">
+    <div id="end-title" style="font-size:64px; font-weight:800; margin-bottom:16px;"></div>
+    <div id="end-sub" style="font-size:22px; opacity:0.85; margin-bottom:28px; white-space:pre-line;"></div>
+    <button id="btn-restart" style="
+      font-size:18px; padding:12px 20px; border:0; border-radius:10px; 
+      background:linear-gradient(180deg,#48bb78,#2f855a); color:#fff; cursor:pointer;">
+      Spela igen
+    </button>
+  </div>
+</div>
+
+
         
 <div id="resourceUI" style="position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 5px; font-family: sans-serif; font-size: 50px; z-index: 100;">
     <img src="images/gold.png" style="width:50px; vertical-align: middle;">Guld: <span id="goldCount">0</span><br>
@@ -208,6 +225,13 @@
             let wood = 1200;
             let rgold = 1400;
             let rwood = 1200;
+            let gameOver = false;
+            
+            document.getElementById("btn-restart").addEventListener("click", () => {
+                // enklaste reset: ladda om
+                location.reload();
+              });
+            
             
             document.getElementById("build-base-btn").innerHTML = "Bygg bas<br>1000 guld / 1000 trä";
             document.getElementById("build-barracks-btn").innerHTML = "Bygg barrack<br>500 guld / 500 trä";
@@ -452,7 +476,7 @@
                 
                 
                 game.updateanimation(ctx);
-                
+                drawHealthBars();
 		gras= game.getobjecttype("ground"); 				
                 guard =game.getobjecttype("guard"); 
                 worker =game.getobjecttype("worker"); 
@@ -489,6 +513,13 @@
                     enemyTryToBuildBar();
                     updateRedWorkerAI();
                     updateRedTrainingAI();
+                    updateRedGuardAI();
+                    
+                    handleCombat("guard", ["rguard", "rworker", "rbase", "rbar"], 0.2);
+                    handleCombat("worker", ["rguard", "rworker", "rbase", "rbar"], 0.1);
+                    handleCombat("rguard", ["guard", "worker", "base", "bar"], 0.2);
+                    handleCombat("rworker", ["guard", "worker", "base", "bar"], 0.1);
+                    
                     
                     const anyBaseSelected = game.getAllObjectsoftype(game.getobjecttype("base")).some(o => o.selected);
                     document.getElementById("build-ui2").style.display = anyBaseSelected ? "flex" : "none";
@@ -523,6 +554,8 @@
                     ];
 
                     for (let base of basesAndBars) {
+                        if(base.animation==0)break;
+                        
                         base.buildQueue = base.buildQueue || [];
                         base.buildTimer = base.buildTimer || 0;
 
@@ -638,7 +671,21 @@
                         
 
                     }
-                    
+                    for(let i=0;i<rguard.objects.length;i++){
+
+                        rguard.objects[i].selectable=true;
+                        rguard.aiNoLocalAvoid = true; // movement använder mikro-styrning (ovan)
+                        rguard.lockDirection  = true; // AI sätter facing för kollisions-attack
+                        rguard.aiHoldTarget   = true; // AI släpper själv målet först när det vill
+
+                        if ( rguard.objects[i].direction === "up")  rguard.objects[i].animation = 0;
+                        else if ( rguard.objects[i].direction === "right")  rguard.objects[i].animation = 1;
+                        else if ( rguard.objects[i].direction === "down")  rguard.objects[i].animation = 2;
+                        else if ( rguard.objects[i].direction === "left")  rguard.objects[i].animation = 3;
+                        
+                        
+
+                    }
              
                     for(let i=0;i<worker.objects.length;i++){
 
@@ -959,12 +1006,21 @@
                         
 
                     }
+ 
                     
-                
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    checkWinLose(); 
                 }
 
                  
-                 
+                
                 window.requestAnimationFrame(check);   
             };check();
             
@@ -1193,9 +1249,9 @@
                     }
                 }
                 
-                
-       if (rwood < 1000 || rgold < 1000) return;
-
+       if(game.getobjecttype("rbase").objects.length==1)return;         
+       if (rwood < 1000 || rgold < 1000 ) return;
+       
     const rbaseType = game.getobjecttype("rbase");
 
     // Finns redan en bas eller ghost-bygge?
@@ -1371,7 +1427,7 @@ function updateRedTrainingAI() {
             base.buildTimer = base.buildTimer || 0;
 
             // Skippa om basen håller på att bygga något redan
-            if (base.buildQueue.length > 0&&base.animation==0) continue;
+            if (base.buildQueue.length > 0) break;
 
             // Exempel: träna rguard om resurser finns
             const unitToTrain = "rworker"; // kan även vara "rworker"
@@ -1391,7 +1447,7 @@ function updateRedTrainingAI() {
             base.buildTimer = base.buildTimer || 0;
 
             // Skippa om basen håller på att bygga något redan
-            if (base.buildQueue.length > 0&&base.animation==0) continue;
+            if (base.buildQueue.length > 0) break;
 
             // Exempel: träna rguard om resurser finns
             const unitToTrain = "rguard"; // kan även vara "rworker"
@@ -1406,6 +1462,447 @@ function updateRedTrainingAI() {
         }
     
     
+}
+const BUILDING_NAMES = new Set(["base","bar","rbase","rbar"]); // byggnader
+function drawHealthBars() {
+    if(!game.maps[game.currentmap])return;
+    
+  const map = game.maps[game.currentmap];
+  const zoom = 1 + (map.zoom / 100); // samma zoom som du använder för input
+  const camX = map.camerax;
+  const camY = map.cameray;
+
+  const objs = game.getAllObjects();
+  for (const o of objs) {
+    if (!o.selectable) continue;
+    if (o.name === "tree" || o.name === "goldmine") continue;
+
+    // defaultvärden om hälsa saknas
+    if (o.maxHealth == null){ o.maxHealth = BUILDING_NAMES.has(o.name) ? 800 : 100;o.health = o.maxHealth;}
+    if (o.health == null) o.health = o.maxHealth;
+
+    const hpPct = Math.max(0, Math.min(1, o.health / o.maxHealth));
+
+    // Värld → skärm
+    const sx = (o.x + camX) * zoom;
+    const sy = (o.y + camY) * zoom;
+
+    const barW = Math.max(20, o.dimx * zoom);  // skala med zoom, ha en min.bredd
+    const barH = Math.max(3, 5 * (zoom >= 1 ? zoom : 1)); // öka svagt med zoom
+    const offsetY = -10 * zoom; // ovanför objektet
+
+    // Bakgrund
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(sx, sy + offsetY, barW, barH);
+
+    // Röd full bar
+    ctx.fillStyle = "red";
+    ctx.fillRect(sx, sy + offsetY, barW, barH);
+
+    // Grön nuvarande HP
+    ctx.fillStyle = "lime";
+    ctx.fillRect(sx, sy + offsetY, barW * hpPct, barH);
+
+    // Kant
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(sx, sy + offsetY, barW, barH);
+  }
+}
+function handleCombat(attackerType, enemyTypes, damage) {
+    const attackers = game.getobjecttype(attackerType).objects;
+    for (const unit of attackers) {
+        // Kolla alla fiendetyper
+        for (const enemyType of enemyTypes) {
+            const target = game.collideswith(unit, enemyType, unit.direction);
+            if (target) {
+                // Om målet inte har health, sätt standardvärde
+                target.health -= damage;
+
+                if (target.health <= 0) {
+                    // Ta bort objektet om health tar slut
+                    game.removeobject(game.getobjecttype(enemyType), target);
+                }
+            }
+        }
+    }
+}
+// --- helpers för AI ---
+// Vilka räknas som fasta hinder
+const SOLID_TYPES = ["tree","goldmine","base","bar","rbase","rbar"];
+
+// Axis-aligned bbox-overlap
+function aabbOverlap(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2) {
+  return ax1 < bx2 && ax2 > bx1 && ay1 < by2 && ay2 > by1;
+}
+
+// Linje-segment mot AABB (snabb och robust: Liang–Barsky)
+function segmentAABB(x0, y0, x1, y1, rx1, ry1, rx2, ry2) {
+  const dx = x1 - x0, dy = y1 - y0;
+  let t0 = 0, t1 = 1;
+
+  const p = [-dx, dx, -dy, dy];
+  const q = [x0 - rx1, rx2 - x0, y0 - ry1, ry2 - y0];
+
+  for (let i = 0; i < 4; i++) {
+    if (p[i] === 0) {
+      if (q[i] < 0) return false; // parallell & utanför
+    } else {
+      const r = q[i] / p[i];
+      if (p[i] < 0) { if (r > t1) return false; if (r > t0) t0 = r; }
+      else          { if (r < t0) return false; if (r < t1) t1 = r; }
+    }
+  }
+  return true;
+}
+
+// Kolla om en rektangel (x,y,w,h) är fri från SOLID_TYPES (med liten marginal)
+function freeAtFast(x, y, w, h, inflate = 6) {
+  const ax1 = x - inflate/2, ay1 = y - inflate/2;
+  const ax2 = ax1 + w + inflate, ay2 = ay1 + h + inflate;
+
+  for (const tn of SOLID_TYPES) {
+    const t = game.getobjecttype(tn); if (!t) continue;
+    for (const o of t.objects) {
+      if (o.ghost) continue;
+      const bx1 = o.x, by1 = o.y, bx2 = o.x + o.dimx, by2 = o.y + o.dimy;
+      if (aabbOverlap(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2)) return false;
+    }
+  }
+  return true;
+}
+
+// LOS-block? (linje mitt→mitt mot SOLID AABB)
+function losBlockedFast(A, B, unit, inflate = 4) {
+  for (const tn of SOLID_TYPES) {
+    const t = game.getobjecttype(tn); if (!t) continue;
+    for (const o of t.objects) {
+      if (o.ghost) continue;
+      const rx1 = o.x - inflate, ry1 = o.y - inflate;
+      const rx2 = o.x + o.dimx + inflate, ry2 = o.y + o.dimy + inflate;
+      if (segmentAABB(A.x, A.y, B.x, B.y, rx1, ry1, rx2, ry2)) return true;
+    }
+  }
+  return false;
+}
+
+function C(o){ return {x:o.x + o.dimx/2, y:o.y + o.dimy/2}; }
+function alive(o){ return !!o && game.getAllObjects().includes(o); }
+
+
+function updateRedGuardAI() {
+  // ---------- Tunables ----------
+  const CLEARANCE = 10;      // hinder känns tjockare (LOS + grid-block)
+  const CELL      = 24;      // rutnätsstorlek (px)
+  const PAD       = 240;     // hur mycket område runt G↔T vi rasteriserar
+  const REPATH_MS = 18;      // frames mellan ev. auto-repath
+  const NEAR_WP   = 12;      // när waypoint räknas nådd
+  const STUCK_FR  = 30;      // frames stilla ⇒ repath
+
+  const SOLIDS = ["tree","goldmine","base","bar","rbase","rbar"];
+
+  // ---------- Helpers ----------
+  const C = (o) => ({ x: o.x + o.dimx/2, y: o.y + o.dimy/2 });
+  const alive = (o) => !!o && game.getAllObjects().includes(o);
+
+  // samla solider en gång per uppdatering
+  const solids = [];
+  for (const n of SOLIDS) {
+    const t = game.getobjecttype(n);
+    if (!t) continue;
+    for (const o of t.objects) if (!o.ghost) solids.push(o);
+  }
+
+  function aabbOverlap(ax1,ay1,ax2,ay2,bx1,by1,bx2,by2){
+    return ax1<bx2 && ax2>bx1 && ay1<by2 && ay2>by1;
+  }
+function freeAtRect(x,y,w,h,inflate=0, excludeObject=null){ // excludeObject parameter is crucial
+  const ax1=x-inflate, ay1=y-inflate, ax2=x+w+inflate, ay2=y+h+inflate;
+  for(const o of solids){
+    if(o === excludeObject) continue; // Skip the object that is the target
+    const bx1=o.x, by1=o.y, bx2=o.x+o.dimx, by2=o.y+o.dimy;
+    if(aabbOverlap(ax1,ay1,ax2,ay2,bx1,by1,bx2,by2)) return false;
+  }
+  return true;
+}
+  function segAABB(x0,y0,x1,y1, rx1,ry1,rx2,ry2){
+    const dx=x1-x0, dy=y1-y0;
+    let t0=0,t1=1; const p=[-dx,dx,-dy,dy], q=[x0-rx1,rx2-x0,y0-ry1,ry2-y0];
+    for(let i=0;i<4;i++){
+      if(p[i]===0){ if(q[i]<0) return false; }
+      else{ const r=q[i]/p[i];
+        if(p[i]<0){ if(r>t1) return false; if(r>t0) t0=r; }
+        else      { if(r<t0) return false; if(r<t1) t1=r; }
+      }
+    }
+    return true;
+  }
+  function losBlocked(A, B, inflate = CLEARANCE) {
+  for (const o of solids) {
+    const rx1 = o.x - inflate, ry1 = o.y - inflate;
+    const rx2 = o.x + o.dimx + inflate, ry2 = o.y + o.dimy + inflate;
+    if (segAABB(A.x, A.y, B.x, B.y, rx1, ry1, rx2, ry2)) return true;
+  }
+  return false;
+}
+
+  // dynamiskt grid (runt G↔T)
+function buildGrid(minx, miny, maxx, maxy, targetObject = null) { // Removed inflate parameter
+  const w = Math.max(1, Math.ceil((maxx-minx)/CELL));
+  const h = Math.max(1, Math.ceil((maxy-miny)/CELL));
+  const walk = new Array(w*h).fill(true);
+
+  for (let gy=0; gy<h; gy++) {
+    for (let gx=0; gx<w; gx++) {
+      const cx = minx + gx*CELL + CELL/2;
+      const cy = miny + gy*CELL + CELL/2;
+      const x = cx - CELL/2, y = cy - CELL/2;
+      // Pass 0 for inflate here, to keep the old grid blocking behavior
+      if (!freeAtRect(x, y, CELL, CELL, 0, targetObject)) { // <-- Changed inflate to 0
+        walk[gy*w+gx] = false;
+      }
+    }
+  }
+  return { w, h, minx, miny, walk };
+}
+  const toIdx = (gx,gy,w)=>gy*w+gx;
+
+  function worldToGrid(grid, p){
+    let gx = Math.floor((p.x - grid.minx)/CELL);
+    let gy = Math.floor((p.y - grid.miny)/CELL);
+    gx=Math.max(0,Math.min(grid.w-1,gx));
+    gy=Math.max(0,Math.min(grid.h-1,gy));
+    return {gx,gy};
+  }
+  function gridToWorld(grid,gx,gy){
+    return { x: grid.minx + gx*CELL + CELL/2, y: grid.miny + gy*CELL + CELL/2 };
+  }
+
+  // A* (8-neighbors)
+  function astar(grid, start, goal){
+    const w=grid.w,h=grid.h, walk=grid.walk;
+    const sIdx=toIdx(start.gx,start.gy,w), gIdx=toIdx(goal.gx,goal.gy,w);
+    const open=[sIdx], came=new Map(), gScore=new Map([[sIdx,0]]);
+    const fScore=new Map([[sIdx,heur(start,goal)]]);
+
+    function heur(a,b){ const dx=Math.abs(a.gx-b.gx), dy=Math.abs(a.gy-b.gy);
+      return (dx+dy) + (Math.SQRT2-2)*Math.min(dx,dy);
+    }
+    function lowestF(){
+      let best=-1,bv=Infinity;
+      for(let i=0;i<open.length;i++){ const idx=open[i]; const v=fScore.get(idx)??Infinity; if(v<bv){bv=v;best=i;} }
+      return open.splice(best,1)[0];
+    }
+    function neighbors(gx,gy){
+      const out=[];
+      for(let oy=-1;oy<=1;oy++) for(let ox=-1;ox<=1;ox++){
+        if(!ox&&!oy) continue;
+        const nx=gx+ox, ny=gy+oy;
+        if(nx<0||ny<0||nx>=w||ny>=h) continue;
+        if(!walk[toIdx(nx,ny,w)]) continue;
+        // valfri: förhindra att skära hörn igenom två block
+        if(ox&&oy){
+          if(!walk[toIdx(gx,ny,w)] || !walk[toIdx(nx,gy,w)]) continue;
+        }
+        out.push({gx:nx,gy:ny,cost: (ox&&oy)?Math.SQRT2:1});
+      }
+      return out;
+    }
+
+    while(open.length){
+      const curIdx=lowestF();
+      if(curIdx===gIdx){
+        // rekonstruktion
+        const path=[];
+        let u=curIdx;
+        while(u!==sIdx){ const v=came.get(u); const gx=u%w, gy=(u-gx)/w; path.push({gx,gy}); u=v; }
+        path.push({gx:start.gx,gy:start.gy}); path.reverse();
+        return path;
+      }
+      const cgx=curIdx%w, cgy=(curIdx-cgx)/w;
+      for(const nb of neighbors(cgx,cgy)){
+        const nIdx=toIdx(nb.gx,nb.gy,w);
+        const tentative = (gScore.get(curIdx)??Infinity) + nb.cost;
+        if(tentative < (gScore.get(nIdx)??Infinity)){
+          came.set(nIdx, curIdx);
+          gScore.set(nIdx, tentative);
+          fScore.set(nIdx, tentative + heur(nb,goal));
+          if(!open.includes(nIdx)) open.push(nIdx);
+        }
+      }
+    }
+    return null;
+  }
+
+  // Path smoothing: ta bort överflödiga punkter med LOS
+  function smoothPath(grid, path, inflate) {
+  if (!path || path.length <= 2) return path;
+  const out = [path[0]];
+  let i = 0;
+  while (i < path.length - 1) {
+    let j = path.length - 1;
+    const Pi = gridToWorld(grid, path[i].gx, path[i].gy);
+    for (; j > i + 1; j--) {
+      const Pj = gridToWorld(grid, path[j].gx, path[j].gy);
+      if (!losBlocked(Pi, Pj, inflate)) break; // <-- använda inflate
+    }
+    out.push(path[j]);
+    i = j;
+  }
+  return out;
+}
+
+  // ---------- AI loop ----------
+  const rguards = game.getobjecttype("rguard")?.objects || [];
+  const enemyUnits = [
+    ...(game.getobjecttype("guard")?.objects || []),
+    ...(game.getobjecttype("worker")?.objects || [])
+  ];
+  const enemyBuilds = [
+    ...(game.getobjecttype("base")?.objects || []),
+    ...(game.getobjecttype("bar")?.objects || [])
+  ];
+
+  for(const g of rguards){
+    if(!g.ai) g.ai = { path:null, pi:0, repath:0, stuck:0, _lx:g.x, _ly:g.y };
+    g.lockDirection = true;
+    g.aiHoldTarget  = true;
+
+    // mål: enheter först
+    if(!g.targetObject || !alive(g.targetObject)){
+      const pool = enemyUnits.length ? enemyUnits : enemyBuilds;
+      if(!pool.length){ g.targetObject=null; continue; }
+      const G=C(g); let best=null,bd=Infinity;
+      for(const e of pool){ const E=C(e); const d=Math.hypot(E.x-G.x,E.y-G.y); if(d<bd){bd=d;best=e;} }
+      g.targetObject=best; g.ai.path=null; g.ai.pi=0; g.ai.repath=0;
+    }
+    const t=g.targetObject; if(!t) continue;
+
+    const Gc=C(g), Tc=C(t);
+    const dx=Tc.x-Gc.x, dy=Tc.y-Gc.y;
+    g.direction = Math.abs(dx)>Math.abs(dy) ? (dx>0?"right":"left") : (dy>0?"down":"up");
+
+    // slå om vi når fram
+    if (game.collideswith(g, t.name, g.direction)) {
+      const L=Math.hypot(dx,dy)||1, push=(g.speed||1)*0.25;
+      g.targetX = g.x + (dx/L)*push;
+      g.targetY = g.y + (dy/L)*push;
+      g.ai.stuck=0; g.ai._lx=g.x; g.ai._ly=g.y;
+      continue;
+    }
+
+    // genväg: fri LOS ⇒ skrota path och gå direkt
+    if(!losBlocked(Gc,Tc)){
+      g.ai.path=null; g.ai.pi=0; g.ai.repath=0;
+      g.targetX = Tc.x - g.dimx/2;
+      g.targetY = Tc.y - g.dimy/2;
+    }else{
+      // behöver path?
+      if(!g.ai.path || g.ai.repath<=0){
+        // skapa litet grid runt G↔T
+        // skapa litet grid runt G↔T
+        const minx=Math.min(Gc.x,Tc.x)-PAD, miny=Math.min(Gc.y,Tc.y)-PAD;
+        const maxx=Math.max(Gc.x,Tc.x)+PAD, maxy=Math.max(Gc.y,Tc.y)+PAD;
+        // Pass only the target object 't', no inflate parameter
+        const grid=buildGrid(minx,miny,maxx,maxy, t); // <-- Removed CLEARANCE here
+        const s=worldToGrid(grid,Gc), goal=worldToGrid(grid,Tc);
+
+        const raw = astar(grid,s,goal);
+        if(raw){
+          const sm = smoothPath(grid, raw);
+          // konvertera till världspunkter
+          g.ai.path = sm.map(p => gridToWorld(grid,p.gx,p.gy));
+          // första punkten är nära G själv → börja på nästa
+          if(g.ai.path.length>1) g.ai.pi=1; else g.ai.pi=0;
+        }else{
+          g.ai.path=null; g.ai.pi=0; // inget hittades: försök igen snart
+        }
+        g.ai.repath = REPATH_MS;
+      }else{
+        g.ai.repath--;
+      }
+
+      // följ path
+      if(g.ai.path && g.ai.pi < g.ai.path.length){
+        const wp = g.ai.path[g.ai.pi];
+        // waypoint nådd?
+        if(Math.hypot(Gc.x-wp.x,Gc.y-wp.y) < NEAR_WP){
+          g.ai.pi++;
+        }
+      }
+
+      const goal = (g.ai.path && g.ai.pi < g.ai.path.length) ? g.ai.path[g.ai.pi] : Tc;
+      g.targetX = goal.x - g.dimx/2;
+      g.targetY = goal.y - g.dimy/2;
+    }
+
+    // enkel stuck-detektion ⇒ repath
+    const moved = Math.hypot(g.x - g.ai._lx, g.y - g.ai._ly);
+    if(moved < 0.3) g.ai.stuck++; else g.ai.stuck=0;
+    g.ai._lx=g.x; g.ai._ly=g.y;
+    if(g.ai.stuck > STUCK_FR){ g.ai.repath = 0; g.ai.stuck = 0; } // tvinga snabb repath
+  }
+}
+function showEndScreen(result, statsText="") {
+  const box = document.getElementById("end-screen");
+  const title = document.getElementById("end-title");
+  const sub = document.getElementById("end-sub");
+  sub.style.whiteSpace = "pre-line";
+  sub.textContent = statsText;
+
+  if (result === "win") {
+    title.textContent = "Du vann! 🎉";
+    sub.textContent = statsText || "Fienden är besegrad.";
+  } else {
+    title.textContent = "Du förlorade 💀";
+    sub.textContent = statsText || "Bättre lycka nästa gång.";
+  }
+  box.style.display = "flex";
+}
+
+
+function checkWinLose() {
+  if (gameOver) return;
+
+  // Hämta typer (säkrar mot null)
+  const _g  = game.getobjecttype("guard")    || {objects:[]};
+  const _w  = game.getobjecttype("worker")   || {objects:[]};
+  const _b  = game.getobjecttype("base")     || {objects:[]};
+  const _ba = game.getobjecttype("bar")      || {objects:[]};
+
+  const _rg = game.getobjecttype("rguard")   || {objects:[]};
+  const _rw = game.getobjecttype("rworker")  || {objects:[]};
+  const _rb = game.getobjecttype("rbase")    || {objects:[]};
+  const _rba= game.getobjecttype("rbar")     || {objects:[]};
+
+  // Räkna endast “färdiga” byggnader (animation==1 i din kod betyder klar)
+  const playerBasesAlive   = _b.objects.filter(o => !o.ghost && o.animation===1).length;
+  const playerBarrsAlive   = _ba.objects.filter(o => !o.ghost && o.animation===1).length;
+  const enemyBasesAlive    = _rb.objects.filter(o => !o.ghost && o.animation===1).length;
+  const enemyBarrsAlive    = _rba.objects.filter(o => !o.ghost && o.animation===1).length;
+
+  const playerUnitsAlive   = _g.objects.length + _w.objects.length;
+  const enemyUnitsAlive    = _rg.objects.length + _rw.objects.length;
+
+// VINST
+if (enemyBasesAlive===0 && enemyBarrsAlive===0 && enemyUnitsAlive===0) {
+  gameOver = true;
+  showEndScreen(
+    "win",
+    `Dina resurser – Guld: ${gold} · Trä: ${wood}\nFiendens resurser – Guld: ${rgold} · Trä: ${rwood}`
+  );
+  return;
+}
+
+// FÖRLUST
+if (playerBasesAlive===0 && playerBarrsAlive===0 && playerUnitsAlive===0) {
+  gameOver = true;
+  showEndScreen(
+    "lose",
+    `Fiendens resurser – Guld: ${rgold} · Trä: ${rwood}\nDina resurser – Guld: ${gold} · Trä: ${wood}`
+  );
+  return;
+}
 }
         </script>
     </body>
