@@ -279,6 +279,7 @@
                 ghostBuilding = game.addobject(game.getobjecttype("base"), 0, 0, 150, 150, 0, false);
                 ghostBuilding.ghost = true;
                 ghostBuilding.selectable = false;
+                ghostBuilding.animation=2;
                 
             });
             document.getElementById("build-barracks-btn").addEventListener("click", function() {
@@ -296,6 +297,7 @@
                 ghostBuilding = game.addobject(game.getobjecttype("bar"), 0, 0, 150, 150, 0, false);
                 ghostBuilding.ghost = true;
                 ghostBuilding.selectable = false;
+                ghostBuilding.animation=2;
                 
             });
             document.getElementById("train-worker-btn").addEventListener("click", () => {
