@@ -110,7 +110,7 @@ class Game4 {
             if (typeof window.allowSelection === "function" && !window.allowSelection()) {
                 return;
             }
-            
+            let nothing=true;
             // Cache current map object for repeated use.
             const currentMap = game.maps[game.currentmap];
             const zoomFactor = 1 + (1 * currentMap.zoom / 100);
@@ -132,10 +132,12 @@ class Game4 {
                                if(object.selectable&& units.length===0){
                                 object.selected=true;}
                                 if(object.selectable){
+                                    nothing=false;
                                     let canmove=false;
                                     for(let u of units){if(u.canMove&&u.iscontrollable)canmove=true;}
                                     if(canmove==false){for(let u of units){u.selected=false;}object.selected=true;}
                                 }
+                                
                         }
                         
                         if (e.touches.length > 1) {
@@ -147,6 +149,7 @@ class Game4 {
                                if(object.selectable&& units.length===0){
                                 object.selected=true;}
                                 if(object.selectable){
+                                    nothing=false;
                                     let canmove=false;
                                     for(let u of units){if(u.canMove&&u.iscontrollable)canmove=true;}
                                     if(canmove==false){for(let u of units){u.selected=false;}object.selected=true;}
@@ -156,6 +159,16 @@ class Game4 {
                     }
                 }
             }
+            if(nothing==true){
+                let canmove=false;
+                var units=game.getAllObjects().filter(o => o.selected);
+                for(let u of units){if(u.canMove&&u.iscontrollable)canmove=true;}
+                if(canmove==false){for(let u of units){u.selected=false;}}
+                
+                
+            }
+            
+            
             if (e.touches.length === 1) {
                 const x = e.touches[0].clientX / zoomFactor - currentMap.camerax;
                 const y = e.touches[0].clientY / zoomFactor - currentMap.cameray;
