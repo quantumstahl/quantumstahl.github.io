@@ -265,7 +265,7 @@
             document.getElementById("train-worker-btn").innerHTML = "Träna arbetare<br>200 guld / 100 trä";
             document.getElementById("train-warrior-btn").innerHTML = "Träna warrior<br>300 guld / 100 trä";
             document.getElementById("build-base-btn").addEventListener("click", function() {
-                ghostBuilding.animation=2;
+                if(ghostBuilding)ghostBuilding.animation=2;
                 if(gold>=1000&&wood>=1000){gold-=1000;wood-=1000;}    
                 else return;    
                 buildMode = true;
@@ -282,7 +282,7 @@
                 
             });
             document.getElementById("build-barracks-btn").addEventListener("click", function() {
-                ghostBuilding.animation=2;
+                if(ghostBuilding)ghostBuilding.animation=2;
                 if(gold>=500&&wood>=500){gold-=500;wood-=500;}    
                 else return;    
                 buildMode = true;
