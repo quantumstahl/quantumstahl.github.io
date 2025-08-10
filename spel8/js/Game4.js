@@ -133,7 +133,7 @@ class Game4 {
                                 object.selected=true;}
                                 if(object.selectable){
                                     let canmove=false;
-                                    for(let u of units){if(u.canMove)canmove=true;}
+                                    for(let u of units){if(u.canMove)canmove=false;}
                                     if(canmove==false){for(let u of units){u.selected=false;}object.selected=true;}
                                 }
                         }
@@ -148,7 +148,7 @@ class Game4 {
                                 object.selected=true;}
                                 if(object.selectable){
                                     let canmove=false;
-                                    for(let u of units){if(u.canMove)canmove=true;}
+                                    for(let u of units){if(u.canMove)canmove=false;}
                                     if(canmove==false){for(let u of units){u.selected=false;}object.selected=true;}
                                 }
                             }
