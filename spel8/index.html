@@ -386,6 +386,7 @@
                     ghostBuilding.selectable = true;
                     ghostBuilding.canMove=false;
                     isPlacingBuilding = false;
+                    ghostBuilding.iscontrollable=true;
                     pendingBuilds.push(ghostBuilding);
                     
                                             // Tilldela sparade workers detta bygge:
@@ -466,7 +467,7 @@
                     ghostBuilding.ghost = false;
                     ghostBuilding.selectable = true;
                     ghostBuilding.canMove=false;
-                    
+                    ghostBuilding.iscontrollable=true;
                     pendingBuilds.push(ghostBuilding);
                     
                                             // Tilldela sparade workers detta bygge:
