@@ -122,7 +122,12 @@
   </div>
 </div>
 
-
+<div id="place-hint" style="
+  position:fixed; bottom:84px; left:0; right:0; text-align:center;
+  color:#fff; font:600 36px/1.2 system-ui, sans-serif;
+  text-shadow:0 1px 2px rgba(0,0,0,.6); display:none; z-index:1200;">
+  Tryck på kartan för att placera
+</div>
         
 <div id="resourceUI" style="position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 5px; font-family: sans-serif; font-size: 50px; z-index: 100;">
     <img src="images/gold.png" style="width:50px; vertical-align: middle;">Guld: <span id="goldCount">0</span><br>
@@ -254,6 +259,18 @@
                 return !!(evtTarget && evtTarget.closest &&
                   evtTarget.closest('#build-ui, #build-ui2, #build-ui3, button'));
               }
+            function setBuildUIActive(on) {
+                
+                const hint = document.getElementById("place-hint");
+                if (hint) hint.style.display = on ? "block" : "none";
+                
+                const btn = document.getElementById(buildType === "base" ? "build-base-btn" : "build-barracks-btn");
+                if (!btn) return;
+                btn.style.outline = on ? "3px solid gold" : "none";
+                btn.style.boxShadow = on ? "0 0 12px gold" : "none";
+              }  
+              
+              
             document.getElementById("btn-restart").addEventListener("click", () => {
                 // enklaste reset: ladda om
                 location.reload();
@@ -280,6 +297,7 @@
                 ghostBuilding.ghost = true;
                 ghostBuilding.selectable = false;
                 ghostBuilding.animation=2;
+                setBuildUIActive(true);
                 
             });
             document.getElementById("build-barracks-btn").addEventListener("click", function() {
@@ -298,6 +316,7 @@
                 ghostBuilding.ghost = true;
                 ghostBuilding.selectable = false;
                 ghostBuilding.animation=2;
+                setBuildUIActive(true);
                 
             });
             document.getElementById("train-worker-btn").addEventListener("click", () => {
@@ -397,6 +416,7 @@
                     isPlacingBuilding = false;
                     ghostBuilding.iscontrollable=true;
                     ghostBuilding.animation=0;
+                    setBuildUIActive(false);
                     
                     
                     pendingBuilds.push(ghostBuilding);
@@ -481,6 +501,7 @@
                     ghostBuilding.selectable = true;
                     ghostBuilding.canMove=false;
                     ghostBuilding.iscontrollable=true;
+                    setBuildUIActive(false);
                     pendingBuilds.push(ghostBuilding);
                     
                                             // Tilldela sparade workers detta bygge:
