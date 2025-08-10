@@ -129,7 +129,7 @@ class Game4 {
                         if (game.collideCircleWithRotatedRectangle(touch0x, touch0y, 10, calcX, calcY, Number(object.dimx), Number(object.dimy), calcRot)) {
                             object.mousepressed = true;
                                 var units=game.getAllObjects().filter(o => o.selected);
-                               if(object.selectable&& units.length===0&& object.iscontrollable){
+                               if(object.selectable&& units.length===0){
                                 object.selected=true;}
                                 if(object.selectable&& object.iscontrollable){
                                     let canmove=false;
@@ -144,7 +144,7 @@ class Game4 {
                             if (game.collideCircleWithRotatedRectangle(touch1x, touch1y, 10, calcX, calcY, Number(object.dimx), Number(object.dimy), calcRot)) {
                                 object.mousepressed = true;
                                 var units=game.getAllObjects().filter(o => o.selected);
-                               if(object.selectable&& units.length===0&& object.iscontrollable){
+                               if(object.selectable&& units.length===0){
                                 object.selected=true;}
                                 if(object.selectable&& object.iscontrollable){
                                     let canmove=false;
