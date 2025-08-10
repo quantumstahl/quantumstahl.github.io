@@ -322,17 +322,19 @@
             });
             
             document.addEventListener("touchend", function(e) {
-				selectedWorkers2 = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
+				selectedWorkers2 = game.getAllObjects().filter(o => o.selected );
                 for (let w of selectedWorkers2) {
 				
-							if(w.counter2>10){
+		            if(w.counter2>10){
                             if(w.workobject)w.workobject.occupied=false;                                
                             w.workobject=null;
                             w.returning=false;
                             w.deliveryTarget=null;
+                            w.selected=false;
+                            
 							}
                         }
-                
+ 
                 
                  if(ghostBuilding!=null&&isBuildPlacementValid(ghostBuilding)==false){return;}
         
