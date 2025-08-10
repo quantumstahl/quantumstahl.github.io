@@ -166,8 +166,23 @@
                     }
                     }catch(error){};
                     if(context.state === 'suspended'){context.suspend();context.resume();}           
-            });
+                    
+                      if (buildMode && ghostBuilding) {
+                        const t = e.touches[0];
+                        const zoom = 1 + (1 * game.maps[game.currentmap].zoom / 100);
+                        const gx = t.clientX / zoom - game.maps[game.currentmap].camerax - ghostBuilding.dimx/2;
+                        const gy = t.clientY / zoom - game.maps[game.currentmap].cameray - ghostBuilding.dimy/2;
+                        ghostBuilding.x = gx;
+                        ghostBuilding.y = gy;
+                        lastTouchPos = {x: gx, y: gy};
+                      }
 
+                    
+                    
+                    
+                    
+            });
+            
             
             
             document.addEventListener("visibilitychange", event => {
@@ -226,7 +241,13 @@
             let rgold = 1400;
             let rwood = 1200;
             let gameOver = false;
-            
+            function mobileAndTabletCheck() {const isMobile = {Android: function() {return navigator.userAgent.match(/Android/i);},BlackBerry: function() {return navigator.userAgent.match(/BlackBerry/i);},iOS: function() {return navigator.userAgent.match(/iPhone|iPod/i);},Opera: function() {return navigator.userAgent.match(/Opera Mini/i);},Windows: function() {return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i);},any: function() {return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows()|| (navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints && navigator.maxTouchPoints > 1));}};return isMobile.any();}
+            const IS_TOUCH = mobileAndTabletCheck();
+
+            function clearSelection() {
+              const all = game.getAllObjects();
+              for (const o of all) o.selected = false;
+            }
             document.getElementById("btn-restart").addEventListener("click", () => {
                 // enklaste reset: ladda om
                 location.reload();
@@ -322,30 +343,29 @@
             });
             
             document.addEventListener("touchend", function(e) {
-				selectedWorkers2 = game.getAllObjects().filter(o => o.selected );
+				selectedWorkers2 = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
                 for (let w of selectedWorkers2) {
 				
-		            if(w.counter2>10){
+							if(w.counter2>10){
                             if(w.workobject)w.workobject.occupied=false;                                
                             w.workobject=null;
                             w.returning=false;
                             w.deliveryTarget=null;
-                            w.selected=false;
-                            
 							}
                         }
- 
+                
                 
                  if(ghostBuilding!=null&&isBuildPlacementValid(ghostBuilding)==false){return;}
         
                 if (buildMode && ghostBuilding) {
-                    const currentMap = game.maps[game.currentmap];
-                    
-                    ghostBuilding.x=touch.clientX / zoomFactor - game.maps[game.currentmap].camerax - ghostBuilding.dimx / 2;
-                    ghostBuilding.y=touch.clientY / zoomFactor - game.maps[game.currentmap].cameray - ghostBuilding.dimy / 2;
-                    
-                    const x = ghostBuilding.x;
-                    const y = ghostBuilding.y;
+                    if (lastTouchPos == null) {
+                        const t = e.changedTouches[0];
+                        const zoom = 1 + (1 * game.maps[game.currentmap].zoom / 100);
+                        ghostBuilding.x = t.clientX / zoom - game.maps[game.currentmap].camerax - ghostBuilding.dimx/2;
+                        ghostBuilding.y = t.clientY / zoom - game.maps[game.currentmap].cameray - ghostBuilding.dimy/2;
+                    }
+
+                      if (isBuildPlacementValid(ghostBuilding) === false) return;
 
                     
                   
@@ -572,6 +592,7 @@
 
                     if (enemyClicked && selectedUnits.length) {
                       orderFollow(enemyClicked);
+                      if (IS_TOUCH) clearSelection();
                     }
                     
                     
@@ -732,6 +753,7 @@
 
                                 w.workobject=goldmine.objects[i];
 				w.counter2=0;
+                                if (IS_TOUCH) w.selected=false;
                             }
                         }
 
@@ -743,8 +765,9 @@
                         tree.objects[i].canMove=false;
                     
                         if(tree.objects[i].mousepressed==true&&anyWorkerSelected){
-                            
+                             
                              assignWorkersToNearestTreesSmart();
+                             if (IS_TOUCH) clearSelection();
                         }
 
 
