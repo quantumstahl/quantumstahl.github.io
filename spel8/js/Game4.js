@@ -131,10 +131,11 @@ class Game4 {
                                 var units=game.getAllObjects().filter(o => o.selected);
                                if(object.selectable&& units.length===0){
                                 object.selected=true;}
-                               let canmove=false;
-                               for(u of units){if(u.canMove)canmove=true;}
-                               if(canmove==false){for(u of units){u.selected=false;}object.selected=true;}
-                               
+                                if(object.selectable){
+                                    let canmove=false;
+                                    for(u of units){if(u.canMove)canmove=true;}
+                                    if(canmove==false){for(u of units){u.selected=false;}object.selected=true;}
+                                }
                         }
                         
                         if (e.touches.length > 1) {
@@ -145,9 +146,11 @@ class Game4 {
                                 var units=game.getAllObjects().filter(o => o.selected);
                                if(object.selectable&& units.length===0){
                                 object.selected=true;}
-                                let canmove=false;
-                               for(u of units){if(u.canMove)canmove=true;}
-                               if(canmove==false){for(u of units){u.selected=false;}object.selected=true;}
+                                if(object.selectable){
+                                    let canmove=false;
+                                    for(u of units){if(u.canMove)canmove=true;}
+                                    if(canmove==false){for(u of units){u.selected=false;}object.selected=true;}
+                                }
                             }
                         }
                     }
