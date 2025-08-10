@@ -278,6 +278,7 @@
                 ghostBuilding = game.addobject(game.getobjecttype("base"), 0, 0, 150, 150, 0, false);
                 ghostBuilding.ghost = true;
                 ghostBuilding.selectable = false;
+                ghostBuilding.animation=2;
             });
             document.getElementById("build-barracks-btn").addEventListener("click", function() {
                 if(gold>=500&&wood>=500){gold-=500;wood-=500;}    
@@ -293,6 +294,7 @@
                 ghostBuilding = game.addobject(game.getobjecttype("bar"), 0, 0, 150, 150, 0, false);
                 ghostBuilding.ghost = true;
                 ghostBuilding.selectable = false;
+                ghostBuilding.animation=2;
             });
             document.getElementById("train-worker-btn").addEventListener("click", () => {
                 const base = game.getAllObjectsoftype(game.getobjecttype("base")).find(b => b.selected);
@@ -342,6 +344,7 @@
     };
     ghostBuilding.x = lastTouchPos.x;
     ghostBuilding.y = lastTouchPos.y;
+    ghostBuilding.animation=0;
     isPlacingBuilding = true;
 }
             
@@ -376,6 +379,7 @@
                         const zoom = 1 + (1 * game.maps[game.currentmap].zoom / 100);
                         ghostBuilding.x = t.clientX / zoom - game.maps[game.currentmap].camerax - ghostBuilding.dimx/2;
                         ghostBuilding.y = t.clientY / zoom - game.maps[game.currentmap].cameray - ghostBuilding.dimy/2;
+                        ghostBuilding.animation=0;
                     }
 
                       if (isBuildPlacementValid(ghostBuilding) === false) return;
@@ -387,6 +391,8 @@
                     ghostBuilding.canMove=false;
                     isPlacingBuilding = false;
                     ghostBuilding.iscontrollable=true;
+                    
+                    
                     pendingBuilds.push(ghostBuilding);
                     
                                             // Tilldela sparade workers detta bygge:
@@ -430,6 +436,7 @@
                 cursorX = e.clientX;
                 cursorY = e.clientY;
                 lastTouchPos = null; // ← detta säger "vi är i PC-läge"
+                ghostBuilding.animation=0;
             });
             document.addEventListener("mousedown", function(e) {
                 selectedWorkers2 = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
