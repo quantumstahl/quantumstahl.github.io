@@ -338,6 +338,10 @@
         
                 if (buildMode && ghostBuilding) {
                     const currentMap = game.maps[game.currentmap];
+                    
+                    ghostBuilding.x=touch.clientX / zoomFactor - game.maps[game.currentmap].camerax - ghostBuilding.dimx / 2;
+                    ghostBuilding.y=touch.clientY / zoomFactor - game.maps[game.currentmap].cameray - ghostBuilding.dimy / 2;
+                    
                     const x = ghostBuilding.x;
                     const y = ghostBuilding.y;
 
