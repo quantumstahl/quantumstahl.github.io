@@ -398,6 +398,7 @@
                             w.workobject=null;
                             w.returning=false;
                             w.deliveryTarget=null;
+                            
                         }
                 
                 
@@ -508,6 +509,68 @@
                 
                 
                 if(guard!=null){
+                    
+                    // Vilka av dina enheter ska lyda ordern?
+                    const selectedUnits = [
+                      ...game.getAllObjectsoftype(game.getobjecttype("guard")).filter(u => u.selected),
+                      ...game.getAllObjectsoftype(game.getobjecttype("worker")).filter(u => u.selected),
+                    ];
+
+                    function orderFollow(target) {
+                      for (const u of selectedUnits) {
+                        u.followTarget = true;         // flagga för “håll fast vid målet”
+                        u.targetObject = target;       // <- viktigt
+                        u.workobject = null;           // släpp ev. jobb
+                        u.deliveryTarget = null;
+                        u.returning = false;
+                        u.lockDirection = false;       // vi vill kunna svänga efter målet
+
+                        const cx = target.x + target.dimx/2;
+                        const cy = target.y + target.dimy/2;
+                        u.targetX = cx - u.dimx/2;     // initial chase så de börjar gå direkt
+                        u.targetY = cy - u.dimy/2;
+                      }
+                    }
+
+                    // Kolla klick på fiender (enheter + byggnader)
+                    let enemyClicked = null;
+                    for (const e of (game.getobjecttype("rguard")?.objects || [])) if (e.mousepressed) { enemyClicked = e; break; }
+                    if (!enemyClicked) for (const e of (game.getobjecttype("rworker")?.objects || [])) if (e.mousepressed) { enemyClicked = e; break; }
+                    if (!enemyClicked) for (const e of (game.getobjecttype("rbase")?.objects  || [])) if (e.mousepressed)  { enemyClicked = e; break; }
+                    if (!enemyClicked) for (const e of (game.getobjecttype("rbar")?.objects   || [])) if (e.mousepressed)  { enemyClicked = e; break; }
+
+                    if (enemyClicked && selectedUnits.length) {
+                      orderFollow(enemyClicked);
+                    }
+                    
+                    
+                    function isAlive(o){
+                        return !!o && !o.ghost && game.getAllObjects().includes(o);
+                      }
+
+                      // Alla dina guards + workers ska “jaga” sitt target om followTarget=true
+                      const myUnits = [
+                        ...game.getobjecttype("guard")?.objects || [],
+                        ...game.getobjecttype("worker")?.objects || [],
+                      ];
+
+                      for (const u of myUnits) {
+                        if (u.followTarget && u.targetObject) {
+                          if (!isAlive(u.targetObject)) {
+                            // målet dog/försvann → släpp
+                            u.followTarget = false;
+                            u.targetObject = null;
+                            continue;
+                          }
+                          const t = u.targetObject;
+                          const cx = t.x + t.dimx/2;
+                          const cy = t.y + t.dimy/2;
+                          u.targetX = cx - u.dimx/2;   // uppdatera mot målets nuvarande position
+                          u.targetY = cy - u.dimy/2;
+                        }
+                      }
+                    
+                    
                     
                     enemyTryToBuildBase();
                     enemyTryToBuildBar();

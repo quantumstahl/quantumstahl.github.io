@@ -1430,6 +1430,7 @@ class Object {
         this.directiony="up";
         this.lockDirection=false;
         this.aiHoldTarget=false;
+        this.followTarget=false;
     }
     collidestest(){
         for (let i2 = 0; i2 < game.maps[game.currentmap].layer.length; i2++) {
