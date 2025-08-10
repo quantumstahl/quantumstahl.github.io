@@ -440,8 +440,33 @@
                 }
             });
             
-            
-            
+            let inputClick = null;  // world-coords för senaste klick/tap
+
+            function toWorldCoords(clientX, clientY){
+              const zoom = 1 + (1 * game.maps[game.currentmap].zoom / 100);
+              return {
+                x: clientX/zoom - game.maps[game.currentmap].camerax,
+                y: clientY/zoom - game.maps[game.currentmap].cameray
+              };
+            }
+
+            document.addEventListener('mousedown', (e) => {
+              inputClick = toWorldCoords(e.clientX, e.clientY);
+            });
+
+            document.addEventListener('touchend', (e) => {
+              const t = e.changedTouches[0];
+              inputClick = toWorldCoords(t.clientX, t.clientY);
+            });
+            function pointInObj(px, py, o){
+                return px >= o.x && px <= o.x + o.dimx && py >= o.y && py <= o.y + o.dimy;
+              }
+            function pressedThisFrame(o){
+              if (o.mousepressed) return true;                 // desktop
+              if (inputClick && pointInObj(inputClick.x, inputClick.y, o)) return true; // mobil/desktop
+              return false;
+            }
+            function consumeInputClick(){ inputClick = null; }
             
             
              var check = function(){
@@ -534,10 +559,10 @@
 
                     // Kolla klick på fiender (enheter + byggnader)
                     let enemyClicked = null;
-                    for (const e of (game.getobjecttype("rguard")?.objects || [])) if (e.mousepressed) { enemyClicked = e; break; }
-                    if (!enemyClicked) for (const e of (game.getobjecttype("rworker")?.objects || [])) if (e.mousepressed) { enemyClicked = e; break; }
-                    if (!enemyClicked) for (const e of (game.getobjecttype("rbase")?.objects  || [])) if (e.mousepressed)  { enemyClicked = e; break; }
-                    if (!enemyClicked) for (const e of (game.getobjecttype("rbar")?.objects   || [])) if (e.mousepressed)  { enemyClicked = e; break; }
+                    for (const e of (game.getobjecttype("rguard")?.objects || [])) if (pressedThisFrame(e)) { enemyClicked = e; break; }
+                    if (!enemyClicked) for (const e of (game.getobjecttype("rworker")?.objects || [])) if (pressedThisFrame(e)) { enemyClicked = e; break; }
+                    if (!enemyClicked) for (const e of (game.getobjecttype("rbase")?.objects  || [])) if (pressedThisFrame(e))  { enemyClicked = e; break; }
+                    if (!enemyClicked) for (const e of (game.getobjecttype("rbar")?.objects   || [])) if (pressedThisFrame(e))  { enemyClicked = e; break; }
 
                     if (enemyClicked && selectedUnits.length) {
                       orderFollow(enemyClicked);
