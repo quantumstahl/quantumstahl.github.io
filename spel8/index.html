@@ -368,7 +368,7 @@
         
                 if (buildMode && ghostBuilding) {
                     
-                    if (fromUI(e.target) || !buildArmed) return; // <-- inga “dubbeltryck på knappen”-placeringar
+                    if (fromUI(e.target) || !buildArmed){ghostBuilding.animation=2; return;} // <-- inga “dubbeltryck på knappen”-placeringar
                     buildArmed = false; // kräver nytt tryck på kartan för nästa bygge
   
                     
