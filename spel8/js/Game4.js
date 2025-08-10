@@ -129,9 +129,9 @@ class Game4 {
                         if (game.collideCircleWithRotatedRectangle(touch0x, touch0y, 10, calcX, calcY, Number(object.dimx), Number(object.dimy), calcRot)) {
                             object.mousepressed = true;
                                 var units=game.getAllObjects().filter(o => o.selected);
-                               if(object.selectable&& units.length===0){
+                               if(object.selectable&& units.length===0&& object.iscontrollable){
                                 object.selected=true;}
-                                if(object.selectable){
+                                if(object.selectable&& object.iscontrollable){
                                     let canmove=false;
                                     for(let u of units){if(u.canMove)canmove=false;}
                                     if(canmove==false){for(let u of units){u.selected=false;}object.selected=true;}
@@ -144,9 +144,9 @@ class Game4 {
                             if (game.collideCircleWithRotatedRectangle(touch1x, touch1y, 10, calcX, calcY, Number(object.dimx), Number(object.dimy), calcRot)) {
                                 object.mousepressed = true;
                                 var units=game.getAllObjects().filter(o => o.selected);
-                               if(object.selectable&& units.length===0){
+                               if(object.selectable&& units.length===0&& object.iscontrollable){
                                 object.selected=true;}
-                                if(object.selectable){
+                                if(object.selectable&& object.iscontrollable){
                                     let canmove=false;
                                     for(let u of units){if(u.canMove)canmove=false;}
                                     if(canmove==false){for(let u of units){u.selected=false;}object.selected=true;}
@@ -289,7 +289,7 @@ class Game4 {
                 const x = e.changedTouches[0].clientX / zoomFactor - currentMap.camerax;
                 const y = e.changedTouches[0].clientY / zoomFactor - currentMap.cameray;
 
-                var units=game.getAllObjects().filter(o => o.selected && o.canMove);
+                var units=game.getAllObjects().filter(o => o.selected && o.canMove&&o.iscontrollable);
                 
                 
                 game.issueFormationMove(units, x, y);
@@ -342,7 +342,7 @@ class Game4 {
                 game.deselectAll();
                 if (clickedObj) clickedObj.selected = true;
             } else if (e.button === 2) { // Högerklick – flytta valda
-                var units=game.getAllObjects().filter(o => o.selected && o.canMove);
+                var units=game.getAllObjects().filter(o => o.selected && o.canMove&&o.iscontrollable);
                 
                 
                 game.issueFormationMove(units, mouseX - currentMap.camerax, mouseY - currentMap.cameray);
@@ -1441,6 +1441,7 @@ class Object {
         this.lockDirection=false;
         this.aiHoldTarget=false;
         this.followTarget=false;
+        this.iscontrollable=false;
     }
     collidestest(){
         for (let i2 = 0; i2 < game.maps[game.currentmap].layer.length; i2++) {
