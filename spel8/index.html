@@ -710,10 +710,7 @@
                     updateRedTrainingAI();
                     updateRedGuardAI();
                     
-                    handleCombat("guard", ["rguard", "rworker", "rbase", "rbar"], 0.2);
-                    handleCombat("worker", ["rguard", "rworker", "rbase", "rbar"], 0.1);
-                    handleCombat("rguard", ["guard", "worker", "base", "bar"], 0.2);
-                    handleCombat("rworker", ["guard", "worker", "base", "bar"], 0.1);
+                    
                     
                     
                     const anyBaseSelected = game.getAllObjectsoftype(game.getobjecttype("base")).some(o => o.selected);
@@ -1223,7 +1220,10 @@
                     
                     
                     
-                    
+                    handleCombat("guard", ["rguard", "rworker", "rbase", "rbar"], 0.2);
+                    handleCombat("worker", ["rguard", "rworker", "rbase", "rbar"], 0.1);
+                    handleCombat("rguard", ["guard", "worker", "base", "bar"], 0.2);
+                    handleCombat("rworker", ["guard", "worker", "base", "bar"], 0.1);
                     
                     
                     
@@ -1729,6 +1729,16 @@ function handleCombat(attackerType, enemyTypes, damage) {
             if (target) {
                 // Om målet inte har health, sätt standardvärde
                 target.health -= damage;
+                spawnDamageNumber(-damage, unit.x, unit.y, { color: "#ff4d4d" }); // röd
+                spawnHitParticles(target.x+target.dimx/2, target.y+target.dimy/2, 6);
+                
+                if(unit.name=="worker"||unit.name=="rworker"){
+                
+                    if(unit.animation==0)unit.animation = 3;
+                    if(unit.animation==1&&unit.fliped==false)unit.animation = 4;
+                    if(unit.animation==2)unit.animation = 5;
+                    if(unit.animation==1&&unit.fliped==true)unit.animation = 4;
+                }
 
                 if (target.health <= 0) {
                     // Ta bort objektet om health tar slut

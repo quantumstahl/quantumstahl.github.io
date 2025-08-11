@@ -589,6 +589,7 @@ class Game4 {
             this.collitionengine();
             this.updateUnitMovement();
             
+            
         } catch (error) {}
         
         for (let i = 0; i < this.maps.length; i++) {
@@ -628,7 +629,7 @@ class Game4 {
             ctx.restore();
         }
         
-        
+        updateAndDrawFX(ctx);
         
     }
     collitionengine() {
@@ -1023,8 +1024,10 @@ function isPathClearExcept(obj, ignores = []) {
                    //  else{
                      if(stop==true){
                
-                          if (Math.abs(dx) > Math.abs(dy))obj.x += ((dx / dist) * obj.speed);
-                           else  obj.y += ((dy / dist) * obj.speed);
+                         // if (Math.abs(dx) > Math.abs(dy))obj.x += ((dx / dist) * obj.speed);
+                         //  else  obj.y += ((dy / dist) * obj.speed);
+                         obj.y += ((dy / dist) * obj.speed);
+                          obj.x += ((dx / dist) * obj.speed);
                      }
                      else{
                          
@@ -1048,34 +1051,26 @@ function isPathClearExcept(obj, ignores = []) {
                         if(obj.blockedcounter<150){
                         // Enkelt undvik åt sidan
                             if (obj.direction === "right") {
-                                if(obj.directiony==="up")obj.y -= 1;
-                                else obj.y += 1;
+                                obj.y -= 1;
                             } else if (obj.direction === "left") {
-                                if(obj.directiony==="down")obj.y += 1;
-                                else obj.y -= 1;
+                                obj.y += 1;
                             } else if (obj.direction === "up") {
-                                if(obj.directionx==="right")obj.x += 1;
-                                else obj.x -= 1;
+                                obj.x += 1;
                             } else if (obj.direction === "down") {
-                                if(obj.directionx==="left")obj.x -= 1;
-                                else obj.x += 1;
+                                obj.x -= 1;
                             }
                             
                         }
                         if(obj.blockedcounter>150&&obj.blockedcounter<300){
                         // Enkelt undvik åt sidan
                             if (obj.direction === "right") {
-                                if(obj.directiony==="up")obj.y += 2;
-                                else obj.y -= 2;
+                                obj.y += 2;
                             } else if (obj.direction === "left") {
-                                if(obj.directiony==="down")obj.y -= 2;
-                                else obj.y += 2;
+                                obj.y -= 2;
                             } else if (obj.direction === "up") {
-                                if(obj.directionx==="right")obj.x -= 2;
-                                else obj.x += 2;
+                                obj.x -= 2;
                             } else if (obj.direction === "down") {
-                                if(obj.directionx==="left")obj.x += 2;
-                                else obj.x -= 2;
+                                obj.x += 2;
                             }
                             
                         }
@@ -1695,6 +1690,100 @@ function resetPseudoRandom() {
 };
 
 
+const FX = {
+  dmg: [],   // {x,y,vy,life,alpha,text,color,scale}
+  hit: [],   // {x,y,vx,vy,life,alpha,size}
+  pushDmg(d) { this.dmg.push(d); if (this.dmg.length > 200) this.dmg.shift(); },
+  pushHit(h) { this.hit.push(h); if (this.hit.length > 300) this.hit.shift(); }
+};
 
+// world → screen (matchar hur du redan räknar zoom/camera)
+function worldToScreen(wx, wy) {
+  const m = game.maps[game.currentmap];
+  const zoom = 1 + (1 * m.zoom / 100);
+  return { x: (wx + m.camerax) * zoom, y: (wy + m.cameray) * zoom, zoom };
+}
+
+// Spawna ett “100” som flyter upp och bleknar
+function spawnDamageNumber(amount, wx, wy, opts = {}) {
+  const color = opts.color || (amount >= 0 ? "#ff4d4d" : "#4dff4d"); // heal = grön
+  const scale = opts.scale || 1;
+  FX.pushDmg({
+    x: wx, y: wy, vy: -0.25, life: 650, alpha: 1,
+    text: (amount >= 0 ? "-" : "+") + Math.abs(amount),
+    color, scale
+  });
+}
+
+// Spawna en liten “hit puff” (flera partiklar)
+function spawnHitParticles(wx, wy, count = 6) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 0.8 + Math.random() * 0.6;
+    FX.pushHit({
+      x: wx, y: wy,
+      vx: Math.cos(a) * s,
+      vy: Math.sin(a) * s - 0.3,
+      life: 350 + Math.random() * 200,
+      alpha: 1,
+      size: 2 + Math.random() * 3
+    });
+  }
+}
+
+// Uppdatera + rita (kalla från din game-loop)
+function updateAndDrawFX(ctx) {
+  const now = Date.now();
+  // === Update ===
+  // Damage numbers
+  for (let i = FX.dmg.length - 1; i >= 0; i--) {
+    const d = FX.dmg[i];
+    const dt = 16; // approx per frame
+    d.life -= dt;
+    d.y += d.vy;
+    d.vy -= 0.005;                           // lite easing uppåt
+    d.alpha = Math.max(0, d.life / 650);     // fade
+    if (d.life <= 0) FX.dmg.splice(i, 1);
+  }
+  // Hit particles
+  for (let i = FX.hit.length - 1; i >= 0; i--) {
+    const p = FX.hit[i];
+    const dt = 16;
+    p.life -= dt;
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.02;                            // “gravity”
+    p.alpha = Math.max(0, p.life / 400);     // fade
+    if (p.life <= 0) FX.hit.splice(i, 1);
+  }
+
+  // === Draw ===
+  // slå av antialias för skarpare text på små tal, valfritt
+  ctx.save();
+  // Partiklar först
+  for (const p of FX.hit) {
+    const s = worldToScreen(p.x, p.y);
+    ctx.globalAlpha = p.alpha;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, p.size * s.zoom * 0.8, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffcc66"; // låt bli att styla per-partikel för prestanda
+    ctx.fill();
+  }
+  // Damage numbers överst
+  for (const d of FX.dmg) {
+    const s = worldToScreen(d.x, d.y);
+    ctx.globalAlpha = d.alpha;
+    ctx.font = `${Math.round(16 * d.scale * s.zoom)}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.strokeStyle = "rgba(0,0,0,0.7)";
+    ctx.lineWidth = 3;
+    ctx.strokeText(d.text, s.x, s.y);
+    ctx.fillStyle = d.color;
+    ctx.fillText(d.text, s.x, s.y);
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
 
 
