@@ -258,10 +258,10 @@
             let selectedWorkersBeforeBuild = [];
             let selectedWorkers = [];
             let lastTouchPos = null;
-            let gold = 1400;
-            let wood = 1200;
-            let rgold = 1400;
-            let rwood = 1200;
+            let gold = 600;
+            let wood = 500;
+            let rgold = 600;
+            let rwood = 500;
             let gameOver = false;
             let buildArmed = false;
             function mobileAndTabletCheck() {const isMobile = {Android: function() {return navigator.userAgent.match(/Android/i);},BlackBerry: function() {return navigator.userAgent.match(/BlackBerry/i);},iOS: function() {return navigator.userAgent.match(/iPhone|iPod/i);},Opera: function() {return navigator.userAgent.match(/Opera Mini/i);},Windows: function() {return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i);},any: function() {return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows()|| (navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints && navigator.maxTouchPoints > 1));}};return isMobile.any();}
@@ -302,13 +302,13 @@
               });
             
             
-            document.getElementById("build-base-btn").innerHTML = "Bygg bas<br>1000 guld / 1000 trä";
-            document.getElementById("build-barracks-btn").innerHTML = "Bygg barrack<br>500 guld / 500 trä";
-            document.getElementById("train-worker-btn").innerHTML = "Träna arbetare<br>200 guld / 100 trä";
-            document.getElementById("train-warrior-btn").innerHTML = "Träna warrior<br>300 guld / 100 trä";
+            document.getElementById("build-base-btn").innerHTML = "Bygg bas<br>500 guld / 500 trä";
+            document.getElementById("build-barracks-btn").innerHTML = "Bygg barrack<br>250 guld / 250 trä";
+            document.getElementById("train-worker-btn").innerHTML = "Träna arbetare<br>50 guld";
+            document.getElementById("train-warrior-btn").innerHTML = "Träna warrior<br>150 guld";
             document.getElementById("build-base-btn").addEventListener("click", function() {
                 if(ghostBuilding)ghostBuilding.animation=2;
-                if(gold>=1000&&wood>=1000){gold-=1000;wood-=1000;}    
+                if(gold>=500&&wood>=500){gold-=500;wood-=500;}    
                 else return;    
                 buildMode = true;
                 buildType = "base";
@@ -327,7 +327,7 @@
             });
             document.getElementById("build-barracks-btn").addEventListener("click", function() {
                 if(ghostBuilding)ghostBuilding.animation=2;
-                if(gold>=500&&wood>=500){gold-=500;wood-=500;}    
+                if(gold>=250&&wood>=250){gold-=250;wood-=250;}    
                 else return;    
                 buildMode = true;
                 buildType = "bar";
@@ -348,9 +348,8 @@
                 const base = game.getAllObjectsoftype(game.getobjecttype("base")).find(b => b.selected);
                 if (!base) return;
 
-                if (gold >= 200 && wood >= 100) {
-                    gold -= 200;
-                    wood -= 100;
+                if (gold >= 50) {
+                    gold -= 50;
 
                     base.buildQueue = base.buildQueue || [];
                     base.buildQueue.push("worker");
@@ -362,9 +361,8 @@
                 const bar = game.getAllObjectsoftype(game.getobjecttype("bar")).find(b => b.selected);
                 if (!bar) return;
 
-                if (gold >= 300 && wood >= 100) {
-                    gold -= 300;
-                    wood -= 100;
+                if (gold >= 150) {
+                    gold -= 150;
 
                     bar.buildQueue = bar.buildQueue || [];
                     bar.buildQueue.push("guard");
@@ -723,10 +721,10 @@
                     document.getElementById("build-ui3").style.display = anyBarSelected ? "flex" : "none";
                     
                     
-                    const canAffordBase = gold >= 1000 && wood >= 1000;
-                    const canAffordWorker = gold >= 200 && wood >= 100;
-                    const canAffordWarrior = gold >= 300 && wood >= 100;
-                    const canAffordBar = gold >= 500 && wood >= 500;
+                    const canAffordBase = gold >= 500 && wood >= 500;
+                    const canAffordWorker = gold >= 50 && wood >= 0;
+                    const canAffordWarrior = gold >= 150 && wood >= 0;
+                    const canAffordBar = gold >= 250 && wood >= 250;
 
                     document.getElementById("build-base-btn").style.opacity = canAffordBase ? "1" : "0.5";
                     document.getElementById("train-worker-btn").style.opacity = canAffordWorker ? "1" : "0.5";
@@ -1377,7 +1375,7 @@
                     }
                     
                 }
-                if (rwood < 500 || rgold < 500 ||(game.getobjecttype("rbar").objects[0])) return;
+                if (rwood < 250 || rgold < 250 ||(game.getobjecttype("rbar").objects[0])) return;
                 
                 const mines = game.getAllObjectsoftype(game.getobjecttype("rbase"));
                 if (mines.length === 0) return;
@@ -1448,8 +1446,8 @@
                     w.counter2 = 0;
                     
 
-                    rwood -= 500;
-                    rgold -= 500;
+                    rwood -= 250;
+                    rgold -= 250;
                 }
                 
                 
@@ -1493,7 +1491,7 @@
                 }
                 
        if(game.getobjecttype("rbase").objects.length==1)return;         
-       if (rwood < 1000 || rgold < 1000 ) return;
+       if (rwood < 500 || rgold < 500 ) return;
        
     const rbaseType = game.getobjecttype("rbase");
 
@@ -1575,8 +1573,8 @@
             w.counter2 = 0;
         }
 
-        rwood -= 1000;
-        rgold -= 1000;
+        rwood -= 500;
+        rgold -= 500;
     }
 }
 function updateRedWorkerAI() {
@@ -1674,8 +1672,8 @@ function updateRedTrainingAI() {
 
             // Exempel: träna rguard om resurser finns
             const unitToTrain = "rworker"; // kan även vara "rworker"
-            const goldCost = 200;
-            const woodCost = 100;
+            const goldCost = 50;
+            const woodCost = 0;
 
             if (rgold >= goldCost && rwood >= woodCost) {
                 base.buildQueue.push(unitToTrain);
@@ -1694,8 +1692,8 @@ function updateRedTrainingAI() {
 
             // Exempel: träna rguard om resurser finns
             const unitToTrain = "rguard"; // kan även vara "rworker"
-            const goldCost = 300;
-            const woodCost = 100;
+            const goldCost = 150;
+            const woodCost = 0;
 
             if (rgold >= goldCost && rwood >= woodCost) {
                 base.buildQueue.push(unitToTrain);

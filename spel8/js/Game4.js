@@ -1297,6 +1297,7 @@ class Objecttype {
                         ((this.objects[i].dimy + document.body.clientHeight / (1 + (1 * zoom / 100)) - 8 + 300) - cameray) >= this.objects[i].y + this.objects[i].dimy) {
                         if (this.images[this.objects[i].animation].getimage() != null) {
                             this.objects[i].isonscreen=true;
+                            drawSelectRing(ctx, this.objects[i],zoom, camerax, cameray);
                             ctx.save();
                             ctx.scale(1 + (1 * zoom / 100), 1 + (1 * zoom / 100));
                             ctx.translate(this.objects[i].x + camerax + this.objects[i].dimx / 2, this.objects[i].y + cameray + this.objects[i].dimy / 2);
@@ -1787,3 +1788,28 @@ function updateAndDrawFX(ctx) {
 }
 
 
+function drawSelectRing(ctx, o,zoom, camX, camY){
+    
+    const isBuilding =
+    o.name === "base" || o.name === "bar" || o.name === "rbase" || o.name === "rbar"|| o.name === "goldmine";
+
+  // Alltid-på, subtil "ground contact" för byggnader (så de inte ser svävande ut)
+  if (isBuilding) {
+    const cx=o.x+o.dimx/2, cy=o.y+o.dimy*0.75;
+    ctx.save(); ctx.globalAlpha=0.6;
+    ctx.scale(1 + (1 * zoom / 100), 1 + (1 * zoom / 100));
+    ctx.beginPath(); ctx.ellipse(cx+camX, cy+camY, o.dimx*0.45, o.dimy*0.35, 0, 0, Math.PI*2);
+    ctx.fillStyle="rgba(0,0,0,.9)"; ctx.fill(); ctx.restore();
+  }  
+  else if(o.name!="ground"){  
+    
+    
+    
+    
+  const cx=o.x+o.dimx/2, cy=o.y+o.dimy*0.95;
+  ctx.save(); ctx.globalAlpha=0.6;
+  ctx.scale(1 + (1 * zoom / 100), 1 + (1 * zoom / 100));
+  ctx.beginPath(); ctx.ellipse(cx+camX, cy+camY, o.dimx*0.45, o.dimy*0.15, 0, 0, Math.PI*2);
+  ctx.fillStyle="rgba(0,0,0,.9)"; ctx.fill(); ctx.restore();
+  }
+}
