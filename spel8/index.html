@@ -1259,11 +1259,17 @@
             function cancelBuildMode() {
    
                 
-                if (ghostBuilding) {
+                if (ghostBuilding&&ghostBuilding.name=="base") {
                     gold+=1000;wood+=1000;
                     game.removeobject(game.getobjecttype("base"),ghostBuilding); // ⬅️ Viktigt!
                     ghostBuilding = null;
                 }
+                else if (ghostBuilding&&ghostBuilding.name=="bar") {
+                    gold+=500;wood+=500;
+                    game.removeobject(game.getobjecttype("bar"),ghostBuilding); // ⬅️ Viktigt!
+                    ghostBuilding = null;
+                }
+                setBuildUIActive(false);
                 buildMode = false;
                 buildType = null;
                 selectedWorkersBeforeBuild = [];
