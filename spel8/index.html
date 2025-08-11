@@ -1748,7 +1748,87 @@ function drawHealthBars() {
     ctx.strokeStyle = "black";
     ctx.lineWidth = 1;
     ctx.strokeRect(sx, sy + offsetY, barW, barH);
+    
+    
+    // --- Training queue icons (base/bar/rbase/rbar) ---
+if ((o.name === "base" || o.name === "bar" || o.name === "rbase" || o.name === "rbar")
+    && o.buildQueue && o.buildQueue.length > 0) {
+
+  const pct   = Math.max(0, Math.min(1, (o.buildTimer || 0) / 1000)); // framsteg på första i kön
+  const ICON  = Math.max(40, Math.min(22, 18 * (zoom >= 1 ? zoom : 1))); // ikonstorlek
+  const PAD   = Math.max(2, 2 * (zoom >= 1 ? zoom : 1));                 // mellanrum
+  const q     = o.buildQueue;
+  const total = q.length * ICON + (q.length - 1) * PAD;
+
+  // placera ikonerna centrerat ovanför progress/HP-bar
+  const y = sy + (offsetY - barH - 6) - ICON; // en rad ovanför progress/HP
+  let   x = sx + (barW - total) / 2;
+
+  // valfri: färger per typ
+  function colorFor(type) {
+    if (type.includes("worker")) return "#efc84a";   // gul
+    if (type.includes("archer")) return "#5ac8fa";   // blå
+    if (type.includes("guard"))  return "#ef6c6c";   // röd
+    return "#9e9e9e";                                // default
   }
+
+
+  for (let i = 0; i < q.length; i++) {
+    const t = q[i];
+
+    // bakgrund/ram
+    ctx.save();
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillRect(x, y, ICON, ICON);
+
+    // fyllning (färg) – ersätt gärna med riktig ikonbild om du vill
+    ctx.fillStyle = colorFor(t);
+    ctx.fillRect(x + 1, y + 1, ICON - 2, ICON - 2);
+    
+    
+    var typeObj = game.getobjecttype("worker");    // t.ex. "worker"
+    if(o.name === "bar")typeObj = game.getobjecttype("guard");  
+    if(o.name === "rbase")typeObj = game.getobjecttype("rworker"); 
+    if(o.name === "rbar")typeObj = game.getobjecttype("rguard"); 
+    
+    const img = typeObj.images[0].getimage(); // vad du nu har
+    if (img) {
+        ctx.drawImage(img, x + 1, y + 1, ICON - 2, ICON - 2);
+    }
+    
+    
+    
+
+    // progress-mask på FÖRSTA ikonen
+    if (i === 0) {
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillRect(x + ICON * pct, y, ICON * (1 - pct), ICON);
+    }
+    else{
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillRect(x, y, ICON, ICON);
+        
+    }
+
+
+    // ram
+    ctx.strokeStyle = "rgba(0,0,0,0.85)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, ICON - 1, ICON - 1);
+    ctx.restore();
+
+    x += ICON + PAD;
+  }
+    
+    
+    
+  }
+  
+        }
+  
+  
+  
 }
 function handleCombat(attackerType, enemyTypes, damage) {
     const attackers = game.getobjecttype(attackerType).objects;
