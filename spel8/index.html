@@ -616,6 +616,7 @@
                 tree =game.getobjecttype("tree"); 
                 goldmine =game.getobjecttype("goldmine"); 
                 base=game.getobjecttype("base"); 
+                archer=game.getobjecttype("archer"); 
                 
                 
                 //ENEMYS
@@ -623,9 +624,10 @@
                 rbase =game.getobjecttype("rbase"); 
                 rguard =game.getobjecttype("rguard"); 
                 rworker =game.getobjecttype("rworker"); 
+                rarcher=game.getobjecttype("rarcher"); 
                 
-                
-                
+                //projectiles
+                arrow =game.getobjecttype("arrow"); 
                 
                 if (buildMode && ghostBuilding&& lastTouchPos === null) {
                     let zoomFactor = 1 + (1 * game.maps[game.currentmap].zoom / 100);
@@ -866,6 +868,29 @@
                         
 
                     }
+                     for(let i=0;i<archer.objects.length;i++){
+
+                        archer.objects[i].selectable=true;
+                        archer.objects[i].iscontrollable=true;
+                        if ( archer.objects[i].direction === "up")  archer.objects[i].animation = 0;
+                        else if ( archer.objects[i].direction === "right")  {archer.objects[i].animation = 1;archer.objects[i].fliped=false;}
+                        else if ( archer.objects[i].direction === "down")  archer.objects[i].animation = 2;
+                        else if ( archer.objects[i].direction === "left") { archer.objects[i].animation = 1;archer.objects[i].fliped=true;}
+
+                    }
+                    for(let i=0;i<rarcher.objects.length;i++){
+
+                        rarcher.objects[i].selectable=true;
+                        rarcher.objects[i].iscontrollable=true;
+                        if ( rarcher.objects[i].direction === "up")  rarcher.objects[i].animation = 0;
+                        else if ( rarcher.objects[i].direction === "right")  {rarcher.objects[i].animation = 1;rarcher.objects[i].fliped=false;}
+                        else if ( rarcher.objects[i].direction === "down")  rarcher.objects[i].animation = 2;
+                        else if ( rarcher.objects[i].direction === "left") { rarcher.objects[i].animation = 1;rarcher.objects[i].fliped=true;}
+                        
+                        
+
+                    }
+                    
                     for(let i=0;i<rguard.objects.length;i++){
 
                         rguard.objects[i].selectable=true;
@@ -1225,8 +1250,9 @@
                     handleCombat("worker", ["rguard", "rworker", "rbase", "rbar"], 0.1);
                     handleCombat("rguard", ["guard", "worker", "base", "bar"], 0.2);
                     handleCombat("rworker", ["guard", "worker", "base", "bar"], 0.1);
-                    
-                    
+                    updateArcherShooting("archer", ["rguard","rworker","rarcher","rbase","rbar"]);
+                    updateArcherShooting("rarcher", ["guard","worker","archer","base","bar"]);
+                    updateArrows();
                     
                     checkWinLose(); 
                 }
@@ -2131,6 +2157,124 @@ if (playerBasesAlive===0 && playerBarrsAlive===0 && playerUnitsAlive===0) {
   );
   return;
 }
+}
+
+function updateArcherShooting(archerTypeName, enemyTypeNames) {
+  const archers = game.getobjecttype(archerTypeName)?.objects || [];
+  for (const a of archers) {
+    a.attackRange    = a.attackRange ?? 450;  // px
+    a.attackCooldown = a.attackCooldown ?? 900; // ms
+    a.lastShotTime   = a.lastShotTime ?? 0;
+
+    // Hitta närmaste fiende inom range & line-of-sight
+    let best=null, bd=Infinity;
+    for (const et of enemyTypeNames) {
+      const list = game.getobjecttype(et)?.objects || [];
+      for (const e of list) {
+        const dx=(a.x + a.dimx/2) - (e.x + e.dimx/2);
+        const dy=(a.y + a.dimy/2) - (e.y + e.dimy/2);
+        const d=Math.hypot(dx,dy);
+        if (d < a.attackRange && d < bd) {
+          // valfritt LOS: undvik att skjuta igenom väggar/byggnader
+          const A = {x:a.x+a.dimx/2, y:a.y+a.dimy/2}, B = {x:e.x+e.dimx/2, y:e.y+e.dimy/2};
+          if (!losBlockedFast(A, B, a, 6)) { // du har redan losBlockedFast() definierad
+            bd=d; best=e;
+          }
+        }
+      }
+    }
+
+    if (!best) continue;
+
+    // cooldown?
+    const now = performance.now();
+    if (now - a.lastShotTime < a.attackCooldown) continue;
+    a.lastShotTime = now;
+
+    // Skapa pil
+    const arrowType = game.getobjecttype("arrow");
+    const sx = a.x + a.dimx/2, sy = a.y + a.dimy/2;
+    const obj = game.addobject(
+      arrowType,
+      sx, sy,
+      arrowType.standarddimx, arrowType.standarddimy,
+      0, false // rot sätts nedan
+    );
+    obj.speed  = 9;         // px/frame
+    obj.damage = 5;         // skada vid träff
+    obj.ttl    = 120;       // lever max ~2 sek @60fps
+    obj.target = best;
+
+    // init riktning/rotation (bilden pekar åt höger)
+    const dx=(best.x+best.dimx/2)-sx, dy=(best.y+best.dimy/2)-sy;
+    const ang = Math.atan2(dy, dx);      // radianer
+    obj.vx = Math.cos(ang) * obj.speed;
+    obj.vy = Math.sin(ang) * obj.speed;
+    obj.rot = (ang * 180 / Math.PI);                        // många engines använder .rot            
+  }
+}
+
+function updateArrows(){
+  const arrowType = game.getobjecttype("arrow");
+  if (!arrowType) return;
+  const arr = [...arrowType.objects]; // kopia om vi tar bort under iteration
+
+  function hitTest(a, t){
+    // enkel AABB
+    return a.x < t.x + t.dimx && a.x + a.dimx > t.x &&
+           a.y < t.y + t.dimy && a.y + a.dimy > t.y;
+  }
+
+  for (const p of arr) {
+    // livstid
+    if ((p.ttl = (p.ttl ?? 120) - 1) <= 0) { game.removeobject(arrowType, p); continue; }
+    // mål dött?
+    if (!p.target || !game.getAllObjects().includes(p.target)) { game.removeobject(arrowType, p); continue; }
+
+    // styr lite mot rörligt mål (svag homing gör det snällare)
+    const tx = p.target.x + p.target.dimx/2;
+    const ty = p.target.y + p.target.dimy/2;
+    const dx = tx - (p.x + p.dimx/2);
+    const dy = ty - (p.y + p.dimy/2);
+    const ang = Math.atan2(dy, dx);
+    const spd = p.speed ?? 9;
+
+    p.vx = Math.cos(ang) * spd;
+    p.vy = Math.sin(ang) * spd;
+
+    // flytta
+    p.x += p.vx;
+    p.y += p.vy;
+
+    // rotera sprite till flygriktning (din pil pekar höger)
+    p.rot =(ang * 180 / Math.PI);
+
+    // träff?
+    if (hitTest(p, p.target)) {
+      const tgt = p.target;
+      if (tgt.maxHealth == null){ // samma default som övriga
+        tgt.maxHealth = (new Set(["base","bar","rbase","rbar"]).has(tgt.name)) ? 800 : 100;
+        tgt.health = tgt.maxHealth;
+      }
+      tgt.health -= (p.damage ?? 5);
+
+      // effekter
+      spawnDamageNumber(-(p.damage ?? 5), tgt.x, tgt.y, { color: "#ffd166" });
+      spawnHitParticles(tx, ty, 6);
+
+      // dö?
+      if (tgt.health <= 0) {
+        game.removeobject(game.getobjecttype(tgt.name), tgt);
+      }
+      // ta bort pilen
+      game.removeobject(arrowType, p);
+    }
+  }
+}
+function toG4Deg(rad){
+  const deg = rad * 180 / Math.PI;   // 0° = höger, +90° = ner (canvas)
+  // Gör om till Game4: 0° = upp, 90° = vänster, 180° = ner, 270° = höger
+  return (450 - deg) % 360;           // samma som ((-deg) - 90 + 360) % 360
 }
         </script>
     </body>
