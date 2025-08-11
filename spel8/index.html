@@ -925,11 +925,18 @@
                         }
                         if(worker.objects[i].workobject!=null&&worker.objects[i].returning==false){
                             
-                            
-                            worker.objects[i].targetX = worker.objects[i].workobject.x+worker.objects[i].workobject.dimx/2;
-                            worker.objects[i].targetY = worker.objects[i].workobject.y+worker.objects[i].workobject.dimy/2;
-                            worker.objects[i].targetObject=worker.objects[i].workobject;
-                            
+                            if(worker.objects[i].workobject.name=="goldmine"){
+                                
+                                worker.objects[i].targetX = worker.objects[i].workobject.x+worker.objects[i].workobject.dimx/2;
+                                worker.objects[i].targetY = worker.objects[i].workobject.y+worker.objects[i].workobject.dimy/2;
+                                worker.objects[i].targetObject=worker.objects[i].workobject;
+                                
+                            }
+                            else{
+                                worker.objects[i].targetX = worker.objects[i].workobject.x;//+worker.objects[i].workobject.dimx/2;
+                                worker.objects[i].targetY = worker.objects[i].workobject.y;//+worker.objects[i].workobject.dimy/2;
+                                worker.objects[i].targetObject=worker.objects[i].workobject;
+                            }
                             
                         
                             
@@ -1074,11 +1081,18 @@
 
                         if(rworker.objects[i].workobject!=null&&rworker.objects[i].returning==false){
                             
-                            
-                            rworker.objects[i].targetX = rworker.objects[i].workobject.x+rworker.objects[i].workobject.dimx/2;
-                            rworker.objects[i].targetY = rworker.objects[i].workobject.y+rworker.objects[i].workobject.dimy/2;
-                            rworker.objects[i].targetObject=rworker.objects[i].workobject;
-                            
+                            if(rworker.objects[i].workobject.name=="goldmine"){
+                                rworker.objects[i].targetX = rworker.objects[i].workobject.x;+rworker.objects[i].workobject.dimx/2;
+                                rworker.objects[i].targetY = rworker.objects[i].workobject.y;+rworker.objects[i].workobject.dimy/2;
+                                rworker.objects[i].targetObject=rworker.objects[i].workobject;
+                                
+                                
+                            }
+                            else{
+                                rworker.objects[i].targetX = rworker.objects[i].workobject.x;//+rworker.objects[i].workobject.dimx/2;
+                                rworker.objects[i].targetY = rworker.objects[i].workobject.y;//+rworker.objects[i].workobject.dimy/2;
+                                rworker.objects[i].targetObject=rworker.objects[i].workobject;
+                            }
                             
                         
                             
@@ -1285,8 +1299,8 @@
                             
                             
                             
-                            w.targetX = bestTree.x + bestTree.dimx / 2;
-                            w.targetY = bestTree.y + bestTree.dimy / 2;
+                            w.targetX = bestTree.x;// + bestTree.dimx / 2;
+                            w.targetY = bestTree.y;// + bestTree.dimy / 2;
                             w.workobject = bestTree;
                             w.returning = false;
                             w.counter2 = 0;
@@ -1551,7 +1565,7 @@ function updateRedWorkerAI() {
 
     // Tilldela nya arbetare
     for (let w of rworkers) {
-        if (w.workobject || w.buildingTarget) continue; // hoppa om redan jobbar
+        if (w.workobject) continue; // hoppa om redan jobbar
 
         let targetList = null;
         let targetType = "";
@@ -1599,8 +1613,8 @@ function updateRedWorkerAI() {
                 }
                 else{
                 
-                    w.targetX = bestTarget.x + bestTarget.dimx / 2;
-                    w.targetY = bestTarget.y + bestTarget.dimy / 2;
+                    w.targetX = bestTarget.x; //+ bestTarget.dimx / 2;
+                    w.targetY = bestTarget.y; //+ bestTarget.dimy / 2;
                     w.workobject = bestTarget;
                     w.returning = false;
                     w.counter2 = 0;

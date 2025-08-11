@@ -996,8 +996,10 @@ function isPathClearExcept(obj, ignores = []) {
                     if(obj.lockDirection==false){
                         if (Math.abs(dx) > Math.abs(dy)) {
                             obj.direction = dx > 0 ? "right" : "left";
+                            obj.directiony=dy > 0 ? "down" : "up";
                         } else {
                             obj.direction = dy > 0 ? "down" : "up";
+                            obj.directionx=dx > 0 ? "right" : "left";
                         }
                     }
 
@@ -1026,21 +1028,11 @@ function isPathClearExcept(obj, ignores = []) {
                      }
                      else{
                          
-                         if(game.isPathClear(obj)){
-                         
-                         if (Math.abs(dx)*2 > Math.abs(dy)) {
-                             obj.x += ((dx / dist) * obj.speed);
-                        }if (Math.abs(dx) < Math.abs(dy)*2){
-                            obj.y += ((dy / dist) * obj.speed);
-                        }
-
-                        
-                     }
-                      else{    
+             
                           obj.y += ((dy / dist) * obj.speed);
                           obj.x += ((dx / dist) * obj.speed);
-                        }
-                         
+                        
+                
                          
                          
                          
@@ -1056,26 +1048,34 @@ function isPathClearExcept(obj, ignores = []) {
                         if(obj.blockedcounter<150){
                         // Enkelt undvik åt sidan
                             if (obj.direction === "right") {
-                                obj.y -= 1;
+                                if(obj.directiony==="up")obj.y -= 1;
+                                else obj.y += 1;
                             } else if (obj.direction === "left") {
-                                obj.y += 1;
+                                if(obj.directiony==="down")obj.y += 1;
+                                else obj.y -= 1;
                             } else if (obj.direction === "up") {
-                                obj.x += 1;
+                                if(obj.directionx==="right")obj.x += 1;
+                                else obj.x -= 1;
                             } else if (obj.direction === "down") {
-                                obj.x -= 1;
+                                if(obj.directionx==="left")obj.x -= 1;
+                                else obj.x += 1;
                             }
                             
                         }
                         if(obj.blockedcounter>150&&obj.blockedcounter<300){
                         // Enkelt undvik åt sidan
                             if (obj.direction === "right") {
-                                obj.y += 1;
+                                if(obj.directiony==="up")obj.y += 2;
+                                else obj.y -= 2;
                             } else if (obj.direction === "left") {
-                                obj.y -= 1;
+                                if(obj.directiony==="down")obj.y -= 2;
+                                else obj.y += 2;
                             } else if (obj.direction === "up") {
-                                obj.x -= 1;
+                                if(obj.directionx==="right")obj.x -= 2;
+                                else obj.x += 2;
                             } else if (obj.direction === "down") {
-                                obj.x += 1;
+                                if(obj.directionx==="left")obj.x += 2;
+                                else obj.x -= 2;
                             }
                             
                         }
