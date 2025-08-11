@@ -439,6 +439,7 @@
                     isPlacingBuilding = false;
                     ghostBuilding.iscontrollable=true;
                     ghostBuilding.animation=0;
+                    ghostBuilding.health=1;
                     setBuildUIActive(false);
                     
                     
@@ -526,6 +527,7 @@
                     ghostBuilding.canMove=false;
                     ghostBuilding.iscontrollable=true;
                     setBuildUIActive(false);
+                    ghostBuilding.health=1;
                     pendingBuilds.push(ghostBuilding);
                     
                                             // Tilldela sparade workers detta bygge:
@@ -924,7 +926,7 @@
 
                             if (game.collideswithanoterobject(worker.objects[i],building)) {
                                 building.buildProgress = (building.buildProgress || 0) + 1;
-                                
+                                 building.health = Math.max(1, Math.floor((building.buildProgress / 1000) * 800));
                                 if(worker.objects[i].animation==0)worker.objects[i].animation = 3;
                                 if(worker.objects[i].animation==1&&worker.objects[i].fliped==false)worker.objects[i].animation = 4;
                                 if(worker.objects[i].animation==2)worker.objects[i].animation = 5;
@@ -1358,6 +1360,7 @@
                     if (game.collideswithanoterobject(w,w.workobject)) {
                         
                         w.workobject.buildProgress += 1;
+                        w.workobject.health = Math.max(1, Math.floor((w.workobject.buildProgress / 1000) * 800));
                         if(w.animation==0)w.animation = 3;
                         if(w.animation==1&&w.fliped==false)w.animation = 4;
                         if(w.animation==2)w.animation = 5;
@@ -1438,6 +1441,7 @@
                     ghost.selectable = false;
                     ghost.enemyBuild = true;
                     ghost.buildProgress = 0;
+                    ghost.health=1;
 
                     w.targetX = bestPos.x;
                     w.targetY = bestPos.y;
@@ -1466,6 +1470,9 @@
                 
                         if (game.collideswithanoterobject(w,w.workobject)) {
                             w.workobject.buildProgress += 1;
+                            w.workobject.health = Math.max(1, Math.floor((w.workobject.buildProgress / 1000) * 800));
+                            
+                            
                             if(w.animation==0)w.animation = 3;
                                 if(w.animation==1&&w.fliped==false)w.animation = 4;
                                 if(w.animation==2)w.animation = 5;
@@ -1565,6 +1572,7 @@
         ghost.selectable = false;
         ghost.enemyBuild = true;
         ghost.buildProgress = 0;
+        ghost.health=1;
 
         for (let w of rworkers) {
             w.targetX = bestPos.x;
