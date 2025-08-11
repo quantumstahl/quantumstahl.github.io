@@ -2,8 +2,8 @@ Spelet
 0
 A*?
 map1
-0
--112
+-672
+-32
 B*?
 ground
 false
