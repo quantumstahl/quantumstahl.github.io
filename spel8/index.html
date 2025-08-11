@@ -881,7 +881,6 @@
                     for(let i=0;i<rarcher.objects.length;i++){
 
                         rarcher.objects[i].selectable=true;
-                        rarcher.objects[i].iscontrollable=true;
                         if ( rarcher.objects[i].direction === "up")  rarcher.objects[i].animation = 0;
                         else if ( rarcher.objects[i].direction === "right")  {rarcher.objects[i].animation = 1;rarcher.objects[i].fliped=false;}
                         else if ( rarcher.objects[i].direction === "down")  rarcher.objects[i].animation = 2;
@@ -1246,10 +1245,10 @@
                     
                     
                     
-                    handleCombat("guard", ["rguard", "rworker", "rbase", "rbar"], 0.2);
-                    handleCombat("worker", ["rguard", "rworker", "rbase", "rbar"], 0.1);
-                    handleCombat("rguard", ["guard", "worker", "base", "bar"], 0.2);
-                    handleCombat("rworker", ["guard", "worker", "base", "bar"], 0.1);
+                    handleCombat("guard", ["rguard", "rworker", "rbase", "rbar","rarcher"], 0.2);
+                    handleCombat("worker", ["rguard", "rworker", "rbase", "rbar","rarcher"], 0.1);
+                    handleCombat("rguard", ["guard", "worker", "base", "bar","archer"], 0.2);
+                    handleCombat("rworker", ["guard", "worker", "base", "bar","archer"], 0.1);
                     updateArcherShooting("archer", ["rguard","rworker","rarcher","rbase","rbar"]);
                     updateArcherShooting("rarcher", ["guard","worker","archer","base","bar"]);
                     updateArrows();
@@ -1827,11 +1826,12 @@ function freeAtFast(x, y, w, h, inflate = 6) {
 }
 
 // LOS-block? (linje mitt→mitt mot SOLID AABB)
-function losBlockedFast(A, B, unit, inflate = 4) {
+function losBlockedFast(A, B, exclude = null, inflate = 4){
   for (const tn of SOLID_TYPES) {
     const t = game.getobjecttype(tn); if (!t) continue;
     for (const o of t.objects) {
       if (o.ghost) continue;
+      if (o === exclude) continue; // <-- ignorera målet
       const rx1 = o.x - inflate, ry1 = o.y - inflate;
       const rx2 = o.x + o.dimx + inflate, ry2 = o.y + o.dimy + inflate;
       if (segmentAABB(A.x, A.y, B.x, B.y, rx1, ry1, rx2, ry2)) return true;
@@ -2177,7 +2177,7 @@ function updateArcherShooting(archerTypeName, enemyTypeNames) {
         if (d < a.attackRange && d < bd) {
           // valfritt LOS: undvik att skjuta igenom väggar/byggnader
           const A = {x:a.x+a.dimx/2, y:a.y+a.dimy/2}, B = {x:e.x+e.dimx/2, y:e.y+e.dimy/2};
-          if (!losBlockedFast(A, B, a, 6)) { // du har redan losBlockedFast() definierad
+          if (!losBlockedFast(A, B, e, 6)) { // du har redan losBlockedFast() definierad
             bd=d; best=e;
           }
         }
@@ -2270,11 +2270,6 @@ function updateArrows(){
       game.removeobject(arrowType, p);
     }
   }
-}
-function toG4Deg(rad){
-  const deg = rad * 180 / Math.PI;   // 0° = höger, +90° = ner (canvas)
-  // Gör om till Game4: 0° = upp, 90° = vänster, 180° = ner, 270° = höger
-  return (450 - deg) % 360;           // samma som ((-deg) - 90 + 360) % 360
 }
         </script>
     </body>
