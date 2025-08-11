@@ -1447,6 +1447,7 @@
                     w.targetY = bestPos.y;
                     w.workobject = ghost;
                     w.buildobject=ghost;
+                    w.workobject.selectable = true;
                     w.counter2 = 0;
                     
 
@@ -1573,6 +1574,7 @@
         ghost.enemyBuild = true;
         ghost.buildProgress = 0;
         ghost.health=1;
+        ghost.selectable = true;
 
         for (let w of rworkers) {
             w.targetX = bestPos.x;
