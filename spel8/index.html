@@ -112,13 +112,21 @@
   <button id="train-warrior-btn" style="
     font-size: 16px;
     padding: 10px 20px;
-    background: darkblue;
+    background: red;
     color: white;
     border: none;
     border-radius: 5px;
     touch-action: manipulation;
   ">Träna krigare</button>
- 
+ <button id="train-archer-btn" style="
+    font-size: 16px;
+    padding: 10px 20px;
+    background: orange;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    touch-action: manipulation;
+  ">Träna archer</button>
   
 </div>            
 
@@ -337,6 +345,7 @@
             document.getElementById("build-house-btn").innerHTML = "Bygg hus<br>100 trä";
             document.getElementById("train-worker-btn").innerHTML = "Träna arbetare<br>50 guld";
             document.getElementById("train-warrior-btn").innerHTML = "Träna warrior<br>150 guld";
+            document.getElementById("train-archer-btn").innerHTML = "Träna archer<br>150 guld / 150 trä";
             document.getElementById("build-base-btn").addEventListener("click", function() {
                 if(ghostBuilding)ghostBuilding.animation=2;
                 if(gold>=500&&wood>=500){gold-=500;wood-=500;}    
@@ -429,7 +438,16 @@
                    
                 }
             }); 
-            
+            document.getElementById("train-archer-btn").addEventListener("click", () => {
+                const bar = game.getAllObjectsoftype(game.getobjecttype("bar")).find(b => b.selected);
+                if (!bar) return;
+                if (!canAddUnitToPopQueue("archer")) return;
+                if (gold >= 150) {
+                  gold -= 150;
+                  bar.buildQueue = bar.buildQueue || [];
+                  bar.buildQueue.push("archer");
+                }
+              });
             
             document.addEventListener("touchmove", function(e) {
                                 if (e.target.closest("#build-ui")) {return;}
@@ -785,6 +803,9 @@
                     const canAffordWorker = gold >= 50 && wood >= 0;
                     const canAffordWarrior = gold >= 150 && wood >= 0;
                     
+                    const canAffordArcher  = gold >= 150 && wood >= 0;
+                    const hasPopForArcher  = canAddUnitToPopQueue("archer");
+                    
                     const hasPopForWorker  = canAddUnitToPopQueue("worker");
                     const hasPopForWarrior = canAddUnitToPopQueue("guard");
                     
@@ -795,6 +816,7 @@
                     document.getElementById("train-worker-btn").style.opacity = (canAffordWorker  && hasPopForWorker) ? "1" : "0.5";
                     document.getElementById("train-warrior-btn").style.opacity = (canAffordWarrior && hasPopForWarrior) ? "1" : "0.5";
                     document.getElementById("build-barracks-btn").style.opacity = canAffordBar ? "1" : "0.5";
+                    document.getElementById("train-archer-btn").style.opacity  = (canAffordArcher  && hasPopForArcher)  ? "1" : "0.5";
                     
                     if (base.objects.length>0&&base.objects[0].animation==1) {
                         document.getElementById("build-barracks-btn").style.display = "inline-block";
@@ -1789,12 +1811,14 @@ function updateRedTrainingAI() {
             if (base.buildQueue.length > 0) break;
 
             // Exempel: träna rguard om resurser finns
-            const unitToTrain = "rguard"; // kan även vara "rworker"
-            const goldCost = 150;
-            const woodCost = 0;
+             // Varva rguard/rarcher
+            window._R_TRAIN_FLIP = !window._R_TRAIN_FLIP;
+            var nextUnit = window._R_TRAIN_FLIP ? "rguard" : "rarcher";
+            var goldCost = 150, woodCost = 0;
+            if(nextUnit=="rarcher")woodCost=150;
 
-            if (rgold >= goldCost && rwood >= woodCost && canAddUnitToPopQueue("rguard")) {
-                base.buildQueue.push(unitToTrain);
+            if (rgold >= goldCost && rwood >= woodCost && canAddUnitToPopQueue(nextUnit)) {
+                base.buildQueue.push(nextUnit);
                 rgold -= goldCost;
                 rwood -= woodCost;
             }
@@ -1886,9 +1910,9 @@ if ((o.name === "base" || o.name === "bar" || o.name === "rbase" || o.name === "
     
     
     var typeObj = game.getobjecttype("worker");    // t.ex. "worker"
-    if(o.name === "bar")typeObj = game.getobjecttype("guard");  
+    if(o.name === "bar")typeObj = game.getobjecttype(t);  
     if(o.name === "rbase")typeObj = game.getobjecttype("rworker"); 
-    if(o.name === "rbar")typeObj = game.getobjecttype("rguard"); 
+    if(o.name === "rbar")typeObj = game.getobjecttype(t); 
     
     const img = typeObj.images[0].getimage(); // vad du nu har
     if (img) {
@@ -2460,14 +2484,14 @@ function buildGrid(minx, miny, maxx, maxy, targetObject = null) { // Removed inf
 
 function updateRedGuardAI() {
   // ===== Tunables =====
-  const PAD  = 260;
-  const PAD_SCALES = [1.25, 2.25];      // färre stora grids → snabbare
+  const PAD  = 240;
+  const PAD_SCALES = [1.25, 2.0];
   const NEAR_RALLY = 150;
-  const NEAR_WP    = 12;                // tajtare WP → håller bättre runt hörn
-  const REPATH_FR  = 24;                // färre omplaneringar
+  const NEAR_WP    = 12;
+  const REPATH_FR  = 36;               // längre livslängd på path → färre A*
   const STUCK_FR   = 24;
-  const STUCK_COOLDOWN = 24;
-  const EXTRA_CLEAR = 28;               // marginal mot träd
+  const STUCK_COOLDOWN = 28;
+  const EXTRA_CLEAR = 28;
   const RALLY_RECALC_MS = 2500;
 
   // Grupp/klunga
@@ -2478,14 +2502,19 @@ function updateRedGuardAI() {
   const COH_DIST = 12;
 
   // Throttling
-  const PF_BUCKETS = 6;                 // ~1/6 av enheterna planerar per frame
-  const OFF_UPDATE_FR = 3;              // räkna om steering-offset var 3:e frame
+  const PF_BUCKETS = 8;                // ~12.5% planerar per frame
+  const OFF_UPDATE_FR = 6;             // steering-beräkning var 6:e frame
   if (typeof window._RED_TICK === "undefined") window._RED_TICK = 0;
   window._RED_TICK++;
 
   // ===== Helpers =====
+  const now = ()=> (typeof performance!=="undefined" ? performance.now() : Date.now());
+
+  // Cachea ALLA objekt en gång per frame (viktigt!)
+  const _ALL = game.getAllObjects();
+  const alive = (o)=> !!o && _ALL.includes(o);
+
   const ok = (v)=> v!==null && v!==undefined;
-  const alive = (o)=> !!o && game.getAllObjects().includes(o);
   const dims = (o)=> {
     const w = ok(o.dimx) ? o.dimx : (o.type?.standarddimx ?? 32);
     const h = ok(o.dimy) ? o.dimy : (o.type?.standarddimy ?? 32);
@@ -2493,7 +2522,6 @@ function updateRedGuardAI() {
   };
   const C  = (o)=> { const {w,h}=dims(o); return { x:(o.x??0)+w/2, y:(o.y??0)+h/2 }; };
   const D  = (a,b)=> Math.hypot(a.x-b.x, a.y-b.y);
-  const now = ()=> (typeof performance!=="undefined" ? performance.now() : Date.now());
 
   function list(type){
     const t = game.getobjecttype(type);
@@ -2504,20 +2532,28 @@ function updateRedGuardAI() {
   }
   function firstReady(type){ return listReady(type)[0] || null; }
 
-  // ===== Litet globalt state för vågen =====
+  function getHP(o){
+    return o==null ? null :
+      (ok(o.hp)?o.hp : ok(o.health)?o.health : ok(o.life)?o.life : ok(o.hpLeft)?o.hpLeft : null);
+  }
+
+  // ===== Vågens state =====
   const S = (window._RWAVE ||= {
     rally: null,
     rallyNext: 0,
     orig: new Set(),      // de ursprungliga 5
-    attacking: false
+    attacking: false,
+    defenseUntil: 0,
+    defending: false
   });
 
-  // ===== Träd (cache per frame + precomputade cirklar) =====
+  // ===== Träd (cache per frame + precomputed) =====
   const TREES = (game.getobjecttype("tree")?.objects || []).filter(t => !t.ghost);
-  const T_CIRC = TREES.map(t=>{
+  const HAS_TREES = TREES.length > 0;
+  const T_CIRC = HAS_TREES ? TREES.map(t=>{
     const cx = t.x + t.dimx/2, cy = t.y + t.dimy/2, r = Math.max(t.dimx, t.dimy)/2;
     return {t, cx, cy, r, r2:r*r, minx:t.x, miny:t.y, maxx:t.x+t.dimx, maxy:t.y+t.dimy};
-  });
+  }) : [];
 
   function segAABB(x0,y0,x1,y1, rx1,ry1,rx2,ry2){
     const dx=x1-x0, dy=y1-y0; let t0=0,t1=1;
@@ -2534,6 +2570,7 @@ function updateRedGuardAI() {
   }
 
   function treesBlock(A, B, inflate=16){
+    if (!HAS_TREES) return false;
     const minx = Math.min(A.x, B.x) - (inflate+32);
     const maxx = Math.max(A.x, B.x) + (inflate+32);
     const miny = Math.min(A.y, B.y) - (inflate+32);
@@ -2548,6 +2585,7 @@ function updateRedGuardAI() {
   }
 
   function bakeTreesIntoGrid(grid, inflate=16){
+    if (!HAS_TREES) return;
     const w = grid.w, h = grid.h, walk = grid.walk;
     const idx = (gx,gy)=> gy*w + gx;
     const gxMin = 0, gyMin = 0, gxMax = w-1, gyMax = h-1;
@@ -2619,7 +2657,7 @@ function updateRedGuardAI() {
     return { x:R.x + vx*220, y:R.y + vy*220 };
   }
 
-  // ===== Robust path (expanderar sökyta vid behov) =====
+  // ===== Robust path =====
   function tryPath(fromPt, toPt, targetObj=null){
     for (const s of PAD_SCALES){
       const minx=Math.min(fromPt.x,toPt.x)-PAD*s, miny=Math.min(fromPt.y,toPt.y)-PAD*s;
@@ -2663,14 +2701,15 @@ function updateRedGuardAI() {
     return { x: perp.x * pat * LATERAL_SPACING, y: perp.y * pat * LATERAL_SPACING };
   }
 
-  // Snabb repulsion (kör bara på träd i närheten)
+  // Snabb repulsion (lokal, cachad)
   function repulsionAt(pt, minDist=56, scale=18){
+    if (!HAS_TREES) return {x:0,y:0};
     let ax=0, ay=0; let touched=false;
     const R2 = (minDist+40)*(minDist+40);
     for (const c of T_CIRC){
       const dx = pt.x - c.cx, dy = pt.y - c.cy;
       const d2 = dx*dx + dy*dy;
-      if (d2 > (c.r2 + R2)) continue; // för långt bort
+      if (d2 > (c.r2 + R2)) continue;
       const d  = Math.sqrt(d2)||1e-6;
       const edge = d - c.r;
       if (edge < minDist){
@@ -2683,7 +2722,7 @@ function updateRedGuardAI() {
     return { x: ax*scale, y: ay*scale };
   }
 
-  // ===== Rörelse mot punkt/objekt (med throttlad A* + cachad steering) =====
+  // ===== Rörelse (throttlad A* + cachad steering) =====
   function shouldPlanThisFrame(u){
     if (u.ai._bucket == null) u.ai._bucket = (Math.random()*PF_BUCKETS)|0;
     return (window._RED_TICK % PF_BUCKETS) === u.ai._bucket;
@@ -2721,7 +2760,6 @@ function updateRedGuardAI() {
     if (u.ai.stuck > STUCK_FR) { u.ai.stuckCD = STUCK_COOLDOWN; }
     if (u.ai.stuckCD > 0) u.ai.stuckCD--;
 
-    // Planera path endast när vi MÅSTE och bara för vår bucket
     const freeLOS = (!losBlockedFast(U, goal, null, INF) && !treesBlock(U, goal, EXTRA_CLEAR));
     if (!freeLOS) {
       if ((!u.ai.path || u.ai.repath<=0) && shouldPlanThisFrame(u) && u.ai.stuckCD===0) {
@@ -2797,17 +2835,59 @@ function updateRedGuardAI() {
     u.targetY = (g.y + off.y) - h/2;
   }
 
+  // ================= DEFENSE DETECTION =================
+  const rBaseObj = firstReady("rbase") || firstReady("rbar");
+  const R0 = rBaseObj ? C(rBaseObj) : null;
+
+  // Larm på HP-drop
+  const rWorkers = [...listReady("rworker"), ...listReady("rguard"), ...listReady("rarcher")];
+  const rBuilds  = [...listReady("rbase"), ...listReady("rbar"), ...listReady("rhouse")];
+  const watch = [...rWorkers, ...rBuilds];
+  for (const o of watch){
+    const hp = getHP(o);
+    if (hp != null){
+      if (o._prevHP == null) o._prevHP = hp;
+      else {
+        if (hp < o._prevHP) S.defenseUntil = Math.max(S.defenseUntil, now() + 6000);
+        o._prevHP = hp;
+      }
+    }
+  }
+
+  // Inkräktare nära rBase
+  const enemyUnitsAll = [...listReady("guard"), ...listReady("archer"), ...listReady("worker")];
+  let intruders = [];
+  if (R0 && enemyUnitsAll.length) {
+    intruders = enemyUnitsAll.filter(u => D(C(u), R0) <= 420);
+    if (intruders.length) S.defenseUntil = Math.max(S.defenseUntil, now() + 6000);
+  }
+  const defenseActive = now() < S.defenseUntil;
+
   // ================= MAIN LOOP =================
 
-  // fighters (endast “färdiga”)
   const rguards  = listReady("rguard");
   const rarchers = listReady("rarcher");
   const fighters = [...rguards, ...rarchers].filter(alive);
 
-  // städa orig-gruppen
   for (const u of [...S.orig]) if (!alive(u)) S.orig.delete(u);
 
-  // räkna om rally om vi inte attackerar aktivt
+  // Försvarsläge: alla på närmsta inkräktare (enhet)
+  if (defenseActive && R0) {
+    S.defending = true;
+    let mainTarget = null, bd = Infinity;
+    const pool = intruders.length ? intruders : enemyUnitsAll;
+    for (const e of pool) { const d=D(R0, C(e)); if (d<bd){ bd=d; mainTarget=e; } }
+    if (mainTarget) { for (const u of fighters) moveToObject(u, mainTarget); }
+    else {
+      const rallyHere = { x: R0.x + 120, y: R0.y };
+      for (const u of fighters) moveToPoint(u, rallyHere);
+    }
+    return;
+  } else if (S.defending && !defenseActive) {
+    S.defending = false;
+  }
+
+  // Räkna om rally sällan
   if (!S.attacking && now() >= S.rallyNext) {
     const newRally = pickRally();
     if (newRally) S.rally = newRally;
@@ -2830,7 +2910,7 @@ function updateRedGuardAI() {
     }
 
     let idx=0, ready=0;
-    _waveCentroid = null; // reset cache
+    _waveCentroid = null;
     for (const u of S.orig) {
       const ang = (idx++ * 72) * Math.PI/180;
       const target = { x: S.rally.x + Math.cos(ang)*40, y: S.rally.y + Math.sin(ang)*40 };
@@ -2842,17 +2922,28 @@ function updateRedGuardAI() {
     return;
   }
 
-  // attack: mål – enheter först, sen byggnader
-  const enemyUnits  = [...listReady("guard"), ...listReady("archer"), ...listReady("worker")];
+  // --- Attack-logik ---
   const enemyBuilds = [...listReady("base"), ...listReady("bar"), ...listReady("house")];
+
+  // Om dina krigare är döda ⇒ enemyUnitsAll.length==0 → välj byggnad snabbt
   let mainTarget = null, bd = Infinity;
-  if (enemyUnits.length) {
-    for (const e of enemyUnits) { const d=D(S.rally, C(e)); if (d<bd){bd=d; mainTarget=e;} }
+  if (enemyUnitsAll.length) {
+    for (const e of enemyUnitsAll) { const d=D(S.rally, C(e)); if (d<bd){bd=d; mainTarget=e;} }
   } else if (enemyBuilds.length) {
     for (const b of enemyBuilds){ const d=D(S.rally, C(b)); if (d<bd){bd=d; mainTarget=b;} }
+  } else {
+    // Inga mål alls → lågenergi: bara håll vid rally och gör inget tungt
+    for (const u of fighters) {
+      // enkel “håll formation” utan path/A*
+      const U = C(u), ang = (u._slotId||0) * 0.9;
+      const hold = { x: S.rally.x + Math.cos(ang)*40, y: S.rally.y + Math.sin(ang)*40 };
+      u.targetX = hold.x - (u.dimx||32)/2;
+      u.targetY = hold.y - (u.dimy||32)/2;
+    }
+    return;
   }
 
-  _waveCentroid = null; // reset cache före rörelser
+  _waveCentroid = null;
   if (!mainTarget) {
     for (const u of fighters) moveToPoint(u, S.rally);
   } else {
@@ -2860,14 +2951,13 @@ function updateRedGuardAI() {
     for (const u of fighters) if (!S.orig.has(u)) moveToObject(u, mainTarget);
   }
 
-  // när original-5 är borta → ny våg
+  // Reset när orig-5 är borta
   if (S.attacking && S.orig.size === 0) {
     S.attacking = false;
     S.rallyNext = 0;
     S.rally = null;
   }
 }
-
 
 
         </script>

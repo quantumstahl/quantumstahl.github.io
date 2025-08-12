@@ -1461,6 +1461,7 @@ class Object {
         this.aiHoldTarget=false;
         this.followTarget=false;
         this.iscontrollable=false;
+        this._prevHP=null;
     }
     collidestest(){
         for (let i2 = 0; i2 < game.maps[game.currentmap].layer.length; i2++) {
