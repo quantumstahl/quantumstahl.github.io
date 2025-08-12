@@ -814,7 +814,7 @@
                         base.buildTimer = base.buildTimer || 0;
 
                         if (base.buildQueue.length > 0) {
-                            if (!canAddUnitToPopQueue(base.buildQueue[0])) {break;}   
+                            if (!canAddUnitToPopQueue(base.buildQueue[0])) {continue ;}   
                             
                             base.buildTimer++;
 
