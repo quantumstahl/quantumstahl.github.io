@@ -749,12 +749,21 @@ class Game4 {
     
     collideswith(obj, name, dir) {
         for (let i = 0; i < obj.collideslistan.length; i++) {
-            if (name == "any") {
-                if (obj.collideslistandir[i] == dir)
+            if(dir=="any"){
+                if (name == "any") {
+                    return obj.collideslistanobj[i];
+                }
+                else if (obj.collideslistan[i] == name)
                     return obj.collideslistanobj[i];
             }
-            else if (obj.collideslistan[i] == name && obj.collideslistandir[i] == dir)
-                return obj.collideslistanobj[i];
+            else{
+                if (name == "any") {
+                    if (obj.collideslistandir[i] == dir)
+                        return obj.collideslistanobj[i];
+                }
+                else if (obj.collideslistan[i] == name && obj.collideslistandir[i] == dir)
+                    return obj.collideslistanobj[i];
+            }
         }
         return null;
     }
@@ -994,7 +1003,7 @@ function isPathClearExcept(obj, ignores = []) {
                 if (dist > 1) {
                     // Beräkna rörelseriktning
                     
-                    if(obj.lockDirection==false){
+                   // if(obj.lockDirection==false){
                         if (Math.abs(dx) > Math.abs(dy)) {
                             obj.direction = dx > 0 ? "right" : "left";
                             obj.directiony=dy > 0 ? "down" : "up";
@@ -1002,7 +1011,7 @@ function isPathClearExcept(obj, ignores = []) {
                             obj.direction = dy > 0 ? "down" : "up";
                             obj.directionx=dx > 0 ? "right" : "left";
                         }
-                    }
+                  //  }
 
                     
                     let stop=false;
@@ -1012,8 +1021,8 @@ function isPathClearExcept(obj, ignores = []) {
                      for (let c of obj.collideslistanobj) {
                          
                  
-                        if ((obj.targetObject && c == obj.targetObject)||(obj.workobject&&c==obj.workobject)){ obj.blocked=false;obj.blocked1=0;stop=true;} // Ignorera target
-                        if(obj.workobject&&c==obj.workobject){obj.blocked=false;obj.blocked1=0;stop=true;}
+                        if ((obj.targetObject && c == obj.targetObject)){ obj.blocked=false;obj.blocked1=0;stop=true;} // Ignorera target
+                        if(obj.workobject&&c==obj.workobject){ obj.blocked=false;obj.blocked1=0;stop=true;} 
                         if(obj.deliveryTarget&&c==obj.deliveryTarget){obj.blocked=false;obj.blocked1=0;stop=true;}
                      }
 
@@ -1507,12 +1516,29 @@ class Object {
                                     this.collideslistandir.push("ghost");
                                     this.collideslistanobj.push(objType.objects[i4]);
                                     this.hadcollidedobj.push(objType.objects[i4]);
+                                    
+                                    objType.objects[i4].collideslistan.push(this.name);
+                                    objType.objects[i4].collideslistandir.push("ghost");
+                                    objType.objects[i4].collideslistanobj.push(this);
+                                    objType.objects[i4].hadcollidedobj.push(this);
+                                    
                                 }
                                 else {
                                     this.collideslistan.push(objType.name);
                                     this.collideslistandir.push(dir);
                                     this.collideslistanobj.push(objType.objects[i4]);
                                     this.hadcollidedobj.push(objType.objects[i4]);
+                                    
+                     
+                                    objType.objects[i4].collideslistan.push(this.name);
+                                    if(dir=="up")objType.objects[i4].collideslistandir.push("down");
+                                    else if(dir=="down")objType.objects[i4].collideslistandir.push("up");
+                                    else if(dir=="left")objType.objects[i4].collideslistandir.push("right");
+                                    else if(dir=="right")objType.objects[i4].collideslistandir.push("left");
+                                    objType.objects[i4].collideslistanobj.push(this);
+                                    objType.objects[i4].hadcollidedobj.push(this);
+                                    
+                                    
                                     return true;
                                 }
                             }
@@ -1524,12 +1550,29 @@ class Object {
                                     this.collideslistandir.push("ghost");
                                     this.collideslistanobj.push(objType.objects[i4]);
                                     this.hadcollidedobj.push(objType.objects[i4]);
+                                    
+                                    objType.objects[i4].collideslistan.push(this.name);
+                                    objType.objects[i4].collideslistandir.push("ghost");
+                                    objType.objects[i4].collideslistanobj.push(this);
+                                    objType.objects[i4].hadcollidedobj.push(this);
+                                    
                                 }
                                 else {
                                     this.collideslistan.push(objType.name);
                                     this.collideslistandir.push(dir);
                                     this.collideslistanobj.push(objType.objects[i4]);
                                     this.hadcollidedobj.push(objType.objects[i4]);
+                                    
+                                    objType.objects[i4].collideslistan.push(this.name);
+                                    if(dir=="up")objType.objects[i4].collideslistandir.push("down");
+                                    else if(dir=="down")objType.objects[i4].collideslistandir.push("up");
+                                    else if(dir=="left")objType.objects[i4].collideslistandir.push("right");
+                                    else if(dir=="right")objType.objects[i4].collideslistandir.push("left");
+                                    objType.objects[i4].collideslistanobj.push(this);
+                                    objType.objects[i4].hadcollidedobj.push(this);
+                                    
+                                    
+                                    
                                     return true;
                                 }
                             }
@@ -1790,7 +1833,7 @@ function updateAndDrawFX(ctx) {
 function drawSelectRing(ctx, o,zoom, camX, camY){
     
     const isBuilding =
-    o.name === "base" || o.name === "bar" || o.name === "rbase" || o.name === "rbar"|| o.name === "goldmine";
+    o.name === "base" || o.name === "bar" || o.name === "rbase" || o.name === "rbar"|| o.name === "goldmine"|| o.name === "house"|| o.name === "rhouse";
 
   // Alltid-på, subtil "ground contact" för byggnader (så de inte ser svävande ut)
   if (isBuilding) {

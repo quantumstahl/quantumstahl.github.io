@@ -49,6 +49,21 @@
   display: none; /* <-- GÖMD TILLS VIDARE */
 ">
   Bygg barack
+  <button id="build-house-btn" style="
+  font-size: 16px;
+  padding: 10px 20px;
+  background: saddlebrown;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  touch-action: manipulation;
+  display: none; /* visas när bas är klar */
+">
+  Bygg hus
+
+  
+  
+  
 </button>
   
   
@@ -147,7 +162,8 @@
         
 <div id="resourceUI" style="position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 5px; font-family: sans-serif; font-size: 50px; z-index: 100;">
     <img src="images/gold.png" style="width:50px; vertical-align: middle;">Guld: <span id="goldCount">0</span><br>
-    <img src="images/wood.png" style="width:50px; vertical-align: middle;">Trä: <span id="woodCount">0</span>
+    <img src="images/wood.png" style="width:50px; vertical-align: middle;">Trä: <span id="woodCount">0</span><br>
+    <img src="images/husikon.png" style="width:50px; vertical-align: middle;">Pop: <span id="popCount">0/0</span>
 </div>   
   
         
@@ -264,6 +280,15 @@
             let rwood = 500;
             let gameOver = false;
             let buildArmed = false;
+            let popUsed = 0, popCap = 0;
+            let rpopUsed = 0, rpopCap = 0;
+
+            const POP_COST = {
+              worker: 1, guard: 1, archer: 1,
+              rworker: 1, rguard: 1, rarcher: 1
+            };
+            
+            
             function mobileAndTabletCheck() {const isMobile = {Android: function() {return navigator.userAgent.match(/Android/i);},BlackBerry: function() {return navigator.userAgent.match(/BlackBerry/i);},iOS: function() {return navigator.userAgent.match(/iPhone|iPod/i);},Opera: function() {return navigator.userAgent.match(/Opera Mini/i);},Windows: function() {return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i);},any: function() {return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows()|| (navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints && navigator.maxTouchPoints > 1));}};return isMobile.any();}
             const IS_TOUCH = mobileAndTabletCheck();
 
@@ -304,6 +329,7 @@
             
             document.getElementById("build-base-btn").innerHTML = "Bygg bas<br>500 guld / 500 trä";
             document.getElementById("build-barracks-btn").innerHTML = "Bygg barrack<br>250 guld / 250 trä";
+            document.getElementById("build-house-btn").innerHTML = "Bygg hus<br>100 trä";
             document.getElementById("train-worker-btn").innerHTML = "Träna arbetare<br>50 guld";
             document.getElementById("train-warrior-btn").innerHTML = "Träna warrior<br>150 guld";
             document.getElementById("build-base-btn").addEventListener("click", function() {
@@ -344,10 +370,38 @@
                 setBuildUIActive(true);
                 
             });
+            document.getElementById("build-house-btn").addEventListener("click", function() {
+                    if (ghostBuilding) ghostBuilding.animation = 2;
+
+                    // Kräver färdig base
+                    const haveReadyBase = game.getAllObjectsoftype(game.getobjecttype("base"))
+                                             .some(b => b.animation === 1 && !b.ghost);
+                    if (!haveReadyBase) return;
+
+                    // Kostnad
+                    if (wood >= 100) {wood -= 100; }
+                    else return;
+
+                    buildMode = true;
+                    buildType = "house";
+
+                    selectedWorkersBeforeBuild = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected);
+                    game.getAllObjects().forEach(o => { if (!selectedWorkersBeforeBuild.includes(o)) o.selected = false; });
+
+                    // Ghost
+                    const t = game.getobjecttype("house");
+                    ghostBuilding = game.addobject(t, 0, 0, t.standarddimx || 100, t.standarddimy || 100, 0, false);
+                    ghostBuilding.ghost = true;
+                    ghostBuilding.selectable = false;
+                    ghostBuilding.animation = 2; // bygg-ghost
+                    setBuildUIActive(true);
+                  });
+            
+            
             document.getElementById("train-worker-btn").addEventListener("click", () => {
                 const base = game.getAllObjectsoftype(game.getobjecttype("base")).find(b => b.selected);
                 if (!base) return;
-
+                if (!canAddUnitToPopQueue("worker")) return;
                 if (gold >= 50) {
                     gold -= 50;
 
@@ -360,7 +414,7 @@
             document.getElementById("train-warrior-btn").addEventListener("click", () => {
                 const bar = game.getAllObjectsoftype(game.getobjecttype("bar")).find(b => b.selected);
                 if (!bar) return;
-
+                if (!canAddUnitToPopQueue("guard")) return;
                 if (gold >= 150) {
                     gold -= 150;
 
@@ -594,8 +648,10 @@
                 if (keyState.a) currentMap.camerax += camSpeed;
                 if (keyState.d) currentMap.camerax -= camSpeed;
                 
+                recalcPopulation();
                 document.getElementById("goldCount").textContent = gold;
                 document.getElementById("woodCount").textContent = wood;
+                document.getElementById("popCount").textContent  = `${popUsed}/${popCap}`;
                 
                 
                 let anyWorkerSelected = false;
@@ -617,7 +673,7 @@
                 goldmine =game.getobjecttype("goldmine"); 
                 base=game.getobjecttype("base"); 
                 archer=game.getobjecttype("archer"); 
-                
+                house=game.getobjecttype("house");
                 
                 //ENEMYS
                 rbar =game.getobjecttype("rbar"); 
@@ -625,6 +681,7 @@
                 rguard =game.getobjecttype("rguard"); 
                 rworker =game.getobjecttype("rworker"); 
                 rarcher=game.getobjecttype("rarcher"); 
+                rhouse=game.getobjecttype("rhouse");
                 
                 //projectiles
                 arrow =game.getobjecttype("arrow"); 
@@ -672,7 +729,7 @@
                     if (!enemyClicked) for (const e of (game.getobjecttype("rworker")?.objects || [])) if (pressedThisFrame(e)) { enemyClicked = e; break; }
                     if (!enemyClicked) for (const e of (game.getobjecttype("rbase")?.objects  || [])) if (pressedThisFrame(e))  { enemyClicked = e; break; }
                     if (!enemyClicked) for (const e of (game.getobjecttype("rbar")?.objects   || [])) if (pressedThisFrame(e))  { enemyClicked = e; break; }
-
+                    if (!enemyClicked) for (const e of (game.getobjecttype("rhouse")?.objects || [])) if (pressedThisFrame(e)) { enemyClicked = e; break; }
                     if (enemyClicked && selectedUnits.length) {
                       orderFollow(enemyClicked);
                       if (IS_TOUCH) clearSelection();
@@ -707,11 +764,7 @@
                     
                     
                     
-                    enemyTryToBuildBase();
-                    enemyTryToBuildBar();
-                    updateRedWorkerAI();
-                    updateRedTrainingAI();
-                    updateRedGuardAI();
+                    
                     
                     
                     
@@ -726,17 +779,23 @@
                     const canAffordBase = gold >= 500 && wood >= 500;
                     const canAffordWorker = gold >= 50 && wood >= 0;
                     const canAffordWarrior = gold >= 150 && wood >= 0;
+                    
+                    const hasPopForWorker  = canAddUnitToPopQueue("worker");
+                    const hasPopForWarrior = canAddUnitToPopQueue("guard");
+                    
                     const canAffordBar = gold >= 250 && wood >= 250;
-
+                    const canAffordHouse = wood >= 100;
+                    document.getElementById("build-house-btn").style.opacity = canAffordHouse ? "1" : "0.5";
                     document.getElementById("build-base-btn").style.opacity = canAffordBase ? "1" : "0.5";
-                    document.getElementById("train-worker-btn").style.opacity = canAffordWorker ? "1" : "0.5";
-                    document.getElementById("train-warrior-btn").style.opacity = canAffordWarrior ? "1" : "0.5";
+                    document.getElementById("train-worker-btn").style.opacity = (canAffordWorker  && hasPopForWorker) ? "1" : "0.5";
+                    document.getElementById("train-warrior-btn").style.opacity = (canAffordWarrior && hasPopForWarrior) ? "1" : "0.5";
                     document.getElementById("build-barracks-btn").style.opacity = canAffordBar ? "1" : "0.5";
                     
                     if (base.objects.length>0&&base.objects[0].animation==1) {
                         document.getElementById("build-barracks-btn").style.display = "inline-block";
+                        document.getElementById("build-house-btn").style.display = "inline-block";
                     }
-                    
+
                     
                   
                     selectedWorkers = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
@@ -755,12 +814,14 @@
                         base.buildTimer = base.buildTimer || 0;
 
                         if (base.buildQueue.length > 0) {
+                            if (!canAddUnitToPopQueue(base.buildQueue[0])) {break;}   
+                            
                             base.buildTimer++;
 
                             // så länge vi hinner producera
                             while (base.buildQueue.length > 0 && base.buildTimer >= 1000) {
                                 const unitType = game.getobjecttype(base.buildQueue[0]);
-
+                                  
                                 const spacing = 100;
                                 const directions = [
                                     [spacing, 0], [-spacing, 0], [0, spacing], [0, -spacing],
@@ -1088,14 +1149,17 @@
                         rworker.objects[i].selectable=true;
 			rworker.objects[i].counter2++;
                         
-                        
-                        if(rworker.objects[i].workobject!=null && rworker.objects[i].workobject.name=="rbase")continue;
-                        if(rworker.objects[i].buildobject!=null)continue;
-                        
                         if ( rworker.objects[i].direction === "up")  rworker.objects[i].animation = 0;
                         else if ( rworker.objects[i].direction === "right")  {rworker.objects[i].animation = 1;rworker.objects[i].fliped=false;}
                         else if ( rworker.objects[i].direction === "down")  rworker.objects[i].animation = 2;
                         else if ( rworker.objects[i].direction === "left") { rworker.objects[i].animation = 1;rworker.objects[i].fliped=true;}
+                        
+                        
+                        
+                        if(rworker.objects[i].workobject!=null && rworker.objects[i].workobject.name=="rbase")continue;
+                        if(rworker.objects[i].buildobject!=null)continue;
+                        
+                        
                         
                         
                        
@@ -1241,16 +1305,21 @@
                     }
  
                     
+                    enemyTryToBuildBase();
+                    enemyTryToBuildBar();
+                    enemyTryToBuildHouse();
+                    updateRedWorkerAI();
+                    updateRedTrainingAI();
+                    updateRedGuardAI();
                     
                     
                     
-                    
-                    handleCombat("guard", ["rguard", "rworker", "rbase", "rbar","rarcher"], 0.2);
-                    handleCombat("worker", ["rguard", "rworker", "rbase", "rbar","rarcher"], 0.1);
-                    handleCombat("rguard", ["guard", "worker", "base", "bar","archer"], 0.2);
-                    handleCombat("rworker", ["guard", "worker", "base", "bar","archer"], 0.1);
-                    updateArcherShooting("archer", ["rguard","rworker","rarcher","rbase","rbar"]);
-                    updateArcherShooting("rarcher", ["guard","worker","archer","base","bar"]);
+                    handleCombat("guard", ["rguard", "rworker", "rbase", "rbar","rarcher","rhouse"], 0.4);
+                    handleCombat("worker", ["rguard", "rworker", "rbase", "rbar","rarcher","rhouse"], 0.1);
+                    handleCombat("rguard", ["guard", "worker", "base", "bar","archer","house"], 0.4);
+                    handleCombat("rworker", ["guard", "worker", "base", "bar","archer","house"], 0.1);
+                    updateArcherShooting("archer", ["rguard","rworker","rarcher","rbase","rbar","rhouse"]);
+                    updateArcherShooting("rarcher", ["guard","worker","archer","base","bar","house"]);
                     updateArrows();
                     
                     checkWinLose(); 
@@ -1262,15 +1331,18 @@
             };check();
             
             function isBuildPlacementValid(o) {
-                if (!o || !o.collideslistan) return false;
+                if (o.collidestest()) return false;
                 
                             // Avståndsgräns från resurser (t.ex. 100 pixlar)
                 const minDistanceToResources = 300;
-                var resourceTypes = ["tree", "goldmine"]; // eller hur du identifierar resurser
-                if(o.name=="rbar")resourceTypes = ["tree", "goldmine","rbase"];
+               // var resourceTypes = ["tree", "goldmine","rbase","base","bar","rbar","house","rhouse"]; // eller hur du identifierar resurser
+               // if(o.name=="rbar")resourceTypes = ["tree", "goldmine","rbase"];
+               var resourceTypes = ["tree", "goldmine","rbase","rbar","rhouse"];
                 for (let type of resourceTypes) {
                     const resources = game.getAllObjectsoftype(game.getobjecttype(type));
                     for (let res of resources) {
+                        if(o==res)continue;
+                        
                         const dist = game.getDistance(o.x, o.y, res.x, res.y);
                         if (dist < minDistanceToResources) {
                             return false; // För nära en resurs
@@ -1295,6 +1367,13 @@
                     game.removeobject(game.getobjecttype("bar"),ghostBuilding); // ⬅️ Viktigt!
                     ghostBuilding = null;
                 }
+                else if (ghostBuilding && ghostBuilding.name == "house") {
+                    wood += 100;
+                    game.removeobject(game.getobjecttype("house"), ghostBuilding);
+                    ghostBuilding = null;
+                }
+                
+                
                 setBuildUIActive(false);
                 buildMode = false;
                 buildType = null;
@@ -1442,7 +1521,8 @@
                     ghost.enemyBuild = true;
                     ghost.buildProgress = 0;
                     ghost.health=1;
-
+                    w.deliveryTarget=null;
+                    w.targetObject=null;
                     w.targetX = bestPos.x;
                     w.targetY = bestPos.y;
                     w.workobject = ghost;
@@ -1581,6 +1661,8 @@
             w.targetY = bestPos.y;
             w.workobject = ghost;
             w.counter2 = 0;
+            w.deliveryTarget=null;
+            w.targetObject=null;
         }
 
         rwood -= 500;
@@ -1685,7 +1767,7 @@ function updateRedTrainingAI() {
             const goldCost = 50;
             const woodCost = 0;
 
-            if (rgold >= goldCost && rwood >= woodCost) {
+            if (rgold >= goldCost && rwood >= woodCost && canAddUnitToPopQueue("rworker")) {
                 base.buildQueue.push(unitToTrain);
                 rgold -= goldCost;
                 rwood -= woodCost;
@@ -1705,7 +1787,7 @@ function updateRedTrainingAI() {
             const goldCost = 150;
             const woodCost = 0;
 
-            if (rgold >= goldCost && rwood >= woodCost) {
+            if (rgold >= goldCost && rwood >= woodCost && canAddUnitToPopQueue("rguard")) {
                 base.buildQueue.push(unitToTrain);
                 rgold -= goldCost;
                 rwood -= woodCost;
@@ -1714,7 +1796,7 @@ function updateRedTrainingAI() {
     
     
 }
-const BUILDING_NAMES = new Set(["base","bar","rbase","rbar"]); // byggnader
+const BUILDING_NAMES = new Set(["base","bar","rbase","rbar","house","rhouse"]); // byggnader
 function drawHealthBars() {
     if(!game.maps[game.currentmap])return;
     
@@ -1845,7 +1927,7 @@ function handleCombat(attackerType, enemyTypes, damage) {
     for (const unit of attackers) {
         // Kolla alla fiendetyper
         for (const enemyType of enemyTypes) {
-            const target = game.collideswith(unit, enemyType, unit.direction);
+            const target = game.collideswith(unit, enemyType, "any");
             if (target) {
                 // Om målet inte har health, sätt standardvärde
                 target.health -= damage;
@@ -1870,7 +1952,7 @@ function handleCombat(attackerType, enemyTypes, damage) {
 }
 // --- helpers för AI ---
 // Vilka räknas som fasta hinder
-const SOLID_TYPES = ["tree","goldmine","base","bar","rbase","rbar"];
+const SOLID_TYPES = ["tree","goldmine","base","bar","rbase","rbar","house","rhouse"];
 
 // Axis-aligned bbox-overlap
 function aabbOverlap(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2) {
@@ -2359,6 +2441,130 @@ function updateArrows(){
     }
   }
 }
+function enemyTryToBuildHouse() {
+  const rWorkers = game.getAllObjectsoftype(game.getobjecttype("rworker"));
+  const rbaseObj = game.getobjecttype("rbase");
+  if (!rWorkers.length || !rbaseObj.objects.length || rbaseObj.objects[0].animation==0) return;
+
+
+     for(let w of rWorkers){
+                    if (w.buildobject&&game.collideswithanoterobject(w,w.workobject)) {
+                        
+                        w.workobject.buildProgress += 1;
+                        w.workobject.health = Math.max(1, Math.floor((w.workobject.buildProgress / 1000) * 800));
+                        if(w.animation==0)w.animation = 3;
+                        if(w.animation==1&&w.fliped==false)w.animation = 4;
+                        if(w.animation==2)w.animation = 5;
+                        if(w.animation==1&&w.fliped==true)w.animation = 4;      
+                        
+                        if (w.workobject.buildProgress > 1000) {
+                            w.workobject.ghost = false;
+                            w.workobject.selectable = true;
+                            w.workobject.animation=1;
+                            w.workobject = null;
+                            w.buildobject=null;
+                        }
+                        
+                        
+                    }
+                    
+
+
+                }
+
+
+
+
+
+
+  // bygg bara ett (ändra om du vill fler)
+  
+  if(rpopUsed >= rpopCap){}
+  else if (game.getobjecttype("rhouse").objects.length > 0) return;
+
+               
+
+
+
+
+
+  const goldCost = 0, woodCost = 100;
+  if (rgold < goldCost || rwood < woodCost) return;
+
+  const tHouse = game.getobjecttype("rhouse");
+  const anchor = rbaseObj.objects[0];
+  const spacing = 120;
+  let bestPos = null, bestScore = Infinity;
+
+  for (let dx = -5; dx <= 5; dx++) {
+    for (let dy = -5; dy <= 5; dy++) {
+      const px = anchor.x + dx*spacing;
+      const py = anchor.y + dy*spacing;
+
+      const tmp = game.addobject(tHouse, px, py, tHouse.standarddimx||150, tHouse.standarddimy||150, 0, false);
+      tmp.ghost = true;
+
+      if (isBuildPlacementValid(tmp)) {
+        // närhet till rbase + närhet till nån rworker
+        let nearestW = Infinity;
+        for (const w of rWorkers) {
+          const d = game.getDistance(px, py, w.x, w.y);
+          if (d < nearestW) nearestW = d;
+        }
+        const dBase = game.getDistance(px, py, anchor.x, anchor.y);
+        const score = dBase*1 + nearestW*0.5;
+        if (score < bestScore) { bestScore = score; bestPos = {x:px, y:py}; }
+      }
+      game.removeobject(tHouse, tmp);
+    }
+  }
+
+  if (!bestPos) return;
+
+  // Spawn ghost-bygget och låt en worker konstruera (som din rbar)
+  const ghost = game.addobject(tHouse, bestPos.x, bestPos.y, tHouse.standarddimx||150, tHouse.standarddimy||150, 0, false);
+  ghost.ghost = false; ghost.canMove = false; ghost.selectable = true; ghost.enemyBuild = true;
+  ghost.buildProgress = 0; ghost.health = 1; ghost.animation = 0;
+
+  // Skicka närmaste rworker
+  let chosen = rWorkers[0], bestD = Infinity;
+  for (const w of rWorkers) {
+    const d = game.getDistance(w.x, w.y, bestPos.x, bestPos.y);
+    if (d < bestD) { bestD = d; chosen = w; }
+  }
+  chosen.targetX = bestPos.x+tHouse.standarddimx/2; chosen.targetY = bestPos.y+tHouse.standarddimy/2;
+  chosen.workobject = ghost; chosen.buildobject = ghost; chosen.counter2 = 0;
+  chosen.deliveryTarget=null;
+  chosen.targetObject=null;
+
+  rgold -= goldCost; rwood -= woodCost;
+}
+function recalcPopulation() {
+  // byggnader färdiga = animation==1
+  const countFinished = (name) => {
+    const t = game.getobjecttype(name);
+    if (!t) return 0;
+    let n = 0;
+    for (const o of (t.objects || [])) if (o.animation === 1) n++;
+    return n;
+  };
+
+  popCap  = countFinished("base")  * 10 + countFinished("house")  * 5;
+  rpopCap = countFinished("rbase") * 10 + countFinished("rhouse") * 5;
+
+  const cnt = (name) => (game.getobjecttype(name)?.objects?.length || 0);
+
+  // räkna ENDAST trupper – byggnader ger inte popUsed
+  popUsed  = cnt("worker") + cnt("guard") + cnt("archer");
+  rpopUsed = cnt("rworker") + cnt("rguard") + cnt("rarcher");
+}
+
+function canAddUnitToPopQueue(typeName) {
+  const cost = POP_COST[typeName] || 0;
+  const isRed = typeName.startsWith("r");
+  return isRed ? (rpopUsed + cost <= rpopCap) : (popUsed + cost <= popCap);
+}
+
         </script>
     </body>
 </html>
