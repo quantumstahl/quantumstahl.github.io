@@ -2461,24 +2461,25 @@ function buildGrid(minx, miny, maxx, maxy, targetObject = null) { // Removed inf
 function updateRedGuardAI() {
   // ===== Tunables =====
   const PAD  = 260;
-  const PAD_SCALES = [1, 2.0, 3.2];     // expanderad sökyta om A* misslyckas
+  const PAD_SCALES = [1.25, 2.25];      // färre stora grids → snabbare
   const NEAR_RALLY = 150;
-  const NEAR_WP    = 12;                 // tajtare WP → bättre runt hörn
-  const REPATH_FR  = 18;                 // basintervall för repath
-  const STUCK_FR   = 24;                 // så många frames utan rörelse = stuck
-  const STUCK_COOLDOWN = 24;             // vänta så här många frames innan ny A*
-  const EXTRA_CLEAR = 28;                // större marginal mot träd
+  const NEAR_WP    = 12;                // tajtare WP → håller bättre runt hörn
+  const REPATH_FR  = 24;                // färre omplaneringar
+  const STUCK_FR   = 24;
+  const STUCK_COOLDOWN = 24;
+  const EXTRA_CLEAR = 28;               // marginal mot träd
   const RALLY_RECALC_MS = 2500;
 
-  // Gruppform/klunga
+  // Grupp/klunga
   const MAX_OFF        = 22;
   const LATERAL_SPACING= 22;
-  const TARGET_DECAY_R = 240;
-  const REP_W = 1.0, LAT_W = 0.65, COH_W = 0.45;
+  const TARGET_DECAY_R = 260;
+  const REP_W = 0.95, LAT_W = 0.65, COH_W = 0.45;
   const COH_DIST = 12;
 
-  // Pathfinding-throttle: sprid A*-jobb över frames
-  const PF_BUCKETS = 4;                  // gör A* för ~25% av enheterna per frame
+  // Throttling
+  const PF_BUCKETS = 6;                 // ~1/6 av enheterna planerar per frame
+  const OFF_UPDATE_FR = 3;              // räkna om steering-offset var 3:e frame
   if (typeof window._RED_TICK === "undefined") window._RED_TICK = 0;
   window._RED_TICK++;
 
@@ -2507,12 +2508,16 @@ function updateRedGuardAI() {
   const S = (window._RWAVE ||= {
     rally: null,
     rallyNext: 0,
-    orig: new Set(),     // de ursprungliga 5
+    orig: new Set(),      // de ursprungliga 5
     attacking: false
   });
 
-  // ===== Träd (cache per frame) =====
+  // ===== Träd (cache per frame + precomputade cirklar) =====
   const TREES = (game.getobjecttype("tree")?.objects || []).filter(t => !t.ghost);
+  const T_CIRC = TREES.map(t=>{
+    const cx = t.x + t.dimx/2, cy = t.y + t.dimy/2, r = Math.max(t.dimx, t.dimy)/2;
+    return {t, cx, cy, r, r2:r*r, minx:t.x, miny:t.y, maxx:t.x+t.dimx, maxy:t.y+t.dimy};
+  });
 
   function segAABB(x0,y0,x1,y1, rx1,ry1,rx2,ry2){
     const dx=x1-x0, dy=y1-y0; let t0=0,t1=1;
@@ -2529,16 +2534,14 @@ function updateRedGuardAI() {
   }
 
   function treesBlock(A, B, inflate=16){
-    // snabbsikt: hoppa över träd utanför segmentets bbox (+margin)
     const minx = Math.min(A.x, B.x) - (inflate+32);
     const maxx = Math.max(A.x, B.x) + (inflate+32);
     const miny = Math.min(A.y, B.y) - (inflate+32);
     const maxy = Math.max(A.y, B.y) + (inflate+32);
-    for (const t of TREES){
-      const tx1 = t.x, ty1 = t.y, tx2 = t.x + t.dimx, ty2 = t.y + t.dimy;
-      if (tx2 < minx || tx1 > maxx || ty2 < miny || ty1 > maxy) continue;
-      const rx1 = t.x - inflate, ry1 = t.y - inflate;
-      const rx2 = t.x + t.dimx + inflate, ry2 = t.y + t.dimy + inflate;
+    for (const c of T_CIRC){
+      if (c.maxx < minx || c.minx > maxx || c.maxy < miny || c.miny > maxy) continue;
+      const rx1 = c.minx - inflate, ry1 = c.miny - inflate;
+      const rx2 = c.maxx + inflate, ry2 = c.maxy + inflate;
       if (segAABB(A.x, A.y, B.x, B.y, rx1, ry1, rx2, ry2)) return true;
     }
     return false;
@@ -2549,16 +2552,15 @@ function updateRedGuardAI() {
     const idx = (gx,gy)=> gy*w + gx;
     const gxMin = 0, gyMin = 0, gxMax = w-1, gyMax = h-1;
     const worldMinX = grid.minx, worldMinY = grid.miny;
-    const worldMaxX = grid.minx + w*24; // CELL=24 i originalet
+    const worldMaxX = grid.minx + w*24;
     const worldMaxY = grid.miny + h*24;
 
-    for (const t of TREES){
-      // hoppa över träd utanför gridens bbox (snabbt)
-      if (t.x > worldMaxX + inflate || t.x + t.dimx < worldMinX - inflate ||
-          t.y > worldMaxY + inflate || t.y + t.dimy < worldMinY - inflate) continue;
+    for (const c of T_CIRC){
+      if (c.minx > worldMaxX + inflate || c.maxx < worldMinX - inflate ||
+          c.miny > worldMaxY + inflate || c.maxy < worldMinY - inflate) continue;
 
-      const rx1 = t.x - inflate, ry1 = t.y - inflate;
-      const rx2 = t.x + t.dimx + inflate, ry2 = t.y + t.dimy + inflate;
+      const rx1 = c.minx - inflate, ry1 = c.miny - inflate;
+      const rx2 = c.maxx + inflate, ry2 = c.maxy + inflate;
       const g1 = worldToGrid(grid, {x:rx1, y:ry1});
       const g2 = worldToGrid(grid, {x:rx2, y:ry2});
       const gx1 = Math.max(gxMin, Math.min(g1.gx, g2.gx));
@@ -2578,7 +2580,6 @@ function updateRedGuardAI() {
     const rbase = firstReady("rbase") || firstReady("rbar");
     if (!rbase) return null;
 
-    // målpunkt: din bas, annars närmaste enhet/byggnad
     const enemyUnits  = [...listReady("guard"), ...listReady("archer"), ...listReady("worker")];
     const enemyBuilds = [...listReady("base"), ...listReady("bar"), ...listReady("house")];
     let target = firstReady("base") || firstReady("bar") || enemyUnits[0] || enemyBuilds[0];
@@ -2589,7 +2590,6 @@ function updateRedGuardAI() {
     const L = Math.hypot(vx,vy) || 1; vx/=L; vy/=L;
     const perp = { x:-vy, y:vx };
 
-    // använd house som probe; fallback till bar/base
     let tProbe = game.getobjecttype("house") || game.getobjecttype("bar") || game.getobjecttype("base");
     if (!tProbe) return C(rbase);
     const PROBE_W = tProbe.standarddimx || 112;
@@ -2599,19 +2599,16 @@ function updateRedGuardAI() {
       const left = Math.round(cx - PROBE_W/2);
       const top  = Math.round(cy - PROBE_H/2);
       const tmp = game.addobject(tProbe, left, top, PROBE_W, PROBE_H, 0, false);
-    
       let okPlace = false;
       try { okPlace = !!isBuildPlacementValid(tmp); } catch(e){ okPlace = false; }
       game.removeobject(tProbe, tmp);
       return okPlace;
     }
 
-    // 1) Längs linjen rbase→mål
     for (let d=160; d<=900; d+=24) {
       const cx = R.x + vx*d, cy = R.y + vy*d;
       if (testSpot(cx, cy)) return { x: cx, y: cy };
     }
-    // 2) Lite åt sidorna om linjen
     for (const side of [-1,1]) {
       for (let d=200; d<=900; d+=32) {
         const cx = R.x + vx*d + perp.x*side*160;
@@ -2619,11 +2616,10 @@ function updateRedGuardAI() {
         if (testSpot(cx, cy)) return { x: cx, y: cy };
       }
     }
-    // 3) Fallback, en bit framför basen
     return { x:R.x + vx*220, y:R.y + vy*220 };
   }
 
-  // ===== Robust path m. throttling =====
+  // ===== Robust path (expanderar sökyta vid behov) =====
   function tryPath(fromPt, toPt, targetObj=null){
     for (const s of PAD_SCALES){
       const minx=Math.min(fromPt.x,toPt.x)-PAD*s, miny=Math.min(fromPt.y,toPt.y)-PAD*s;
@@ -2666,32 +2662,53 @@ function updateRedGuardAI() {
     const pat = ((i%5)===0)? 0 : (((i%2)?1:-1) * Math.ceil((i%10)/2)); // -1,1,-2,2,0,...
     return { x: perp.x * pat * LATERAL_SPACING, y: perp.y * pat * LATERAL_SPACING };
   }
-  function avoidTreesOffset(pt, minDist=56, scale=18){
-    let ax=0, ay=0;
-    for (const t of TREES){
-      const cx = t.x + t.dimx/2, cy = t.y + t.dimy/2;
-      const r  = Math.max(t.dimx, t.dimy)/2;
-      const vx = pt.x - cx, vy = pt.y - cy;
-      const d  = Math.hypot(vx,vy);
-      const edge = d - r;
+
+  // Snabb repulsion (kör bara på träd i närheten)
+  function repulsionAt(pt, minDist=56, scale=18){
+    let ax=0, ay=0; let touched=false;
+    const R2 = (minDist+40)*(minDist+40);
+    for (const c of T_CIRC){
+      const dx = pt.x - c.cx, dy = pt.y - c.cy;
+      const d2 = dx*dx + dy*dy;
+      if (d2 > (c.r2 + R2)) continue; // för långt bort
+      const d  = Math.sqrt(d2)||1e-6;
+      const edge = d - c.r;
       if (edge < minDist){
         const push = (minDist - Math.max(0, edge)) / Math.max(minDist,1);
-        const nx = (d>1e-3) ? vx/d : 0, ny = (d>1e-3) ? vy/d : 0;
-        ax += nx * push; ay += ny * push;
+        ax += (dx/d) * push; ay += (dy/d) * push;
+        touched = true;
       }
     }
+    if (!touched) return {x:0,y:0};
     return { x: ax*scale, y: ay*scale };
   }
 
-  // ===== Rörelse mot punkt/objekt (med throttlad A*) =====
+  // ===== Rörelse mot punkt/objekt (med throttlad A* + cachad steering) =====
   function shouldPlanThisFrame(u){
     if (u.ai._bucket == null) u.ai._bucket = (Math.random()*PF_BUCKETS)|0;
     return (window._RED_TICK % PF_BUCKETS) === u.ai._bucket;
   }
+  function updateSteeringOffset(u, U, g, finalTarget){
+    if (!u.ai.off || u.ai.offTTL<=0 || u.ai._lastPi !== u.ai.pi){
+      const distTo = Math.hypot(U.x - finalTarget.x, U.y - finalTarget.y);
+      const repScale = Math.max(0.25, Math.min(1, distTo / TARGET_DECAY_R));
+      const offRep = repulsionAt(g, 56, 18 * repScale);
+      const offLat = lateralOffsetFor(u, U, g);
+      const Gc = waveCentroid();
+      const cohV = Gc ? vMul(vNorm({x:Gc.x - U.x, y:Gc.y - U.y}), COH_DIST) : {x:0,y:0};
+      let off = vAdd( vAdd( vMul(offRep, REP_W), vMul(offLat, LAT_W) ), vMul(cohV, COH_W) );
+      u.ai.off = vClamp(off, MAX_OFF);
+      u.ai.offTTL = OFF_UPDATE_FR;
+      u.ai._lastPi = u.ai.pi;
+    } else {
+      u.ai.offTTL--;
+    }
+    return u.ai.off || {x:0,y:0};
+  }
 
   function moveToPoint(u, goal) {
     if (!u || !goal) return;
-    if (!u.ai) u.ai = { path:null, pi:0, repath:0, lx:u.x, ly:u.y, stuck:0, stuckCD:0, _bucket:null };
+    if (!u.ai) u.ai = { path:null, pi:0, repath:0, lx:u.x, ly:u.y, stuck:0, stuckCD:0, _bucket:null, off:null, offTTL:0, _lastPi:-1 };
 
     const U = C(u);
     const {w,h}=dims(u);
@@ -2704,47 +2721,35 @@ function updateRedGuardAI() {
     if (u.ai.stuck > STUCK_FR) { u.ai.stuckCD = STUCK_COOLDOWN; }
     if (u.ai.stuckCD > 0) u.ai.stuckCD--;
 
-    // Fri sikt + trädkontroll → rakt
-    if (!losBlockedFast(U, goal, null, INF) && !treesBlock(U, goal, EXTRA_CLEAR)) {
-      u.ai.path=null; u.ai.pi=0; u.ai.repath=0;
-      u.targetX = goal.x - w/2;
-      u.targetY = goal.y - h/2;
-    } else {
-      // Path om utgången OCH denna enhet är i "bucket" (throttle), eller om repath==0 och bucket matchar
+    // Planera path endast när vi MÅSTE och bara för vår bucket
+    const freeLOS = (!losBlockedFast(U, goal, null, INF) && !treesBlock(U, goal, EXTRA_CLEAR));
+    if (!freeLOS) {
       if ((!u.ai.path || u.ai.repath<=0) && shouldPlanThisFrame(u) && u.ai.stuckCD===0) {
         const p = tryPath(U, goal, null);
         if (p) { u.ai.path=p; u.ai.pi = (p.length>1)?1:0; }
         else   { u.ai.path=null; u.ai.pi=0; }
-        u.ai.repath = REPATH_FR + ((Math.random()*8)|0); // jitter
+        u.ai.repath = REPATH_FR + ((Math.random()*8)|0);
       } else {
-        // räkna ner om vi inte planerar denna frame
         if (u.ai.repath>0) u.ai.repath--;
       }
-
-      if (u.ai.path && u.ai.pi < u.ai.path.length) {
-        const wp = u.ai.path[u.ai.pi];
-        if (Math.hypot(U.x - wp.x, U.y - wp.y) < NEAR_WP) u.ai.pi++;
-      }
-      const g = (u.ai.path && u.ai.pi<u.ai.path.length) ? u.ai.path[u.ai.pi] : goal;
-
-      // Mix: repulsion (avtar nära mål), sidleds-slot, cohesion → clamp
-      const distToGoal = Math.hypot(U.x - goal.x, U.y - goal.y);
-      const repScale = Math.max(0.25, Math.min(1, distToGoal / TARGET_DECAY_R));
-      const offRep = avoidTreesOffset(g, 56, 18 * repScale);
-      const offLat = lateralOffsetFor(u, U, g);
-      const Gc = waveCentroid();
-      const cohV = Gc ? vMul(vNorm({x:Gc.x - U.x, y:Gc.y - U.y}), COH_DIST) : {x:0,y:0};
-      let off = vAdd( vAdd( vMul(offRep, REP_W), vMul(offLat, LAT_W) ), vMul(cohV, COH_W) );
-      off = vClamp(off, MAX_OFF);
-
-      u.targetX = (g.x + off.x) - w/2;
-      u.targetY = (g.y + off.y) - h/2;
+    } else {
+      u.ai.path=null; u.ai.pi=0; u.ai.repath=0;
     }
+
+    if (u.ai.path && u.ai.pi < u.ai.path.length) {
+      const wp = u.ai.path[u.ai.pi];
+      if (Math.hypot(U.x - wp.x, U.y - wp.y) < NEAR_WP) u.ai.pi++;
+    }
+
+    const g = (u.ai.path && u.ai.pi<u.ai.path.length) ? u.ai.path[u.ai.pi] : goal;
+    const off = updateSteeringOffset(u, U, g, goal);
+    u.targetX = (g.x + off.x) - w/2;
+    u.targetY = (g.y + off.y) - h/2;
   }
 
   function moveToObject(u, t) {
     if (!u || !t || !alive(t)) return;
-    if (!u.ai) u.ai = { path:null, pi:0, repath:0, lx:u.x, ly:u.y, stuck:0, stuckCD:0, _bucket:null };
+    if (!u.ai) u.ai = { path:null, pi:0, repath:0, lx:u.x, ly:u.y, stuck:0, stuckCD:0, _bucket:null, off:null, offTTL:0, _lastPi:-1 };
 
     const U = C(u), T = C(t);
     const {w,h}=dims(u);
@@ -2767,11 +2772,8 @@ function updateRedGuardAI() {
       return;
     }
 
-    if (!losBlockedFast(U, T, t, INF) && !treesBlock(U, T, EXTRA_CLEAR)) {
-      u.ai.path=null; u.ai.pi=0; u.ai.repath=0;
-      u.targetX = T.x - w/2;
-      u.targetY = T.y - h/2;
-    } else {
+    const freeLOS = (!losBlockedFast(U, T, t, INF) && !treesBlock(U, T, EXTRA_CLEAR));
+    if (!freeLOS) {
       if ((!u.ai.path || u.ai.repath<=0) && shouldPlanThisFrame(u) && u.ai.stuckCD===0) {
         const p = tryPath(U, T, t);
         if (p) { u.ai.path=p; u.ai.pi=(p.length>1)?1:0; }
@@ -2780,25 +2782,19 @@ function updateRedGuardAI() {
       } else {
         if (u.ai.repath>0) u.ai.repath--;
       }
-
-      if (u.ai.path && u.ai.pi < u.ai.path.length) {
-        const wp = u.ai.path[u.ai.pi];
-        if (Math.hypot(U.x - wp.x, U.y - wp.y) < NEAR_WP) u.ai.pi++;
-      }
-      const g = (u.ai.path && u.ai.pi<u.ai.path.length) ? u.ai.path[u.ai.pi] : T;
-
-      const distToTarget = Math.hypot(U.x - T.x, U.y - T.y);
-      const repScale = Math.max(0.25, Math.min(1, distToTarget / TARGET_DECAY_R));
-      const offRep = avoidTreesOffset(g, 56, 18 * repScale);
-      const offLat = lateralOffsetFor(u, U, g);
-      const Gc = waveCentroid();
-      const cohV = Gc ? vMul(vNorm({x:Gc.x - U.x, y:Gc.y - U.y}), COH_DIST) : {x:0,y:0};
-      let off = vAdd( vAdd( vMul(offRep, REP_W), vMul(offLat, LAT_W) ), vMul(cohV, COH_W) );
-      off = vClamp(off, MAX_OFF);
-
-      u.targetX = (g.x + off.x) - w/2;
-      u.targetY = (g.y + off.y) - h/2;
+    } else {
+      u.ai.path=null; u.ai.pi=0; u.ai.repath=0;
     }
+
+    if (u.ai.path && u.ai.pi < u.ai.path.length) {
+      const wp = u.ai.path[u.ai.pi];
+      if (Math.hypot(U.x - wp.x, U.y - wp.y) < NEAR_WP) u.ai.pi++;
+    }
+
+    const g = (u.ai.path && u.ai.pi<u.ai.path.length) ? u.ai.path[u.ai.pi] : T;
+    const off = updateSteeringOffset(u, U, g, T);
+    u.targetX = (g.x + off.x) - w/2;
+    u.targetY = (g.y + off.y) - h/2;
   }
 
   // ================= MAIN LOOP =================
@@ -2830,9 +2826,7 @@ function updateRedGuardAI() {
       const sorted = fighters
         .filter(u => u && !S.orig.has(u))
         .sort((a,b)=> D(C(a), S.rally) - D(C(b), S.rally));
-      for (let i=0; i<Math.min(need, sorted.length); i++) {
-        S.orig.add(sorted[i]);
-      }
+      for (let i=0; i<Math.min(need, sorted.length); i++) S.orig.add(sorted[i]);
     }
 
     let idx=0, ready=0;
@@ -2848,7 +2842,7 @@ function updateRedGuardAI() {
     return;
   }
 
-  // attack: välj mål – enheter först, sedan byggnader
+  // attack: mål – enheter först, sen byggnader
   const enemyUnits  = [...listReady("guard"), ...listReady("archer"), ...listReady("worker")];
   const enemyBuilds = [...listReady("base"), ...listReady("bar"), ...listReady("house")];
   let mainTarget = null, bd = Infinity;
@@ -2862,7 +2856,6 @@ function updateRedGuardAI() {
   if (!mainTarget) {
     for (const u of fighters) moveToPoint(u, S.rally);
   } else {
-    // orig-5 + förstärkningar går efter samma mål
     for (const u of S.orig) moveToObject(u, mainTarget);
     for (const u of fighters) if (!S.orig.has(u)) moveToObject(u, mainTarget);
   }
