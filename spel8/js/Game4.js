@@ -633,99 +633,119 @@ class Game4 {
         
     }
     collitionengine() {
-        for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
-            for (let i3 = 0; i3 < this.maps[this.currentmap].layer[i2].objectype.length; i3++) {
-                for (let i4 = 0; i4 < this.maps[this.currentmap].layer[i2].objectype[i3].objects.length; i4++) {
-                    let o = this.maps[this.currentmap].layer[i2].objectype[i3].objects[i4];
-                    o.collideslistan = [];
-                    o.collideslistandir = [];
-                    o.collideslistanobj = [];
-                }
+    // 1. Nollställ kollisionslistor
+    for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
+        for (let i3 = 0; i3 < this.maps[this.currentmap].layer[i2].objectype.length; i3++) {
+            for (let o of this.maps[this.currentmap].layer[i2].objectype[i3].objects) {
+                o.collideslistan = [];
+                o.collideslistandir = [];
+                o.collideslistanobj = [];
             }
         }
-        
-        for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
-            for (let i3 = 0; i3 < this.maps[this.currentmap].layer[i2].objectype.length; i3++) {
-                for (let i4 = 0; i4 < this.maps[this.currentmap].layer[i2].objectype[i3].objects.length; i4++) {
-                    var o = this.maps[this.currentmap].layer[i2].objectype[i3].objects[i4];
-                    
-                    if (this.maps[this.currentmap].layer[i2].fysics == false || this.maps[this.currentmap].layer[i2].solid) {
-                        o.rakna = 0;
-                        o.rakna2 = 0;
-                    }
-                    else if (this.maps[this.currentmap].layer[i2].ghost == true || this.maps[this.currentmap].layer[i2].objectype[i3].objects[i4].ghost == true) {
-                        o.rakna = 0;
-                        o.rakna2 = 0;
-                        o.collideslistfull(this.maps, this.currentmap, "ghost",this.maps[this.currentmap].layer[i2].objectype[i3].name);
-              
-                    }
-                    else {
-                        o.rakna = o.x - o.freex;
-                        o.rakna2 = o.y - o.freey;
-                        o.x = o.freex;
-                        o.y = o.freey;
-                        
-                    }
-                }
-            }
-        }
-                        
-        for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
-            for (let i3 = 0; i3 < this.maps[this.currentmap].layer[i2].objectype.length; i3++) {
-                for (let i4 = 0; i4 < this.maps[this.currentmap].layer[i2].objectype[i3].objects.length; i4++) {
-                    var o = this.maps[this.currentmap].layer[i2].objectype[i3].objects[i4];
-                    
-                    if (o.rakna !== 0 || o.rakna2 !== 0) o.hadcollidedobj = [];
-                    
-                    if (o.rakna < 0) {
-                        
-                        for (let k = 0; k < -o.rakna; k++) {
-                            o.x = o.x - 1;
-                            if (o.collideslist(this.maps, this.currentmap, "left")) {
-                                o.x = o.x + 1;
-                                break;
-                            }
-                        }
-                    }
-                    else {
-                        
-                        for (let k = 0; k < o.rakna; k++) {
-                            o.x = o.x + 1;
-                            if (o.collideslist(this.maps, this.currentmap, "right")) {
-                                
-                                o.x = o.x - 1;
-                                break;
-                            }
-                        }
-                    }
-                    if (o.rakna2 < 0) {
-                        
-                        for (let k = 0; k < -o.rakna2; k++) {
-                            o.y = o.y - 1;
-                            if (o.collideslist(this.maps, this.currentmap, "up")) {
-                                o.y = o.y + 1;
-                                break;
-                            }
-                        }
-                    }
-                    else {
-                        
-                        for (let k = 0; k < o.rakna2; k++) {
-                            o.y = o.y + 1;
-                            if (o.collideslist(this.maps, this.currentmap, "down")) {
-                                o.y = o.y - 1;
-                                break;
-                            }
-                        }
-                    }
-                    
-                    
-                    o.freex = o.x;
-                    o.freey = o.y;
+    }
+
+    // 2. Beräkna rakna
+    for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
+        for (let i3 = 0; i3 < this.maps[this.currentmap].layer[i2].objectype.length; i3++) {
+            for (let o of this.maps[this.currentmap].layer[i2].objectype[i3].objects) {
+                if (this.maps[this.currentmap].layer[i2].fysics == false || this.maps[this.currentmap].layer[i2].solid) {
+                    o.rakna = 0;
+                    o.rakna2 = 0;
+                } else if (this.maps[this.currentmap].layer[i2].ghost == true || o.ghost == true) {
+                    o.rakna = 0;
+                    o.rakna2 = 0;
+                    o.collideslistfull(this.maps, this.currentmap, "ghost", this.maps[this.currentmap].layer[i2].objectype[i3].name);
+                } else {
+                    o.rakna = o.x - o.freex;
+                    o.rakna2 = o.y - o.freey;
+                    o.x = o.freex;
+                    o.y = o.freey;
                 }
             }
         }
     }
+
+    // 3. Kör förflyttning + subpixlar
+    for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
+        for (let i3 = 0; i3 < this.maps[this.currentmap].layer[i2].objectype.length; i3++) {
+            for (let o of this.maps[this.currentmap].layer[i2].objectype[i3].objects) {
+                if (o.rakna !== 0 || o.rakna2 !== 0) o.hadcollidedobj = [];
+
+                // --- X-led ---
+                let intX = Math.trunc(o.rakna);
+                let restX = o.rakna - intX;
+
+                if (intX < 0) {
+                    for (let k = 0; k < Math.abs(intX); k++) {
+                        o.x -= 1;
+                        if (o.collideslist(this.maps, this.currentmap, "left")) {
+                            o.x += 1;
+                            restX = 0;
+                            break;
+                        }
+                    }
+                } else if (intX > 0) {
+                    for (let k = 0; k < intX; k++) {
+                        o.x += 1;
+                        if (o.collideslist(this.maps, this.currentmap, "right")) {
+                            o.x -= 1;
+                            restX = 0;
+                            break;
+                        }
+                    }
+                }
+
+                // Reststeg X
+                if (restX !== 0) {
+                    let testX = o.x + restX;
+                    let oldX = o.x;
+                    o.x = testX;
+                    if (o.collideslist(this.maps, this.currentmap, restX > 0 ? "right" : "left")) {
+                        o.x = oldX;
+                    }
+                }
+
+                // --- Y-led ---
+                let intY = Math.trunc(o.rakna2);
+                let restY = o.rakna2 - intY;
+
+                if (intY < 0) {
+                    for (let k = 0; k < Math.abs(intY); k++) {
+                        o.y -= 1;
+                        if (o.collideslist(this.maps, this.currentmap, "up")) {
+                            o.y += 1;
+                            restY = 0;
+                            break;
+                        }
+                    }
+                } else if (intY > 0) {
+                    for (let k = 0; k < intY; k++) {
+                        o.y += 1;
+                        if (o.collideslist(this.maps, this.currentmap, "down")) {
+                            o.y -= 1;
+                            restY = 0;
+                            break;
+                        }
+                    }
+                }
+
+                // Reststeg Y
+                if (restY !== 0) {
+                    let testY = o.y + restY;
+                    let oldY = o.y;
+                    o.y = testY;
+                    if (o.collideslist(this.maps, this.currentmap, restY > 0 ? "down" : "up")) {
+                        o.y = oldY;
+                    }
+                }
+
+                // Uppdatera floatposition
+                o.freex = o.x;
+                o.freey = o.y;
+            }
+        }
+    }
+}
     
     isclose(obj, obj2){
         for (let i = 0; i < obj.hadcollidedobj.length; i++) {
@@ -998,7 +1018,7 @@ function isPathClearExcept(obj, ignores = []) {
                 const dy = obj.targetY - obj.y;
                 const dist = Math.sqrt(dx*dx + dy*dy);
                 
-
+                
 
                 if (dist > 1) {
                     // Beräkna rörelseriktning
@@ -1439,7 +1459,7 @@ class Object {
         this.selected = false;
         this.targetX = null;
         this.targetY = null;
-        this.speed = 1.0;
+        this.speed = 1;
         this.selectable = false;
         this.direction = "up";
         this.canMove = true;
@@ -1462,6 +1482,9 @@ class Object {
         this.followTarget=false;
         this.iscontrollable=false;
         this._prevHP=null;
+        this._slowUntilMs=null;
+        this._ax =null;
+        this._ay =null;
     }
     collidestest(){
         for (let i2 = 0; i2 < game.maps[game.currentmap].layer.length; i2++) {

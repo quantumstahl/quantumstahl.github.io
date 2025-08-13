@@ -295,6 +295,11 @@
             let RED_GROUP = null; 
             let CELL=24;
             const solids = ["tree","goldmine","base","bar","rbase","rbar","rworker"];
+            // --- Archer-nerf ---
+            const ARCHER_MAX_HP       = 55;    // sänk max-hp (gäller archer + rarcher)
+            const ARCHER_SLOW_MS      = 1400;   // så länge går de långsammare efter ett skott
+            const ARCHER_SLOW_MULT    = 0.45;  // rörelsehastighet under “skjuter”
+            function nowMs(){ return (typeof performance!=="undefined" ? performance.now() : Date.now()); }
 
             const POP_COST = {
               worker: 1, guard: 1, archer: 1,
@@ -957,7 +962,10 @@
 
                     }
                      for(let i=0;i<archer.objects.length;i++){
-
+                         if(archer.objects[i].selectable==false){
+                            clampArcherHP(archer.objects[i]);       // sänk start-HP om den var högre
+                        }
+                        applyArcherSpeed(archer.objects[i]);
                         archer.objects[i].selectable=true;
                         archer.objects[i].iscontrollable=true;
                         if ( archer.objects[i].direction === "up")  archer.objects[i].animation = 0;
@@ -968,6 +976,10 @@
                     }
                     for(let i=0;i<rarcher.objects.length;i++){
 
+                        if(rarcher.objects[i].selectable==false){
+                            clampArcherHP(rarcher.objects[i]);       // sänk start-HP om den var högre
+                        }
+                        applyArcherSpeed(rarcher.objects[i]);
                         rarcher.objects[i].selectable=true;
                         if ( rarcher.objects[i].direction === "up")  rarcher.objects[i].animation = 0;
                         else if ( rarcher.objects[i].direction === "right")  {rarcher.objects[i].animation = 1;rarcher.objects[i].fliped=false;}
@@ -1841,10 +1853,10 @@ function drawHealthBars() {
     if (o.name === "tree" || o.name === "goldmine") continue;
 
     // defaultvärden om hälsa saknas
-    if (o.maxHealth == null){ o.maxHealth = BUILDING_NAMES.has(o.name) ? 800 : 100;o.health = o.maxHealth;}
-    if (o.health == null) o.health = o.maxHealth;
+    if (o.maxhealth == null){ o.maxhealth = BUILDING_NAMES.has(o.name) ? 800 : 100;o.health = o.maxhealth;}
+    if (o.health == null) o.health = o.maxhealth;
 
-    const hpPct = Math.max(0, Math.min(1, o.health / o.maxHealth));
+    const hpPct = Math.max(0, Math.min(1, o.health / o.maxhealth));
 
     // Värld → skärm
     const sx = (o.x + camX) * zoom;
@@ -2152,6 +2164,7 @@ function updateArcherShooting(archerTypeName, enemyTypeNames) {
     obj.damage = 5;         // skada vid träff
     obj.ttl    = 120;       // lever max ~2 sek @60fps
     obj.target = best;
+    markArcherJustShot(a);
 
     // init riktning/rotation (bilden pekar åt höger)
     const dx=(best.x+best.dimx/2)-sx, dy=(best.y+best.dimy/2)-sy;
@@ -2200,9 +2213,9 @@ function updateArrows(){
     // träff?
     if (hitTest(p, p.target)) {
       const tgt = p.target;
-      if (tgt.maxHealth == null){ // samma default som övriga
-        tgt.maxHealth = (new Set(["base","bar","rbase","rbar"]).has(tgt.name)) ? 800 : 100;
-        tgt.health = tgt.maxHealth;
+      if (tgt.maxhealth == null){ // samma default som övriga
+        tgt.maxhealth = (new Set(["base","bar","rbase","rbar"]).has(tgt.name)) ? 800 : 100;
+        tgt.health = tgt.maxhealth;
       }
       tgt.health -= (p.damage ?? 5);
 
@@ -2343,6 +2356,34 @@ function canAddUnitToPopQueue(typeName) {
   return isRed ? (rpopUsed + cost <= rpopCap) : (popUsed + cost <= popCap);
 }
 
+// typkoll
+function isArcherUnit(u){
+  const n = u?.name || u?.type?.name || "";
+  return n === "archer" || n === "rarcher";
+}
+
+// sänk HP säkert oavsett vilka fält du använder
+function clampArcherHP(u){
+  u.health=50;
+  u.maxhealth=50; 
+}
+
+// sätt basfart en gång och applicera slow när aktivt
+function applyArcherSpeed(u){
+  const slow = (u._slowUntilMs != null) && (nowMs() < u._slowUntilMs);
+  u.speed =(slow ? ARCHER_SLOW_MULT : 1);
+}
+
+// kalla denna precis när en pil skjuts
+function markArcherJustShot(u){
+  if (!isArcherUnit(u)) return;
+  u._slowUntilMs = nowMs() + ARCHER_SLOW_MS;
+}
+
+
+
+
+//pathfinding-----------------------------------------------------------------------------
  function aabbOverlap(ax1,ay1,ax2,ay2,bx1,by1,bx2,by2){
     return ax1<bx2 && ax2>bx1 && ay1<by2 && ay2>by1;
   }
