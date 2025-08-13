@@ -680,7 +680,7 @@ class Game4 {
                         o.x -= 1;
                         if (o.collideslist(this.maps, this.currentmap, "left")) {
                             o.x += 1;
-                            restX = 0;
+                            //restX = 0;
                             break;
                         }
                     }
@@ -689,7 +689,7 @@ class Game4 {
                         o.x += 1;
                         if (o.collideslist(this.maps, this.currentmap, "right")) {
                             o.x -= 1;
-                            restX = 0;
+                            //restX = 0;
                             break;
                         }
                     }
@@ -714,7 +714,7 @@ class Game4 {
                         o.y -= 1;
                         if (o.collideslist(this.maps, this.currentmap, "up")) {
                             o.y += 1;
-                            restY = 0;
+                            //restY = 0;
                             break;
                         }
                     }
@@ -723,7 +723,7 @@ class Game4 {
                         o.y += 1;
                         if (o.collideslist(this.maps, this.currentmap, "down")) {
                             o.y -= 1;
-                            restY = 0;
+                            //restY = 0;
                             break;
                         }
                     }
