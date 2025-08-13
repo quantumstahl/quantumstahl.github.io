@@ -675,7 +675,7 @@ class Game4 {
                 let intX = Math.trunc(o.rakna);
                 let restX = o.rakna - intX;
 
-                if (intX < 0) {
+                if (intX < 1) {
                     for (let k = 0; k < Math.abs(intX); k++) {
                         o.x -= 1;
                         if (o.collideslist(this.maps, this.currentmap, "left")) {
@@ -684,7 +684,7 @@ class Game4 {
                             break;
                         }
                     }
-                } else if (intX > 0) {
+                } else if (intX > 1) {
                     for (let k = 0; k < intX; k++) {
                         o.x += 1;
                         if (o.collideslist(this.maps, this.currentmap, "right")) {
@@ -709,7 +709,7 @@ class Game4 {
                 let intY = Math.trunc(o.rakna2);
                 let restY = o.rakna2 - intY;
 
-                if (intY < 0) {
+                if (intY < 1) {
                     for (let k = 0; k < Math.abs(intY); k++) {
                         o.y -= 1;
                         if (o.collideslist(this.maps, this.currentmap, "up")) {
@@ -718,7 +718,7 @@ class Game4 {
                             break;
                         }
                     }
-                } else if (intY > 0) {
+                } else if (intY > 1) {
                     for (let k = 0; k < intY; k++) {
                         o.y += 1;
                         if (o.collideslist(this.maps, this.currentmap, "down")) {
