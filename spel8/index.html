@@ -23,6 +23,31 @@
   #highscoreClose { margin-top:14px; width:100%; padding:10px; border:0; border-radius:8px; background:#ff4757; color:#fff; cursor:pointer; }
 </style>
 
+<style>
+  #hudTopRight{
+    position:absolute; top:10px; right:10px; z-index:110;
+    display:flex; flex-direction:column; align-items:flex-end; gap:8px;
+    font-family:system-ui, sans-serif;
+  }
+  #hudTime{
+    padding:6px 10px; border-radius:10px;
+    background:rgba(0,0,0,.55); color:#fff; font-weight:800;
+    font-size:44px; line-height:1;
+  }
+  #hudHigh{
+    padding:8px 10px; border-radius:10px;
+    background:rgba(0,0,0,.45); color:#fff; text-align:right;
+  }
+  #hudHigh .title{ font-size:18px; opacity:.9; margin-bottom:4px; }
+  #hudHSList{ margin:0; padding-left:22px; font-size:18px; line-height:1.25; }
+  
+  
+  
+  
+</style>
+
+
+
 
 
 <!-- === Firebase (compat) – INTE module === -->
@@ -198,10 +223,24 @@
     <img src="images/husikon.png" style="width:50px; vertical-align: middle;">Pop: <span id="popCount">0/0</span>
 </div>   
   
+<!-- HUD: klocka + topp-5 highscore -->
+<div id="hudTopRight">
+  <div id="hudTime">0:00</div>
+
+  <div id="hudHigh">
+    <div class="title">Highscores (bäst tid)</div>
+    <ol id="hudHSList"></ol>
+  </div>
+</div>    
+        
+        
+        
+        
+        
         
         <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
         <button onclick="showHighscores()" 
-        style="position:absolute; top:200px; left:10px; z-index:10;">
+        style="position:absolute; top:200px; left:10px; z-index:10;display:none">
   Visa Highscores
 </button>
         <script>
@@ -287,22 +326,58 @@
   // === Anropa denna när spelaren vinner ===
   // Ex: playerWon(elapsedMs/1000)
   function playerWon(timeInSeconds) {
-    const name = prompt("Grattis! Du vann! Skriv in ditt namn:");
-    if (!name || !name.trim()) return; // hoppa om tomt
-    saveHighscore(name.trim(), Number(timeInSeconds))
-      .then(() => showHighscores())
-      .catch(err => {
-        console.error("Kunde inte spara highscore:", err);
-        alert("Kunde inte spara highscore just nu.");
-      });
-  }
+  const name = prompt("Grattis! Du vann! Skriv in ditt namn:");
+  if (!name || !name.trim()) return;
+  saveHighscore(name.trim(), Number(timeInSeconds))
+    .then(() => {
+      loadTopHighscoreHUD();  // uppdatera HUD direkt
+      showHighscores();       // visa listan
+    })
+    .catch(err => {
+      console.error("Kunde inte spara highscore:", err);
+      alert("Kunde inte spara highscore just nu.");
+    });
+}
 
   // Exponera globalt (andra script kan kalla dessa)
   window.playerWon = playerWon;
   window.showHighscores = showHighscores;
   window.hideHighscores = hideHighscores;
 
+async function loadTopHighscoreHUD(limit = 5) {
+  const listEl = document.getElementById("hudHSList");
+  if (!listEl) return;
 
+  try {
+    let scores = await getHighscores();           // antas ge topp-lista
+    if (!Array.isArray(scores)) scores = [];
+
+    // Säkerställ sortering: lägst tid = bäst
+    scores = scores.slice().sort((a,b) => (a.time ?? 9e9) - (b.time ?? 9e9));
+
+    const top = scores.slice(0, limit);
+    listEl.innerHTML = "";
+
+    if (top.length === 0) {
+      listEl.innerHTML = `<li>–</li>`;
+      return;
+    }
+
+    for (let i = 0; i < top.length; i++) {
+      const s = top[i];
+      const name = (s.name && String(s.name).trim()) || "Okänd";
+      const timeStr = typeof formatTime === "function"
+        ? formatTime(Number(s.time || 0))
+        : (Number(s.time||0)).toFixed(1) + "s";
+
+      const li = document.createElement("li");
+      li.textContent = `${name} – ${timeStr}`;
+      listEl.appendChild(li);
+    }
+  } catch (e) {
+    console.error("Kunde inte ladda highscores till HUD:", e);
+  }
+}
 
             const canvas = document.getElementById("myCanvas");
             const ctx = canvas.getContext("2d");
@@ -780,9 +855,14 @@
             function consumeInputClick(){ inputClick = null; }
             
              showPanHint();
+             loadTopHighscoreHUD();
              var check = function(){
                  
-                
+                // HUD: uppdatera speltid i sekunder → formatTime
+                // HUD: speltid
+                const elapsedSec = (Date.now() - gameStartTime) / 1000;
+                const hudTimeEl = document.getElementById("hudTime");
+                if (hudTimeEl) hudTimeEl.textContent = formatTime(elapsedSec);
                  
                 canvas.width=document.body.clientWidth;
                 canvas.height=document.body.clientHeight-8;
@@ -938,12 +1018,30 @@
                     
                     const canAffordBar = gold >= 250 && wood >= 250;
                     const canAffordHouse = wood >= 100;
-                    document.getElementById("build-house-btn").style.opacity = canAffordHouse ? "1" : "0.5";
-                    document.getElementById("build-base-btn").style.opacity = canAffordBase ? "1" : "0.5";
-                    document.getElementById("train-worker-btn").style.opacity = (canAffordWorker  && hasPopForWorker) ? "1" : "0.5";
-                    document.getElementById("train-warrior-btn").style.opacity = (canAffordWarrior && hasPopForWarrior) ? "1" : "0.5";
-                    document.getElementById("build-barracks-btn").style.opacity = canAffordBar ? "1" : "0.5";
-                    document.getElementById("train-archer-btn").style.opacity  = (canAffordArcher  && hasPopForArcher)  ? "1" : "0.5";
+                    
+                    
+                    function paintBtn(id, ok){
+                        const el = document.getElementById(id);
+                        if (!el) return;
+                        // aldrig genomskinlig:
+                        el.style.opacity = "1";
+                        // tydlig färgkod:
+                        el.style.backgroundColor = ok ? "#37c96b" : "#ff7a7a"; // grön / ljusröd
+                        el.style.color = "#fff";
+                        el.style.borderRadius = "10px";
+                        el.style.border = "1px solid rgba(255,255,255,.15)";
+                        el.style.boxShadow = ok
+                          ? "0 0 0 2px rgba(55,201,107,.25) inset"
+                          : "0 0 0 2px rgba(255,0,0,.18) inset";
+                    }
+                    
+                    
+                    paintBtn("build-house-btn",     canAffordHouse);
+                    paintBtn("build-base-btn",      canAffordBase);
+                    paintBtn("train-worker-btn",    (canAffordWorker  && hasPopForWorker));
+                    paintBtn("train-warrior-btn",   (canAffordWarrior && hasPopForWarrior));
+                    paintBtn("build-barracks-btn",  canAffordBar);
+                    paintBtn("train-archer-btn",    (canAffordArcher  && hasPopForArcher));
                     
                     if (base.objects.length>0&&base.objects[0].animation==1) {
                         document.getElementById("build-barracks-btn").style.display = "inline-block";
