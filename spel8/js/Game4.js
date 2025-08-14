@@ -586,8 +586,12 @@ class Game4 {
     
     updateanimation(ctx) {
         try {
-            this.collitionengine();
+            
             this.updateUnitMovement();
+            this.collitionengine();
+             
+            
+            
             
             
         } catch (error) {}
@@ -674,21 +678,24 @@ class Game4 {
                 // --- X-led ---
                 let intX = Math.trunc(o.rakna);
                 let restX = o.rakna - intX;
-
-                if (intX <= 1) {
+               // o.rakna=0;
+                if (intX < 0) {
                     for (let k = 0; k < Math.abs(intX); k++) {
                         o.x -= 1;
+                        o.rakna--;
                         if (o.collideslist(this.maps, this.currentmap, "left")) {
-                            o.x += 1;
+                            o.x += 1;o.rakna++;
                             //restX = 0;
                             break;
                         }
                     }
-                } else if (intX >= 1) {
+                } else if (intX > 0) {
                     for (let k = 0; k < intX; k++) {
                         o.x += 1;
+                        o.rakna--;
                         if (o.collideslist(this.maps, this.currentmap, "right")) {
                             o.x -= 1;
+                            o.rakna++;
                             //restX = 0;
                             break;
                         }
@@ -700,29 +707,35 @@ class Game4 {
                     let testX = o.x + restX;
                     let oldX = o.x;
                     o.x = testX;
+                    o.rakna=o.rakna-restX;
                     if (o.collideslist(this.maps, this.currentmap, restX > 0 ? "right" : "left")) {
                         o.x = oldX;
+                        o.rakna=o.rakna+restX;
                     }
                 }
 
                 // --- Y-led ---
                 let intY = Math.trunc(o.rakna2);
                 let restY = o.rakna2 - intY;
-
-                if (intY <= 1) {
+               // o.rakna2=0;
+                if (intY < 0) {
                     for (let k = 0; k < Math.abs(intY); k++) {
                         o.y -= 1;
+                        o.rakna2--;
                         if (o.collideslist(this.maps, this.currentmap, "up")) {
                             o.y += 1;
+                             o.rakna2++;
                             //restY = 0;
                             break;
                         }
                     }
-                } else if (intY >= 1) {
+                } else if (intY > 0) {
                     for (let k = 0; k < intY; k++) {
                         o.y += 1;
+                         o.rakna2++;
                         if (o.collideslist(this.maps, this.currentmap, "down")) {
                             o.y -= 1;
+                             o.rakna2--;
                             //restY = 0;
                             break;
                         }
@@ -734,11 +747,15 @@ class Game4 {
                     let testY = o.y + restY;
                     let oldY = o.y;
                     o.y = testY;
+                    o.rakna2=o.rakna2+restY;
                     if (o.collideslist(this.maps, this.currentmap, restY > 0 ? "down" : "up")) {
                         o.y = oldY;
+                        o.rakna2=o.rakna2-restY;
                     }
                 }
-
+                o.blockedx=false;o.blockedy=false;
+                if(o.freex === o.x&& o.rakna!==0)o.blockedx=true;
+                if(o.freey === o.y&& o.rakna2!==0)o.blockedy=true;
                 // Uppdatera floatposition
                 o.freex = o.x;
                 o.freey = o.y;
@@ -983,157 +1000,113 @@ class Game4 {
     updateUnitMovement() {
         const objects = this.getAllObjects();
 
-
-function sameObj(a, b) {
-  if (!a || !b) return false;
-  // referensjämförelse räcker om motorn håller samma objektinstans
-  if (a === b) return true;
-  // fallback: om du har unika id:n
-  if (a.id != null && b.id != null) return a.id === b.id;
-  return false;
-}
-
-// Ignorera valfria objekt i “är vägen fri?”-kollen
-function isPathClearExcept(obj, ignores = []) {
-  // om din motor redan fyller collideslistanobj per frame
-  for (const c of obj.collideslistanobj) {
-    if (!c) continue;
-    let skip = false;
-    for (const ig of ignores) {
-      if (sameObj(c, ig)) { skip = true; break; }
-    }
-    if (skip) continue;
-    // spöken räknas inte
-    if (c.ghost) continue;
-    // allt annat räknas som block
-    return false;
-  }
-  return true;
-}
         for (let obj of objects) {
             if (obj.targetX !== null && obj.targetY !== null) {
-     
+
+                let go=false;
+                if(obj.pretargetX!==obj.targetX||obj.pretargetY!==obj.targetY){go=true;}
                 
+                obj.pretargetX=obj.targetX;
+                obj.pretargetY=obj.targetY;
+
                 const dx = obj.targetX - obj.x;
                 const dy = obj.targetY - obj.y;
                 const dist = Math.sqrt(dx*dx + dy*dy);
-                
-                
 
-                if (dist > 1) {
-                    // Beräkna rörelseriktning
-                    
-                   // if(obj.lockDirection==false){
-                        if (Math.abs(dx) > Math.abs(dy)) {
-                            obj.direction = dx > 0 ? "right" : "left";
-                            obj.directiony=dy > 0 ? "down" : "up";
-                        } else {
-                            obj.direction = dy > 0 ? "down" : "up";
-                            obj.directionx=dx > 0 ? "right" : "left";
-                        }
-                  //  }
+                 obj.y += ((dy / dist) * obj.speed);
+                 obj.x += ((dx / dist) * obj.speed);
 
-                    
-                    let stop=false;
-                    
-                    
-                    
-                     for (let c of obj.collideslistanobj) {
-                         
-                 
-                        if ((obj.targetObject && c == obj.targetObject)){ obj.blocked=false;obj.blocked1=0;stop=true;} // Ignorera target
-                        if(obj.workobject&&c==obj.workobject){ obj.blocked=false;obj.blocked1=0;stop=true;} 
-                        if(obj.deliveryTarget&&c==obj.deliveryTarget){obj.blocked=false;obj.blocked1=0;stop=true;}
-                     }
-
-        
-        
-        
-                  //   if(obj.aiHoldTarget==true){obj.y += ((dy / dist) * obj.speed);obj.x += ((dx / dist) * obj.speed);}
-                   //  else{
-                     if(stop==true){
-               
-                          if (Math.abs(dx) > Math.abs(dy))obj.x += ((dx / dist) * obj.speed);
-                           else  obj.y += ((dy / dist) * obj.speed);
-
-                     }
-                     else{
-                         
-             
-                          obj.y += ((dy / dist) * obj.speed);
-                          obj.x += ((dx / dist) * obj.speed);
-                        
-                
-                         
-                         
-                         
-                         
-                     }
-                     
-                       
-                    if(stop==false&&game.isPathClear(obj)){obj.blockedcounter=0;obj.blocked1=0;obj.blocked=false;}
-                    else obj.blocked=true;
-                    //if(!obj.blocked)obj.blockedcounter=0;
-                    if (obj.blocked&&stop==false) {
-                        obj.blockedcounter++;
-                        if(obj.blockedcounter<150){
-                        // Enkelt undvik åt sidan
-                            if (obj.direction === "right") {
-                                obj.y -= 1;
-                            } else if (obj.direction === "left") {
-                                obj.y += 1;
-                            } else if (obj.direction === "up") {
-                                obj.x += 1;
-                            } else if (obj.direction === "down") {
-                                obj.x -= 1;
-                            }
-                            
-                        }
-                        if(obj.blockedcounter>150&&obj.blockedcounter<300){
-                        // Enkelt undvik åt sidan
-                            if (obj.direction === "right") {
-                                obj.y += 1;
-                            } else if (obj.direction === "left") {
-                                obj.y -= 1;
-                            } else if (obj.direction === "up") {
-                                obj.x -= 1;
-                            } else if (obj.direction === "down") {
-                                obj.x += 1;
-                            }
-                            
-                        }
-                        if(obj.blockedcounter>300){obj.blockedcounter=0;obj.blocked1=0;}
-                        
-                        }
-                  //  }
-                    if (obj.blocked && obj.targetX !== null && obj.targetY !== null) {
-    for (let other of game.getAllObjects()) {
-        if (other === obj) continue;
-
-        const sameTarget = Math.abs(other.x - obj.targetX) < 2 && Math.abs(other.y - obj.targetY) < 2;
-
-        if (sameTarget && (other.targetX === null || other.targetY === null)) {
-            // Den andra står redan där, och har inget mål → byt
-            const tempX = obj.targetX;
-            const tempY = obj.targetY;
-
-            obj.targetX = other.x;
-            obj.targetY = other.y;
-
-            other.targetX = tempX;
-            other.targetY = tempY;
-
-            break;
-        }
-    }
-}
-                    
-                    
-                } else {
-                    obj.targetX = null;
-                    obj.targetY = null;
+                 if (dist > 1){
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        if(go==true)obj.direction = dx > 0 ? "right" : "left";
+                        if(!obj.blockedx||go)obj.directiony=dy > 0 ? "down" : "up";
+                        if(!obj.blockedy||go)obj.directionx=dx > 0 ? "right" : "left";
+                    } else {
+                        if(go==true)obj.direction = dy > 0 ? "down" : "up";
+                        if(!obj.blockedy||go)obj.directionx=dx > 0 ? "right" : "left";
+                        if(!obj.blockedx||go)obj.directiony=dy > 0 ? "down" : "up";
+                    }
                 }
+
+
+                    
+    
+                
+                
+                
+                
+                let stop=false; 
+                for (let c of obj.collideslistanobj) {
+
+
+                   if ((obj.targetObject && c == obj.targetObject)){ obj.blocked=false;obj.blocked1=0;stop=true;} // Ignorera target
+                   if(obj.workobject&&c==obj.workobject){ obj.blocked=false;obj.blocked1=0;stop=true;} 
+                   if(obj.deliveryTarget&&c==obj.deliveryTarget){obj.blocked=false;obj.blocked1=0;stop=true;}
+                }
+
+                //väj år sidan
+
+                if(stop==false&&!game.isPathClear(obj)){
+                        obj.blockedcounter++;
+                        
+                        if(obj.blockedcounter==175){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
+                        
+                            if(obj.direction=="left"){if(obj.directiony=="up"){obj.y += obj.rakna;}if(obj.directiony=="down"){obj.y -= obj.rakna;}}
+                            if(obj.direction=="right"){if(obj.directiony=="up"){obj.y -= obj.rakna;}if(obj.directiony=="down"){obj.y += obj.rakna;}}
+                            if(obj.direction=="up"){if(obj.directionx=="left"){obj.x += obj.rakna2;}if(obj.directionx=="right"){obj.x -= obj.rakna2;}}
+                            if(obj.direction=="down"){if(obj.directionx=="left"){obj.x -= obj.rakna2;}if(obj.directionx=="right"){obj.x += obj.rakna2;}}
+                        
+                        
+
+                        if(obj.blockedcounter==350){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
+                        
+                        if(obj.blockedcounter>525){
+                            obj.blockedcounter=0;
+                            
+                            
+                        }
+
+                }
+                else{obj.blockedcounter=0;
+                    if (dist > 1){
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        obj.direction = dx > 0 ? "right" : "left";
+                    } else {
+                        obj.direction = dy > 0 ? "down" : "up";
+
+                    }
+                }
+                
+                
+                }
+
+
+                if (obj.blocked && obj.targetX !== null && obj.targetY !== null) {
+                    for (let other of game.getAllObjects()) {
+                        if (other === obj) continue;
+
+                        const sameTarget = Math.abs(other.x - obj.targetX) < 2 && Math.abs(other.y - obj.targetY) < 2;
+
+                        if (sameTarget && (other.targetX === null || other.targetY === null)) {
+                            // Den andra står redan där, och har inget mål → byt
+                            const tempX = obj.targetX;
+                            const tempY = obj.targetY;
+
+                            obj.targetX = other.x;
+                            obj.targetY = other.y;
+
+                            other.targetX = tempX;
+                            other.targetY = tempY;
+
+                            break;
+                        }
+                    }
+                }
+            } else {
+                obj.targetX = null;
+                obj.targetY = null;
             }
+            
         }
     }
     isPathClear(worker) {
@@ -1459,6 +1432,9 @@ class Object {
         this.selected = false;
         this.targetX = null;
         this.targetY = null;
+        this.pretargetX=null;
+        this.pretargetY=null;
+        
         this.speed = 1;
         this.selectable = false;
         this.direction = "up";
@@ -1485,6 +1461,10 @@ class Object {
         this._slowUntilMs=null;
         this._ax =null;
         this._ay =null;
+        this.blockedx=false;
+        this.blockedy=false;
+        this.resty=0;
+        this.restx=0;
     }
     collidestest(){
         for (let i2 = 0; i2 < game.maps[game.currentmap].layer.length; i2++) {

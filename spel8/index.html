@@ -290,11 +290,7 @@
             let buildArmed = false;
             let popUsed = 0, popCap = 0;
             let rpopUsed = 0, rpopCap = 0;
-            let RED_ATTACK_ACTIVE = false;
-            let RED_PHASE = "gather";      // "gather" | "exit" | "attack"
-            let RED_GROUP = null; 
-            let CELL=24;
-            const solids = ["tree","goldmine","base","bar","rbase","rbar","rworker"];
+            
             // --- Archer-nerf ---
             const ARCHER_MAX_HP       = 55;    // sänk max-hp (gäller archer + rarcher)
             const ARCHER_SLOW_MS      = 1400;   // så länge går de långsammare efter ett skott
@@ -1056,7 +1052,7 @@
                             }
                             else{
                                 worker.objects[i].targetX = worker.objects[i].workobject.x;//+worker.objects[i].workobject.dimx/2;
-                                worker.objects[i].targetY = worker.objects[i].workobject.y;//+worker.objects[i].workobject.dimy/2;
+                                worker.objects[i].targetY = worker.objects[i].workobject.y+worker.objects[i].workobject.dimy/2;
                                 worker.objects[i].targetObject=worker.objects[i].workobject;
                             }
                             
@@ -1165,7 +1161,7 @@
                             if (game.collideswithanoterobject(worker.objects[i],worker.objects[i].deliveryTarget)) {
                                 // Levererat resurser!
                                 worker.objects[i].returning = false;
-                                worker.objects[i].deliveryTarget = null;
+                               // worker.objects[i].deliveryTarget = null;
                                 worker.objects[i].counter = 0;
                                 worker.objects[i].animation = 0; // idle
                                 
@@ -1215,7 +1211,7 @@
                             }
                             else{
                                 rworker.objects[i].targetX = rworker.objects[i].workobject.x;//+rworker.objects[i].workobject.dimx/2;
-                                rworker.objects[i].targetY = rworker.objects[i].workobject.y;//+rworker.objects[i].workobject.dimy/2;
+                                rworker.objects[i].targetY = rworker.objects[i].workobject.y+rworker.objects[i].workobject.dimy/2;
                                 rworker.objects[i].targetObject=rworker.objects[i].workobject;
                             }
                             
@@ -2036,27 +2032,6 @@ function freeAtFast(x, y, w, h, inflate = 6) {
   }
   return true;
 }
-
-// LOS-block? (linje mitt→mitt mot SOLID AABB)
-function losBlockedFast(A, B, exclude = null, inflate = 4){
-  for (const tn of SOLID_TYPES) {
-    const t = game.getobjecttype(tn); if (!t) continue;
-    for (const o of t.objects) {
-      if (o.ghost) continue;
-      if (o === exclude) continue; // <-- ignorera målet
-      const rx1 = o.x - inflate, ry1 = o.y - inflate;
-      const rx2 = o.x + o.dimx + inflate, ry2 = o.y + o.dimy + inflate;
-      if (segmentAABB(A.x, A.y, B.x, B.y, rx1, ry1, rx2, ry2)) return true;
-    }
-  }
-  return false;
-}
-
-function C(o){ return {x:o.x + o.dimx/2, y:o.y + o.dimy/2}; }
-function alive(o){ return !!o && game.getAllObjects().includes(o); }
-
-
-
 function showEndScreen(result, statsText="") {
   const box = document.getElementById("end-screen");
   const title = document.getElementById("end-title");
@@ -2382,8 +2357,29 @@ function markArcherJustShot(u){
 
 
 
-
+let CELL=24;
+const solids = ["tree","goldmine","base","bar","rbase","rbar","rworker"];
 //pathfinding-----------------------------------------------------------------------------
+// LOS-block? (linje mitt→mitt mot SOLID AABB)
+function losBlockedFast(A, B, exclude = null, inflate = 4){
+  for (const tn of SOLID_TYPES) {
+    const t = game.getobjecttype(tn); if (!t) continue;
+    for (const o of t.objects) {
+      if (o.ghost) continue;
+      if (o === exclude) continue; // <-- ignorera målet
+      const rx1 = o.x - inflate, ry1 = o.y - inflate;
+      const rx2 = o.x + o.dimx + inflate, ry2 = o.y + o.dimy + inflate;
+      if (segmentAABB(A.x, A.y, B.x, B.y, rx1, ry1, rx2, ry2)) return true;
+    }
+  }
+  return false;
+}
+
+function C(o){ return {x:o.x + o.dimx/2, y:o.y + o.dimy/2}; }
+function alive(o){ return !!o && game.getAllObjects().includes(o); }
+
+
+
  function aabbOverlap(ax1,ay1,ax2,ay2,bx1,by1,bx2,by2){
     return ax1<bx2 && ax2>bx1 && ay1<by2 && ay2>by1;
   }
@@ -2829,7 +2825,7 @@ function updateRedGuardAI() {
   function moveToObject(u, t) {
     if (!u || !t || !alive(t)) return;
     if (!u.ai) u.ai = { path:null, pi:0, repath:0, lx:u.x, ly:u.y, stuck:0, stuckCD:0, _bucket:null, off:null, offTTL:0, _lastPi:-1 };
-
+    u.targetObject = t;
     const U = C(u), T = C(t);
     const {w,h}=dims(u);
     const INF = Math.max(w,h)/2 + EXTRA_CLEAR + 6;
