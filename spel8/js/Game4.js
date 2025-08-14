@@ -1435,7 +1435,7 @@ class Objectx {
         this.pretargetX=null;
         this.pretargetY=null;
         
-        this.speed = 1;
+        this.speed = 1.25;
         this.selectable = false;
         this.direction = "up";
         this.canMove = true;

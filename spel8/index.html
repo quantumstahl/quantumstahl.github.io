@@ -420,7 +420,7 @@
             // --- Archer-nerf ---
             const ARCHER_MAX_HP       = 55;    // sänk max-hp (gäller archer + rarcher)
             const ARCHER_SLOW_MS      = 1400;   // så länge går de långsammare efter ett skott
-            const ARCHER_SLOW_MULT    = 0.45;  // rörelsehastighet under “skjuter”
+            const ARCHER_SLOW_MULT    = 0.55;  // rörelsehastighet under “skjuter”
             function nowMs(){ return (typeof performance!=="undefined" ? performance.now() : Date.now()); }
 
             const POP_COST = {
@@ -1097,7 +1097,7 @@
 
                     }
                     for(let i=0;i<rarcher.objects.length;i++){
-
+                        rarcher.aiNoLocalAvoid = true;
                         if(rarcher.objects[i].selectable==false){
                             clampArcherHP(rarcher.objects[i]);       // sänk start-HP om den var högre
                         }
@@ -2118,9 +2118,24 @@ function handleCombat(attackerType, enemyTypes, damage) {
 // Vilka räknas som fasta hinder
 const SOLID_TYPES = ["tree","goldmine","base","bar","rbase","rbar","house","rhouse"];
 
+function solidObjects(exclude = null){
+  const out = [];
+  for (const tn of SOLID_TYPES){
+    const t = game.getobjecttype(tn);
+    if (!t) continue;
+    for (const o of (t.objects || [])){
+      if (o.ghost) continue;
+      if (exclude && o === exclude) continue;
+      out.push(o);
+    }
+  }
+  return out;
+}
+
+
 // Axis-aligned bbox-overlap
-function aabbOverlap(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2) {
-  return ax1 < bx2 && ax2 > bx1 && ay1 < by2 && ay2 > by1;
+function aabbOverlap(ax1,ay1,ax2,ay2,bx1,by1,bx2,by2){
+  return ax1<bx2 && ax2>bx1 && ay1<by2 && ay2>by1;
 }
 
 // Linje-segment mot AABB (snabb och robust: Liang–Barsky)
@@ -2223,6 +2238,11 @@ if (enemyBasesAlive===0 && enemyBarrsAlive===0 && enemyUnitsAlive===0) {
 // FÖRLUST
 if (playerBasesAlive===0 && playerBarrsAlive===0 && playerUnitsAlive===0) {
   gameOver = true;
+  
+  let elapsedMs = Date.now() - gameStartTime;
+  let seconds = Math.floor(elapsedMs / 1000);
+  let minutes = Math.floor(seconds / 60);
+  seconds = seconds % 60;
   showEndScreen(
     "lose",
     `Fienden vann på ${minutes} minuter och ${seconds} sekunder.`
@@ -2483,7 +2503,7 @@ function clampArcherHP(u){
 // sätt basfart en gång och applicera slow när aktivt
 function applyArcherSpeed(u){
   const slow = (u._slowUntilMs != null) && (nowMs() < u._slowUntilMs);
-  u.speed =(slow ? ARCHER_SLOW_MULT : 1);
+  u.speed =(slow ? ARCHER_SLOW_MULT : 1.25);
 }
 
 // kalla denna precis när en pil skjuts
@@ -2496,6 +2516,7 @@ function markArcherJustShot(u){
 
 let CELL=24;
 const solids = ["tree","goldmine","base","bar","rbase","rbar","rworker"];
+const EXTRA_CLEAR = 28;
 //pathfinding-----------------------------------------------------------------------------
 // LOS-block? (linje mitt→mitt mot SOLID AABB)
 function losBlockedFast(A, B, exclude = null, inflate = 4){
@@ -2520,49 +2541,47 @@ function alive(o){ return !!o && game.getAllObjects().includes(o); }
  function aabbOverlap(ax1,ay1,ax2,ay2,bx1,by1,bx2,by2){
     return ax1<bx2 && ax2>bx1 && ay1<by2 && ay2>by1;
   }
-function freeAtRect(x,y,w,h,inflate=0, excludeObject=null){ // excludeObject parameter is crucial
+function freeAtRect(x,y,w,h, inflate=0, excludeObject=null){
   const ax1=x-inflate, ay1=y-inflate, ax2=x+w+inflate, ay2=y+h+inflate;
-  for(const o of solids){
-    if(o === excludeObject) continue; // Skip the object that is the target
+  for (const o of solidObjects(excludeObject)){
     const bx1=o.x, by1=o.y, bx2=o.x+o.dimx, by2=o.y+o.dimy;
-    if(aabbOverlap(ax1,ay1,ax2,ay2,bx1,by1,bx2,by2)) return false;
+    if (aabbOverlap(ax1,ay1,ax2,ay2,bx1,by1,bx2,by2)) return false;
   }
   return true;
 }
-  function segAABB(x0,y0,x1,y1, rx1,ry1,rx2,ry2){
-    const dx=x1-x0, dy=y1-y0;
-    let t0=0,t1=1; const p=[-dx,dx,-dy,dy], q=[x0-rx1,rx2-x0,y0-ry1,ry2-y0];
-    for(let i=0;i<4;i++){
-      if(p[i]===0){ if(q[i]<0) return false; }
-      else{ const r=q[i]/p[i];
-        if(p[i]<0){ if(r>t1) return false; if(r>t0) t0=r; }
-        else      { if(r<t0) return false; if(r<t1) t1=r; }
-      }
+ function segAABB(x0,y0,x1,y1, rx1,ry1,rx2,ry2){
+  const dx=x1-x0, dy=y1-y0;
+  let t0=0,t1=1;
+  const p=[-dx,dx,-dy,dy], q=[x0-rx1,rx2-x0,y0-ry1,ry2-y0];
+  for(let i=0;i<4;i++){
+    if(p[i]===0){ if(q[i]<0) return false; }
+    else{
+      const r=q[i]/p[i];
+      if(p[i]<0){ if(r>t1) return false; if(r>t0) t0=r; }
+      else      { if(r<t0) return false; if(r<t1) t1=r; }
     }
-    return true;
   }
-  function losBlocked(A, B, inflate = CLEARANCE) {
-  for (const o of solids) {
-    const rx1 = o.x - inflate, ry1 = o.y - inflate;
-    const rx2 = o.x + o.dimx + inflate, ry2 = o.y + o.dimy + inflate;
-    if (segAABB(A.x, A.y, B.x, B.y, rx1, ry1, rx2, ry2)) return true;
+  return true;
+}
+function losBlocked(A, B, inflate=0, excludeObject=null){
+  for (const o of solidObjects(excludeObject)){
+    const rx1=o.x - inflate, ry1=o.y - inflate;
+    const rx2=o.x + o.dimx + inflate, ry2=o.y + o.dimy + inflate;
+    if (segAABB(A.x,A.y, B.x,B.y, rx1,ry1,rx2,ry2)) return true;
   }
   return false;
 }
 
   // dynamiskt grid (runt G↔T)
-function buildGrid(minx, miny, maxx, maxy, targetObject = null) { // Removed inflate parameter
+function buildGrid(minx, miny, maxx, maxy, targetObject=null){
   const w = Math.max(1, Math.ceil((maxx-minx)/CELL));
   const h = Math.max(1, Math.ceil((maxy-miny)/CELL));
   const walk = new Array(w*h).fill(true);
-
-  for (let gy=0; gy<h; gy++) {
-    for (let gx=0; gx<w; gx++) {
-      const cx = minx + gx*CELL + CELL/2;
-      const cy = miny + gy*CELL + CELL/2;
-      const x = cx - CELL/2, y = cy - CELL/2;
-      // Pass 0 for inflate here, to keep the old grid blocking behavior
-      if (!freeAtRect(x, y, CELL, CELL, 0, targetObject)) { // <-- Changed inflate to 0
+  for (let gy=0; gy<h; gy++){
+    for (let gx=0; gx<w; gx++){
+      const x = minx + gx*CELL;
+      const y = miny + gy*CELL;
+      if (!freeAtRect(x, y, CELL, CELL, EXTRA_CLEAR, targetObject)) {
         walk[gy*w+gx] = false;
       }
     }
@@ -2639,7 +2658,7 @@ function buildGrid(minx, miny, maxx, maxy, targetObject = null) { // Removed inf
   }
 
   // Path smoothing: ta bort överflödiga punkter med LOS
-  function smoothPath(grid, path, inflate) {
+function smoothPath(grid, path, inflate, excludeObj=null){
   if (!path || path.length <= 2) return path;
   const out = [path[0]];
   let i = 0;
@@ -2648,7 +2667,7 @@ function buildGrid(minx, miny, maxx, maxy, targetObject = null) { // Removed inf
     const Pi = gridToWorld(grid, path[i].gx, path[i].gy);
     for (; j > i + 1; j--) {
       const Pj = gridToWorld(grid, path[j].gx, path[j].gy);
-      if (!losBlocked(Pi, Pj, inflate)) break; // <-- använda inflate
+      if (!losBlocked(Pi, Pj, inflate, excludeObj)) break;
     }
     out.push(path[j]);
     i = j;
@@ -2665,7 +2684,7 @@ function updateRedGuardAI() {
   const REPATH_FR  = 36;               // längre livslängd på path → färre A*
   const STUCK_FR   = 24;
   const STUCK_COOLDOWN = 28;
-  const EXTRA_CLEAR = 28;
+  
   const RALLY_RECALC_MS = 2500;
 
   // Grupp/klunga
@@ -2729,19 +2748,7 @@ function updateRedGuardAI() {
     return {t, cx, cy, r, r2:r*r, minx:t.x, miny:t.y, maxx:t.x+t.dimx, maxy:t.y+t.dimy};
   }) : [];
 
-  function segAABB(x0,y0,x1,y1, rx1,ry1,rx2,ry2){
-    const dx=x1-x0, dy=y1-y0; let t0=0,t1=1;
-    const p=[-dx,dx,-dy,dy], q=[x0-rx1,rx2-x0,y0-ry1,ry2-y0];
-    for(let i=0;i<4;i++){
-      if(p[i]===0){ if(q[i]<0) return false; }
-      else{
-        const r=q[i]/p[i];
-        if(p[i]<0){ if(r>t1) return false; if(r>t0) t0=r; }
-        else      { if(r<t0) return false; if(r<t1) t1=r; }
-      }
-    }
-    return true;
-  }
+
 
   function treesBlock(A, B, inflate=16){
     if (!HAS_TREES) return false;
@@ -2833,20 +2840,20 @@ function updateRedGuardAI() {
 
   // ===== Robust path =====
   function tryPath(fromPt, toPt, targetObj=null){
-    for (const s of PAD_SCALES){
-      const minx=Math.min(fromPt.x,toPt.x)-PAD*s, miny=Math.min(fromPt.y,toPt.y)-PAD*s;
-      const maxx=Math.max(fromPt.x,toPt.x)+PAD*s, maxy=Math.max(fromPt.y,toPt.y)+PAD*s;
-      const grid = buildGrid(minx,miny,maxx,maxy,targetObj);
-      bakeTreesIntoGrid(grid, EXTRA_CLEAR+6);
-      const Sg = worldToGrid(grid, fromPt), Gg = worldToGrid(grid, toPt);
-      const raw = astar(grid, Sg, Gg);
-      if (raw) {
-        const sm = smoothPath(grid, raw, EXTRA_CLEAR+6);
-        return sm.map(p => gridToWorld(grid, p.gx, p.gy));
-      }
+  for (const s of PAD_SCALES){
+    const minx=Math.min(fromPt.x,toPt.x)-PAD*s, miny=Math.min(fromPt.y,toPt.y)-PAD*s;
+    const maxx=Math.max(fromPt.x,toPt.x)+PAD*s, maxy=Math.max(fromPt.y,toPt.y)+PAD*s;
+    const grid = buildGrid(minx,miny,maxx,maxy,targetObj);
+    bakeTreesIntoGrid(grid, EXTRA_CLEAR+6);
+    const Sg = worldToGrid(grid, fromPt), Gg = worldToGrid(grid, toPt);
+    const raw = astar(grid, Sg, Gg);
+    if (raw) {
+      const sm = smoothPath(grid, raw, EXTRA_CLEAR+6, targetObj);
+      return sm.map(p => gridToWorld(grid, p.gx, p.gy));
     }
-    return null;
   }
+  return null;
+}
 
   // ===== formation/klunga-hjälpare =====
   function vAdd(a,b){ return {x:a.x+b.x, y:a.y+b.y}; }
