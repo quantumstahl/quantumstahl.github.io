@@ -9,13 +9,37 @@
         
         <script src="js/Game4.js"></script>
         
-        
+        <!-- === Highscore overlay UI (kan läggas precis innan </body>) === -->
+<style>
+  #highscoreOverlay {
+    position: fixed; inset: 0;
+    display: none; justify-content: center; align-items: center; flex-direction: column;
+    background: rgba(0,0,0,0.8); color: #fff; z-index: 9999; font-family: system-ui, sans-serif;
+  }
+  #highscoreBox { background:#222; padding:20px; border-radius:12px; width:min(90%, 360px); }
+  #highscoreBox h2 { margin:0 0 10px; text-align:center; }
+  #highscoreList { margin-top:10px; display:grid; gap:6px; }
+  #highscoreList .row { display:flex; justify-content:space-between; font-variant-numeric: tabular-nums; }
+  #highscoreClose { margin-top:14px; width:100%; padding:10px; border:0; border-radius:8px; background:#ff4757; color:#fff; cursor:pointer; }
+</style>
+
+
+
+<!-- === Firebase (compat) – INTE module === -->
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
         
         
     </head>
     <body>
         
-        
+        <div id="highscoreOverlay">
+  <div id="highscoreBox">
+    <h2>🏆 Highscores 🏆</h2>
+    <div id="highscoreList">Laddar…</div>
+    <button id="highscoreClose" onclick="hideHighscores()">Stäng</button>
+  </div>
+</div>
         <div id="build-ui" style="
   position: fixed;
   bottom: 0;
@@ -176,8 +200,99 @@
   
         
         <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
-        
+        <button onclick="showHighscores()" 
+        style="position:absolute; top:200px; left:10px; z-index:10;">
+  Visa Highscores
+</button>
         <script>
+
+// --- Din Firebase-konfiguration (byt till din egen från Firebase Console) ---
+  const firebaseConfig = {
+    apiKey: "AIzaSyBYYt70RjAeGaWWoVAWg2Avz0ePieN3Yzg",
+    authDomain: "rts-highscores.firebaseapp.com",
+    projectId: "rts-highscores",
+    storageBucket: "rts-highscores.firebasestorage.app",
+    messagingSenderId: "122151559134",
+    appId: "1:122151559134:web:1f35afba47b5729390c74f"
+  };
+
+  // Initiera
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  // Formattera tid som m:ss.hh (hundradelar)
+  function formatTime(t) {
+    // t = sekunder (number). Om du skickar ms, konvertera innan du anropar playerWon.
+    let seconds = Number(t) || 0;
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    const hundredths = Math.floor((seconds - Math.floor(seconds)) * 100);
+    return `${m}:${String(s).padStart(2,"0")}.${String(hundredths).padStart(2,"0")}`;
+  }
+
+  // Spara highscore (name: str, time: number i sekunder)
+  function saveHighscore(name, time) {
+    return db.collection("highscores").add({
+      name: String(name).slice(0, 24), // liten sanitering
+      time: Number(time),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+
+  // Hämta topp 10 (sorterat på tid, sen namn)
+  function getHighscores() {
+    return db.collection("highscores")
+      .orderBy("time", "asc")
+      .orderBy("name", "asc")
+      .limit(10)
+      .get()
+      .then(snap => snap.docs.map(d => d.data()));
+  }
+
+  // UI: visa/dölj overlay
+  function showHighscores() {
+    const listDiv = document.getElementById("highscoreList");
+    listDiv.textContent = "Laddar…";
+    getHighscores().then(scores => {
+      if (!scores.length) {
+        listDiv.textContent = "Inga highscores ännu.";
+        return;
+      }
+      listDiv.innerHTML = scores.map((s, i) => `
+        <div class="row">
+          <span>${i+1}. ${s.name}</span>
+          <span>${formatTime(s.time)}</span>
+        </div>
+      `).join("");
+    }).catch(err => {
+      console.error(err);
+      listDiv.textContent = "Kunde inte hämta highscores.";
+    });
+    document.getElementById("highscoreOverlay").style.display = "flex";
+  }
+  function hideHighscores() {
+    document.getElementById("highscoreOverlay").style.display = "none";
+  }
+
+  // === Anropa denna när spelaren vinner ===
+  // Ex: playerWon(elapsedMs/1000)
+  function playerWon(timeInSeconds) {
+    const name = prompt("Grattis! Du vann! Skriv in ditt namn:");
+    if (!name || !name.trim()) return; // hoppa om tomt
+    saveHighscore(name.trim(), Number(timeInSeconds))
+      .then(() => showHighscores())
+      .catch(err => {
+        console.error("Kunde inte spara highscore:", err);
+        alert("Kunde inte spara highscore just nu.");
+      });
+  }
+
+  // Exponera globalt (andra script kan kalla dessa)
+  window.playerWon = playerWon;
+  window.showHighscores = showHighscores;
+  window.hideHighscores = hideHighscores;
+
+
 
             const canvas = document.getElementById("myCanvas");
             const ctx = canvas.getContext("2d");
@@ -290,6 +405,7 @@
             let buildArmed = false;
             let popUsed = 0, popCap = 0;
             let rpopUsed = 0, rpopCap = 0;
+            let gameStartTime = Date.now();
             
             // --- Archer-nerf ---
             const ARCHER_MAX_HP       = 55;    // sänk max-hp (gäller archer + rarcher)
@@ -2076,10 +2192,21 @@ function checkWinLose() {
 // VINST
 if (enemyBasesAlive===0 && enemyBarrsAlive===0 && enemyUnitsAlive===0) {
   gameOver = true;
-  showEndScreen(
-    "win",
-    `Dina resurser – Guld: ${gold} · Trä: ${wood}\nFiendens resurser – Guld: ${rgold} · Trä: ${rwood}`
-  );
+  
+  let elapsedMs = Date.now() - gameStartTime;
+  let seconds = Math.floor(elapsedMs / 1000);
+  let minutes = Math.floor(seconds / 60);
+  seconds = seconds % 60;
+  
+  
+  
+  //showEndScreen(
+  //  "win",
+  //  `Du vann på ${minutes} minuter och ${seconds} sekunder.`
+  //);
+  playerWon(Math.floor(elapsedMs / 1000));
+  
+  
   return;
 }
 
@@ -2088,7 +2215,7 @@ if (playerBasesAlive===0 && playerBarrsAlive===0 && playerUnitsAlive===0) {
   gameOver = true;
   showEndScreen(
     "lose",
-    `Fiendens resurser – Guld: ${rgold} · Trä: ${rwood}\nDina resurser – Guld: ${gold} · Trä: ${wood}`
+    `Fienden vann på ${minutes} minuter och ${seconds} sekunder.`
   );
   return;
 }
@@ -2998,5 +3125,14 @@ function updateRedGuardAI() {
 
 
         </script>
+        
+        
+        
+        
+        
+        
+        
+        
+        
     </body>
 </html>

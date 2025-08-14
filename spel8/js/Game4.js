@@ -490,7 +490,7 @@ class Game4 {
                         i = i + 1;
                     }
                     else if (lines[i] == "F*?") {
-                        game.getlastObjecttype().objects.push(new Object(Number(lines[i + 1]), Number(lines[i + 2]), Number(lines[i + 3]), Number(lines[i + 4]), Number(lines[i + 5]), JSON.parse(lines[i + 6])));
+                        game.getlastObjecttype().objects.push(new Objectx(Number(lines[i + 1]), Number(lines[i + 2]), Number(lines[i + 3]), Number(lines[i + 4]), Number(lines[i + 5]), JSON.parse(lines[i + 6])));
                         i = i + 6;
                         game.getlastobject().name=game.getlastObjecttype().name;
                     }
@@ -884,7 +884,7 @@ class Game4 {
         return null;
     }
     addobject(objtype, x, y, dimx, dimy, rot, fliped) {
-        objtype.objects.push(new Object(x, y, dimx, dimy, rot, fliped));
+        objtype.objects.push(new Objectx(x, y, dimx, dimy, rot, fliped));
         objtype.objects[objtype.objects.length-1].name=objtype.name;
         return objtype.objects[objtype.objects.length-1];
     }
@@ -1397,7 +1397,7 @@ class Sprites {
     }
 }
 
-class Object {
+class Objectx {
     constructor(x, y, dimx, dimy, rot, fliped) {
         this.name=name;
         this.x = x;
