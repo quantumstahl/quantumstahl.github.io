@@ -222,13 +222,23 @@
 
   // Formattera tid som m:ss.hh (hundradelar)
   function formatTime(t) {
-    // t = sekunder (number). Om du skickar ms, konvertera innan du anropar playerWon.
-    let seconds = Number(t) || 0;
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    const hundredths = Math.floor((seconds - Math.floor(seconds)) * 100);
-    return `${m}:${String(s).padStart(2,"0")}.${String(hundredths).padStart(2,"0")}`;
+  let s = Number(t) || 0;
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  const hh = Math.floor((s - Math.floor(s)) * 100);
+
+  if (m > 0) {
+    // Har minuter
+    return hh > 0
+      ? `${m}:${String(sec).padStart(2, "0")}.${String(hh).padStart(2, "0")}`
+      : `${m}:${String(sec).padStart(2, "0")}`;
+  } else {
+    // Inga minuter
+    return hh > 0
+      ? `${sec}.${String(hh).padStart(2, "0")}`
+      : `${sec}`;
   }
+}
 
   // Spara highscore (name: str, time: number i sekunder)
   function saveHighscore(name, time) {
