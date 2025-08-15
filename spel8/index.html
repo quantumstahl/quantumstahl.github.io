@@ -378,7 +378,31 @@ async function loadTopHighscoreHUD(limit = 5) {
     console.error("Kunde inte ladda highscores till HUD:", e);
   }
 }
+const gameClock = (() => {
+  let accMs = 0;             // ackumulerad aktiv tid i ms
+  let running = true;        // körs nu?
+  let last = performance.now();
 
+  function pause() {
+    if (!running) return;
+    accMs += performance.now() - last;
+    running = false;
+  }
+  function resume() {
+    if (running) return;
+    last = performance.now();
+    running = true;
+  }
+  function reset() {
+    accMs = 0;
+    last = performance.now();
+    running = true;
+  }
+  function seconds() {
+    return (accMs + (running ? (performance.now() - last) : 0)) / 1000;
+  }
+  return { pause, resume, reset, seconds, get running(){ return running; } };
+})();
             const canvas = document.getElementById("myCanvas");
             const ctx = canvas.getContext("2d");
             document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
@@ -434,10 +458,11 @@ async function loadTopHighscoreHUD(limit = 5) {
             document.addEventListener("visibilitychange", event => {
                 if (document.visibilityState === "visible") {
                         audio.pause();audio.src = 'sounds/war3.mp3';context.resume();
-                        
+                        gameClock.resume();
                 }
                 else {
                    audio.pause(); audio.src = "";context.suspend();
+                   gameClock.pause();
               }
           });
 
@@ -860,7 +885,7 @@ async function loadTopHighscoreHUD(limit = 5) {
                  
                 // HUD: uppdatera speltid i sekunder → formatTime
                 // HUD: speltid
-                const elapsedSec = (Date.now() - gameStartTime) / 1000;
+                const elapsedSec = gameClock.seconds();
                 const hudTimeEl = document.getElementById("hudTime");
                 if (hudTimeEl) hudTimeEl.textContent = formatTime(elapsedSec);
                  
