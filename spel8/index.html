@@ -568,11 +568,11 @@ const gameClock = (() => {
             
             
             document.getElementById("build-base-btn").innerHTML = "Bygg bas<br>500 guld / 500 trä";
-            document.getElementById("build-barracks-btn").innerHTML = "Bygg barrack<br>250 guld / 250 trä";
-            document.getElementById("build-house-btn").innerHTML = "Bygg hus<br>100 trä";
+            document.getElementById("build-barracks-btn").innerHTML = "Bygg barrack<br>150 guld / 150 trä";
+            document.getElementById("build-house-btn").innerHTML = "Bygg hus<br>50 trä";
             document.getElementById("train-worker-btn").innerHTML = "Träna arbetare<br>50 guld";
-            document.getElementById("train-warrior-btn").innerHTML = "Träna warrior<br>150 guld";
-            document.getElementById("train-archer-btn").innerHTML = "Träna archer<br>150 guld / 150 trä";
+            document.getElementById("train-warrior-btn").innerHTML = "Träna warrior<br>75 guld";
+            document.getElementById("train-archer-btn").innerHTML = "Träna archer<br>75 guld / 75 trä";
             document.getElementById("build-base-btn").addEventListener("click", function() {
                 if(ghostBuilding)ghostBuilding.animation=2;
                 if(gold>=500&&wood>=500){gold-=500;wood-=500;}    
@@ -594,7 +594,7 @@ const gameClock = (() => {
             });
             document.getElementById("build-barracks-btn").addEventListener("click", function() {
                 if(ghostBuilding)ghostBuilding.animation=2;
-                if(gold>=250&&wood>=250){gold-=250;wood-=250;}    
+                if(gold>=150&&wood>=150){gold-=150;wood-=150;}    
                 else return;    
                 buildMode = true;
                 buildType = "bar";
@@ -620,7 +620,7 @@ const gameClock = (() => {
                     if (!haveReadyBase) return;
 
                     // Kostnad
-                    if (wood >= 100) {wood -= 100; }
+                    if (wood >= 50) {wood -= 50; }
                     else return;
 
                     buildMode = true;
@@ -656,8 +656,8 @@ const gameClock = (() => {
                 const bar = game.getAllObjectsoftype(game.getobjecttype("bar")).find(b => b.selected);
                 if (!bar) return;
                 if (!canAddUnitToPopQueue("guard")) return;
-                if (gold >= 150) {
-                    gold -= 150;
+                if (gold >= 75) {
+                    gold -= 75;
 
                     bar.buildQueue = bar.buildQueue || [];
                     bar.buildQueue.push("guard");
@@ -669,8 +669,8 @@ const gameClock = (() => {
                 const bar = game.getAllObjectsoftype(game.getobjecttype("bar")).find(b => b.selected);
                 if (!bar) return;
                 if (!canAddUnitToPopQueue("archer")) return;
-                if (gold >= 150) {
-                  gold -= 150;
+                if (gold >= 75 && wood>=75) {
+                  gold -= 75;wood -= 75;
                   bar.buildQueue = bar.buildQueue || [];
                   bar.buildQueue.push("archer");
                 }
@@ -920,6 +920,7 @@ const gameClock = (() => {
                 
                 
                 game.updateanimation(ctx);
+                
                 drawHealthBars();
 		gras= game.getobjecttype("ground"); 				
                 guard =game.getobjecttype("guard"); 
@@ -940,6 +941,7 @@ const gameClock = (() => {
                 
                 //projectiles
                 arrow =game.getobjecttype("arrow"); 
+                
                 
                 if (buildMode && ghostBuilding&& lastTouchPos === null) {
                     let zoomFactor = 1 + (1 * game.maps[game.currentmap].zoom / 100);
@@ -1033,16 +1035,16 @@ const gameClock = (() => {
                     
                     const canAffordBase = gold >= 500 && wood >= 500;
                     const canAffordWorker = gold >= 50 && wood >= 0;
-                    const canAffordWarrior = gold >= 150 && wood >= 0;
+                    const canAffordWarrior = gold >= 75 && wood >= 0;
                     
-                    const canAffordArcher  = gold >= 150 && wood >= 0;
+                    const canAffordArcher  = gold >= 75 && wood >= 75;
                     const hasPopForArcher  = canAddUnitToPopQueue("archer");
                     
                     const hasPopForWorker  = canAddUnitToPopQueue("worker");
                     const hasPopForWarrior = canAddUnitToPopQueue("guard");
                     
-                    const canAffordBar = gold >= 250 && wood >= 250;
-                    const canAffordHouse = wood >= 100;
+                    const canAffordBar = gold >= 150 && wood >= 150;
+                    const canAffordHouse = wood >= 50;
                     
                     
                     function paintBtn(id, ok){
@@ -1161,10 +1163,15 @@ const gameClock = (() => {
                     
                     
                     for(let i=0;i<goldmine.objects.length;i++){
-                    
+                        
+                        if(goldmine.objects[i].selectable==false){
+                            goldmine.objects[i].maxhealth=1500;
+                            goldmine.objects[i].health=1500;
+                            
+                        }
+                        
                         goldmine.objects[i].selectable=true;
                         goldmine.objects[i].canMove=false;
-                    
                         if(goldmine.objects[i].mousepressed==true&&anyWorkerSelected){
 
                             for (let w of selectedWorkers) {
@@ -1178,8 +1185,15 @@ const gameClock = (() => {
 
                     }
                     for(let i=0;i<tree.objects.length;i++){
-                    
-                        tree.objects[i].selectable=true;
+                        
+                        if(tree.objects[i].canMove==true){
+                            tree.objects[i].maxhealth=100;
+                            tree.objects[i].health=100;
+                            tree.objects[i].selectable=true;
+                            
+                        }
+                        
+                        
                         tree.objects[i].canMove=false;
                     
                         if(tree.objects[i].mousepressed==true&&anyWorkerSelected){
@@ -1290,6 +1304,40 @@ const gameClock = (() => {
                                 
                             }
                         }
+                        
+                        
+                        
+                        // Om målresursen blev uttömd: släpp och hitta ny av samma typ
+if (worker.objects[i].workobject && isDepleted(worker.objects[i].workobject)&&worker.objects[i].returning==false) {
+  const cur = worker.objects[i].workobject;
+  const wasType = cur.name;
+  cur.occupied = false;
+  worker.objects[i].workobject = null;
+  worker.objects[i].targetObject = null;
+  worker.objects[i].counter = 0;
+
+  const pool = game.getAllObjectsoftype(game.getobjecttype(wasType))
+    .filter(n => !n.occupied && !isDepleted(n));
+  if (pool.length) {
+    let best = null, bestD = Infinity;
+    for (const n of pool) {
+      const d = game.getDistance(worker.objects[i].x, worker.objects[i].y, n.x, n.y);
+      if (d < bestD) { bestD = d; best = n; }
+    }
+    if (best) {
+      best.occupied = (wasType === "tree");
+      worker.objects[i].workobject = best;
+      worker.objects[i].targetX = best.x + (best.dimx||0)/2;
+      worker.objects[i].targetY = best.y + (best.dimy||0)/2;
+    }
+  }
+}
+                        
+                        
+                        
+                        
+                        
+                        
                         if(worker.objects[i].workobject!=null&&worker.objects[i].returning==false){
                             
                             if(worker.objects[i].workobject.name=="goldmine"){
@@ -1323,7 +1371,14 @@ const gameClock = (() => {
                                 }
                                 if (worker.objects[i].counter > 1000) {
                                     // Hitta närmsta base
-                           
+                                    
+                                    const node = worker.objects[i].workobject;
+                                    const available = Math.max(0, (node.health ?? node.maxhealth ?? 0));
+                                    const take = Math.min(10, available);
+                                    if (node.health != null) node.health -= take;
+                                    if (node.health != null && node.health <= 0) markDepleted(node);
+                                    
+                                    
                                     let bases = game.getAllObjectsoftype(game.getobjecttype("base")).filter(b => b.buildProgress == null);
                                     let closest = null;
                                     let closestDist = Infinity;
@@ -1360,7 +1415,14 @@ const gameClock = (() => {
                                 
                             if (worker.objects[i].counter > 200) {
                                 // Hitta närmsta base
-                         
+                                
+                                const node = worker.objects[i].workobject;
+                                const available = Math.max(0, (node.health ?? node.maxhealth ?? 0));
+                                const take = Math.min(10, available);
+                                if (node.health != null) node.health -= take;
+                                if (node.health != null && node.health <= 0) markDepleted(node);
+                                
+                                
                                 let bases = game.getAllObjectsoftype(game.getobjecttype("base")).filter(b => b.buildProgress == null);
                                 let closest = null;
                                 let closestDist = Infinity;
@@ -1445,7 +1507,30 @@ const gameClock = (() => {
                         
                         
                         
-                        
+                        if (rworker.objects[i].workobject && isDepleted(rworker.objects[i].workobject)&&rworker.objects[i].returning==false) {
+  const cur = rworker.objects[i].workobject;
+  const wasType = cur.name;
+  cur.occupied = false;
+  rworker.objects[i].workobject = null;
+  rworker.objects[i].targetObject = null;
+  rworker.objects[i].counter = 0;
+
+  const pool = game.getAllObjectsoftype(game.getobjecttype(wasType))
+    .filter(n => !n.occupied && !isDepleted(n));
+  if (pool.length) {
+    let best=null, bestD=Infinity;
+    for (const n of pool) {
+      const d = game.getDistance(rworker.objects[i].x, rworker.objects[i].y, n.x, n.y);
+      if (d < bestD) { bestD = d; best = n; }
+    }
+    if (best) {
+      best.occupied = (wasType === "tree");
+      rworker.objects[i].workobject = best;
+      rworker.objects[i].targetX = best.x + (best.dimx||0)/2;
+      rworker.objects[i].targetY = best.y + (best.dimy||0)/2;
+    }
+  }
+}
                        
                                 
 
@@ -1483,7 +1568,15 @@ const gameClock = (() => {
                                 }
                                 if (rworker.objects[i].counter > 1000) {
                                     // Hitta närmsta base
-                           
+                                    
+                                    const node = rworker.objects[i].workobject;
+                                    const available = Math.max(0, (node.health ?? node.maxhealth ?? 0));
+                                    const take = Math.min(10, available);
+                                    if (node.health != null) node.health -= take;
+                                    if (node.health != null && node.health <= 0) markDepleted(node);
+                                    
+                                    
+                                    
                                     let bases = game.getAllObjectsoftype(game.getobjecttype("rbase"));
                                     let closest = null;
                                     let closestDist = Infinity;
@@ -1520,7 +1613,14 @@ const gameClock = (() => {
                                 
                             if (rworker.objects[i].counter > 200) {
                                 // Hitta närmsta base
-                         
+                                
+                                const node = rworker.objects[i].workobject;
+                                    const available = Math.max(0, (node.health ?? node.maxhealth ?? 0));
+                                    const take = Math.min(10, available);
+                                    if (node.health != null) node.health -= take;
+                                    if (node.health != null && node.health <= 0) markDepleted(node);
+                                
+                                
                                 let bases = game.getAllObjectsoftype(game.getobjecttype("rbase"));
                                 let closest = null;
                                 let closestDist = Infinity;
@@ -1643,17 +1743,17 @@ const gameClock = (() => {
    
                 
                 if (ghostBuilding&&ghostBuilding.name=="base") {
-                    gold+=1000;wood+=1000;
+                    gold+=500;wood+=500;
                     game.removeobject(game.getobjecttype("base"),ghostBuilding); // ⬅️ Viktigt!
                     ghostBuilding = null;
                 }
                 else if (ghostBuilding&&ghostBuilding.name=="bar") {
-                    gold+=500;wood+=500;
+                    gold+=150;wood+=150;
                     game.removeobject(game.getobjecttype("bar"),ghostBuilding); // ⬅️ Viktigt!
                     ghostBuilding = null;
                 }
                 else if (ghostBuilding && ghostBuilding.name == "house") {
-                    wood += 100;
+                    wood += 50;
                     game.removeobject(game.getobjecttype("house"), ghostBuilding);
                     ghostBuilding = null;
                 }
@@ -1668,7 +1768,7 @@ const gameClock = (() => {
             }
             function assignWorkersToNearestTreesSmart() {
                     const allTrees = game.getAllObjectsoftype(game.getobjecttype("tree"))
-                        .filter(t => !t.occupied); // inga distansfilter här
+                        .filter(t => !t.occupied&& t.animation==0); // inga distansfilter här
 
                     const assignedTrees = new Set();
 
@@ -1742,7 +1842,7 @@ const gameClock = (() => {
                     }
                     
                 }
-                if (rwood < 250 || rgold < 250 ||(game.getobjecttype("rbar").objects[0])) return;
+                if (rwood < 150 || rgold < 150 ||(game.getobjecttype("rbar").objects[0])) return;
                 
                 const mines = game.getAllObjectsoftype(game.getobjecttype("rbase"));
                 if (mines.length === 0) return;
@@ -1816,8 +1916,8 @@ const gameClock = (() => {
                     w.counter2 = 0;
                     
 
-                    rwood -= 250;
-                    rgold -= 250;
+                    rwood -= 150;
+                    rgold -= 150;
                 }
                 
                 
@@ -1956,8 +2056,8 @@ const gameClock = (() => {
 }
 function updateRedWorkerAI() {
     const rworkers = game.getAllObjectsoftype(game.getobjecttype("rworker"));
-    const trees = game.getAllObjectsoftype(game.getobjecttype("tree")).filter(t => !t.occupied);
-    const mines = game.getAllObjectsoftype(game.getobjecttype("goldmine"));
+    const trees = game.getAllObjectsoftype(game.getobjecttype("tree")).filter(t => !t.occupied&&t.animation==0);
+    const mines = game.getAllObjectsoftype(game.getobjecttype("goldmine")).filter(t => t.animation==0);
 
     let woodWorkers = 0;
     let goldWorkers = 0;
@@ -1987,7 +2087,7 @@ function updateRedWorkerAI() {
         }
         
            let nearbyTrees = trees.filter(t => 
-            game.getDistance(w.x, w.y, t.x, t.y) < 1000
+            game.getDistance(w.x, w.y, t.x, t.y) < 1000 && t.animation==0
         );
 
       
@@ -2071,8 +2171,8 @@ function updateRedTrainingAI() {
              // Varva rguard/rarcher
             window._R_TRAIN_FLIP = !window._R_TRAIN_FLIP;
             var nextUnit = window._R_TRAIN_FLIP ? "rguard" : "rarcher";
-            var goldCost = 150, woodCost = 0;
-            if(nextUnit=="rarcher")woodCost=150;
+            var goldCost = 75, woodCost = 0;
+            if(nextUnit=="rarcher")woodCost=75;
 
             if (rgold >= goldCost && rwood >= woodCost && canAddUnitToPopQueue(nextUnit)) {
                 base.buildQueue.push(nextUnit);
@@ -2507,7 +2607,7 @@ function enemyTryToBuildHouse() {
 
 
 
-  const goldCost = 0, woodCost = 100;
+  const goldCost = 0, woodCost = 50;
   if (rgold < goldCost || rwood < woodCost) return;
 
   const tHouse = game.getobjecttype("rhouse");
@@ -2607,9 +2707,22 @@ function markArcherJustShot(u){
   if (!isArcherUnit(u)) return;
   u._slowUntilMs = nowMs() + ARCHER_SLOW_MS;
 }
+// === Resource helpers ===
+function markDepleted(node){
+  if (!node) return;
+  node.animation = 1;       // visa "uttömd" sprite
+  node.occupied = false;    // släpp platsen
+  if (node.name === "tree"){node.selectable=false; node.ghost = true;} // träd försvinner som hinder
+}
+
+function isDepleted(node){
+  return !node ? true :
+    node.animation === 1 || (node.health != null && node.health <= 0);
+}
 
 
 
+//AI================================================================================================================================
 // ================== KONSTANTER ==================
 let CELL = 24;
 const EXTRA_CLEAR = 28;

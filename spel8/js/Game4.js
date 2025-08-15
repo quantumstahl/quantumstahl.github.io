@@ -1340,7 +1340,7 @@ class Objecttype {
                                 ctx.restore();
                             }
                             
-                            if (this.objects[i].ghost) {
+                            if (this.objects[i].ghost&&this.objects[i].name!="tree") {
                                 ctx.globalAlpha = 0.5;
 
                                 let valid = true;
@@ -1847,7 +1847,7 @@ function drawSelectRing(ctx, o,zoom, camX, camY){
     ctx.beginPath(); ctx.ellipse(cx+camX, cy+camY, o.dimx*0.45, o.dimy*0.35, 0, 0, Math.PI*2);
     ctx.fillStyle="rgba(0,0,0,.9)"; ctx.fill(); ctx.restore();
   }  
-  else if(o.name!="ground"){  
+  else if(o.name!="ground"&&o.selectable){  
     
     
     
