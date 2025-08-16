@@ -2947,6 +2947,7 @@ function steerToGoal(u, goal){
     S.originals = (S.originals||[]).filter(isAlive);
     if (S.originals.length === 0){
       S.state = "gather"; S.rally = null; S.attackTarget = null;
+      S.defendUntil=Date.now();
     }
   }
 
