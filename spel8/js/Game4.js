@@ -802,7 +802,7 @@ if (o.hadcollidedobj && o.hadcollidedobj.length) {
         const sDesired = Math.abs(_dot(want, t));
 
         // liten push-out från väggen så vi börjar utanför
-        const SLOP = 0.10;
+        const SLOP = 1;
         const baseX = o.x + n.x * SLOP;
         const baseY = o.y + n.y * SLOP;
 
