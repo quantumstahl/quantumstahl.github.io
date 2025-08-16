@@ -816,6 +816,8 @@ if (o.hadcollidedobj && o.hadcollidedobj.length) {
         }
         o.x = baseX + t.x * lo;
         o.y = baseY + t.y * lo;
+		o.rakna=0;
+		o.rakna2=0;
         // OBS: vi rör inte o.rakna/o.rakna2 – de behövs för din 0°-logik
       }
     }
