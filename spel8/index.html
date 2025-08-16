@@ -62,7 +62,7 @@
   <div id="highscoreBox">
     <h2>🏆 Highscores 🏆</h2>
     <div id="highscoreList">Laddar…</div>
-    <button id="highscoreClose" onclick="hideHighscores()">Stäng</button>
+    <button id="highscoreClose" onclick="hideHighscores(),showEndScreen(`win`,`Du vann på ${Math.floor(gameClock.seconds()/60)} minuter och ${Math.floor(gameClock.seconds()% 60)} sekunder.`);">Stäng</button>
   </div>
 </div>
         <div id="build-ui" style="
@@ -458,7 +458,7 @@ const gameClock = (() => {
             document.addEventListener("visibilitychange", event => {
                 if (document.visibilityState === "visible") {
                         audio.pause();audio.src = 'sounds/war3.mp3';context.resume();
-                        gameClock.resume();
+                        if(gameOver==false)gameClock.resume();
                 }
                 else {
                    audio.pause(); audio.src = "";context.suspend();
@@ -2387,19 +2387,8 @@ function checkWinLose() {
 // VINST
 if (enemyBasesAlive===0 && enemyBarrsAlive===0 && enemyUnitsAlive===0) {
   gameOver = true;
-  
-  let elapsedMs = Date.now() - gameStartTime;
-  let seconds = Math.floor(elapsedMs / 1000);
-  let minutes = Math.floor(seconds / 60);
-  seconds = seconds % 60;
-  
-  
-  
-  //showEndScreen(
-  //  "win",
-  //  `Du vann på ${minutes} minuter och ${seconds} sekunder.`
-  //);
-  playerWon(Math.floor(elapsedMs / 1000));
+  gameClock.pause();
+  playerWon(gameClock.seconds());
   
   
   return;
@@ -2408,101 +2397,177 @@ if (enemyBasesAlive===0 && enemyBarrsAlive===0 && enemyUnitsAlive===0) {
 // FÖRLUST
 if (playerBasesAlive===0 && playerBarrsAlive===0 && playerUnitsAlive===0) {
   gameOver = true;
-  
-  let elapsedMs = Date.now() - gameStartTime;
-  let seconds = Math.floor(elapsedMs / 1000);
-  let minutes = Math.floor(seconds / 60);
-  seconds = seconds % 60;
+  gameClock.pause();
+
   showEndScreen(
     "lose",
-    `Fienden vann på ${minutes} minuter och ${seconds} sekunder.`
+    `Fienden vann på ${Math.floor(gameClock.seconds()/60)} minuter och ${Math.floor(gameClock.seconds()% 60)} sekunder.`
   );
   return;
 }
 }
 
 function updateArcherShooting(archerTypeName, enemyTypeNames) {
-    function segmentAABB(x0,y0,x1,y1, rx1,ry1,rx2,ry2){
-        const dx=x1-x0, dy=y1-y0; let t0=0,t1=1;
-        const p=[-dx,dx,-dy,dy], q=[x0-rx1,rx2-x0,y0-ry1,ry2-y0];
-        for(let i=0;i<4;i++){
-          if (p[i]===0){ if (q[i]<0) return false; }
-          else{
-            const r=q[i]/p[i];
-            if (p[i]<0){ if (r>t1) return false; if (r>t0) t0=r; }
-            else       { if (r<t0) return false; if (r<t1) t1=r; }
-          }
-        }
-        return true;
-    }    
-    function losBlockedFast(A, B, exclude = null, inflate = 4){
-      const STATIC_SOLIDS = ["tree","goldmine","base","bar","house","rbase","rbar","rhouse"];
-      for (const tn of STATIC_SOLIDS) {
-        const t = game.getobjecttype(tn); if (!t) continue;
-        for (const o of t.objects) {
-          if (o.ghost) continue;
-          if (o === exclude) continue; // <-- ignorera målet
-          const rx1 = o.x - inflate, ry1 = o.y - inflate;
-          const rx2 = o.x + o.dimx + inflate, ry2 = o.y + o.dimy + inflate;
-          if (segmentAABB(A.x, A.y, B.x, B.y, rx1, ry1, rx2, ry2)) return true;
-        }
-      }
-      return false;
-    }  
-    
-    
-  const archers = game.getobjecttype(archerTypeName)?.objects || [];
-  for (const a of archers) {
-    a.attackRange    = a.attackRange ?? 450;  // px
-    a.attackCooldown = a.attackCooldown ?? 900; // ms
-    a.lastShotTime   = a.lastShotTime ?? 0;
+  // ============ Tunables ============
+  const PF_BUCKETS = 8;            // hur många grupper att sprida retarget över
+  const RECHECK_MS = 220;          // min tid mellan mål-sök per archer
+  const MAX_CANDIDATES_LOS = 2;    // LOS körs bara på så här få närmaste
+  const LOS_INFLATE = 6;
 
-    // Hitta närmaste fiende inom range & line-of-sight
-    let best=null, bd=Infinity;
-    for (const et of enemyTypeNames) {
-      const list = game.getobjecttype(et)?.objects || [];
-      for (const e of list) {
-        const dx=(a.x + a.dimx/2) - (e.x + e.dimx/2);
-        const dy=(a.y + a.dimy/2) - (e.y + e.dimy/2);
-        const d=Math.hypot(dx,dy);
-        if (d < a.attackRange && d < bd) {
-          // valfritt LOS: undvik att skjuta igenom väggar/byggnader
-          const A = {x:a.x+a.dimx/2, y:a.y+a.dimy/2}, B = {x:e.x+e.dimx/2, y:e.y+e.dimy/2};
-          if (!losBlockedFast(A, B, e, 6)) { // du har redan losBlockedFast() definierad
-            bd=d; best=e;
-          }
-        }
+  // ============ Per-frame cache ============
+  if (!window._ARCHERS) window._ARCHERS = {
+    tick: 0, lastSolidsBuild: 0, solidsAABB: [], solidsVer: 0, arrowType: null
+  };
+  const ARC = window._ARCHERS;
+  ARC.tick++;
+
+  const now = performance.now();
+
+  // Cache:a arrow-typen
+  if (!ARC.arrowType) ARC.arrowType = game.getobjecttype("arrow");
+  const arrowType = ARC.arrowType;
+
+  // Bygg enemy-listan en gång
+  const enemies = [];
+  for (const et of enemyTypeNames) {
+    const list = game.getobjecttype(et)?.objects || [];
+    for (const e of list) {
+      if (e.ghost) continue;
+      enemies.push({ ref: e, cx: e.x + e.dimx/2, cy: e.y + e.dimy/2 });
+    }
+  }
+
+  // ======= Static solids cache (uppdatera max ~4 ggr/sek) =======
+  const STATIC_SOLIDS = ["tree","goldmine","base","bar","house","rbase","rbar","rhouse"];
+  if (now - ARC.lastSolidsBuild > 250) {
+    const solids = [];
+    for (const tn of STATIC_SOLIDS) {
+      const t = game.getobjecttype(tn); if (!t) continue;
+      for (const o of t.objects) {
+        if (o.ghost) continue;
+        solids.push({ x1:o.x, y1:o.y, x2:o.x+o.dimx, y2:o.y+o.dimy });
       }
     }
+    ARC.solidsAABB = solids;
+    ARC.lastSolidsBuild = now;
+  }
 
-    if (!best) continue;
+  // Snabb AABB-selekt före exakt segment-test
+  function losBlockedFastCached(Ax, Ay, Bx, By, exclude) {
+    // segmentens bbox
+    let minx = Ax < Bx ? Ax : Bx, maxx = Ax > Bx ? Ax : Bx;
+    let miny = Ay < By ? Ay : By, maxy = Ay > By ? Ay : By;
+    minx -= LOS_INFLATE; miny -= LOS_INFLATE; maxx += LOS_INFLATE; maxy += LOS_INFLATE;
+
+    // snabb-broadphase: hoppa över hinder långt från segmentet
+    for (let i=0;i<ARC.solidsAABB.length;i++){
+      const s = ARC.solidsAABB[i];
+      if (s.x2 < minx || s.x1 > maxx || s.y2 < miny || s.y1 > maxy) continue;
+      if (exclude && exclude.x === s.x1 && exclude.y === s.y1) continue; // (edge-case, oftast onödig)
+
+      // exakt test (Liang-Barsky)
+      const dx = Bx - Ax, dy = By - Ay;
+      let t0 = 0, t1 = 1;
+      const p = [-dx, dx, -dy, dy];
+      const q = [Ax - s.x1, s.x2 - Ax, Ay - s.y1, s.y2 - Ay];
+      for (let k=0;k<4;k++){
+        const pk = p[k], qk = q[k];
+        if (pk === 0) { if (qk < 0) { t0 = 1; t1 = 0; break; } }
+        else {
+          const r = qk / pk;
+          if (pk < 0) { if (r > t1) { t0 = 1; t1 = 0; break; } if (r > t0) t0 = r; }
+          else        { if (r < t0) { t0 = 1; t1 = 0; break; } if (r < t1) t1 = r; }
+        }
+      }
+      if (t0 <= t1) return true; // blockerad
+    }
+    return false;
+  }
+
+  // ======= Archers =======
+  const archers = game.getobjecttype(archerTypeName)?.objects || [];
+  for (const a of archers) {
+    if (a.ghost) continue;
+
+    // init per archer
+    a.attackRange    = a.attackRange ?? 450;    // px
+    a.attackCooldown = a.attackCooldown ?? 900; // ms
+    a.lastShotTime   = a.lastShotTime ?? 0;
+    if (a._bucket == null) a._bucket = (Math.random() * PF_BUCKETS) | 0;
+    if (a._lastCheck == null) a._lastCheck = 0;
+
+    const ax = a.x + a.dimx/2, ay = a.y + a.dimy/2;
+    const rangeSq = a.attackRange * a.attackRange;
+
+    // --- Retarget throttling ---
+    const shouldRecheck = (
+      // sprid kostnaden → bara vissa archers per frame
+      ((ARC.tick % PF_BUCKETS) === a._bucket) &&
+      // och inte för ofta på samma archer
+      (now - a._lastCheck >= RECHECK_MS)
+    );
+
+    // Håll kvar mål om det fortfarande är giltigt (billigt)
+    let best = a.targetObject && !a.targetObject.ghost ? a.targetObject : null;
+    if (best) {
+      const bx = best.x + best.dimx/2, by = best.y + best.dimy/2;
+      const dd = (ax-bx)*(ax-bx) + (ay-by)*(ay-by);
+      if (dd > rangeSq) best = null; // utanför range
+    }
+
+    if (shouldRecheck || !best) {
+      a._lastCheck = now;
+      // Plocka närmaste K kandidater med bara distans (ingen LOS)
+      let c1=null, d1=Infinity, c2=null, d2=Infinity;
+      for (let i=0;i<enemies.length;i++){
+        const e = enemies[i];
+        const dd = (ax - e.cx)*(ax - e.cx) + (ay - e.cy)*(ay - e.cy);
+        if (dd <= rangeSq) {
+          if (dd < d1) { c2=c1; d2=d1; c1=e; d1=dd; }
+          else if (dd < d2) { c2=e; d2=dd; }
+        }
+      }
+      const cand = [];
+      if (c1) cand.push(c1);
+      if (c2 && MAX_CANDIDATES_LOS>1) cand.push(c2);
+
+      // Kör LOS bara på de närmaste kandidaterna
+      best = null;
+      for (let i=0;i<cand.length;i++){
+        const e = cand[i];
+        if (!losBlockedFastCached(ax, ay, e.cx, e.cy, e.ref)) { best = e.ref; break; }
+      }
+      // om inga kandidater eller blockerad → behåll null (ingen skjuts)
+    }
+
+    if (!best) { a.targetObject = null; continue; }
+    a.targetObject = best;
 
     // cooldown?
-    const now = performance.now();
     if (now - a.lastShotTime < a.attackCooldown) continue;
     a.lastShotTime = now;
 
     // Skapa pil
-    const arrowType = game.getobjecttype("arrow");
-    const sx = a.x + a.dimx/2, sy = a.y + a.dimy/2;
+    const sx = ax, sy = ay;
     const obj = game.addobject(
       arrowType,
       sx, sy,
       arrowType.standarddimx, arrowType.standarddimy,
-      0, false // rot sätts nedan
+      0, false
     );
     obj.speed  = 9;         // px/frame
     obj.damage = 5;         // skada vid träff
     obj.ttl    = 120;       // lever max ~2 sek @60fps
     obj.target = best;
-    markArcherJustShot(a);
+    if (typeof markArcherJustShot === "function") markArcherJustShot(a);
 
-    // init riktning/rotation (bilden pekar åt höger)
-    const dx=(best.x+best.dimx/2)-sx, dy=(best.y+best.dimy/2)-sy;
-    const ang = Math.atan2(dy, dx);      // radianer
+    // init riktning/rotation
+    const dx = (best.x + best.dimx/2) - sx;
+    const dy = (best.y + best.dimy/2) - sy;
+    const ang = Math.atan2(dy, dx);
     obj.vx = Math.cos(ang) * obj.speed;
     obj.vy = Math.sin(ang) * obj.speed;
-    obj.rot = (ang * 180 / Math.PI);                        // många engines använder .rot            
+    obj.rot = (ang * 180 / Math.PI);
   }
 }
 
