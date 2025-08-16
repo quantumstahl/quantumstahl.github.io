@@ -72,18 +72,80 @@ colli = {
         return SATCollision(corners1, corners2);
     }
 };
-function _norm(v){ const L=Math.hypot(v.x,v.y)||1; return {x:v.x/L, y:v.y/L}; }
 function _dot(a,b){ return a.x*b.x + a.y*b.y; }
+function _len(v){ return Math.hypot(v.x, v.y); }
+function _norm(v){ const L=_len(v)||1; return {x:a(v.x/L), y:a(v.y/L)}; function a(n){return +n;} } // undvik NaN
 
-// två unika normaler för en roterad rektangel (motsvarar dess två olika kanalfamiljer)
-function getTwoNormals(x, y, w, h, rot){
-  const c = getRotatedRectangleCorners(x, y, w, h, rot||0);
-  const e0 = { x:c[1].x - c[0].x, y:c[1].y - c[0].y };
-  const e1 = { x:c[2].x - c[1].x, y:c[2].y - c[1].y };
-  return [ _norm({x:-e0.y, y:e0.x}), _norm({x:-e1.y, y:e1.x}) ];
+function getTwoNormals(x,y,w,h,rotDeg){
+  const r=(rotDeg||0)*Math.PI/180, c=Math.cos(r), s=Math.sin(r);
+  return [ _norm({x:c,y:s}), _norm({x:-s,y:c}) ];
 }
 
+function dirToVec(dir){
+  if (dir==="left")  return {x:-1,y:0};
+  if (dir==="right") return {x: 1,y:0};
+  if (dir==="up")    return {x: 0,y:-1}; // byt till +1 om din "up" = +y
+  if (dir==="down")  return {x: 0,y: 1};
+  return null;
+}
 
+// Overlap-test UTAN sidoeffekter under provsteg
+function overlapsNoSideEffects(game, mapIndex, o){
+  const A=o.hadcollidedobj?.slice()||[];
+  const L=o.collideslistan?.slice()||[];
+  const D=o.collideslistandir?.slice()||[];
+  const O=o.collideslistanobj?.slice()||[];
+  const hit = (
+    o.collideslist(game.maps, mapIndex, "left")  ||
+    o.collideslist(game.maps, mapIndex, "right") ||
+    o.collideslist(game.maps, mapIndex, "up")    ||
+    o.collideslist(game.maps, mapIndex, "down")
+  );
+  o.hadcollidedobj=A; o.collideslistan=L; o.collideslistandir=D; o.collideslistanobj=O;
+  return hit;
+}
+
+// Pressad mot väggen? (av sig själv eller andra)
+function isPressedAgainst(game, mapIndex, o, n, want){
+  if (_dot(want,n) < 0) return true; // egen rörelse trycker in
+  const ox=o.x, oy=o.y;
+  const over = (
+    o.collideslist(game.maps, mapIndex, "left")  ||
+    o.collideslist(game.maps, mapIndex, "right") ||
+    o.collideslist(game.maps, mapIndex, "up")    ||
+    o.collideslist(game.maps, mapIndex, "down")
+  );
+  o.x=ox; o.y=oy;
+  if (over) return true;              // står i kontakt/penetration
+  if (o.blockedx || o.blockedy) return true; // axel-block denna frame
+  return false;
+}
+
+// Mjuk sweep längs given tangent (testar kollision per litet steg)
+function sweepAlong(game, mapIndex, o, baseX, baseY, tx, ty, desiredLen, step){
+  let traveled=0, cx=baseX, cy=baseY;
+  const EPS=1e-4;
+  const ox=o.x, oy=o.y;
+  while (traveled + EPS < desiredLen){
+    const st = Math.min(step, desiredLen - traveled);
+    o.x = cx + tx*st; o.y = cy + ty*st;
+    const over = overlapsNoSideEffects(game, mapIndex, o);
+    if (over){
+      // liten finjust-binära för sista biten
+      let lo=0, hi=st;
+      for (let i=0;i<4;i++){
+        const mid=(lo+hi)*0.5;
+        o.x = cx + tx*mid; o.y = cy + ty*mid;
+        if (!overlapsNoSideEffects(game, mapIndex, o)) lo=mid; else hi=mid;
+      }
+      cx += tx*lo; cy += ty*lo; traveled += lo;
+      break;
+    }
+    cx += tx*st; cy += ty*st; traveled += st;
+  }
+  o.x=ox; o.y=oy;
+  return {x:cx, y:cy, travel:traveled};
+}
 
 
 "use strict";
@@ -768,64 +830,150 @@ class Game4 {
                         o.rakna2=o.rakna2+restY;
                     }
                 }
-// --- Slide för roterade object ---
+
+// --- FRIKTIONSFRITT SLIDE med två-väggars fallback ---
 if (o.hadcollidedobj && o.hadcollidedobj.length) {
-  // ta senaste icke-ghost, helst roterat
+  // senaste icke-ghost, prioritera roterat
   let h = null;
-  for (let i = o.hadcollidedobj.length - 1; i >= 0; i--) {
+  for (let i = o.hadcollidedobj.length-1; i>=0; i--){
     const c = o.hadcollidedobj[i];
-    if (c && !c.ghost && (c.rot||0) !== 0) { h = c; break; }
+    if (c && !c.ghost){ h = c; if ((c.rot||0)!==0) break; }
   }
-  if (!h) { /* inget roterat → hoppa */ }
+  if (!h || (h.rot||0)===0) { /* inget roterat → hoppa */ }
   else {
-    const want = { x:(o._wantdx||0), y:(o._wantdy||0) };     // satt i steg 2
+    const want = { x:(o._wantdx||0), y:(o._wantdy||0) };
     const wantLen = Math.hypot(want.x, want.y);
-    if (wantLen > 1e-6) {
-      // välj den normal som bäst matchar blockeringen
-      const [n0, n1] = getTwoNormals(h.x, h.y, h.dimx, h.dimy, h.rot || 0);
-      let n = (Math.abs(_dot(want,n0)) >= Math.abs(_dot(want,n1))) ? n0 : n1;
+    if (wantLen > 1e-6){
 
-      // VIKTIGT: rikta normalen FRÅN hindret MOT enheten (så +n är "ut från väggen")
-      const ax = o.x + o.dimx/2, ay = o.y + o.dimy/2;
-      const bx = h.x + h.dimx/2, by = h.y + h.dimy/2;
+      // Kandidat-normaler (Fix 1 bas men vi testar båda)
+      let [nA, nB] = getTwoNormals(h.x, h.y, h.dimx, h.dimy, h.rot||0);
+
+      // Rikta båda ut från hindret mot agentens center
+      const ax = o.x + o.dimx*0.5, ay = o.y + o.dimy*0.5;
+      const bx = h.x + h.dimx*0.5, by = h.y + h.dimy*0.5;
       const toA = { x: ax - bx, y: ay - by };
-      if (_dot(toA, n) < 0) { n = { x: -n.x, y: -n.y }; }
+      if (_dot(toA,nA)<0) nA = {x:-nA.x,y:-nA.y};
+      if (_dot(toA,nB)<0) nB = {x:-nB.x,y:-nB.y};
 
-      // Slida bara när vi faktiskt TRYCKER IN i ytan
-      if (_dot(want, n) < 0) {  // (< 0 – inte > 0)
-        // tangent (90° mot n), riktad i "want"-riktningen
-        let t = { x: -n.y, y: n.x };
-        const tL = Math.hypot(t.x, t.y) || 1; t.x/=tL; t.y/=tL;
-        if (_dot(t, want) < 0) { t.x = -t.x; t.y = -t.y; }
+     // Byt ut din tidigare tryNormal(n) mot denna mjuka, tryck-känsliga variant
+// Begränsningar (justera efter känsla)
+const SLIDE_MAX_PER_FRAME = 100;  // px/frame, cap så det aldrig blir "super snabbt"
+const PRESS_BLEED_PX      = 1.4;  // px/frame när man pressas men saknar egen tangenthast
+const STEP_MIN            = 1.4;  // px, små jämna steg för mjuk visuell rörelse
+const SLOP_FACTOR         = 1.4; // liten push-out (mindre än tidigare)
 
-        // längden vi önskar glida = proj(want på t)
-        const sDesired = Math.abs(_dot(want, t))*2;
+const tryNormal = (n) => {
+  const want = { x:(o._wantdx||0), y:(o._wantdy||0) };
+  const wantLen = Math.hypot(want.x, want.y) || 0;
 
-        // liten push-out från väggen så vi börjar utanför
-        const SLOP = 0.10;
-        const baseX = o.x + n.x * SLOP;
-        const baseY = o.y + n.y * SLOP;
+  // Är vi pressade (av oss själva eller andra)? (du har redan isPressedAgainst)
+  const pressed = isPressedAgainst(this, this.currentmap, o, n, want);
+  if (!pressed) return null;
 
-        // friktionsfritt: binärsök max gliddistans från basen
-        let lo = 0, hi = sDesired;
-        for (let it = 0; it < 6; it++) {
-          const mid = (lo + hi) * 0.5;
-          o.x = baseX + t.x * mid;
-          o.y = baseY + t.y * mid;
-          if (!(o.collidestest && o.collidestest())) lo = mid; else hi = mid;
-        }
-        o.x = baseX + t.x * lo;
-        o.y = baseY + t.y * lo;
-        // OBS: vi rör inte o.rakna/o.rakna2 – de behövs för din 0°-logik
+  // Tangenter (±t)
+  const t1 = _norm({ x:-n.y, y: n.x });
+  const t2 = { x:-t1.x, y:-t1.y };
+
+  // Projektera want på ytan → "ren" tangent-hastighet utan friktion
+  const wn = (want.x*n.x + want.y*n.y);
+  let s = { x: want.x - n.x*wn, y: want.y - n.y*wn };
+
+  // Rikta s mot ditt "face" (direction → fallback = want)
+  const face = dirToVec(o.direction) || (wantLen>0 ? {x:want.x/wantLen, y:want.y/wantLen} : {x:t1.x, y:t1.y});
+  if ((s.x*face.x + s.y*face.y) < 0) { s.x = -s.x; s.y = -s.y; }
+
+  const sLenRaw = Math.hypot(s.x, s.y);  // faktisk tangentkomponent av want
+
+  // --- Välj önskad glidlängd för DENNA frame ---
+  // Bas: glid inte mer än du "ville" i tangentled
+  let desired = sLenRaw;
+
+  // Om du är pressad men saknar egen tangenthast → ge en *liten* bleed
+  if (desired < PRESS_BLEED_PX && pressed) {
+    // Lägg inte till, utan ta det max av (egen tangent) och (bleed)
+    desired = Math.max(desired, PRESS_BLEED_PX);
+  }
+
+  // Absolut tak per frame (hindrar “super snabbt”)
+  desired = Math.min(desired, SLIDE_MAX_PER_FRAME);
+
+  // Om inget att glida: avbryt
+  if (desired <= 1e-6) return null;
+
+  // Enhetstangent från s (behåller riktningen vi valt ovan)
+  const t = (sLenRaw>1e-6) ? { x:s.x/sLenRaw, y:s.y/sLenRaw } : t1;
+
+  // Liten, försiktig push-out
+  const size = Math.min(o.dimx, o.dimy);
+  const SLOP = Math.max(0.5, SLOP_FACTOR * size); // minst 0.5px för att slippa mikrosnap
+  let baseX = o.x, baseY = o.y;
+
+// kör push-out ENDAST om vi faktiskt är i overlap just nu
+const isOverlappingNow = o.collidestest ? o.collidestest()
+                                        : overlapsNoSideEffects(this, this.currentmap, o);
+
+if (isOverlappingNow){
+  const size = Math.min(o.dimx, o.dimy);
+  const SLOP = Math.max(0.4, 0.006 * size); // liten, försiktig nudge
+
+  for (let i=0; i<3; i++){
+    const nx = baseX + n.x * SLOP;
+    const ny = baseY + n.y * SLOP;
+
+    const ox = o.x, oy = o.y;
+    o.x = nx; o.y = ny;
+
+    const still = o.collidestest ? o.collidestest()
+                                 : overlapsNoSideEffects(this, this.currentmap, o);
+
+    o.x = ox; o.y = oy;
+
+    if (!still) { baseX = nx; baseY = ny; break; }  // bara acceptera om det faktiskt löste penetrationen
+  }
+}
+
+
+  // Mjuk sweep längs +t och -t, välj den som går längst (men aldrig längre än "desired")
+  const step = Math.min(Math.max(STEP_MIN, 0.05*size), desired); // anpassa steg men max desired
+  const A = sweepAlong(this, this.currentmap, o, baseX, baseY,  t.x,  t.y, desired, step);
+  const B = sweepAlong(this, this.currentmap, o, baseX, baseY, -t.x, -t.y, desired, step);
+  const best = (A.travel >= B.travel) ? A : B;
+
+  // Sätt slutposition
+  o.x = best.x; o.y = best.y;
+
+  // Minimal efter-push om vi fortfarande nuddar (mycket liten för att undvika snap)
+  const ox=o.x, oy=o.y;
+  const still = o.collidestest ? o.collidestest()
+                             : overlapsNoSideEffects(this, this.currentmap, o);
+if (still){
+  const tiny = 0.25; // pytteliten nudge; kan sänkas
+  o.x += n.x * tiny;
+  o.y += n.y * tiny;
+}
+
+  return { travel: best.travel, x:o.x, y:o.y };
+};
+
+
+      // Prova båda sidorna och välj bäst
+      const candA = tryNormal(nA);
+      const candB = tryNormal(nB);
+      let best = null;
+      if (candA && candB) best = (candA.travel >= candB.travel) ? candA : candB;
+      else best = candA || candB;
+
+      if (best){
+        o.x = best.x;
+        o.y = best.y;
       }
     }
   }
 }
                 
-                
-                o.blockedx=false;o.blockedy=false;
-                if(o.freex === o.x&& o.rakna!==0)o.blockedx=true;
-                if(o.freey === o.y&& o.rakna2!==0)o.blockedy=true;
+                o.blockedx=false;o.blockedy=false;o.blocked=false;
+                if(o.freex === o.x&& o.rakna!==0){o.blockedx=true;o.blocked=true;}
+                if(o.freey === o.y&& o.rakna2!==0){o.blockedy=true;o.blocked=true;}
                 // Uppdatera floatposition
                 o.freex = o.x;
                 o.freey = o.y;
@@ -1119,16 +1267,20 @@ if (o.hadcollidedobj && o.hadcollidedobj.length) {
                 if(stop==false&&!game.isPathClear(obj)){
                         obj.blockedcounter++;
                         
-                        if(obj.blockedcounter==175){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
                         
+                        if((obj.blockedx==true&&obj.blockedy==false)||(obj.blockedy==true&&obj.blockedx==false)){
+                            
+                            if(obj.blockedcounter==175){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
+                            if(obj.blockedcounter==350){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
+                        
+                            
                             if(obj.direction=="left"){if(obj.directiony=="up"){obj.y += obj.rakna;}if(obj.directiony=="down"){obj.y -= obj.rakna;}}
                             if(obj.direction=="right"){if(obj.directiony=="up"){obj.y -= obj.rakna;}if(obj.directiony=="down"){obj.y += obj.rakna;}}
                             if(obj.direction=="up"){if(obj.directionx=="left"){obj.x += obj.rakna2;}if(obj.directionx=="right"){obj.x -= obj.rakna2;}}
                             if(obj.direction=="down"){if(obj.directionx=="left"){obj.x -= obj.rakna2;}if(obj.directionx=="right"){obj.x += obj.rakna2;}}
-                        
+                        }
                         
 
-                        if(obj.blockedcounter==350){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
                         
                         if(obj.blockedcounter>525){
                             obj.blockedcounter=0;
@@ -1151,27 +1303,7 @@ if (o.hadcollidedobj && o.hadcollidedobj.length) {
                 }
 
 
-                if (obj.blocked && obj.targetX !== null && obj.targetY !== null) {
-                    for (let other of game.getAllObjects()) {
-                        if (other === obj) continue;
 
-                        const sameTarget = Math.abs(other.x - obj.targetX) < 2 && Math.abs(other.y - obj.targetY) < 2;
-
-                        if (sameTarget && (other.targetX === null || other.targetY === null)) {
-                            // Den andra står redan där, och har inget mål → byt
-                            const tempX = obj.targetX;
-                            const tempY = obj.targetY;
-
-                            obj.targetX = other.x;
-                            obj.targetY = other.y;
-
-                            other.targetX = tempX;
-                            other.targetY = tempY;
-
-                            break;
-                        }
-                    }
-                }
             } else {
                 obj.targetX = null;
                 obj.targetY = null;

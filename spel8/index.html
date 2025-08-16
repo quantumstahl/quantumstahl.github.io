@@ -509,8 +509,8 @@ const gameClock = (() => {
             let lastTouchPos = null;
             let gold = 600;
             let wood = 500;
-            let rgold = 11600;
-            let rwood = 11500;
+            let rgold = 600;
+            let rwood = 500;
             let gameOver = false;
             let buildArmed = false;
             let popUsed = 0, popCap = 0;
@@ -881,6 +881,7 @@ const gameClock = (() => {
             
              showPanHint();
              loadTopHighscoreHUD();
+             
              var check = function(){
                  
                 // HUD: uppdatera speltid i sekunder → formatTime
@@ -2768,85 +2769,264 @@ function collectOBBsFromGame(types, extraInflatePx = 0) {
  * Kör denna i din main-loop varje frame (istället för din vanliga AI) för att testa.
  */
 function updateOBBChaseTest(){
-  // 1) Samla solida hinder som OBBs
+  // ====== Tunables ======
+  const DEFEND_MS = 16000;             // hur länge försvarsläge är aktivt efter skada
+  const DEFENSE_MAX_THREATS = 6;      // hur många hot (gubbar) att fokusera på
+  const RALLY_RECALC_CHANCE = 0.5;    // % per sekund att revalidera rally (ungefär)
+
+  // Pathing
+  const CELL=24, INFLATE=14, PAD=240, MAXGRID=512, NEAR_WP=12, REPLAN_FR=24;
+
+  // ====== Hjälpare & setup ======
+  function isAlive(o){ return !!o && !o.ghost && game.getAllObjects().includes(o); }
+  function _center(o){ return _C ? _C(o) : { x:o.x + o.dimx/2, y:o.y + o.dimy/2 }; }
+  function _dist(a,b){ return _D ? _D(a,b) : Math.hypot(a.x-b.x, a.y-b.y); }
+  function getHP(o){ return (o.health ?? o.hp ?? o.HP ?? 0)|0; }
+
   const OBB_SOLID_TYPES = ["tree","water","base","bar","house","rbase","rbar","rhouse"];
-  const obbs = collectOBBsFromGame(OBB_SOLID_TYPES, /*extraInflatePx=*/0);
+  const obbs = collectOBBsFromGame(OBB_SOLID_TYPES, 0);
 
-  // 2) Enheter
-  const fighters = [..._list("rguard"), ..._list("rarcher")];
-  const enemies  = [..._list("guard"),  ..._list("archer"), ..._list("worker")];
+  // AI (r*) trupp & bygg
+  const fighters = [..._list("rguard"), ..._list("rarcher")].filter(isAlive);
+  const rWorkers  = (_list("rworker")||[]).filter(isAlive);
+  const rBuilds   = [
+    ...(game.getobjecttype("rbase")?.objects||[]),
+    ...(game.getobjecttype("rbar")?.objects||[]),
+    ...(game.getobjecttype("rhouse")?.objects||[])
+  ].filter(isAlive);
 
-  if (!enemies.length) {
-    // Inga mål: håll position
-    for (const u of fighters) { u.targetX = u.x; u.targetY = u.y; }
-    return;
+  // Spelarens enheter/byggnader
+  const pUnits = [..._list("guard"), ..._list("archer"), ..._list("worker")].filter(isAlive);
+  const pBuilds = [
+    ...(game.getobjecttype("base")?.objects||[]),
+    ...(game.getobjecttype("bar")?.objects||[]),
+    ...(game.getobjecttype("house")?.objects||[])
+  ].filter(isAlive);
+
+  const enemyBase = (game.getobjecttype("rbase")?.objects||[]).find(isAlive) || rBuilds.find(b => b.typeName==="rbase");
+
+  // Squad-state
+  if (!window._R_SQUAD) window._R_SQUAD = {
+    state:"gather",            // "gather" | "attack"
+    rally:null,
+    originals:[],
+    attackTarget:null,
+    defendUntil:0,
+    hpWatch:new Map()          // Map<object, lastHP>
+  };
+  const S = window._R_SQUAD;
+
+  function groupCenter(arr){
+    if (!arr.length) return null;
+    let sx=0, sy=0; for (const o of arr){ const c=_center(o); sx+=c.x; sy+=c.y; }
+    return { x:sx/arr.length, y:sy/arr.length };
   }
 
-  // 3) Parametrar för pathing
-  const CELL = 24;          // 16–24 är bra start
-  const INFLATE = 14;       // clearance (px) från hinder (≈ enhetsradie)
-  const PAD = 240;
-  const MAXGRID = 512;
-  const NEAR_WP = 12;       // när byter vi waypoint
-  const REPLAN_FR = 24;     // hur ofta planerar vi om
+  function playerFocus(){
+    if (pBuilds.length) return _center(pBuilds[0]);
+    const pu = pUnits.length ? groupCenter(pUnits) : null;
+    return pu || (enemyBase ? { x:_center(enemyBase).x+300, y:_center(enemyBase).y } : {x:0,y:0});
+  }
 
-  for (const u of fighters) {
-    if (!u || u.ghost) continue;
-    if (!u._obbAI) u._obbAI = { path:null, pi:0, repath:0, lastTarget:null };
+  function computeRallyToward(baseObj){
+    if (!baseObj) return null;
+    const baseC = _center(baseObj);
+    const pf = playerFocus(); if (!pf) return null;
+    let dx = pf.x - baseC.x, dy = pf.y - baseC.y;
+    const len = Math.hypot(dx,dy) || 1; dx/=len; dy/=len;
 
-    const U = _C(u);
+    const anyType = game.getobjecttype("rhouse") || game.getobjecttype("rbar") || game.getobjecttype("rbase");
+    const W = (anyType?.standarddimx)||80, H=(anyType?.standarddimy)||80;
 
-    // Hitta närmaste fiende
-    let target = null, best = Infinity;
-    for (const e of enemies) {
-      const d = _D(U, _C(e));
-      if (d < best) { best = d; target = e; }
+    for (let dist=70; dist<=900; dist+=40){
+      const cx = baseC.x + dx*dist, cy = baseC.y + dy*dist;
+      const tmp = game.addobject(anyType, cx - W/2, cy - H/2, W, H, 0, false);
+      tmp.ghost = true; tmp.selectable=false;
+      const ok = isBuildPlacementValid(tmp);
+      game.removeobject(anyType, tmp);
+      if (ok) return { x:cx, y:cy };
     }
-    if (!target) { u.targetX=u.x; u.targetY=u.y; u._obbAI.path=null; continue; }
+    return { x:baseC.x + dx*140, y:baseC.y + dy*140 };
+  }
 
-    // Byt mål? -> nollställ path så vi replanerar
-    if (u._obbAI.lastTarget !== target) {
-      u._obbAI.lastTarget = target;
-      u._obbAI.path = null; u._obbAI.pi = 0; u._obbAI.repath = 0;
-    }
+// === Tunables för adaptiv backoff ===
+const BLOCKED_BACKOFF_INC   = 110;   // öka repath-intervall när blockerat
+const BLOCKED_BACKOFF_DEC   = 100;  // sänk tillbaka vid framsteg
+const BLOCKED_BACKOFF_MAX   = 110;   // max x gånger långsammare repath
+const COLLISION_BACKOFF_BONUS = 100;// mild backoff om bara kollision
+const PROGRESS_CHECK_FR     = 100;    // hur ofta vi kollar framsteg (frames)
+const PROGRESS_EPS          = 250;  // "moved" tröskel i px mellan kontroller
 
-    const goal = _C(target);
+function steerToGoal(u, goal){
+  if (!u || !goal) return;
+  if (!u._obbAI) u._obbAI = {
+    path:null, pi:0, repath:0, lastKey:null,
+    backoff:1, lastPX:0, lastPY:0, progT:PROGRESS_CHECK_FR
+  };
 
-    // Replanering
-    if (!u._obbAI.path || u._obbAI.repath <= 0) {
-      const path = findPathOBB(U, goal, obbs, {
-        cell: CELL, inflate: INFLATE, pad: PAD, maxGrid: MAXGRID, smooth: true
-      });
-      if (path && path.length) {
-        u._obbAI.path = path;
-        u._obbAI.pi = (path.length > 1) ? 1 : 0;
-        u._obbAI.repath = REPLAN_FR + ((Math.random()*6)|0);
+  const U = _center(u);
+
+  // Init "senast-pos" första gången
+  if (u._obbAI.lastPX === 0 && u._obbAI.lastPY === 0) {
+    u._obbAI.lastPX = U.x; u._obbAI.lastPY = U.y;
+  }
+
+  // Mål-nyckel (ändrats?)
+  const key = ((goal.x|0)<<16) ^ (goal.y|0);
+  if (u._obbAI.lastKey !== key){
+    u._obbAI.lastKey = key;
+    u._obbAI.path    = null;
+    u._obbAI.repath  = 0;
+  }
+
+
+
+ if(!u.blocked){
+
+    // === (Re)planering med backoff ===
+    if (!u._obbAI.path || u._obbAI.repath <= 0){
+      const path = findPathOBB(U, goal, obbs, { cell:CELL, inflate:INFLATE, pad:PAD, maxGrid:MAXGRID, smooth:true });
+      const jitter = (Math.random()*6)|0;
+      if (path && path.length){
+        u._obbAI.path   = path;
+        u._obbAI.pi     = (path.length>1)?1:0;
+        // längre intervall när backoff är hög → långsammare re-path
+        u._obbAI.repath = Math.round(REPLAN_FR * u._obbAI.backoff) + jitter;
       } else {
-        // Ingen path: försök igen snart, och gå direkt mot målet så länge
-        u._obbAI.path = null; u._obbAI.pi = 0; u._obbAI.repath = 8;
+        u._obbAI.path   = null;
+        u._obbAI.pi     = 0;
+        // även "fail"-väntan respekterar backoff
+        u._obbAI.repath = Math.round(8 * u._obbAI.backoff);
       }
     } else {
-      u._obbAI.repath--;
+      u._obbAI.repath--; // vi fryser inte timern – den räknar alltid ner
     }
+ }
+  // === Följ path/goal (oförändrat) ===
+  let g = goal;
+  if (u._obbAI.path && u._obbAI.pi < u._obbAI.path.length){
+    const wp = u._obbAI.path[u._obbAI.pi];
+    if (_D(U, wp) < NEAR_WP) u._obbAI.pi++;
+    g = (u._obbAI.pi < u._obbAI.path.length) ? u._obbAI.path[u._obbAI.pi] : goal;
+  }
 
-    // Följ path (waypoints)
-    let g = goal;
-    if (u._obbAI.path && u._obbAI.pi < u._obbAI.path.length) {
-      const wp = u._obbAI.path[u._obbAI.pi];
-      if (_D(U, wp) < NEAR_WP) u._obbAI.pi++;
-      g = (u._obbAI.pi < u._obbAI.path.length) ? u._obbAI.path[u._obbAI.pi] : goal;
+  const {w,h} = _dims(u);
+  u.targetX = g.x - w/2;
+  u.targetY = g.y - h/2;
+
+  const dx = g.x - U.x, dy = g.y - U.y;
+  u.direction = Math.abs(dx)>Math.abs(dy) ? (dx>0?"right":"left") : (dy>0?"down":"up");
+
+
+}
+
+  // ====== Försvar: bevaka skada på r-enheter/byggnader ======
+  (function watchDamage(){
+    const now = Date.now();
+    const allies = [...fighters, ...rWorkers, ...rBuilds];
+    for (const a of allies){
+      const hp = getHP(a);
+      const prev = S.hpWatch.get(a);
+      if (prev === undefined){
+        S.hpWatch.set(a, hp);
+      } else {
+        if (hp < prev){                    // skada upptäckt
+          S.defendUntil = Math.max(S.defendUntil, now + DEFEND_MS);
+        }
+        S.hpWatch.set(a, hp);
+      }
     }
+    // rensa bort döda från watch
+    for (const [obj] of S.hpWatch){
+      if (!isAlive(obj)) S.hpWatch.delete(obj);
+    }
+  })();
 
-    // Sätt rörelsemål (targetX/Y)
-    const {w,h} = _dims(u);
-    u.targetX = g.x - w/2;
-    u.targetY = g.y - h/2;
+  // ====== Auto-reset till gather om attackgruppen dog ======
+  if (S.state === "attack"){
+    S.originals = (S.originals||[]).filter(isAlive);
+    if (S.originals.length === 0){
+      S.state = "gather"; S.rally = null; S.attackTarget = null;
+    }
+  }
 
-    // (valfritt) rikta sprite
-    const dx = g.x - U.x, dy = g.y - U.y;
-    u.direction = Math.abs(dx) > Math.abs(dy) ? (dx>0?"right":"left") : (dy>0?"down":"up");
+  // ====== Uppdatera/validera rally under gather ======
+  if (S.state === "gather"){
+    const recalcChancePerTick = (RALLY_RECALC_CHANCE/60); // antag ~60fps
+    if (!S.rally || !enemyBase || Math.random() < recalcChancePerTick){
+      S.rally = computeRallyToward(enemyBase);
+    }
+  }
+
+  // ====== Hjälpare för målval (prioritera gubbar) ======
+  function nearestPlayerUnitsFromBase(limit=1){
+    if (!enemyBase || !pUnits.length) return [];
+    const B = _center(enemyBase);
+    const arr = [...pUnits].sort((a,b)=>_dist(B,_center(a)) - _dist(B,_center(b)));
+    return arr.slice(0, Math.max(1, limit));
+  }
+  function chooseAttackTargetPreferUnits(){
+    // 1) närmsta spelargubbe från AI-basen
+    const nu = nearestPlayerUnitsFromBase(1);
+    if (nu.length) return nu[0];
+    // 2) annars en spelbyggnad (t.ex. base)
+    if (pBuilds.length) return pBuilds[0];
+    // 3) fallback: centeroid av spelaren
+    const pf = playerFocus(); return pf ? { x:pf.x, y:pf.y, _isPoint:true } : null;
+  }
+
+  // ====== Försvarsläge (override) ======
+  const now = Date.now();
+  if (S.defendUntil > now){
+    // Fokusera på närmsta fiende-gubbar från rbasen
+    const threats = nearestPlayerUnitsFromBase(DEFENSE_MAX_THREATS);
+    let goals = [];
+    if (threats.length){
+      // sprid målen så inte alla klumpar på samma
+      for (let i=0;i<fighters.length;i++){
+        const t = threats[i % threats.length];
+        goals.push(_center(t));
+      }
+    } else {
+      // Inga gubbar → håll runt basen
+      goals = fighters.map(()=> enemyBase ? _center(enemyBase) : (S.rally || playerFocus() || {x:0,y:0}));
+    }
+    for (let i=0;i<fighters.length;i++){
+      steerToGoal(fighters[i], goals[i]);
+    }
+    return; // hoppa över normal gather/attack när försvar är aktivt
+  }
+
+  // ====== Normal state machine ======
+  if (S.state === "gather"){
+    for (const u of fighters) if (S.rally) steerToGoal(u, S.rally);
+    const ready = S.rally ? fighters.filter(u => _dist(_center(u), S.rally) < 150) : [];
+    if (ready.length >= 5){
+      ready.sort((a,b)=>_dist(_center(a),S.rally)-_dist(_center(b),S.rally));
+      S.originals = ready.slice(0,5);
+      S.attackTarget = chooseAttackTargetPreferUnits();
+      S.state = "attack";
+    }
+  } else if (S.state === "attack"){
+    if (!isAlive(S.attackTarget) || S.attackTarget._isPoint){
+      S.attackTarget = chooseAttackTargetPreferUnits();
+    } else {
+      // om attacktarget är byggnad och det finns gubbar → byt
+      if (pUnits.length){
+        const bestUnit = chooseAttackTargetPreferUnits();
+        if (bestUnit && bestUnit !== S.attackTarget) S.attackTarget = bestUnit;
+      }
+    }
+    const goalC = S.attackTarget ? (_center(S.attackTarget) || S.attackTarget) : playerFocus();
+    for (const u of fighters) steerToGoal(u, goalC);
+  }
+
+  // Säkerhetsfallback: om inga motståndare alls – stå still
+  if (!pUnits.length && !pBuilds.length){
+    for (const u of fighters){ u.targetX=u.x; u.targetY=u.y; }
   }
 }
+//slut AI-----------------------------------------------------------------------------------------
 function findPathOBB(start, goal, obbs, opt = {}) {
   const cell    = opt.cell ?? 24;
   const inflate = opt.inflate ?? 16;
