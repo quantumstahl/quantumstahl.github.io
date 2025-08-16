@@ -768,7 +768,7 @@ class Game4 {
                         o.rakna2=o.rakna2+restY;
                     }
                 }
-// --- FRIKTIONSFRITT SLIDE (om vi slog i ett ROTERAT hinder) ---
+// --- Slide för roterade object ---
 if (o.hadcollidedobj && o.hadcollidedobj.length) {
   // ta senaste icke-ghost, helst roterat
   let h = null;
@@ -776,69 +776,47 @@ if (o.hadcollidedobj && o.hadcollidedobj.length) {
     const c = o.hadcollidedobj[i];
     if (c && !c.ghost && (c.rot||0) !== 0) { h = c; break; }
   }
-  if (h) {
-    const want = { x:(o._wantdx||0), y:(o._wantdy||0) };
+  if (!h) { /* inget roterat → hoppa */ }
+  else {
+    const want = { x:(o._wantdx||0), y:(o._wantdy||0) };     // satt i steg 2
     const wantLen = Math.hypot(want.x, want.y);
     if (wantLen > 1e-6) {
-      // välj den av rektangelns två normaler som bäst motsvarar blockeringen
+      // välj den normal som bäst matchar blockeringen
       const [n0, n1] = getTwoNormals(h.x, h.y, h.dimx, h.dimy, h.rot || 0);
       let n = (Math.abs(_dot(want,n0)) >= Math.abs(_dot(want,n1))) ? n0 : n1;
 
-      // rikta normalen från hindret mot enheten
+      // VIKTIGT: rikta normalen FRÅN hindret MOT enheten (så +n är "ut från väggen")
       const ax = o.x + o.dimx/2, ay = o.y + o.dimy/2;
       const bx = h.x + h.dimx/2, by = h.y + h.dimy/2;
       const toA = { x: ax - bx, y: ay - by };
       if (_dot(toA, n) < 0) { n = { x: -n.x, y: -n.y }; }
 
-      // rör vi oss IN i ytan? annars behövs inget slide
-      const nDot = _dot(want, n);
-      if (nDot < 0) {
-        // projicera önskad förflyttning på tangenten: t = want - n*(want·n)
-let t = { x: want.x - n.x*nDot, y: want.y - n.y*nDot };
-const tLen = Math.hypot(t.x, t.y);
-if (tLen > 1e-6) { t.x/=tLen; t.y/=tLen; }
+      // Slida bara när vi faktiskt TRYCKER IN i ytan
+      if (_dot(want, n) < 0) {  // (< 0 – inte > 0)
+        // tangent (90° mot n), riktad i "want"-riktningen
+        let t = { x: -n.y, y: n.x };
+        const tL = Math.hypot(t.x, t.y) || 1; t.x/=tL; t.y/=tL;
+        if (_dot(t, want) < 0) { t.x = -t.x; t.y = -t.y; }
 
-// --- NYTT: välj tangentens TECKEN enligt din väj-logik ---
-const primary = o.direction;          // "left/right/up/down"
-const dirx = o.directionx;            // "left/right"
-const diry = o.directiony;            // "up/down"
+        // längden vi önskar glida = proj(want på t)
+        const sDesired = Math.abs(_dot(want, t))*2;
 
-if (primary === "left" || primary === "right") {
-  // sidoväg styrs av diry → matcha t.y
-  const wantYSign = (diry === "down") ? +1 : -1;
-  if (Math.sign(t.y || 0) !== wantYSign) { t.x = -t.x; t.y = -t.y; }
-} else if (primary === "up" || primary === "down") {
-  // sidoväg styrs av dirx → matcha t.x
-  const wantXSign = (dirx === "right") ? +1 : -1;
-  if (Math.sign(t.x || 0) !== wantXSign) { t.x = -t.x; t.y = -t.y; }
-}
-
-// hur långt vill vi glida längs tangenten?
-const sDesired = tLen* 1.15;
-
-        // öka push-out rejält → undviker ”klister”
-        const SLOP = 0.8;           // ← tunable: 0.3–0.8 funkar bra
-        const ITER = 8;             // ← fler iterationer ger ”silkesglid”
+        // liten push-out från väggen så vi börjar utanför
+        const SLOP = 0.10;
         const baseX = o.x + n.x * SLOP;
         const baseY = o.y + n.y * SLOP;
 
-        // friktionsfri binärsökning av max gliddistans
+        // friktionsfritt: binärsök max gliddistans från basen
         let lo = 0, hi = sDesired;
-        for (let it = 0; it < ITER; it++) {
+        for (let it = 0; it < 6; it++) {
           const mid = (lo + hi) * 0.5;
           o.x = baseX + t.x * mid;
           o.y = baseY + t.y * mid;
-          // använd din befintliga testare; om den inte finns lämna utrymme
-          const hit = (o.collidestest && o.collidestest());
-          if (!hit) lo = mid; else hi = mid;
+          if (!(o.collidestest && o.collidestest())) lo = mid; else hi = mid;
         }
         o.x = baseX + t.x * lo;
         o.y = baseY + t.y * lo;
-
-        // vi har redan ”spenderat” hela steget längs tangenten;
-        // ta bort normal-komponenten så att nästa rasteriserade pass inte bromsar
-        o.rakna  = 0;
-        o.rakna2 = 0;
+        // OBS: vi rör inte o.rakna/o.rakna2 – de behövs för din 0°-logik
       }
     }
   }
