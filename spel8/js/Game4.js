@@ -802,7 +802,7 @@ if (o.hadcollidedobj && o.hadcollidedobj.length) {
         const sDesired = Math.abs(_dot(want, t));
 
         // liten push-out från väggen så vi börjar utanför
-        const SLOP = 1;
+        const SLOP = 0.10;
         const baseX = o.x + n.x * SLOP;
         const baseY = o.y + n.y * SLOP;
 
@@ -816,8 +816,6 @@ if (o.hadcollidedobj && o.hadcollidedobj.length) {
         }
         o.x = baseX + t.x * lo;
         o.y = baseY + t.y * lo;
-		o.rakna=0;
-		o.rakna2=0;
         // OBS: vi rör inte o.rakna/o.rakna2 – de behövs för din 0°-logik
       }
     }
