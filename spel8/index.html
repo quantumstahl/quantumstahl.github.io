@@ -2776,7 +2776,17 @@ function updateOBBChaseTest(){
 
   // Pathing
   const CELL=24, INFLATE=14, PAD=240, MAXGRID=512, NEAR_WP=12, REPLAN_FR=24;
+// ---- PF-throttle (samma på mobil/PC) ----
+const PF_BUCKETS = 8;                // dela upp enheterna i 8 grupper
+const MAX_PLANS_PER_FRAME = 2;       // max paths per frame
+const PF_TIME_BUDGET_MS = 2.0;       // ms budget per frame
 
+// Caps för repath-intervall
+const MIN_REPATH_FR = 16;            // ~0.27s @60fps
+const MAX_REPATH_FR = 200;           // ~3.3s
+
+// Per-frame PF-stats
+if (!window._PF) window._PF = { tick:0, planned:0, startT:0 };
   // ====== Hjälpare & setup ======
   function isAlive(o){ return !!o && !o.ghost && game.getAllObjects().includes(o); }
   function _center(o){ return _C ? _C(o) : { x:o.x + o.dimx/2, y:o.y + o.dimy/2 }; }
@@ -2785,7 +2795,9 @@ function updateOBBChaseTest(){
 
   const OBB_SOLID_TYPES = ["tree","water","base","bar","house","rbase","rbar","rhouse"];
   const obbs = collectOBBsFromGame(OBB_SOLID_TYPES, 0);
-
+window._PF.tick++;
+window._PF.planned = 0;
+window._PF.startT = performance.now();
   // AI (r*) trupp & bygg
   const fighters = [..._list("rguard"), ..._list("rarcher")].filter(isAlive);
   const rWorkers  = (_list("rworker")||[]).filter(isAlive);
@@ -2859,50 +2871,64 @@ const PROGRESS_EPS          = 250;  // "moved" tröskel i px mellan kontroller
 
 function steerToGoal(u, goal){
   if (!u || !goal) return;
+
+  function clamp(v, lo, hi){ return v<lo?lo:(v>hi?hi:v); }
+
   if (!u._obbAI) u._obbAI = {
     path:null, pi:0, repath:0, lastKey:null,
-    backoff:1, lastPX:0, lastPY:0, progT:PROGRESS_CHECK_FR
+    pfBucket: ((Math.random()*PF_BUCKETS)|0)
   };
 
   const U = _center(u);
 
-  // Init "senast-pos" första gången
-  if (u._obbAI.lastPX === 0 && u._obbAI.lastPY === 0) {
-    u._obbAI.lastPX = U.x; u._obbAI.lastPY = U.y;
-  }
-
-  // Mål-nyckel (ändrats?)
-  const key = ((goal.x|0)<<16) ^ (goal.y|0);
+  // stabilare mål-nyckel (avrundning för mindre fladder)
+  const kx = (goal.x/4|0), ky = (goal.y/4|0);
+  const key = (kx<<16) ^ ky;
   if (u._obbAI.lastKey !== key){
     u._obbAI.lastKey = key;
     u._obbAI.path    = null;
     u._obbAI.repath  = 0;
   }
 
+  const hardBlocked = !!u.blocked;
 
+  // Bucket- & budget-gating
+  const bucketOk = ((window._PF.tick % PF_BUCKETS) === u._obbAI.pfBucket);
+  const timeOk   = (performance.now() - window._PF.startT) < PF_TIME_BUDGET_MS;
+  const countOk  = (window._PF.planned < MAX_PLANS_PER_FRAME);
+  const frameBudgetOk = timeOk && countOk;
 
- if(!u.blocked){
-
-    // === (Re)planering med backoff ===
-    if (!u._obbAI.path || u._obbAI.repath <= 0){
-      const path = findPathOBB(U, goal, obbs, { cell:CELL, inflate:INFLATE, pad:PAD, maxGrid:MAXGRID, smooth:true });
+  // Replan: samma på mobil/PC, och aldrig när blockad
+  if (!hardBlocked && (!u._obbAI.path || u._obbAI.repath <= 0)){
+    if (bucketOk && frameBudgetOk){
+      const path = findPathOBB(U, goal, obbs, {
+        cell: CELL,            // << samma grid överallt
+        inflate: INFLATE,
+        pad: PAD,
+        maxGrid: MAXGRID,
+        smooth: true           // << samma smoothing överallt
+      });
       const jitter = (Math.random()*6)|0;
+
       if (path && path.length){
         u._obbAI.path   = path;
         u._obbAI.pi     = (path.length>1)?1:0;
-        // längre intervall när backoff är hög → långsammare re-path
-        u._obbAI.repath = Math.round(REPLAN_FR * u._obbAI.backoff) + jitter;
+        u._obbAI.repath = clamp(Math.round(REPLAN_FR) + jitter, MIN_REPATH_FR, MAX_REPATH_FR);
       } else {
         u._obbAI.path   = null;
         u._obbAI.pi     = 0;
-        // även "fail"-väntan respekterar backoff
-        u._obbAI.repath = Math.round(8 * u._obbAI.backoff);
+        u._obbAI.repath = clamp(8, MIN_REPATH_FR, MAX_REPATH_FR);
       }
+      window._PF.planned++;
     } else {
-      u._obbAI.repath--; // vi fryser inte timern – den räknar alltid ner
+      // Skjut upp lite om inte vår tur/budget
+      u._obbAI.repath = Math.max(u._obbAI.repath, 2);
     }
- }
-  // === Följ path/goal (oförändrat) ===
+  } else if (!hardBlocked){
+    u._obbAI.repath--;
+  }
+
+  // Följ path/goal
   let g = goal;
   if (u._obbAI.path && u._obbAI.pi < u._obbAI.path.length){
     const wp = u._obbAI.path[u._obbAI.pi];
@@ -2916,8 +2942,6 @@ function steerToGoal(u, goal){
 
   const dx = g.x - U.x, dy = g.y - U.y;
   u.direction = Math.abs(dx)>Math.abs(dy) ? (dx>0?"right":"left") : (dy>0?"down":"up");
-
-
 }
 
   // ====== Försvar: bevaka skada på r-enheter/byggnader ======
