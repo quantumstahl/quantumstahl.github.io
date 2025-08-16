@@ -57,7 +57,7 @@ function SATCollision(corners1, corners2) {
             if (proj < min2) min2 = proj;
             if (proj > max2) max2 = proj;
         }
-        if (max1 < min2 || max2 < min1) {
+        if (max1 <= min2 || max2 <= min1) {
             return false;
         }
     }
@@ -72,6 +72,19 @@ colli = {
         return SATCollision(corners1, corners2);
     }
 };
+function _norm(v){ const L=Math.hypot(v.x,v.y)||1; return {x:v.x/L, y:v.y/L}; }
+function _dot(a,b){ return a.x*b.x + a.y*b.y; }
+
+// två unika normaler för en roterad rektangel (motsvarar dess två olika kanalfamiljer)
+function getTwoNormals(x, y, w, h, rot){
+  const c = getRotatedRectangleCorners(x, y, w, h, rot||0);
+  const e0 = { x:c[1].x - c[0].x, y:c[1].y - c[0].y };
+  const e1 = { x:c[2].x - c[1].x, y:c[2].y - c[1].y };
+  return [ _norm({x:-e0.y, y:e0.x}), _norm({x:-e1.y, y:e1.x}) ];
+}
+
+
+
 
 "use strict";
 var cursorX;
@@ -662,6 +675,8 @@ class Game4 {
                 } else {
                     o.rakna = o.x - o.freex;
                     o.rakna2 = o.y - o.freey;
+                    o._wantdx = o.rakna;   // <--- NYTT
+                    o._wantdy = o.rakna2;  // <--- NYTT
                     o.x = o.freex;
                     o.y = o.freey;
                 }
@@ -732,10 +747,10 @@ class Game4 {
                 } else if (intY > 0) {
                     for (let k = 0; k < intY; k++) {
                         o.y += 1;
-                         o.rakna2++;
+                         o.rakna2--;
                         if (o.collideslist(this.maps, this.currentmap, "down")) {
                             o.y -= 1;
-                             o.rakna2--;
+                             o.rakna2++;
                             //restY = 0;
                             break;
                         }
@@ -747,12 +762,67 @@ class Game4 {
                     let testY = o.y + restY;
                     let oldY = o.y;
                     o.y = testY;
-                    o.rakna2=o.rakna2+restY;
+                    o.rakna2=o.rakna2-restY;
                     if (o.collideslist(this.maps, this.currentmap, restY > 0 ? "down" : "up")) {
                         o.y = oldY;
-                        o.rakna2=o.rakna2-restY;
+                        o.rakna2=o.rakna2+restY;
                     }
                 }
+// --- FRIKTIONSFRITT SLIDE (om vi slog i ett ROTERAT hinder) ---
+if (o.hadcollidedobj && o.hadcollidedobj.length) {
+  // ta senaste icke-ghost, helst roterat
+  let h = null;
+  for (let i = o.hadcollidedobj.length - 1; i >= 0; i--) {
+    const c = o.hadcollidedobj[i];
+    if (c && !c.ghost && (c.rot||0) !== 0) { h = c; break; }
+  }
+  if (!h) { /* inget roterat → hoppa */ }
+  else {
+    const want = { x:(o._wantdx||0), y:(o._wantdy||0) };     // satt i steg 2
+    const wantLen = Math.hypot(want.x, want.y);
+    if (wantLen > 1e-6) {
+      // välj den normal som bäst matchar blockeringen
+      const [n0, n1] = getTwoNormals(h.x, h.y, h.dimx, h.dimy, h.rot || 0);
+      let n = (Math.abs(_dot(want,n0)) >= Math.abs(_dot(want,n1))) ? n0 : n1;
+
+      // VIKTIGT: rikta normalen FRÅN hindret MOT enheten (så +n är "ut från väggen")
+      const ax = o.x + o.dimx/2, ay = o.y + o.dimy/2;
+      const bx = h.x + h.dimx/2, by = h.y + h.dimy/2;
+      const toA = { x: ax - bx, y: ay - by };
+      if (_dot(toA, n) < 0) { n = { x: -n.x, y: -n.y }; }
+
+      // Slida bara när vi faktiskt TRYCKER IN i ytan
+      if (_dot(want, n) < 0) {  // (< 0 – inte > 0)
+        // tangent (90° mot n), riktad i "want"-riktningen
+        let t = { x: -n.y, y: n.x };
+        const tL = Math.hypot(t.x, t.y) || 1; t.x/=tL; t.y/=tL;
+        if (_dot(t, want) < 0) { t.x = -t.x; t.y = -t.y; }
+
+        // längden vi önskar glida = proj(want på t)
+        const sDesired = Math.abs(_dot(want, t));
+
+        // liten push-out från väggen så vi börjar utanför
+        const SLOP = 0.10;
+        const baseX = o.x + n.x * SLOP;
+        const baseY = o.y + n.y * SLOP;
+
+        // friktionsfritt: binärsök max gliddistans från basen
+        let lo = 0, hi = sDesired;
+        for (let it = 0; it < 6; it++) {
+          const mid = (lo + hi) * 0.5;
+          o.x = baseX + t.x * mid;
+          o.y = baseY + t.y * mid;
+          if (!(o.collidestest && o.collidestest())) lo = mid; else hi = mid;
+        }
+        o.x = baseX + t.x * lo;
+        o.y = baseY + t.y * lo;
+        // OBS: vi rör inte o.rakna/o.rakna2 – de behövs för din 0°-logik
+      }
+    }
+  }
+}
+                
+                
                 o.blockedx=false;o.blockedy=false;
                 if(o.freex === o.x&& o.rakna!==0)o.blockedx=true;
                 if(o.freey === o.y&& o.rakna2!==0)o.blockedy=true;
@@ -1044,7 +1114,7 @@ class Game4 {
                    if(obj.deliveryTarget&&c==obj.deliveryTarget){obj.blocked=false;obj.blocked1=0;stop=true;}
                 }
 
-                //väj år sidan
+                //väj åt sidan
 
                 if(stop==false&&!game.isPathClear(obj)){
                         obj.blockedcounter++;
@@ -1287,77 +1357,92 @@ class Objecttype {
         this.fliped = false;
     }
     draw(ctx, zoom, camerax, cameray) {
+        const scale = 1 + (zoom / 100);
+        const viewW = ctx.canvas.width  / scale;
+        const viewH = ctx.canvas.height / scale;
+        const viewL = -camerax;  // vy-rektangel i världsenheter
+        const viewT = -cameray;
+
+        // små helpers
+        const toNum = (v, d=0) => (typeof v === "number" ? v : (v!=null ? Number(v) : d)) || d;
+        const toRad = (aLike) => {
+          let a = toNum(aLike, 0);
+          if (Math.abs(a) > Math.PI*2) a *= Math.PI/180; // grader -> rad
+          return a;
+        };
+
         for (let i = 0; i < this.objects.length; i++) {
-            this.objects[i].isonscreen=false;
-            try {
-                // Check if object is within view horizontally
-                if (-camerax - this.objects[i].dimx <= this.objects[i].x + this.objects[i].dimx &&
-                    ((this.objects[i].dimx + document.body.clientWidth / (1 + (1 * zoom / 100)) - 8 + 300) - camerax) >= this.objects[i].x + this.objects[i].dimx) {
-                    // Check if object is within view vertically
-                    if (-cameray - this.objects[i].dimy <= this.objects[i].y + this.objects[i].dimy &&
-                        ((this.objects[i].dimy + document.body.clientHeight / (1 + (1 * zoom / 100)) - 8 + 300) - cameray) >= this.objects[i].y + this.objects[i].dimy) {
-                        if (this.images[this.objects[i].animation].getimage() != null) {
-                            this.objects[i].isonscreen=true;
-                            drawSelectRing(ctx, this.objects[i],zoom, camerax, cameray);
-                            ctx.save();
-                            ctx.scale(1 + (1 * zoom / 100), 1 + (1 * zoom / 100));
-                            ctx.translate(this.objects[i].x + camerax + this.objects[i].dimx / 2, this.objects[i].y + cameray + this.objects[i].dimy / 2);
-                            ctx.rotate((this.objects[i].rot * Math.PI) / 180);
-                            if (this.objects[i].fliped == true)
-                                ctx.scale(-1, 1);
-                            ctx.translate(-(this.objects[i].x + camerax + this.objects[i].dimx / 2), -(this.objects[i].y + cameray + this.objects[i].dimy / 2));
-                            ctx.drawImage(this.images[this.objects[i].animation].getimage(), this.objects[i].x + camerax, this.objects[i].y + cameray, this.objects[i].dimx, this.objects[i].dimy);
-                            ctx.restore();
-                            
-                            if (this.objects[i].selected) {
-                                ctx.save();
-                                ctx.scale(1 + (1 * zoom / 100), 1 + (1 * zoom / 100));
-                                ctx.strokeStyle = "#00ff00";
-                                ctx.lineWidth = 4;
-                                
-                                
-                                
-                                ctx.strokeRect(
-                                    this.objects[i].x + camerax,
-                                    this.objects[i].y + cameray,
-                                    this.objects[i].dimx,
-                                    this.objects[i].dimy
-                                );
-                        
-                                ctx.strokeStyle = "black";
-                                ctx.lineWidth = 2;
-                                
-                                
-                                
-                                ctx.strokeRect(
-                                    this.objects[i].x + camerax,
-                                    this.objects[i].y + cameray,
-                                    this.objects[i].dimx,
-                                    this.objects[i].dimy
-                                );
-                        
-                        
-                                ctx.restore();
-                            }
-                            
-                            if (this.objects[i].ghost&&this.objects[i].name!="tree") {
-                                ctx.globalAlpha = 0.5;
+          const o = this.objects[i];
+          o.isonscreen = false;
 
-                                let valid = true;
-                                if (typeof window.isBuildPlacementValid === "function") {
-                                    valid = window.isBuildPlacementValid(this.objects[i]);
-                                }
+          // bild?
+          const img = this.images?.[o.animation]?.getimage?.();
+          if (!img) continue;
 
-                                ctx.strokeStyle = valid ? "lime" : "red";
-                                ctx.lineWidth = 2;
-                                ctx.strokeRect(this.objects[i].x+ camerax, this.objects[i].y+ cameray, this.objects[i].dimx, this.objects[i].dimy);
-                            }
-                            
-                            
-                        }
-                    }
-                }
-            } catch (error) {}
+          // storlek & mitt
+          const w  = toNum(o.dimx, 0);
+          const h  = toNum(o.dimy, 0);
+          const cx = o.x + w/2;
+          const cy = o.y + h/2;
+
+          // rotation (stöd string/deg)
+          const rad = toRad(o.rot ?? o.rotation ?? o.angle ?? 0);
+          const c = Math.cos(rad), s = Math.sin(rad);
+
+          // roterad AABB-extents
+          const ax = Math.abs(c)*w/2 + Math.abs(s)*h/2;
+          const ay = Math.abs(s)*w/2 + Math.abs(c)*h/2;
+
+          const objL = cx - ax, objT = cy - ay, objR = cx + ax, objB = cy + ay;
+
+          // snabb culling mot viewport i världsenheter
+          if (objR < viewL || objL > viewL + viewW || objB < viewT || objT > viewT + viewH) {
+            continue; // helt utanför, rita inte
+          }
+
+          // on-screen
+          o.isonscreen = true;
+
+          // valfri: selektionsring innan spriten
+          try { drawSelectRing(ctx, o, zoom, camerax, cameray); } catch(e){}
+
+          // ===== RITA SPRITE =====
+          ctx.save();
+          ctx.scale(scale, scale);
+          // flytta till objektets center i skärm-koordinater
+          ctx.translate(camerax + cx, cameray + cy);
+          ctx.rotate(rad);
+          if (o.fliped === true) ctx.scale(-1, 1);
+          // rita bilden centrerad
+          ctx.drawImage(img, -w/2, -h/2, w, h);
+          ctx.restore();
+
+          // ===== (valfritt) markeringsram när selected =====
+          if (o.selected) {
+            ctx.save();
+            ctx.scale(scale, scale);
+            // rita AABB för den roterade spriten (matchar culling)
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = "#00ff00";
+            ctx.strokeRect(camerax + (cx - ax), cameray + (cy - ay), ax*2, ay*2);
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(camerax + (cx - ax), cameray + (cy - ay), ax*2, ay*2);
+            ctx.restore();
+          }
+
+          // ===== ghost-byggen (oförändrat, men du kan rotera om du vill) =====
+          if (o.ghost && o.name !== "tree") {
+            let valid = true;
+            try { if (typeof window.isBuildPlacementValid === "function") valid = !!window.isBuildPlacementValid(o); } catch(e){}
+            ctx.save();
+            ctx.scale(scale, scale);
+            ctx.strokeStyle = valid ? "lime" : "red";
+            ctx.lineWidth = 2;
+            // vill du att rutan ska matcha rotationen exakt kan du använda samma transform som för spriten
+            ctx.strokeRect(camerax + o.x, cameray + o.y, w, h);
+            ctx.restore();
+          }
         }
     }
 }
@@ -1465,6 +1550,8 @@ class Objectx {
         this.blockedy=false;
         this.resty=0;
         this.restx=0;
+        this._wantdx=0;
+        this._wantdy=0;
     }
     collidestest(){
         for (let i2 = 0; i2 < game.maps[game.currentmap].layer.length; i2++) {
@@ -1847,7 +1934,7 @@ function drawSelectRing(ctx, o,zoom, camX, camY){
     ctx.beginPath(); ctx.ellipse(cx+camX, cy+camY, o.dimx*0.45, o.dimy*0.35, 0, 0, Math.PI*2);
     ctx.fillStyle="rgba(0,0,0,.9)"; ctx.fill(); ctx.restore();
   }  
-  else if(o.name!="ground"&&o.selectable){  
+  else if(o.selectable){  
     
     
     
