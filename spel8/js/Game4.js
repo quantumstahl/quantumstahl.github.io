@@ -778,7 +778,7 @@ if (o.hadcollidedobj && o.hadcollidedobj.length) {
   }
   if (!h) { /* inget roterat → hoppa */ }
   else {
-    const want = { x:(o._wantdx||0), y:(o._wantdy||0) };     // satt i steg 2
+    const want = { x:(o._wantdy||0), y:(o._wantdx||0) };     // satt i steg 2
     const wantLen = Math.hypot(want.x, want.y);
     if (wantLen > 1e-6) {
       // välj den normal som bäst matchar blockeringen
