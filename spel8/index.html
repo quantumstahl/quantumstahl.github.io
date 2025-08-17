@@ -7,7 +7,7 @@
         <link rel="icon" href="images/guarddown1.png" type="image/vnd.microsoft.icon" />
 	<title>Test4</title>
         
-        <script src="js/Game4.js"></script>
+        <script src="js/Game5.js"></script>
         
         <!-- === Highscore overlay UI (kan läggas precis innan </body>) === -->
 <style>
@@ -409,7 +409,43 @@ const gameClock = (() => {
             document.getElementById("myCanvas").style.width=window.innerWidth;
             document.getElementById("myCanvas").style.height=window.innerHeight;
 
-            game = new Game4("Spelet");
+            
+// --- Performance helpers (inserted) ---
+const UI = {
+  hudTime: document.getElementById("hudTime"),
+  gold: document.getElementById("goldCount"),
+  wood: document.getElementById("woodCount"),
+  pop:  document.getElementById("popCount"),
+};
+
+const _btnState = Object.create(null);
+function paintBtnOnce(id, ok){
+  if (_btnState[id] === ok) return;
+  _btnState[id] = ok;
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.opacity = "1";
+  el.style.backgroundColor = ok ? "#37c96b" : "#ff7a7a";
+  el.style.color = "#fff";
+  el.style.borderRadius = "10px";
+  el.style.border = "1px solid rgba(255,255,255,.15)";
+  el.style.boxShadow = ok
+    ? "0 0 0 2px rgba(55,201,107,.25) inset"
+    : "0 0 0 2px rgba(255,0,0,.18) inset";
+}
+
+// Resize canvas only on demand, not every frame
+function resizeCanvas(){
+  canvas.width  = document.body.clientWidth;
+  canvas.height = document.body.clientHeight - 8;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+// --- End performance helpers ---
+
+
+
+            game = new Game5("Spelet");
             var audio = new Audio('sounds/war3.mp3');
             audio.loop = true;
              
@@ -887,12 +923,8 @@ const gameClock = (() => {
                 // HUD: uppdatera speltid i sekunder → formatTime
                 // HUD: speltid
                 const elapsedSec = gameClock.seconds();
-                const hudTimeEl = document.getElementById("hudTime");
-                if (hudTimeEl) hudTimeEl.textContent = formatTime(elapsedSec);
-                 
-                canvas.width=document.body.clientWidth;
-                canvas.height=document.body.clientHeight-8;
-                 
+                if (UI.hudTime) UI.hudTime.textContent = formatTime(elapsedSec);
+                
                 ctx.fillStyle = "black";
                 ctx.fillRect(0, 0, canvas.width, canvas.height); 
                 
@@ -905,9 +937,9 @@ const gameClock = (() => {
                 if (keyState.d) currentMap.camerax -= camSpeed;
                 
                 recalcPopulation();
-                document.getElementById("goldCount").textContent = gold;
-                document.getElementById("woodCount").textContent = wood;
-                document.getElementById("popCount").textContent  = `${popUsed}/${popCap}`;
+                if (UI.gold) UI.gold.textContent = gold;
+                if (UI.wood) UI.wood.textContent = wood;
+                if (UI.pop)  UI.pop.textContent  = `${popUsed}/${popCap}`;
                 
                 
                 let anyWorkerSelected = false;
@@ -920,9 +952,13 @@ const gameClock = (() => {
                 document.getElementById("build-ui").style.display = anyWorkerSelected ? "flex" : "none";
                 
                 
+                const __t0 = performance.now();
                 game.updateanimation(ctx);
-                
                 drawHealthBars();
+                const __t1 = performance.now();
+                window.__pf = (window.__pf||0) + 1;
+                if (window.__pf % 120 === 0) { console.log("render ms", (__t1-__t0).toFixed(2)); }
+                
 		gras= game.getobjecttype("ground"); 				
                 guard =game.getobjecttype("guard"); 
                 worker =game.getobjecttype("worker"); 
@@ -1048,28 +1084,14 @@ const gameClock = (() => {
                     const canAffordHouse = wood >= 50;
                     
                     
-                    function paintBtn(id, ok){
-                        const el = document.getElementById(id);
-                        if (!el) return;
-                        // aldrig genomskinlig:
-                        el.style.opacity = "1";
-                        // tydlig färgkod:
-                        el.style.backgroundColor = ok ? "#37c96b" : "#ff7a7a"; // grön / ljusröd
-                        el.style.color = "#fff";
-                        el.style.borderRadius = "10px";
-                        el.style.border = "1px solid rgba(255,255,255,.15)";
-                        el.style.boxShadow = ok
-                          ? "0 0 0 2px rgba(55,201,107,.25) inset"
-                          : "0 0 0 2px rgba(255,0,0,.18) inset";
-                    }
+                    // paintBtn removed; using paintBtnOnce with caching.
                     
-                    
-                    paintBtn("build-house-btn",     canAffordHouse);
-                    paintBtn("build-base-btn",      canAffordBase);
-                    paintBtn("train-worker-btn",    (canAffordWorker  && hasPopForWorker));
-                    paintBtn("train-warrior-btn",   (canAffordWarrior && hasPopForWarrior));
-                    paintBtn("build-barracks-btn",  canAffordBar);
-                    paintBtn("train-archer-btn",    (canAffordArcher  && hasPopForArcher));
+                    paintBtnOnce("build-house-btn",     canAffordHouse);
+                    paintBtnOnce("build-base-btn",      canAffordBase);
+                    paintBtnOnce("train-worker-btn",    (canAffordWorker  && hasPopForWorker));
+                    paintBtnOnce("train-warrior-btn",   (canAffordWarrior && hasPopForWarrior));
+                    paintBtnOnce("build-barracks-btn",  canAffordBar);
+                    paintBtnOnce("train-archer-btn",    (canAffordArcher  && hasPopForArcher));
                     
                     if (base.objects.length>0&&base.objects[0].animation==1) {
                         document.getElementById("build-barracks-btn").style.display = "inline-block";
@@ -1698,7 +1720,7 @@ if (worker.objects[i].workobject && isDepleted(worker.objects[i].workobject)&&wo
                     updateRedWorkerAI();
                     updateRedTrainingAI();
                     //updateRedGuardAI();
-                    //updateOBBChaseTest();
+                    updateOBBChaseTest();
                     
                     
                     handleCombat("guard", ["rguard", "rworker", "rbase", "rbar","rarcher","rhouse"], 0.4);
