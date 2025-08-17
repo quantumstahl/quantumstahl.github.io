@@ -149,6 +149,8 @@ function sweepAlong(game, mapIndex, o, baseX, baseY, tx, ty, desiredLen, step){
 
 
 "use strict";
+
+
 var cursorX;
 var cursorY;
 var game;
@@ -163,7 +165,7 @@ let dragWasActive = false;
 let tapTimeout = null;
 let allowSingleTap = true;
 
-class Game6 {
+class Game5 {
     
     kollitions = [];
     kollitions2 = [];
@@ -711,71 +713,14 @@ class Game6 {
         updateAndDrawFX(ctx);
         
     }
-    collitionengine() {
-        // --- Build spatial hashes (hybrid) ---
-        (function buildGrids(self){
-            const map = self.maps[self.currentmap];
-            if (!map) return;
-            if (ENABLE_STATIC_GRID){
-                const stat = new Map();
-                for (let i2=0;i2<map.layer.length;i2++){
-                    const layer = map.layer[i2];
-                    if (layer.fysics === false) continue;
-                    for (let i3=0;i3<layer.objectype.length;i3++){
-                        const ot = layer.objectype[i3];
-                        for (let i4=0;i4<ot.objects.length;i4++){
-                            const o = ot.objects[i4];
-                            const isMovable = !!o.canMove;
-                            if (isMovable) continue;
-                            o._bp_ghostLayer = (layer.ghost === true);
-                            const aabb = _aabbOf(o);
-                            const cells = _cellsFor(aabb);
-                            for (let c=0;c<cells.length;c++){
-                                const key = cells[c];
-                                let bin = stat.get(key);
-                                if (!bin){ bin = []; stat.set(key, bin); }
-                                bin.push(o);
-                            }
-                        }
-                    }
-                }
-                self._bpStatic = stat;
-            }
-            if (ENABLE_UNIT_GRID){
-                const units = new Map();
-                for (let i2=0;i2<map.layer.length;i2++){
-                    const layer = map.layer[i2];
-                    if (layer.fysics === false) continue;
-                    for (let i3=0;i3<layer.objectype.length;i3++){
-                        const ot = layer.objectype[i3];
-                        for (let i4=0;i4<ot.objects.length;i4++){
-                            const o = ot.objects[i4];
-                            if (!o.canMove) continue;
-                            const aabb = _aabbOf(o);
-                            const cells = _cellsFor(aabb);
-                            for (let c=0;c<cells.length;c++){
-                                const key = cells[c];
-                                let bin = units.get(key);
-                                if (!bin){ bin = []; units.set(key, bin); }
-                                bin.push(o);
-                            }
-                        }
-                    }
-                }
-                self._bpUnits = units;
-            } else {
-                self._bpUnits = null;
-            }
-        })(this);
-        // --- End grid builds ---
-
+     collitionengine() {
     // 1. Nollställ kollisionslistor
     for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
         for (let i3 = 0; i3 < this.maps[this.currentmap].layer[i2].objectype.length; i3++) {
             for (let o of this.maps[this.currentmap].layer[i2].objectype[i3].objects) {
-                o.collideslistan = [];
-                o.collideslistandir = [];
-                o.collideslistanobj = [];
+                o.collideslistan.length = 0;
+				o.collideslistandir.length = 0;
+				o.collideslistanobj.length = 0;
             }
         }
     }
@@ -807,7 +752,7 @@ class Game6 {
     for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
         for (let i3 = 0; i3 < this.maps[this.currentmap].layer[i2].objectype.length; i3++) {
             for (let o of this.maps[this.currentmap].layer[i2].objectype[i3].objects) {
-                if (o.rakna !== 0 || o.rakna2 !== 0) o.hadcollidedobj = [];
+                if (o.rakna !== 0 || o.rakna2 !== 0) o.hadcollidedobj.length = 0;
 
                 // --- X-led ---
                 let intX = Math.trunc(o.rakna);
@@ -1038,6 +983,7 @@ if (still){
         }
     }
 }
+
     
     isclose(obj, obj2){
         for (let i = 0; i < obj.hadcollidedobj.length; i++) {
@@ -1781,95 +1727,88 @@ class Objectx {
     
     
     collideslist(maps, currentmap, dir) {
-        // Hybrid: STATIC via grid, then fallback to original sweep (units & anything else)
-        const me = this;
-        const stat = (typeof game!=='undefined') ? game._bpStatic : null;
-        if (stat){
+        // Broadphase-based candidate search (added)
+        const bp = (typeof game !== 'undefined' && game._bpGrid) ? game._bpGrid : null;
+        if (bp) {
+            const me = this;
             const aabb = _aabbOf(me);
             const keys = _cellsFor(aabb);
             const seen = new Set();
-            const cand = [];
-            for (let ki=0; ki<keys.length; ki++){
-                const bin = stat.get(keys[ki]); if (!bin) continue;
-                for (let bi=0; bi<bin.length; bi++){
-                    const o = bin[bi];
-                    if (o===me) continue;
-                    const id = o._oid || (o._oid = Symbol());
-                    if (seen.has(id)) continue;
-                    seen.add(id);
-                    cand.push(o);
-                }
-            }
-            // Sort by projected distance along movement dir (nearest first)
-            const cx = me.x + me.dimx*0.5, cy = me.y + me.dimy*0.5;
-            let vx=0, vy=0;
-            if (dir==='left') vx=-1; else if (dir==='right') vx=1; else if (dir==='up') vy=-1; else if (dir==='down') vy=1;
-            cand.sort((a,b)=>{
-                const pa=(a.x+a.dimx*0.5 - cx)*vx + (a.y+a.dimy*0.5 - cy)*vy;
-                const pb=(b.x+b.dimx*0.5 - cx)*vx + (b.y+b.dimy*0.5 - cy)*vy;
-                return pa - pb; // smallest (most ahead in negative) first
-            });
-            for (let i=0;i<cand.length;i++){
-                const other = cand[i];
-                if (other.rot == 0 && me.rot == 0) {
-                    if (me.collideswithfast(other)) {
-                        if ((other._bp_ghostLayer === true) || (other.ghost === true)) {
-                            me.collideslistan.push(other.name); me.collideslistandir.push("ghost");
-                            me.collideslistanobj.push(other);   me.hadcollidedobj.push(other);
-                            other.collideslistan.push(me.name); other.collideslistandir.push("ghost");
-                            other.collideslistanobj.push(me);   other.hadcollidedobj.push(me);
-                        } else {
-                        if (_unitCand && objType.objects[i4].canMove && !_unitCand.has(objType.objects[i4])) { continue; }
-                            me.collideslistan.push(other.name); me.collideslistandir.push(dir);
-                            me.collideslistanobj.push(other);   me.hadcollidedobj.push(other);
-                            other.collideslistan.push(me.name);
-                            if(dir=="up")other.collideslistandir.push("down");
-                            else if(dir=="down")other.collideslistandir.push("up");
-                            else if(dir=="left")other.collideslistandir.push("right");
-                            else if(dir=="right")other.collideslistandir.push("left");
-                            other.collideslistanobj.push(me);   other.hadcollidedobj.push(me);
-                            return true;
-                        }
-                    }
-                } else {
-                    if (me.collideswith(other)) {
-                        if ((other._bp_ghostLayer === true) || (other.ghost === true)) {
-                            me.collideslistan.push(other.name); me.collideslistandir.push("ghost");
-                            me.collideslistanobj.push(other);   me.hadcollidedobj.push(other);
-                            other.collideslistan.push(me.name); other.collideslistandir.push("ghost");
-                            other.collideslistanobj.push(me);   other.hadcollidedobj.push(me);
-                        } else {
-                            me.collideslistan.push(other.name); me.collideslistandir.push(dir);
-                            me.collideslistanobj.push(other);   me.hadcollidedobj.push(other);
-                            other.collideslistan.push(me.name);
-                            if(dir=="up")other.collideslistandir.push("down");
-                            else if(dir=="down")other.collideslistandir.push("up");
-                            else if(dir=="left")other.collideslistandir.push("right");
-                            else if(dir=="right")other.collideslistandir.push("left");
-                            other.collideslistanobj.push(me);   other.hadcollidedobj.push(me);
-                            return true;
-                        }
-                    }
-                }
-            }
-            // No blocking static hit found; continue to original sweep below
-        }
+            for (let ki = 0; ki < keys.length; ki++){
+                const key = keys[ki];
+                const bin = bp.get(key);
+                if (!bin) continue;
+                for (let bi = 0; bi < bin.length; bi++){
+                    const other = bin[bi];
+                    if (other === me) continue;
+                    const oid = other._oid || (other._oid = Symbol());
+                    if (seen.has(oid)) continue;
+                    seen.add(oid);
 
-        
-        
-        // --- Unit candidate set from unit grid (prunes checks but keeps original order) ---
-        let _unitCand = null;
-        if (ENABLE_UNIT_GRID && typeof game!=='undefined' && game._bpUnits){
-            const aabbU = _aabbOf(this);
-            const keysU = _cellsFor(aabbU);
-            const set = new Set();
-            for (let ku=0; ku<keysU.length; ku++){
-                const bin = game._bpUnits.get(keysU[ku]); if (!bin) continue;
-                for (let bu=0; bu<bin.length; bu++){ set.add(bin[bu]); }
+                    if (other.rot == 0 && this.rot == 0) {
+                        if (this.collideswithfast(other)) {
+                            if ((other._bp_ghostLayer === true) || (other.ghost === true)) {
+                                this.collideslistan.push(other.name);
+                                this.collideslistandir.push("ghost");
+                                this.collideslistanobj.push(other);
+                                this.hadcollidedobj.push(other);
+
+                                other.collideslistan.push(this.name);
+                                other.collideslistandir.push("ghost");
+                                other.collideslistanobj.push(this);
+                                other.hadcollidedobj.push(this);
+                            } else {
+                                this.collideslistan.push(other.name);
+                                this.collideslistandir.push(dir);
+                                this.collideslistanobj.push(other);
+                                this.hadcollidedobj.push(other);
+
+                                other.collideslistan.push(this.name);
+                                if(dir=="up")other.collideslistandir.push("down");
+                                else if(dir=="down")other.collideslistandir.push("up");
+                                else if(dir=="left")other.collideslistandir.push("right");
+                                else if(dir=="right")other.collideslistandir.push("left");
+                                other.collideslistanobj.push(this);
+                                other.hadcollidedobj.push(this);
+                                return true;
+                            }
+                        }
+                    } else {
+                        if (this.collideswith(other)) {
+                            if ((other._bp_ghostLayer === true) || (other.ghost === true)) {
+                                this.collideslistan.push(other.name);
+                                this.collideslistandir.push("ghost");
+                                this.collideslistanobj.push(other);
+                                this.hadcollidedobj.push(other);
+
+                                other.collideslistan.push(this.name);
+                                other.collideslistandir.push("ghost");
+                                other.collideslistanobj.push(this);
+                                other.hadcollidedobj.push(this);
+                            } else {
+                                this.collideslistan.push(other.name);
+                                this.collideslistandir.push(dir);
+                                this.collideslistanobj.push(other);
+                                this.hadcollidedobj.push(other);
+
+                                other.collideslistan.push(this.name);
+                                if(dir=="up")other.collideslistandir.push("down");
+                                else if(dir=="down")other.collideslistandir.push("up");
+                                else if(dir=="left")other.collideslistandir.push("right");
+                                else if(dir=="right")other.collideslistandir.push("left");
+                                other.collideslistanobj.push(this);
+                                other.hadcollidedobj.push(this);
+                                return true;
+                            }
+                        }
+                    }
+                }
             }
-            _unitCand = set;
+            return false;
         }
-for (let i2 = 0; i2 < maps[currentmap].layer.length; i2++) {
+        // Fallback to original O(N) sweep if grid missing
+
+        for (let i2 = 0; i2 < maps[currentmap].layer.length; i2++) {
             let layer = maps[currentmap].layer[i2];
             for (let i3 = 0; i3 < layer.objectype.length; i3++) {
                 let objType = layer.objectype[i3];

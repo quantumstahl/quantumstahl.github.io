@@ -1,3 +1,113 @@
+// ==== [PATCH] Broadphase + Fast Overlap Helpers ====
+const BP_CELL = 64;
+const BP_PAD  = 2;
+let __bp_hash = new Map();
+let __bp_last_build_ms = 0;
+const __BP_MIN_INTERVAL_MS = 5; // ~max 1–2 rebuilds per 16ms frame
+
+function _aabbFor(o){
+  const rot = (o.rot||0);
+  if (!rot) return {L:o.x, T:o.y, R:o.x+o.dimx, B:o.y+o.dimy};
+  const cx=o.x+o.dimx/2, cy=o.y+o.dimy/2;
+  const c=Math.cos(rot*Math.PI/180), s=Math.sin(rot*Math.PI/180);
+  const ax = Math.abs(c)*o.dimx/2 + Math.abs(s)*o.dimy/2;
+  const ay = Math.abs(s)*o.dimx/2 + Math.abs(c)*o.dimy/2;
+  return {L:cx-ax, T:cy-ay, R:cx+ax, B:cy+ay};
+}
+function _overlapAABB(a,b){
+  return !(a.R <= b.L || b.R <= a.L || a.B <= b.T || b.B <= a.T);
+}
+function _corners(gameObj){
+  if (gameObj._corners && gameObj._corners_time === __bp_last_build_ms) return gameObj._corners;
+  if (typeof getRotatedRectangleCorners === "function"){
+    gameObj._corners = getRotatedRectangleCorners(gameObj.x, gameObj.y, gameObj.dimx, gameObj.dimy, gameObj.rot||0);
+  } else {
+    gameObj._corners = [
+      {x:gameObj.x, y:gameObj.y},
+      {x:gameObj.x+gameObj.dimx, y:gameObj.y},
+      {x:gameObj.x+gameObj.dimx, y:gameObj.y+gameObj.dimy},
+      {x:gameObj.x, y:gameObj.y+gameObj.dimy},
+    ];
+  }
+  gameObj._corners_time = __bp_last_build_ms;
+  return gameObj._corners;
+}
+function _overlapFast(o1,o2){
+  const a=_aabbFor(o1), b=_aabbFor(o2);
+  if (!_overlapAABB(a,b)) return false;
+  if (!(o1.rot||0) && !(o2.rot||0)) return true;
+  if (typeof SATCollision === "function"){
+    return SATCollision(_corners(o1), _corners(o2));
+  }
+  return true;
+}
+
+function __bp_key(ix,iy){ return ix+"|"+iy; }
+function __bp_put(hash, ix,iy,o){
+  const k = __bp_key(ix,iy);
+  let arr = hash.get(k);
+  if (!arr){ arr=[]; hash.set(k,arr); }
+  arr.push(o);
+}
+
+function __buildBroadphase(game, mapIndex){
+  __bp_hash = new Map();
+  const now = Date.now();
+  __bp_last_build_ms = now;
+  const map = game.maps[mapIndex];
+  if (!map || !map.layer) return;
+  for (const layer of map.layer){
+    if (!layer.fysics) continue;
+    for (const typ of (layer.objectype||[])){
+      for (const o of (typ.objects||[])){
+        const dx = (o._wantdx||0), dy=(o._wantdy||0);
+        const a  = _aabbFor(o);
+        const L = Math.min(a.L, a.L+dx)-BP_PAD, R=Math.max(a.R, a.R+dx)+BP_PAD;
+        const T = Math.min(a.T, a.T+dy)-BP_PAD, B=Math.max(a.B, a.B+dy)+BP_PAD;
+        const ix0 = Math.floor(L/BP_CELL), iy0 = Math.floor(T/BP_CELL);
+        const ix1 = Math.floor(R/BP_CELL), iy1 = Math.floor(B/BP_CELL);
+        o._cells = [ix0,iy0,ix1,iy1];
+        for (let iy=iy0; iy<=iy1; iy++){
+          for (let ix=ix0; ix<=ix1; ix++) __bp_put(__bp_hash, ix,iy,o);
+        }
+      }
+    }
+  }
+  // candidates per object + cheap tester
+  for (const layer of map.layer){
+    if (!layer.fysics) continue;
+    for (const typ of (layer.objectype||[])){
+      for (const o of (typ.objects||[])){
+        const [ix0,iy0,ix1,iy1] = o._cells || [0,0,0,0];
+        const cand = new Set();
+        for (let iy=iy0-1; iy<=iy1+1; iy++){
+          for (let ix=ix0-1; ix<=ix1+1; ix++){
+            const arr = __bp_hash.get(ix+"|"+iy);
+            if (!arr) continue;
+            for (const other of arr) if (other!==o) cand.add(other);
+          }
+        }
+        o._cands = cand;
+        o.collidestest = function(){
+          if (!this._cands) return false;
+          for (const other of this._cands){
+            if (other.ghost) continue;
+            if (_overlapFast(this, other)) return true;
+          }
+          return false;
+        }
+      }
+    }
+  }
+}
+
+function __ensureBroadphase(game, mapIndex){
+  const now = Date.now();
+  if (now - __bp_last_build_ms > __BP_MIN_INTERVAL_MS){
+    __buildBroadphase(game, mapIndex);
+  }
+}
+// ==== [END PATCH helpers] ====
 "use strict";
 
 function getRotatedRectangleCorners(x, y, w, h, rot) {
@@ -91,18 +201,22 @@ function dirToVec(dir){
 
 // Overlap-test UTAN sidoeffekter under provsteg
 function overlapsNoSideEffects(game, mapIndex, o){
-  const A=o.hadcollidedobj?.slice()||[];
-  const L=o.collideslistan?.slice()||[];
-  const D=o.collideslistandir?.slice()||[];
-  const O=o.collideslistanobj?.slice()||[];
-  const hit = (
-    o.collideslist(game.maps, mapIndex, "left")  ||
-    o.collideslist(game.maps, mapIndex, "right") ||
-    o.collideslist(game.maps, mapIndex, "up")    ||
-    o.collideslist(game.maps, mapIndex, "down")
-  );
-  o.hadcollidedobj=A; o.collideslistan=L; o.collideslistandir=D; o.collideslistanobj=O;
-  return hit;
+  try {
+    __ensureBroadphase(game, mapIndex);
+    if (o && o.collidestest) return !!o.collidestest();
+  } catch(e){ /* fallback below */ }
+  try{
+    const map = game.maps[mapIndex];
+    for (const layer of (map.layer||[])){
+      for (const typ of (layer.objectype||[])){
+        for (const other of (typ.objects||[])){
+          if (!other || other===o || other.ghost) continue;
+          if (_overlapFast(o, other)) return true;
+        }
+      }
+    }
+  }catch(e){}
+  return false;
 }
 
 // Pressad mot väggen? (av sig själv eller andra)
@@ -123,6 +237,11 @@ function isPressedAgainst(game, mapIndex, o, n, want){
 
 // Mjuk sweep längs given tangent (testar kollision per litet steg)
 function sweepAlong(game, mapIndex, o, baseX, baseY, tx, ty, desiredLen, step){
+      // [PATCH] EARLY-OUT ZERO MOTION
+      if (!isFinite(desiredLen) || desiredLen <= EPS || (Math.abs(tx) <= EPS && Math.abs(ty) <= EPS)){
+        return {x:baseX, y:baseY, travel:0};
+      }
+
   let traveled=0, cx=baseX, cy=baseY;
   const EPS=1e-4;
   const ox=o.x, oy=o.y;
