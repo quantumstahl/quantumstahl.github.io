@@ -1267,7 +1267,7 @@ if (still){
 
                 //väj åt sidan
 
-                if(stop==false&&!game.isPathClear(obj)){
+                if(stop==false&&!obj.blocked==true){
                         obj.blockedcounter++;
                         
                         
