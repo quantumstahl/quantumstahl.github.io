@@ -1,40 +1,5 @@
 "use strict";
 
-// === Broadphase grid helpers (added) ===
-const BP_CELL = 56; // spatial hash cell size in pixels
-function _bpKey(ix, iy){ return ix + ":" + iy; }
-function _aabbOf(o){
-    const w = o.dimx, h = o.dimy;
-    const rot = (o.rot||0) % 360;
-    if (!rot) return { x:o.x, y:o.y, w, h };
-    // Use existing engine helper to compute rotated corners
-    const corners = getRotatedRectangleCorners(o.x, o.y, w, h, rot);
-    let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
-    for (let i=0;i<corners.length;i++){
-        const c = corners[i];
-        if (c.x < minx) minx = c.x;
-        if (c.y < miny) miny = c.y;
-        if (c.x > maxx) maxx = c.x;
-        if (c.y > maxy) maxy = c.y;
-    }
-    return { x:minx, y:miny, w:(maxx-minx), h:(maxy-miny) };
-}
-function _cellsFor(aabb){
-    const x1 = Math.floor(aabb.x / BP_CELL);
-    const y1 = Math.floor(aabb.y / BP_CELL);
-    const x2 = Math.floor((aabb.x + aabb.w) / BP_CELL);
-    const y2 = Math.floor((aabb.y + aabb.h) / BP_CELL);
-    const out = [];
-    for (let iy=y1; iy<=y2; iy++){
-        for (let ix=x1; ix<=x2; ix++){
-            out.push(_bpKey(ix,iy));
-        }
-    }
-    return out;
-}
-// === End helpers ===
-
-
 function getRotatedRectangleCorners(x, y, w, h, rot) {
     // Calculate the center of the rectangle
     var cx = x + w / 2;
@@ -185,38 +150,6 @@ function sweepAlong(game, mapIndex, o, baseX, baseY, tx, ty, desiredLen, step){
 
 "use strict";
 
-// === Broadphase grid helpers (added) ===
-function _bpKey(ix, iy){ return ix + ":" + iy; }
-function _aabbOf(o){
-    const w = o.dimx, h = o.dimy;
-    const rot = (o.rot||0) % 360;
-    if (!rot) return { x:o.x, y:o.y, w, h };
-    // Use existing engine helper to compute rotated corners
-    const corners = getRotatedRectangleCorners(o.x, o.y, w, h, rot);
-    let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
-    for (let i=0;i<corners.length;i++){
-        const c = corners[i];
-        if (c.x < minx) minx = c.x;
-        if (c.y < miny) miny = c.y;
-        if (c.x > maxx) maxx = c.x;
-        if (c.y > maxy) maxy = c.y;
-    }
-    return { x:minx, y:miny, w:(maxx-minx), h:(maxy-miny) };
-}
-function _cellsFor(aabb){
-    const x1 = Math.floor(aabb.x / BP_CELL);
-    const y1 = Math.floor(aabb.y / BP_CELL);
-    const x2 = Math.floor((aabb.x + aabb.w) / BP_CELL);
-    const y2 = Math.floor((aabb.y + aabb.h) / BP_CELL);
-    const out = [];
-    for (let iy=y1; iy<=y2; iy++){
-        for (let ix=x1; ix<=x2; ix++){
-            out.push(_bpKey(ix,iy));
-        }
-    }
-    return out;
-}
-// === End helpers ===
 
 var cursorX;
 var cursorY;
@@ -780,46 +713,14 @@ class Game5 {
         updateAndDrawFX(ctx);
         
     }
-    collitionengine() {
-        // --- Build broadphase grid (added) ---
-        (function buildBroadphaseGrid(self){
-            const _bp = new Map();
-            const map = self.maps[self.currentmap];
-            for (let i2 = 0; i2 < map.layer.length; i2++){
-                const layer = map.layer[i2];
-                if (layer.fysics === false) continue;
-                for (let i3 = 0; i3 < layer.objectype.length; i3++){
-                    const objType = layer.objectype[i3];
-                    for (let i4 = 0; i4 < objType.objects.length; i4++){
-                        const o = objType.objects[i4];
-                        o._bp_ghostLayer = (layer.ghost === true);
-                        const aabb = _aabbOf(o);
-                        const cells = _cellsFor(aabb);
-                        for (let c = 0; c < cells.length; c++){
-                            const key = cells[c];
-                            let bin = _bp.get(key);
-                            if (!bin){ bin = []; _bp.set(key, bin); }
-                            bin.push(o);
-                        }
-                    }
-                }
-            }
-            self._bpGrid = _bp;
-        })(this);
-        // --- End broadphase build ---
-
+     collitionengine() {
     // 1. Nollställ kollisionslistor
     for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
         for (let i3 = 0; i3 < this.maps[this.currentmap].layer[i2].objectype.length; i3++) {
             for (let o of this.maps[this.currentmap].layer[i2].objectype[i3].objects) {
-                o.collideslistan = o.collideslistan || [];
-o.collideslistandir = o.collideslistandir || [];
-o.collideslistanobj = o.collideslistanobj || [];
-o.hadcollidedobj = o.hadcollidedobj || [];
-o.collideslistan.length = 0;
-o.collideslistandir.length = 0;
-o.collideslistanobj.length = 0;
-o.hadcollidedobj.length = 0;
+                o.collideslistan.length = 0;
+				o.collideslistandir.length = 0;
+				o.collideslistanobj.length = 0;
             }
         }
     }
@@ -851,7 +752,7 @@ o.hadcollidedobj.length = 0;
     for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
         for (let i3 = 0; i3 < this.maps[this.currentmap].layer[i2].objectype.length; i3++) {
             for (let o of this.maps[this.currentmap].layer[i2].objectype[i3].objects) {
-                if (o.rakna !== 0 || o.rakna2 !== 0) o.hadcollidedobj = o.hadcollidedobj || []; o.hadcollidedobj.length = 0;
+                if (o.rakna !== 0 || o.rakna2 !== 0) o.hadcollidedobj.length = 0;
 
                 // --- X-led ---
                 let intX = Math.trunc(o.rakna);
@@ -1082,6 +983,7 @@ if (still){
         }
     }
 }
+
     
     isclose(obj, obj2){
         for (let i = 0; i < obj.hadcollidedobj.length; i++) {
