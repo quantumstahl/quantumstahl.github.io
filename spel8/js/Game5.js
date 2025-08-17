@@ -1,114 +1,39 @@
-// ==== [PATCH] Broadphase + Fast Overlap Helpers ====
-const BP_CELL = 64;
-const BP_PAD  = 2;
-let __bp_hash = new Map();
-let __bp_last_build_ms = 0;
-const __BP_MIN_INTERVAL_MS = 5; // ~max 1–2 rebuilds per 16ms frame
-
-function _aabbFor(o){
-  const rot = (o.rot||0);
-  if (!rot) return {L:o.x, T:o.y, R:o.x+o.dimx, B:o.y+o.dimy};
-  const cx=o.x+o.dimx/2, cy=o.y+o.dimy/2;
-  const c=Math.cos(rot*Math.PI/180), s=Math.sin(rot*Math.PI/180);
-  const ax = Math.abs(c)*o.dimx/2 + Math.abs(s)*o.dimy/2;
-  const ay = Math.abs(s)*o.dimx/2 + Math.abs(c)*o.dimy/2;
-  return {L:cx-ax, T:cy-ay, R:cx+ax, B:cy+ay};
-}
-function _overlapAABB(a,b){
-  return !(a.R <= b.L || b.R <= a.L || a.B <= b.T || b.B <= a.T);
-}
-function _corners(gameObj){
-  if (gameObj._corners && gameObj._corners_time === __bp_last_build_ms) return gameObj._corners;
-  if (typeof getRotatedRectangleCorners === "function"){
-    gameObj._corners = getRotatedRectangleCorners(gameObj.x, gameObj.y, gameObj.dimx, gameObj.dimy, gameObj.rot||0);
-  } else {
-    gameObj._corners = [
-      {x:gameObj.x, y:gameObj.y},
-      {x:gameObj.x+gameObj.dimx, y:gameObj.y},
-      {x:gameObj.x+gameObj.dimx, y:gameObj.y+gameObj.dimy},
-      {x:gameObj.x, y:gameObj.y+gameObj.dimy},
-    ];
-  }
-  gameObj._corners_time = __bp_last_build_ms;
-  return gameObj._corners;
-}
-function _overlapFast(o1,o2){
-  const a=_aabbFor(o1), b=_aabbFor(o2);
-  if (!_overlapAABB(a,b)) return false;
-  if (!(o1.rot||0) && !(o2.rot||0)) return true;
-  if (typeof SATCollision === "function"){
-    return SATCollision(_corners(o1), _corners(o2));
-  }
-  return true;
-}
-
-function __bp_key(ix,iy){ return ix+"|"+iy; }
-function __bp_put(hash, ix,iy,o){
-  const k = __bp_key(ix,iy);
-  let arr = hash.get(k);
-  if (!arr){ arr=[]; hash.set(k,arr); }
-  arr.push(o);
-}
-
-function __buildBroadphase(game, mapIndex){
-  __bp_hash = new Map();
-  const now = Date.now();
-  __bp_last_build_ms = now;
-  const map = game.maps[mapIndex];
-  if (!map || !map.layer) return;
-  for (const layer of map.layer){
-    if (!layer.fysics) continue;
-    for (const typ of (layer.objectype||[])){
-      for (const o of (typ.objects||[])){
-        const dx = (o._wantdx||0), dy=(o._wantdy||0);
-        const a  = _aabbFor(o);
-        const L = Math.min(a.L, a.L+dx)-BP_PAD, R=Math.max(a.R, a.R+dx)+BP_PAD;
-        const T = Math.min(a.T, a.T+dy)-BP_PAD, B=Math.max(a.B, a.B+dy)+BP_PAD;
-        const ix0 = Math.floor(L/BP_CELL), iy0 = Math.floor(T/BP_CELL);
-        const ix1 = Math.floor(R/BP_CELL), iy1 = Math.floor(B/BP_CELL);
-        o._cells = [ix0,iy0,ix1,iy1];
-        for (let iy=iy0; iy<=iy1; iy++){
-          for (let ix=ix0; ix<=ix1; ix++) __bp_put(__bp_hash, ix,iy,o);
-        }
-      }
-    }
-  }
-  // candidates per object + cheap tester
-  for (const layer of map.layer){
-    if (!layer.fysics) continue;
-    for (const typ of (layer.objectype||[])){
-      for (const o of (typ.objects||[])){
-        const [ix0,iy0,ix1,iy1] = o._cells || [0,0,0,0];
-        const cand = new Set();
-        for (let iy=iy0-1; iy<=iy1+1; iy++){
-          for (let ix=ix0-1; ix<=ix1+1; ix++){
-            const arr = __bp_hash.get(ix+"|"+iy);
-            if (!arr) continue;
-            for (const other of arr) if (other!==o) cand.add(other);
-          }
-        }
-        o._cands = cand;
-        o.collidestest = function(){
-          if (!this._cands) return false;
-          for (const other of this._cands){
-            if (other.ghost) continue;
-            if (_overlapFast(this, other)) return true;
-          }
-          return false;
-        }
-      }
-    }
-  }
-}
-
-function __ensureBroadphase(game, mapIndex){
-  const now = Date.now();
-  if (now - __bp_last_build_ms > __BP_MIN_INTERVAL_MS){
-    __buildBroadphase(game, mapIndex);
-  }
-}
-// ==== [END PATCH helpers] ====
 "use strict";
+
+// === Broadphase grid helpers (added) ===
+const BP_CELL = 64; // spatial hash cell size in pixels
+function _bpKey(ix, iy){ return ix + ":" + iy; }
+function _aabbOf(o){
+    const w = o.dimx, h = o.dimy;
+    const rot = (o.rot||0) % 360;
+    if (!rot) return { x:o.x, y:o.y, w, h };
+    // Use existing engine helper to compute rotated corners
+    const corners = getRotatedRectangleCorners(o.x, o.y, w, h, rot);
+    let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+    for (let i=0;i<corners.length;i++){
+        const c = corners[i];
+        if (c.x < minx) minx = c.x;
+        if (c.y < miny) miny = c.y;
+        if (c.x > maxx) maxx = c.x;
+        if (c.y > maxy) maxy = c.y;
+    }
+    return { x:minx, y:miny, w:(maxx-minx), h:(maxy-miny) };
+}
+function _cellsFor(aabb){
+    const x1 = Math.floor(aabb.x / BP_CELL);
+    const y1 = Math.floor(aabb.y / BP_CELL);
+    const x2 = Math.floor((aabb.x + aabb.w) / BP_CELL);
+    const y2 = Math.floor((aabb.y + aabb.h) / BP_CELL);
+    const out = [];
+    for (let iy=y1; iy<=y2; iy++){
+        for (let ix=x1; ix<=x2; ix++){
+            out.push(_bpKey(ix,iy));
+        }
+    }
+    return out;
+}
+// === End helpers ===
+
 
 function getRotatedRectangleCorners(x, y, w, h, rot) {
     // Calculate the center of the rectangle
@@ -201,22 +126,18 @@ function dirToVec(dir){
 
 // Overlap-test UTAN sidoeffekter under provsteg
 function overlapsNoSideEffects(game, mapIndex, o){
-  try {
-    __ensureBroadphase(game, mapIndex);
-    if (o && o.collidestest) return !!o.collidestest();
-  } catch(e){ /* fallback below */ }
-  try{
-    const map = game.maps[mapIndex];
-    for (const layer of (map.layer||[])){
-      for (const typ of (layer.objectype||[])){
-        for (const other of (typ.objects||[])){
-          if (!other || other===o || other.ghost) continue;
-          if (_overlapFast(o, other)) return true;
-        }
-      }
-    }
-  }catch(e){}
-  return false;
+  const A=o.hadcollidedobj?.slice()||[];
+  const L=o.collideslistan?.slice()||[];
+  const D=o.collideslistandir?.slice()||[];
+  const O=o.collideslistanobj?.slice()||[];
+  const hit = (
+    o.collideslist(game.maps, mapIndex, "left")  ||
+    o.collideslist(game.maps, mapIndex, "right") ||
+    o.collideslist(game.maps, mapIndex, "up")    ||
+    o.collideslist(game.maps, mapIndex, "down")
+  );
+  o.hadcollidedobj=A; o.collideslistan=L; o.collideslistandir=D; o.collideslistanobj=O;
+  return hit;
 }
 
 // Pressad mot väggen? (av sig själv eller andra)
@@ -237,11 +158,6 @@ function isPressedAgainst(game, mapIndex, o, n, want){
 
 // Mjuk sweep längs given tangent (testar kollision per litet steg)
 function sweepAlong(game, mapIndex, o, baseX, baseY, tx, ty, desiredLen, step){
-      // [PATCH] EARLY-OUT ZERO MOTION
-      if (!isFinite(desiredLen) || desiredLen <= EPS || (Math.abs(tx) <= EPS && Math.abs(ty) <= EPS)){
-        return {x:baseX, y:baseY, travel:0};
-      }
-
   let traveled=0, cx=baseX, cy=baseY;
   const EPS=1e-4;
   const ox=o.x, oy=o.y;
@@ -269,6 +185,38 @@ function sweepAlong(game, mapIndex, o, baseX, baseY, tx, ty, desiredLen, step){
 
 "use strict";
 
+// === Broadphase grid helpers (added) ===
+function _bpKey(ix, iy){ return ix + ":" + iy; }
+function _aabbOf(o){
+    const w = o.dimx, h = o.dimy;
+    const rot = (o.rot||0) % 360;
+    if (!rot) return { x:o.x, y:o.y, w, h };
+    // Use existing engine helper to compute rotated corners
+    const corners = getRotatedRectangleCorners(o.x, o.y, w, h, rot);
+    let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+    for (let i=0;i<corners.length;i++){
+        const c = corners[i];
+        if (c.x < minx) minx = c.x;
+        if (c.y < miny) miny = c.y;
+        if (c.x > maxx) maxx = c.x;
+        if (c.y > maxy) maxy = c.y;
+    }
+    return { x:minx, y:miny, w:(maxx-minx), h:(maxy-miny) };
+}
+function _cellsFor(aabb){
+    const x1 = Math.floor(aabb.x / BP_CELL);
+    const y1 = Math.floor(aabb.y / BP_CELL);
+    const x2 = Math.floor((aabb.x + aabb.w) / BP_CELL);
+    const y2 = Math.floor((aabb.y + aabb.h) / BP_CELL);
+    const out = [];
+    for (let iy=y1; iy<=y2; iy++){
+        for (let ix=x1; ix<=x2; ix++){
+            out.push(_bpKey(ix,iy));
+        }
+    }
+    return out;
+}
+// === End helpers ===
 
 var cursorX;
 var cursorY;
@@ -832,14 +780,49 @@ class Game5 {
         updateAndDrawFX(ctx);
         
     }
-     collitionengine() {
+    collitionengine() {
+        // --- Build broadphase grid (added) ---
+        (function buildBroadphaseGrid(self){
+            const _bp = new Map();
+            const map = self.maps[self.currentmap];
+            for (let i2 = 0; i2 < map.layer.length; i2++){
+                const layer = map.layer[i2];
+                if (layer.fysics === false) continue;
+                for (let i3 = 0; i3 < layer.objectype.length; i3++){
+                    const objType = layer.objectype[i3];
+                    for (let i4 = 0; i4 < objType.objects.length; i4++){
+                        const o = objType.objects[i4];
+                        o._bp_ghostLayer = (layer.ghost === true);
+                        o._bp_hasPhysics = (layer.fysics === true);
+                        const aabb = _aabbOf(o);
+                        const PAD  = o.speed; 
+                         aabb.x -= PAD; aabb.y -= PAD;
+                         aabb.w += 2*PAD; aabb.h += 2*PAD;
+                        
+                        const cells = _cellsFor(aabb);
+                        for (let c = 0; c < cells.length; c++){
+                            const key = cells[c];
+                            let bin = _bp.get(key);
+                            if (!bin){ bin = []; _bp.set(key, bin); }
+                            bin.push(o);
+                        }
+                    }
+                }
+            }
+            self._bpGrid = _bp;
+        })(this);
+        // --- End broadphase build ---
+
     // 1. Nollställ kollisionslistor
     for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
         for (let i3 = 0; i3 < this.maps[this.currentmap].layer[i2].objectype.length; i3++) {
             for (let o of this.maps[this.currentmap].layer[i2].objectype[i3].objects) {
-                o.collideslistan.length = 0;
-				o.collideslistandir.length = 0;
-				o.collideslistanobj.length = 0;
+                o.collideslistan = o.collideslistan || [];
+o.collideslistandir = o.collideslistandir || [];
+o.collideslistanobj = o.collideslistanobj || [];
+o.collideslistan.length = 0;
+o.collideslistandir.length = 0;
+o.collideslistanobj.length = 0;
             }
         }
     }
@@ -854,7 +837,7 @@ class Game5 {
                 } else if (this.maps[this.currentmap].layer[i2].ghost == true || o.ghost == true) {
                     o.rakna = 0;
                     o.rakna2 = 0;
-                    o.collideslistfull(this.maps, this.currentmap, "ghost", this.maps[this.currentmap].layer[i2].objectype[i3].name);
+                    o.collideslist(this.maps, this.currentmap, "ghost");
                 } else {
                     o.rakna = o.x - o.freex;
                     o.rakna2 = o.y - o.freey;
@@ -871,7 +854,7 @@ class Game5 {
     for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
         for (let i3 = 0; i3 < this.maps[this.currentmap].layer[i2].objectype.length; i3++) {
             for (let o of this.maps[this.currentmap].layer[i2].objectype[i3].objects) {
-                if (o.rakna !== 0 || o.rakna2 !== 0) o.hadcollidedobj.length = 0;
+                if (o.rakna !== 0 || o.rakna2 !== 0){ o.hadcollidedobj = o.hadcollidedobj || []; o.hadcollidedobj.length = 0;}
 
                 // --- X-led ---
                 let intX = Math.trunc(o.rakna);
@@ -1102,7 +1085,6 @@ if (still){
         }
     }
 }
-
     
     isclose(obj, obj2){
         for (let i = 0; i < obj.hadcollidedobj.length; i++) {
@@ -1386,11 +1368,11 @@ if (still){
 
                 //väj åt sidan
 
-                if(stop==false&&obj.blocked==true){
+                if(stop==false&&obj.blocked){
                         obj.blockedcounter++;
                         
                         
-                        if((obj.blockedx==true&&obj.blockedy==false)||(obj.blockedy==true&&obj.blockedx==false)){
+                    //    if((obj.blockedx==true&&obj.blockedy==false)||(obj.blockedy==true&&obj.blockedx==false)){
                             
                             if(obj.blockedcounter==175){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
                             if(obj.blockedcounter==350){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
@@ -1400,7 +1382,7 @@ if (still){
                             if(obj.direction=="right"){if(obj.directiony=="up"){obj.y -= obj.rakna;}if(obj.directiony=="down"){obj.y += obj.rakna;}}
                             if(obj.direction=="up"){if(obj.directionx=="left"){obj.x += obj.rakna2;}if(obj.directionx=="right"){obj.x -= obj.rakna2;}}
                             if(obj.direction=="down"){if(obj.directionx=="left"){obj.x -= obj.rakna2;}if(obj.directionx=="right"){obj.x += obj.rakna2;}}
-                        }
+                        //}
                         
 
                         
@@ -1808,35 +1790,67 @@ class Objectx {
         this._wantdy=0;
     }
     collidestest(){
-        for (let i2 = 0; i2 < game.maps[game.currentmap].layer.length; i2++) {
-            let layer = game.maps[game.currentmap].layer[i2];
-            for (let i3 = 0; i3 < layer.objectype.length; i3++) {
-                let objType = layer.objectype[i3];
-                for (let i4 = 0; i4 < objType.objects.length; i4++) {
-                    if ((objType.objects[i4] == this) || game.maps[game.currentmap].layer[i2].fysics == false) {
-                    }
-                    else {
-                        if (objType.objects[i4].rot == 0 && this.rot == 0) {
-                            if (this.collideswithfast(objType.objects[i4])) {
-                                if (game.maps[game.currentmap].layer[i2].ghost == true || objType.objects[i4].ghost == true) {
-                                }
-                                else {
-                                    return true;
-                                }
-                            }
-                        }
-                        else {
-                            if (this.collideswith(objType.objects[i4])) {
-                                if (game.maps[game.currentmap].layer[i2].ghost == true || objType.objects[i4].ghost == true) {
-                                }
-                                else {
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                }
+        // 1) Snabbväg med Broadphase-grid om den finns
+        const bp = (typeof game !== 'undefined' && game._bpGrid) ? game._bpGrid : null;
+        if (bp) {
+          const me = this;
+          const aabb = _aabbOf(me);                 // roterad AABB när rot != 0
+          const keys = _cellsFor(aabb);
+          const seen = new Set();
+
+          for (let ki = 0; ki < keys.length; ki++){
+            const key = keys[ki];
+            const bin = bp.get(key);
+            if (!bin) continue;
+
+            for (let bi = 0; bi < bin.length; bi++){
+              const other = bin[bi];
+              if (other === me) continue;
+              if (!other._bp_hasPhysics) continue;
+              // undvik dubbletter tvärs flera celler
+              const oid = other._oid || (other._oid = Symbol());
+              if (seen.has(oid)) continue;
+              seen.add(oid);
+
+              // om lagret är ghost eller objektet är ghost => räknas ej som "riktig" träff
+              if ((other._bp_ghostLayer === true) || (other.ghost === true)) {
+                // hoppa bara över — collidestest() ska inte trigga på ghost
+                continue;
+              }
+
+              // snabb vs exakt beroende på rotation
+              if (other.rot == 0 && this.rot == 0) {
+                if (this.collideswithfast(other)) return true;
+              } else {
+                if (this.collideswith(other)) return true;
+              }
             }
+          }
+          return false;
+        }
+
+        // 2) Fallback till ursprunglig O(N)-svep (oförändrad logik)
+        for (let i2 = 0; i2 < game.maps[game.currentmap].layer.length; i2++) {
+          let layer = game.maps[game.currentmap].layer[i2];
+          for (let i3 = 0; i3 < layer.objectype.length; i3++) {
+            let objType = layer.objectype[i3];
+            for (let i4 = 0; i4 < objType.objects.length; i4++) {
+              const o = objType.objects[i4];
+              if (o === this || layer.fysics == false) continue;
+
+              if (o.rot == 0 && this.rot == 0) {
+                if (this.collideswithfast(o)) {
+                  if (layer.ghost == true || o.ghost == true) { /* ignorera ghost */ }
+                  else { return true; }
+                }
+              } else {
+                if (this.collideswith(o)) {
+                  if (layer.ghost == true || o.ghost == true) { /* ignorera ghost */ }
+                  else { return true; }
+                }
+              }
+            }
+          }
         }
         return false;
     }
@@ -1860,6 +1874,7 @@ class Objectx {
                 for (let bi = 0; bi < bin.length; bi++){
                     const other = bin[bi];
                     if (other === me) continue;
+                    if (!other._bp_hasPhysics) continue;
                     const oid = other._oid || (other._oid = Symbol());
                     if (seen.has(oid)) continue;
                     seen.add(oid);
@@ -2008,64 +2023,6 @@ class Objectx {
             }
         }
         return false;
-    }
-    collideslistfull(maps, currentmap, dir,name) {
-        for (let i2 = 0; i2 < maps[currentmap].layer.length; i2++) {
-            let layer = maps[currentmap].layer[i2];
-            for (let i3 = 0; i3 < layer.objectype.length; i3++) {
-                let objType = layer.objectype[i3];
-                for (let i4 = 0; i4 < objType.objects.length; i4++) {
-                    if ((objType.objects[i4] == this) || maps[currentmap].layer[i2].fysics == false) {
-                    }
-                    else {
-                        if (objType.objects[i4].rot == 0 && this.rot == 0) {
-                            if (this.collideswithfast(objType.objects[i4])) {
-                                if (maps[currentmap].layer[i2].ghost == true || objType.objects[i4].ghost == true) {
-                                    this.collideslistan.push(objType.name);
-                                    this.collideslistandir.push("ghost");
-                                    this.collideslistanobj.push(objType.objects[i4]);
-                                    
-                                    objType.objects[i4].collideslistan.push(name);
-                                    objType.objects[i4].collideslistandir.push("ghost");
-                                    objType.objects[i4].collideslistanobj.push(this);
-                                }
-                                else {
-                                    this.collideslistan.push(objType.name);
-                                    this.collideslistandir.push(dir);
-                                    this.collideslistanobj.push(objType.objects[i4]);
-                                    
-                                    objType.objects[i4].collideslistan.push(name);
-                                    objType.objects[i4].collideslistandir.push(dir);
-                                    objType.objects[i4].collideslistanobj.push(this);
-                                }
-                            }
-                        }
-                        else {
-                            if (this.collideswith(objType.objects[i4])) {
-                                if (maps[currentmap].layer[i2].ghost == true || objType.objects[i4].ghost == true) {
-                                    this.collideslistan.push(objType.name);
-                                    this.collideslistandir.push("ghost");
-                                    this.collideslistanobj.push(objType.objects[i4]);
-                                    
-                                    objType.objects[i4].collideslistan.push(name);
-                                    objType.objects[i4].collideslistandir.push("ghost");
-                                    objType.objects[i4].collideslistanobj.push(this);
-                                }
-                                else {
-                                    this.collideslistan.push(objType.name);
-                                    this.collideslistandir.push(dir);
-                                    this.collideslistanobj.push(objType.objects[i4]);
-                                    
-                                    objType.objects[i4].collideslistan.push(name);
-                                    objType.objects[i4].collideslistandir.push(dir);
-                                    objType.objects[i4].collideslistanobj.push(this);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
     collideswith(obj) {
         return colli.checkifcollides(this.x, this.y, this.dimx, this.dimy, this.rot,

@@ -1321,6 +1321,7 @@ resizeCanvas();
                                     pendingBuilds.splice(j, 1);
                                     building.buildProgress = null;
                                     worker.objects[i].buildingTarget = null;
+                                    worker.objects[i].workobject=null;
                                     worker.objects[i].animation = 0; // idle
                                     building.animation=1;
                                 }
