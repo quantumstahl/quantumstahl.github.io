@@ -1,7 +1,7 @@
 "use strict";
 
 // === Broadphase grid helpers (added) ===
-const BP_CELL = 64; // spatial hash cell size in pixels
+const BP_CELL = 56; // spatial hash cell size in pixels
 function _bpKey(ix, iy){ return ix + ":" + iy; }
 function _aabbOf(o){
     const w = o.dimx, h = o.dimy;
