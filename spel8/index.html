@@ -248,7 +248,7 @@
 // === Tiny Profiler (STRICT v2: exclusive + correct wall clock) ==============
 const Prof = (() => {
   const EMA = 0.25;
-  const cfg = { x: 8, y: 200, maxLines: 10, width: 340, lineH: 16, bgAlpha: 0.8 };
+  const cfg = { x: 8, y: 200, maxLines: 10, width: 340, lineH: 26, bgAlpha: 0.8 };
 
   // per-frame (exklusivt) + visning
   const frameMs = new Map();   // ms denna frame per sektion (exklusivt)
@@ -374,7 +374,7 @@ const Prof = (() => {
       bctx.fillRect(cfg.x, cfg.y, cfg.width, (lines.length*cfg.lineH)+12);
       bctx.globalAlpha = 1;
       bctx.fillStyle = "#0f0";
-      bctx.font = "12px monospace";
+      bctx.font = "22px monospace";
       for (let i=0;i<lines.length;i++){
         bctx.fillText(lines[i], cfg.x + 8, cfg.y + 20 + i*cfg.lineH);
       }
