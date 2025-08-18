@@ -257,11 +257,8 @@ const SimSolver = {
       const o = d.ref;
       if (!o || !o._contactNormals || o._contactNormals.length === 0) continue;
       
-      if(d.rot!==0){
-      o.rakna=0; 
-    o.rakna2=0;
-    stopper=true;
-      }
+      
+    
       // 1) bestäm önskad riktning (o.direction kan vara vinkel eller vektor)
       let dirx=0, diry=0;
       if (typeof o.direction === 'number'){
@@ -316,7 +313,9 @@ const SimSolver = {
         d.x = test.x; d.y = test.y;   // Apply slide i solvernivå
         
       }
-
+      o.rakna=0; 
+      o.rakna2=0;
+      stopper=true;
       // rensa normals för nästa frame
       o._contactNormals.length = 0;
     }
