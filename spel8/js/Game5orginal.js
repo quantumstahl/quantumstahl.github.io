@@ -1,5 +1,7 @@
 "use strict";
 
+
+
 function getRotatedRectangleCorners(x, y, w, h, rot) {
     // Calculate the center of the rectangle
     var cx = x + w / 2;
@@ -150,6 +152,38 @@ function sweepAlong(game, mapIndex, o, baseX, baseY, tx, ty, desiredLen, step){
 
 "use strict";
 
+// === Broadphase grid helpers (added) ===
+function _bpKey(ix, iy){ return ix + ":" + iy; }
+function _aabbOf(o){
+    const w = o.dimx, h = o.dimy;
+    const rot = (o.rot||0) % 360;
+    if (!rot) return { x:o.x, y:o.y, w, h };
+    // Use existing engine helper to compute rotated corners
+    const corners = getRotatedRectangleCorners(o.x, o.y, w, h, rot);
+    let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+    for (let i=0;i<corners.length;i++){
+        const c = corners[i];
+        if (c.x < minx) minx = c.x;
+        if (c.y < miny) miny = c.y;
+        if (c.x > maxx) maxx = c.x;
+        if (c.y > maxy) maxy = c.y;
+    }
+    return { x:minx, y:miny, w:(maxx-minx), h:(maxy-miny) };
+}
+function _cellsFor(aabb){
+    const x1 = Math.floor(aabb.x / BP_CELL);
+    const y1 = Math.floor(aabb.y / BP_CELL);
+    const x2 = Math.floor((aabb.x + aabb.w) / BP_CELL);
+    const y2 = Math.floor((aabb.y + aabb.h) / BP_CELL);
+    const out = [];
+    for (let iy=y1; iy<=y2; iy++){
+        for (let ix=x1; ix<=x2; ix++){
+            out.push(_bpKey(ix,iy));
+        }
+    }
+    return out;
+}
+// === End helpers ===
 
 var cursorX;
 var cursorY;
@@ -663,16 +697,16 @@ class Game5 {
     
     updateanimation(ctx) {
         try {
-            
+            Prof.section("Collision", ()=> {
             this.updateUnitMovement();
             this.collitionengine();
-             
+              });
             
             
             
             
-        } catch (error) {}
         
+        Prof.section("Draw", ()=> {
         for (let i = 0; i < this.maps.length; i++) {
             if (i == this.currentmap) {
                 for (let i2 = 0; i2 < this.maps[i].layer.length; i2++) {
@@ -711,19 +745,12 @@ class Game5 {
         }
         
         updateAndDrawFX(ctx);
+         });
         
+        } catch (error) {}
     }
-     collitionengine() {
-    // 1. Nollställ kollisionslistor
-    for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
-        for (let i3 = 0; i3 < this.maps[this.currentmap].layer[i2].objectype.length; i3++) {
-            for (let o of this.maps[this.currentmap].layer[i2].objectype[i3].objects) {
-                o.collideslistan.length = 0;
-				o.collideslistandir.length = 0;
-				o.collideslistanobj.length = 0;
-            }
-        }
-    }
+    collitionengine() {
+
 
     // 2. Beräkna rakna
     for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
@@ -735,7 +762,7 @@ class Game5 {
                 } else if (this.maps[this.currentmap].layer[i2].ghost == true || o.ghost == true) {
                     o.rakna = 0;
                     o.rakna2 = 0;
-                    o.collideslistfull(this.maps, this.currentmap, "ghost", this.maps[this.currentmap].layer[i2].objectype[i3].name);
+                    o.collideslist(this.maps, this.currentmap, "ghost");
                 } else {
                     o.rakna = o.x - o.freex;
                     o.rakna2 = o.y - o.freey;
@@ -744,6 +771,10 @@ class Game5 {
                     o.x = o.freex;
                     o.y = o.freey;
                 }
+                if (o.rakna !== 0 || o.rakna2 !== 0){ o.hadcollidedobj.length = 0;}
+                o.collideslistan.length = 0;
+                o.collideslistandir.length = 0;
+                o.collideslistanobj.length = 0;
             }
         }
     }
@@ -752,8 +783,8 @@ class Game5 {
     for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
         for (let i3 = 0; i3 < this.maps[this.currentmap].layer[i2].objectype.length; i3++) {
             for (let o of this.maps[this.currentmap].layer[i2].objectype[i3].objects) {
-                if (o.rakna !== 0 || o.rakna2 !== 0) o.hadcollidedobj.length = 0;
-
+                
+                
                 // --- X-led ---
                 let intX = Math.trunc(o.rakna);
                 let restX = o.rakna - intX;
@@ -832,7 +863,6 @@ class Game5 {
                         o.rakna2=o.rakna2+restY;
                     }
                 }
-
 // --- FRIKTIONSFRITT SLIDE med två-väggars fallback ---
 if (o.hadcollidedobj && o.hadcollidedobj.length) {
   // senaste icke-ghost, prioritera roterat
@@ -972,6 +1002,7 @@ if (still){
     }
   }
 }
+
                 
                 o.blockedx=false;o.blockedy=false;o.blocked=false;
                 if(o.freex === o.x&& o.rakna!==0){o.blockedx=true;o.blocked=true;}
@@ -983,7 +1014,6 @@ if (still){
         }
     }
 }
-
     
     isclose(obj, obj2){
         for (let i = 0; i < obj.hadcollidedobj.length; i++) {
@@ -1267,11 +1297,11 @@ if (still){
 
                 //väj åt sidan
 
-                if(stop==false&&!obj.blocked==true){
+                if(stop==false&&obj.blocked){
                         obj.blockedcounter++;
                         
                         
-                        if((obj.blockedx==true&&obj.blockedy==false)||(obj.blockedy==true&&obj.blockedx==false)){
+                    //    if((obj.blockedx==true&&obj.blockedy==false)||(obj.blockedy==true&&obj.blockedx==false)){
                             
                             if(obj.blockedcounter==175){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
                             if(obj.blockedcounter==350){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
@@ -1281,7 +1311,7 @@ if (still){
                             if(obj.direction=="right"){if(obj.directiony=="up"){obj.y -= obj.rakna;}if(obj.directiony=="down"){obj.y += obj.rakna;}}
                             if(obj.direction=="up"){if(obj.directionx=="left"){obj.x += obj.rakna2;}if(obj.directionx=="right"){obj.x -= obj.rakna2;}}
                             if(obj.direction=="down"){if(obj.directionx=="left"){obj.x -= obj.rakna2;}if(obj.directionx=="right"){obj.x += obj.rakna2;}}
-                        }
+                        //}
                         
 
                         
@@ -1689,35 +1719,30 @@ class Objectx {
         this._wantdy=0;
     }
     collidestest(){
+
+
+        // 2) Fallback till ursprunglig O(N)-svep (oförändrad logik)
         for (let i2 = 0; i2 < game.maps[game.currentmap].layer.length; i2++) {
-            let layer = game.maps[game.currentmap].layer[i2];
-            for (let i3 = 0; i3 < layer.objectype.length; i3++) {
-                let objType = layer.objectype[i3];
-                for (let i4 = 0; i4 < objType.objects.length; i4++) {
-                    if ((objType.objects[i4] == this) || game.maps[game.currentmap].layer[i2].fysics == false) {
-                    }
-                    else {
-                        if (objType.objects[i4].rot == 0 && this.rot == 0) {
-                            if (this.collideswithfast(objType.objects[i4])) {
-                                if (game.maps[game.currentmap].layer[i2].ghost == true || objType.objects[i4].ghost == true) {
-                                }
-                                else {
-                                    return true;
-                                }
-                            }
-                        }
-                        else {
-                            if (this.collideswith(objType.objects[i4])) {
-                                if (game.maps[game.currentmap].layer[i2].ghost == true || objType.objects[i4].ghost == true) {
-                                }
-                                else {
-                                    return true;
-                                }
-                            }
-                        }
-                    }
+          let layer = game.maps[game.currentmap].layer[i2];
+          for (let i3 = 0; i3 < layer.objectype.length; i3++) {
+            let objType = layer.objectype[i3];
+            for (let i4 = 0; i4 < objType.objects.length; i4++) {
+              const o = objType.objects[i4];
+              if (o === this || layer.fysics == false) continue;
+
+              if (o.rot == 0 && this.rot == 0) {
+                if (this.collideswithfast(o)) {
+                  if (layer.ghost == true || o.ghost == true) { /* ignorera ghost */ }
+                  else { return true; }
                 }
+              } else {
+                if (this.collideswith(o)) {
+                  if (layer.ghost == true || o.ghost == true) { /* ignorera ghost */ }
+                  else { return true; }
+                }
+              }
             }
+          }
         }
         return false;
     }
@@ -1727,85 +1752,7 @@ class Objectx {
     
     
     collideslist(maps, currentmap, dir) {
-        // Broadphase-based candidate search (added)
-        const bp = (typeof game !== 'undefined' && game._bpGrid) ? game._bpGrid : null;
-        if (bp) {
-            const me = this;
-            const aabb = _aabbOf(me);
-            const keys = _cellsFor(aabb);
-            const seen = new Set();
-            for (let ki = 0; ki < keys.length; ki++){
-                const key = keys[ki];
-                const bin = bp.get(key);
-                if (!bin) continue;
-                for (let bi = 0; bi < bin.length; bi++){
-                    const other = bin[bi];
-                    if (other === me) continue;
-                    const oid = other._oid || (other._oid = Symbol());
-                    if (seen.has(oid)) continue;
-                    seen.add(oid);
-
-                    if (other.rot == 0 && this.rot == 0) {
-                        if (this.collideswithfast(other)) {
-                            if ((other._bp_ghostLayer === true) || (other.ghost === true)) {
-                                this.collideslistan.push(other.name);
-                                this.collideslistandir.push("ghost");
-                                this.collideslistanobj.push(other);
-                                this.hadcollidedobj.push(other);
-
-                                other.collideslistan.push(this.name);
-                                other.collideslistandir.push("ghost");
-                                other.collideslistanobj.push(this);
-                                other.hadcollidedobj.push(this);
-                            } else {
-                                this.collideslistan.push(other.name);
-                                this.collideslistandir.push(dir);
-                                this.collideslistanobj.push(other);
-                                this.hadcollidedobj.push(other);
-
-                                other.collideslistan.push(this.name);
-                                if(dir=="up")other.collideslistandir.push("down");
-                                else if(dir=="down")other.collideslistandir.push("up");
-                                else if(dir=="left")other.collideslistandir.push("right");
-                                else if(dir=="right")other.collideslistandir.push("left");
-                                other.collideslistanobj.push(this);
-                                other.hadcollidedobj.push(this);
-                                return true;
-                            }
-                        }
-                    } else {
-                        if (this.collideswith(other)) {
-                            if ((other._bp_ghostLayer === true) || (other.ghost === true)) {
-                                this.collideslistan.push(other.name);
-                                this.collideslistandir.push("ghost");
-                                this.collideslistanobj.push(other);
-                                this.hadcollidedobj.push(other);
-
-                                other.collideslistan.push(this.name);
-                                other.collideslistandir.push("ghost");
-                                other.collideslistanobj.push(this);
-                                other.hadcollidedobj.push(this);
-                            } else {
-                                this.collideslistan.push(other.name);
-                                this.collideslistandir.push(dir);
-                                this.collideslistanobj.push(other);
-                                this.hadcollidedobj.push(other);
-
-                                other.collideslistan.push(this.name);
-                                if(dir=="up")other.collideslistandir.push("down");
-                                else if(dir=="down")other.collideslistandir.push("up");
-                                else if(dir=="left")other.collideslistandir.push("right");
-                                else if(dir=="right")other.collideslistandir.push("left");
-                                other.collideslistanobj.push(this);
-                                other.hadcollidedobj.push(this);
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-            return false;
-        }
+       
         // Fallback to original O(N) sweep if grid missing
 
         for (let i2 = 0; i2 < maps[currentmap].layer.length; i2++) {
@@ -1818,7 +1765,9 @@ class Objectx {
                     else {
                         if (objType.objects[i4].rot == 0 && this.rot == 0) {
                             if (this.collideswithfast(objType.objects[i4])) {
+                                
                                 if (maps[currentmap].layer[i2].ghost == true || objType.objects[i4].ghost == true) {
+                                    for(var u of this.collideslistanobj){if(u===objType.objects[i4])return false;}
                                     this.collideslistan.push(objType.name);
                                     this.collideslistandir.push("ghost");
                                     this.collideslistanobj.push(objType.objects[i4]);
@@ -1831,6 +1780,7 @@ class Objectx {
                                     
                                 }
                                 else {
+                                    for(var u of this.collideslistanobj){if(u===objType.objects[i4])return true;}
                                     this.collideslistan.push(objType.name);
                                     this.collideslistandir.push(dir);
                                     this.collideslistanobj.push(objType.objects[i4]);
@@ -1851,8 +1801,15 @@ class Objectx {
                             }
                         }
                         else {
+                            
+                            const rsum = 0.5*Math.hypot(this.dimx||0, this.dimy||0) + 0.5*Math.hypot(objType.objects[i4].dimx||0, objType.objects[i4].dimy||0);
+                            const dx = (objType.objects[i4].x + (objType.objects[i4].dimx||0)*0.5) - (this.x + (this.dimx||0)*0.5);
+                            const dy = (objType.objects[i4].y + (objType.objects[i4].dimy||0)*0.5) - (this.y + (this.dimy||0)*0.5);
+                            if ((dx*dx + dy*dy) > (rsum*rsum)) continue;
+                            
                             if (this.collideswith(objType.objects[i4])) {
                                 if (maps[currentmap].layer[i2].ghost == true || objType.objects[i4].ghost == true) {
+                                    for(var u of this.collideslistanobj){if(u===objType.objects[i4])return false;}
                                     this.collideslistan.push(objType.name);
                                     this.collideslistandir.push("ghost");
                                     this.collideslistanobj.push(objType.objects[i4]);
@@ -1865,6 +1822,7 @@ class Objectx {
                                     
                                 }
                                 else {
+                                    for(var u of this.collideslistanobj){if(u===objType.objects[i4])return true;}
                                     this.collideslistan.push(objType.name);
                                     this.collideslistandir.push(dir);
                                     this.collideslistanobj.push(objType.objects[i4]);
@@ -1889,64 +1847,6 @@ class Objectx {
             }
         }
         return false;
-    }
-    collideslistfull(maps, currentmap, dir,name) {
-        for (let i2 = 0; i2 < maps[currentmap].layer.length; i2++) {
-            let layer = maps[currentmap].layer[i2];
-            for (let i3 = 0; i3 < layer.objectype.length; i3++) {
-                let objType = layer.objectype[i3];
-                for (let i4 = 0; i4 < objType.objects.length; i4++) {
-                    if ((objType.objects[i4] == this) || maps[currentmap].layer[i2].fysics == false) {
-                    }
-                    else {
-                        if (objType.objects[i4].rot == 0 && this.rot == 0) {
-                            if (this.collideswithfast(objType.objects[i4])) {
-                                if (maps[currentmap].layer[i2].ghost == true || objType.objects[i4].ghost == true) {
-                                    this.collideslistan.push(objType.name);
-                                    this.collideslistandir.push("ghost");
-                                    this.collideslistanobj.push(objType.objects[i4]);
-                                    
-                                    objType.objects[i4].collideslistan.push(name);
-                                    objType.objects[i4].collideslistandir.push("ghost");
-                                    objType.objects[i4].collideslistanobj.push(this);
-                                }
-                                else {
-                                    this.collideslistan.push(objType.name);
-                                    this.collideslistandir.push(dir);
-                                    this.collideslistanobj.push(objType.objects[i4]);
-                                    
-                                    objType.objects[i4].collideslistan.push(name);
-                                    objType.objects[i4].collideslistandir.push(dir);
-                                    objType.objects[i4].collideslistanobj.push(this);
-                                }
-                            }
-                        }
-                        else {
-                            if (this.collideswith(objType.objects[i4])) {
-                                if (maps[currentmap].layer[i2].ghost == true || objType.objects[i4].ghost == true) {
-                                    this.collideslistan.push(objType.name);
-                                    this.collideslistandir.push("ghost");
-                                    this.collideslistanobj.push(objType.objects[i4]);
-                                    
-                                    objType.objects[i4].collideslistan.push(name);
-                                    objType.objects[i4].collideslistandir.push("ghost");
-                                    objType.objects[i4].collideslistanobj.push(this);
-                                }
-                                else {
-                                    this.collideslistan.push(objType.name);
-                                    this.collideslistandir.push(dir);
-                                    this.collideslistanobj.push(objType.objects[i4]);
-                                    
-                                    objType.objects[i4].collideslistan.push(name);
-                                    objType.objects[i4].collideslistandir.push(dir);
-                                    objType.objects[i4].collideslistanobj.push(this);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
     collideswith(obj) {
         return colli.checkifcollides(this.x, this.y, this.dimx, this.dimy, this.rot,

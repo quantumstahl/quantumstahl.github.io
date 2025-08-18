@@ -1,38 +1,352 @@
 "use strict";
+const BUILDING_NAMES2   = new Set(["base","bar","rbase","rbar","house","rhouse","goldmine","tree","water"]);
+const PROJECTILE_NAMES = new Set(["arrow","bolt","bullet","proj","missile"]); // lägg till dina namn
 
-// === Broadphase grid helpers (added) ===
-const BP_CELL = 64; // spatial hash cell size in pixels
-function _bpKey(ix, iy){ return ix + ":" + iy; }
-function _aabbOf(o){
-    const w = o.dimx, h = o.dimy;
-    const rot = (o.rot||0) % 360;
-    if (!rot) return { x:o.x, y:o.y, w, h };
-    // Use existing engine helper to compute rotated corners
-    const corners = getRotatedRectangleCorners(o.x, o.y, w, h, rot);
-    let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
-    for (let i=0;i<corners.length;i++){
-        const c = corners[i];
-        if (c.x < minx) minx = c.x;
-        if (c.y < miny) miny = c.y;
-        if (c.x > maxx) maxx = c.x;
-        if (c.y > maxy) maxy = c.y;
-    }
-    return { x:minx, y:miny, w:(maxx-minx), h:(maxy-miny) };
+function isBuilding(o){ return !!o && BUILDING_NAMES2.has(o.name); }
+function isProjectile(o){ return !!o && PROJECTILE_NAMES.has(o.name); }
+// "Unit" = rörlig enhet som vi vill enhet-enhet-krocka
+function isUnit(o){ return !!o && (o.canMove === true || (!isBuilding(o) && !isProjectile(o))); }
+
+function shouldCollide(A, B){
+  // pilar / projektiler kolliderar inte med något i solvern (du kan hantera träffar separat)
+  if (isProjectile(A.ref) || isProjectile(B.ref)) return false;
+
+  // enhet ↔ byggnad: JA
+  if (isUnit(A.ref) && isBuilding(B.ref)) return true;
+  if (isUnit(B.ref) && isBuilding(A.ref)) return true;
+
+  // enhet ↔ enhet: JA
+  if (isUnit(A.ref) && isUnit(B.ref)) return true;
+
+  // byggnad ↔ byggnad: onödigt
+  return false;
 }
-function _cellsFor(aabb){
-    const x1 = Math.floor(aabb.x / BP_CELL);
-    const y1 = Math.floor(aabb.y / BP_CELL);
-    const x2 = Math.floor((aabb.x + aabb.w) / BP_CELL);
-    const y2 = Math.floor((aabb.y + aabb.h) / BP_CELL);
-    const out = [];
-    for (let iy=y1; iy<=y2; iy++){
-        for (let ix=x1; ix<=x2; ix++){
-            out.push(_bpKey(ix,iy));
-        }
+
+// ==== Simultaneous Collision Solver (Jacobi/PBD-lite) ====
+const SOLVER_CELL = 96;
+function _bpKey(ix, iy){ return ix + ":" + iy; }
+function _aabbFrom(x,y,w,h,rotDeg){
+  if (!rotDeg) return {x, y, w, h};
+  const cs = getRotatedRectangleCorners(x, y, w, h, rotDeg);
+  let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+  for (let i=0;i<4;i++){
+    const c = cs[i];
+    if(c.x<minx)minx=c.x; if(c.y<miny)miny=c.y; if(c.x>maxx)maxx=c.x; if(c.y>maxy)maxy=c.y;
+  }
+  return {x:minx, y:miny, w:maxx-minx, h:maxy-miny};
+}
+function _cellsForAABB(a){
+  const x1 = Math.floor(a.x / SOLVER_CELL);
+  const y1 = Math.floor(a.y / SOLVER_CELL);
+  const x2 = Math.floor((a.x + a.w) / SOLVER_CELL);
+  const y2 = Math.floor((a.y + a.h) / SOLVER_CELL);
+  const out = [];
+  for (let iy=y1; iy<=y2; iy++) for (let ix=x1; ix<=x2; ix++) out.push(_bpKey(ix,iy));
+  return out;
+}
+class HashGrid {
+  constructor(cell=SOLVER_CELL){ this.cell = cell; this.map = new Map(); }
+  clear(){ this.map.clear(); }
+  insert(proxy){
+    const aabb = proxy._aabb || _aabbFrom(proxy.x, proxy.y, proxy.w, proxy.h, proxy.rot||0);
+    proxy._aabb = aabb;
+    for (const k of _cellsForAABB(aabb)){
+      if (!this.map.has(k)) this.map.set(k, []);
+      this.map.get(k).push(proxy);
+    }
+  }
+  query(aabb){
+    const seen = new Set(), out=[];
+    for (const k of _cellsForAABB(aabb)){
+      const arr = this.map.get(k); if (!arr) continue;
+      for (let i=0;i<arr.length;i++){ const p = arr[i]; if(!seen.has(p.id)){ seen.add(p.id); out.push(p); } }
     }
     return out;
+  }
 }
-// === End helpers ===
+function _dot(a,b){ return a.x*b.x + a.y*b.y; }
+function _len(v){ return Math.hypot(v.x, v.y); }
+function _norm(v){ const L=_len(v)||1; return {x:v.x/L, y:v.y/L}; }
+
+function obbObbMTV(A, B){
+  const axes = [];
+  const Ac = A._corners || getRotatedRectangleCorners(A.x, A.y, A.w, A.h, A.rot||0);
+  const Bc = B._corners || getRotatedRectangleCorners(B.x, B.y, B.w, B.h, B.rot||0);
+  // Bygg 8 axlar utan extra allokeringar i loopen
+  for (let i=0;i<4;i++){
+    const p1=Ac[i], p2=Ac[(i+1)&3];
+    const ex=p2.x-p1.x, ey=p2.y-p1.y;
+    const n=_norm({x:-ey,y:ex}); axes.push(n);
+  }
+  for (let i=0;i<4;i++){
+    const p1=Bc[i], p2=Bc[(i+1)&3];
+    const ex=p2.x-p1.x, ey=p2.y-p1.y;
+    const n=_norm({x:-ey,y:ex}); axes.push(n);
+  }
+
+  let bestDepth = Infinity, bestAxis = null;
+
+  // lokal projektion utan onödiga closure-allokeringar
+  for (let k=0;k<axes.length;k++){
+    const ax = axes[k];
+    let amin=Infinity, amax=-Infinity, bmin=Infinity, bmax=-Infinity;
+
+    for (let i=0;i<4;i++){
+      const pa=Ac[i]; const da = pa.x*ax.x + pa.y*ax.y;
+      if (da<amin) amin=da; if (da>amax) amax=da;
+      const pb=Bc[i]; const db = pb.x*ax.x + pb.y*ax.y;
+      if (db<bmin) bmin=db; if (db>bmax) bmax=db;
+    }
+    if (amax <= bmin || bmax <= amin) return null;
+    const overlap = Math.min(amax - bmin, bmax - amin);
+    if (overlap < bestDepth){ bestDepth = overlap; bestAxis = ax; }
+  }
+  const centerA = {x:A.x + A.w/2, y:A.y + A.h/2};
+  const centerB = {x:B.x + B.w/2, y:B.y + B.h/2};
+  const AB = {x:centerB.x - centerA.x, y:centerB.y - centerA.y};
+  const sign = (_dot(bestAxis, AB) >= 0) ? +1 : -1;
+  return { n: {x:bestAxis.x*sign, y:bestAxis.y*sign}, depth: bestDepth };
+}
+
+function circleCircleMTV(A,B){
+  const ax=A.x+A.w*0.5, ay=A.y+A.h*0.5;
+  const bx=B.x+B.w*0.5, by=B.y+B.h*0.5;
+  const dx=bx-ax, dy=by-ay;
+  const d2 = dx*dx + dy*dy;
+  const rA = Math.min(A.w,A.h)*0.5*1.2;
+  const rB = Math.min(B.w,B.h)*0.5*1.2;
+  const R  = rA + rB;
+  if (d2 > R*R) return null;         // snabb exit
+  const dist = Math.sqrt(d2) || 1;
+  return { n:{x:dx/dist, y:dy/dist}, depth: R - dist };
+}
+
+const MIN_PEN= 0;
+const SimSolver = {
+  ITER: 3,
+  STATIC_INV_MASS: 0.0,
+  DYN_INV_MASS: 1.0,
+
+  step(game){
+    const map = game.maps[game.currentmap];
+    const stat = [];
+    const dyn  = [];
+    let uid = 1;
+
+    // 1) Samla proxies
+    for (let li=0; li<map.layer.length; li++){
+      const layer = map.layer[li];
+      if (layer.fysics === false) continue;            // helt utanför fysik
+      for (let oti=0; oti<layer.objectype.length; oti++){
+        const ot = layer.objectype[oti];
+        for (let oi=0; oi<ot.objects.length; oi++){
+          const o = ot.objects[oi];
+          if (layer.ghost || o.ghost) continue;
+
+          const base = { w:o.dimx, h:o.dimy, rot:o.rot||0, ref:o };
+
+          if (layer.solid === true ){
+            // cachea hörn/AABB för statics en gång
+            const S = { id:uid++, type:'static', invMass:0.0, x:o.x, y:o.y, ...base };
+            S._corners = S._corners || getRotatedRectangleCorners(S.x, S.y, S.w, S.h, S.rot||0);
+            S._aabb    = S._aabb    || _aabbFrom(S.x, S.y, S.w, S.h, S.rot||0);
+            stat.push(S);
+            continue;
+          }
+
+          // Projektiler hoppar vi över i solvern (träfflogik i din egen kod)
+          if (isProjectile(o)) continue;
+
+          // Rörliga enheter (dynamics)
+          const startX = o.x, startY = o.y;
+          const wantdx = (o._wantdx||0), wantdy = (o._wantdy||0);
+          let P;
+          if (isBuilding(o)) P = { id:uid++, type:'dyn', invMass:0, x:startX + wantdx, y:startY + wantdy, sx:startX, sy:startY, ...base };
+          else               P = { id:uid++, type:'dyn', invMass:1, x:startX + wantdx, y:startY + wantdy, sx:startX, sy:startY, ...base };
+
+          // nollställ kollisionslistor som din övriga kod läser
+          o.hadcollidedobj    = o.hadcollidedobj || [];
+          o.hadcollidedobj.length = 0;
+          o.collideslistan    = o.collideslistan    || [];
+          o.collideslistandir = o.collideslistandir || [];
+          o.collideslistanobj = o.collideslistanobj || [];
+          o.collideslistan.length = o.collideslistandir.length = o.collideslistanobj.length = 0;
+
+          o._contactNormals = o._contactNormals || [];
+          o._contactNormals.length = 0;
+
+          dyn.push(P);
+        }
+      }
+    }
+
+    // Bygg stat-grid EN gång och återanvänd (i iterationer + slide)
+    const gridStat = new HashGrid(SOLVER_CELL);
+    for (let i=0;i<stat.length;i++) gridStat.insert(stat[i]);
+
+    // 2) Iterera Jacobi
+    for (let it=0; it<this.ITER; it++){
+      // Kopiera stat-buckets; lägg bara in dyn varje varv
+      const g = new HashGrid(SOLVER_CELL);
+      g.map = new Map(gridStat.map);
+      for (let i=0;i<dyn.length;i++) g.insert(dyn[i]);
+
+      const disp = new Map();
+      const seen = new Set();
+      const ensure = (k)=>{ if(!disp.has(k)) disp.set(k,{x:0,y:0}); return disp.get(k); };
+
+      for (let ai=0; ai<dyn.length; ai++){
+        const A = dyn[ai];
+        const aabbA = _aabbFrom(A.x, A.y, A.w, A.h, A.rot||0);
+        const near = g.query(aabbA);
+        for (let bi=0; bi<near.length; bi++){
+          const B = near[bi];
+          if (A.id === B.id) continue;
+          const key = (Math.min(A.id,B.id) << 16) | Math.max(A.id,B.id);
+          if (B.type==='dyn' && seen.has(key)) continue;
+
+          // Krockmask
+          if (!shouldCollide(A, B)) continue;
+
+          // Narrowphase
+          let contact = null;
+          if (B.type==='static') contact = obbObbMTV(A,B);
+          else { if(B.invMass==0||A.invMass==0) contact = obbObbMTV(A,B); else contact = circleCircleMTV(A,B); }
+          if (!contact || contact.depth < MIN_PEN) continue;
+
+          // Spara normal för slide när det är roterad static
+          if (B.type === 'static' && (B.rot || 0) !== 0) {
+            A.ref._contactNormals.push(contact.n);
+          }
+
+          if (B.type==='dyn') seen.add(key);
+
+          // Dela MTV
+          const n = contact.n, dpth = contact.depth;
+          const invA = A.invMass, invB = B.invMass, invSum = invA + invB || 1;
+          const corrA = {x: -n.x * dpth * (invA/invSum), y: -n.y * dpth * (invA/invSum)};
+          const corrB = {x:  n.x * dpth * (invB/invSum), y:  n.y * dpth * (invB/invSum)};
+          const vA = ensure(A.ref); vA.x += corrA.x; vA.y += corrA.y;
+          if (B.type==='dyn'){ const vB = ensure(B.ref); vB.x += corrB.x; vB.y += corrB.y; }
+
+          // loggning för din logik (slide/AI)
+          if (A.ref){
+            A.ref.hadcollidedobj.push(B.ref || B);
+            A.ref.collideslistanobj.push(B.ref || B);
+            const dir = Math.abs(n.x) > Math.abs(n.y) ? (n.x>0?'left':'right') : (n.y>0?'up':'down');
+            A.ref.collideslistandir.push(dir);
+            A.ref.collideslistan.push(B.ref?.name || 'any');
+          }
+        }
+      }
+
+      // applicera iterationens förskjutningar
+      if (disp.size === 0) break; // tidig brytning utan att ändra resultat
+      for (let i=0;i<dyn.length;i++){
+        const d = dyn[i];
+        const v = disp.get(d.ref); if (!v) continue;
+        d.x += v.x; d.y += v.y;
+      }
+    }
+
+    let stopper=false;
+    // --- Riktad slide längs roterade statics (aligna med o.direction) ---
+    const gStat = gridStat; // återanvänd stat-grid
+    for (let i=0;i<dyn.length;i++){
+      const d = dyn[i];
+      const o = d.ref;
+      if (!o || !o._contactNormals || o._contactNormals.length === 0) continue;
+      
+      if(d.rot!==0){
+      o.rakna=0; 
+    o.rakna2=0;
+    stopper=true;
+      }
+      // 1) bestäm önskad riktning (o.direction kan vara vinkel eller vektor)
+      let dirx=0, diry=0;
+      if (typeof o.direction === 'number'){
+        const r = o.direction * Math.PI/180;
+        dirx = Math.cos(r); diry = Math.sin(r);
+      } else if (o.direction && typeof o.direction.x === 'number'){
+        const L = Math.hypot(o.direction.x, o.direction.y) || 1;
+        dirx = o.direction.x/L; diry = o.direction.y/L;
+      } else {
+        const wx = o._wantdx||0, wy = o._wantdy||0;
+        const L = Math.hypot(wx, wy) || 1;
+        dirx = wx/L; diry = wy/L;
+      }
+
+      // 2) välj tangent som bäst följer riktningen
+      let bestT = null, bestDot = -Infinity;
+      for (let ni=0; ni<o._contactNormals.length; ni++){
+        const n = o._contactNormals[ni];
+        const t1 = {x:-n.y, y:n.x};
+        const t2 = {x: n.y, y:-n.x};
+        const d1 = t1.x*dirx + t1.y*diry;
+        const d2 = t2.x*dirx + t2.y*diry;
+        if (d1 > bestDot){ bestDot = d1; bestT = t1; }
+        if (d2 > bestDot){ bestDot = d2; bestT = t2; }
+      }
+      if (!bestT || bestDot <= 0.01) { o._contactNormals.length = 0; continue; }
+
+      // 3) KONSTANT SLIDEFART längs tangent, oberoende av "tryck in i väggen"
+      const wantx = o._wantdx||0, wanty = o._wantdy||0;
+      const baseSpeed = Math.hypot(wantx, wanty);
+      if (baseSpeed < 0.01){ o._contactNormals.length = 0; continue; }
+
+      // rikta sliden så att den följer o.direction (eller _want, fallback)
+      const sign = (dirx*bestT.x + diry*bestT.y) >= 0 ? 1 : -1;
+
+      // valfri ratt: skala om sliden (1.0 = samma som basfart)
+      const SLIDE_SPEED_FACTOR = 1.0;
+
+      // konstant fart längs tangent (i stället för projektion)
+      const vt = baseSpeed * SLIDE_SPEED_FACTOR * sign;
+      const dx = bestT.x * vt, dy = bestT.y * vt;
+
+      // 4) testa att flytta längs tangenten utan att tränga in i statics
+      const test = { x: d.x + dx, y: d.y + dy, w:d.w, h:d.h, rot:d.rot };
+      const near = gStat.query(_aabbFrom(test.x, test.y, test.w, test.h, test.rot||0));
+      let blocked = false;
+      for (let si=0; si<near.length; si++){
+        const S = near[si];
+        if (obbObbMTV(test, S)) { blocked = true; break; }
+      }
+      if (!blocked){
+        d.x = test.x; d.y = test.y;   // Apply slide i solvernivå
+        
+      }
+
+      // rensa normals för nästa frame
+      o._contactNormals.length = 0;
+    }
+
+    // 3) skriv tillbaka
+    for (let i=0;i<dyn.length;i++){
+      const d = dyn[i];
+      const o = d.ref;
+      const wantdx = (o._wantdx||0), wantdy = (o._wantdy||0);
+      const corrx = (d.x - o.x) - wantdx;
+      const corry = (d.y - o.y) - wantdy;
+      const movedN = Math.hypot(corrx, corry);
+
+      if(stopper===false){
+        o.blocked  = movedN > 0.25;
+        o.blockedx = o.blocked && Math.abs(d.x - o.x) < Math.abs(wantdx);
+        o.blockedy = o.blocked && Math.abs(d.y - o.y) < Math.abs(wantdy);
+      } else {
+        o.blocked=false;
+        o.blockedx=false;
+        o.blockedy=false;
+      }
+
+      o.x = d.x; o.y = d.y;
+      o.freex = o.x; o.freey = o.y;
+    }
+  }
+};
+
+
 
 
 function getRotatedRectangleCorners(x, y, w, h, rot) {
@@ -729,17 +1043,17 @@ class Game5 {
     
     
     updateanimation(ctx) {
-        try {
-            
+     //   try {
+            Prof.section("Collision", ()=> {
             this.updateUnitMovement();
             this.collitionengine();
-             
+              });
             
             
             
             
-        } catch (error) {}
         
+        Prof.section("Draw", ()=> {
         for (let i = 0; i < this.maps.length; i++) {
             if (i == this.currentmap) {
                 for (let i2 = 0; i2 < this.maps[i].layer.length; i2++) {
@@ -778,54 +1092,12 @@ class Game5 {
         }
         
         updateAndDrawFX(ctx);
+         });
         
+      //  } catch (error) {}
     }
     collitionengine() {
-        // --- Build broadphase grid (added) ---
-        (function buildBroadphaseGrid(self){
-            const _bp = new Map();
-            const map = self.maps[self.currentmap];
-            for (let i2 = 0; i2 < map.layer.length; i2++){
-                const layer = map.layer[i2];
-                if (layer.fysics === false) continue;
-                for (let i3 = 0; i3 < layer.objectype.length; i3++){
-                    const objType = layer.objectype[i3];
-                    for (let i4 = 0; i4 < objType.objects.length; i4++){
-                        const o = objType.objects[i4];
-                        o._bp_ghostLayer = (layer.ghost === true);
-                        o._bp_hasPhysics = (layer.fysics === true);
-                        const aabb = _aabbOf(o);
-                        const PAD  = o.speed; 
-                         aabb.x -= PAD; aabb.y -= PAD;
-                         aabb.w += 2*PAD; aabb.h += 2*PAD;
-                        
-                        const cells = _cellsFor(aabb);
-                        for (let c = 0; c < cells.length; c++){
-                            const key = cells[c];
-                            let bin = _bp.get(key);
-                            if (!bin){ bin = []; _bp.set(key, bin); }
-                            bin.push(o);
-                        }
-                    }
-                }
-            }
-            self._bpGrid = _bp;
-        })(this);
-        // --- End broadphase build ---
 
-    // 1. Nollställ kollisionslistor
-    for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
-        for (let i3 = 0; i3 < this.maps[this.currentmap].layer[i2].objectype.length; i3++) {
-            for (let o of this.maps[this.currentmap].layer[i2].objectype[i3].objects) {
-                o.collideslistan = o.collideslistan || [];
-o.collideslistandir = o.collideslistandir || [];
-o.collideslistanobj = o.collideslistanobj || [];
-o.collideslistan.length = 0;
-o.collideslistandir.length = 0;
-o.collideslistanobj.length = 0;
-            }
-        }
-    }
 
     // 2. Beräkna rakna
     for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
@@ -846,245 +1118,18 @@ o.collideslistanobj.length = 0;
                     o.x = o.freex;
                     o.y = o.freey;
                 }
+                if (o.rakna !== 0 || o.rakna2 !== 0){ o.hadcollidedobj.length = 0;}
+                o.collideslistan.length = 0;
+                o.collideslistandir.length = 0;
+                o.collideslistanobj.length = 0;
             }
         }
     }
 
     // 3. Kör förflyttning + subpixlar
-    for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
-        for (let i3 = 0; i3 < this.maps[this.currentmap].layer[i2].objectype.length; i3++) {
-            for (let o of this.maps[this.currentmap].layer[i2].objectype[i3].objects) {
-                if (o.rakna !== 0 || o.rakna2 !== 0){ o.hadcollidedobj = o.hadcollidedobj || []; o.hadcollidedobj.length = 0;}
-
-                // --- X-led ---
-                let intX = Math.trunc(o.rakna);
-                let restX = o.rakna - intX;
-               // o.rakna=0;
-                if (intX < 0) {
-                    for (let k = 0; k < Math.abs(intX); k++) {
-                        o.x -= 1;
-                        o.rakna--;
-                        if (o.collideslist(this.maps, this.currentmap, "left")) {
-                            o.x += 1;o.rakna++;
-                            //restX = 0;
-                            break;
-                        }
-                    }
-                } else if (intX > 0) {
-                    for (let k = 0; k < intX; k++) {
-                        o.x += 1;
-                        o.rakna--;
-                        if (o.collideslist(this.maps, this.currentmap, "right")) {
-                            o.x -= 1;
-                            o.rakna++;
-                            //restX = 0;
-                            break;
-                        }
-                    }
-                }
-
-                // Reststeg X
-                if (restX !== 0) {
-                    let testX = o.x + restX;
-                    let oldX = o.x;
-                    o.x = testX;
-                    o.rakna=o.rakna-restX;
-                    if (o.collideslist(this.maps, this.currentmap, restX > 0 ? "right" : "left")) {
-                        o.x = oldX;
-                        o.rakna=o.rakna+restX;
-                    }
-                }
-
-                // --- Y-led ---
-                let intY = Math.trunc(o.rakna2);
-                let restY = o.rakna2 - intY;
-               // o.rakna2=0;
-                if (intY < 0) {
-                    for (let k = 0; k < Math.abs(intY); k++) {
-                        o.y -= 1;
-                        o.rakna2--;
-                        if (o.collideslist(this.maps, this.currentmap, "up")) {
-                            o.y += 1;
-                             o.rakna2++;
-                            //restY = 0;
-                            break;
-                        }
-                    }
-                } else if (intY > 0) {
-                    for (let k = 0; k < intY; k++) {
-                        o.y += 1;
-                         o.rakna2--;
-                        if (o.collideslist(this.maps, this.currentmap, "down")) {
-                            o.y -= 1;
-                             o.rakna2++;
-                            //restY = 0;
-                            break;
-                        }
-                    }
-                }
-
-                // Reststeg Y
-                if (restY !== 0) {
-                    let testY = o.y + restY;
-                    let oldY = o.y;
-                    o.y = testY;
-                    o.rakna2=o.rakna2-restY;
-                    if (o.collideslist(this.maps, this.currentmap, restY > 0 ? "down" : "up")) {
-                        o.y = oldY;
-                        o.rakna2=o.rakna2+restY;
-                    }
-                }
-
-// --- FRIKTIONSFRITT SLIDE med två-väggars fallback ---
-if (o.hadcollidedobj && o.hadcollidedobj.length) {
-  // senaste icke-ghost, prioritera roterat
-  let h = null;
-  for (let i = o.hadcollidedobj.length-1; i>=0; i--){
-    const c = o.hadcollidedobj[i];
-    if (c && !c.ghost){ h = c; if ((c.rot||0)!==0) break; }
-  }
-  if (!h || (h.rot||0)===0) { /* inget roterat → hoppa */ }
-  else {
-    const want = { x:(o._wantdx||0), y:(o._wantdy||0) };
-    const wantLen = Math.hypot(want.x, want.y);
-    if (wantLen > 1e-6){
-
-      // Kandidat-normaler (Fix 1 bas men vi testar båda)
-      let [nA, nB] = getTwoNormals(h.x, h.y, h.dimx, h.dimy, h.rot||0);
-
-      // Rikta båda ut från hindret mot agentens center
-      const ax = o.x + o.dimx*0.5, ay = o.y + o.dimy*0.5;
-      const bx = h.x + h.dimx*0.5, by = h.y + h.dimy*0.5;
-      const toA = { x: ax - bx, y: ay - by };
-      if (_dot(toA,nA)<0) nA = {x:-nA.x,y:-nA.y};
-      if (_dot(toA,nB)<0) nB = {x:-nB.x,y:-nB.y};
-
-     // Byt ut din tidigare tryNormal(n) mot denna mjuka, tryck-känsliga variant
-// Begränsningar (justera efter känsla)
-const SLIDE_MAX_PER_FRAME = 100;  // px/frame, cap så det aldrig blir "super snabbt"
-const PRESS_BLEED_PX      = 1.4;  // px/frame när man pressas men saknar egen tangenthast
-const STEP_MIN            = 1.4;  // px, små jämna steg för mjuk visuell rörelse
-const SLOP_FACTOR         = 1.4; // liten push-out (mindre än tidigare)
-
-const tryNormal = (n) => {
-  const want = { x:(o._wantdx||0), y:(o._wantdy||0) };
-  const wantLen = Math.hypot(want.x, want.y) || 0;
-
-  // Är vi pressade (av oss själva eller andra)? (du har redan isPressedAgainst)
-  const pressed = isPressedAgainst(this, this.currentmap, o, n, want);
-  if (!pressed) return null;
-
-  // Tangenter (±t)
-  const t1 = _norm({ x:-n.y, y: n.x });
-  const t2 = { x:-t1.x, y:-t1.y };
-
-  // Projektera want på ytan → "ren" tangent-hastighet utan friktion
-  const wn = (want.x*n.x + want.y*n.y);
-  let s = { x: want.x - n.x*wn, y: want.y - n.y*wn };
-
-  // Rikta s mot ditt "face" (direction → fallback = want)
-  const face = dirToVec(o.direction) || (wantLen>0 ? {x:want.x/wantLen, y:want.y/wantLen} : {x:t1.x, y:t1.y});
-  if ((s.x*face.x + s.y*face.y) < 0) { s.x = -s.x; s.y = -s.y; }
-
-  const sLenRaw = Math.hypot(s.x, s.y);  // faktisk tangentkomponent av want
-
-  // --- Välj önskad glidlängd för DENNA frame ---
-  // Bas: glid inte mer än du "ville" i tangentled
-  let desired = sLenRaw;
-
-  // Om du är pressad men saknar egen tangenthast → ge en *liten* bleed
-  if (desired < PRESS_BLEED_PX && pressed) {
-    // Lägg inte till, utan ta det max av (egen tangent) och (bleed)
-    desired = Math.max(desired, PRESS_BLEED_PX);
-  }
-
-  // Absolut tak per frame (hindrar “super snabbt”)
-  desired = Math.min(desired, SLIDE_MAX_PER_FRAME);
-
-  // Om inget att glida: avbryt
-  if (desired <= 1e-6) return null;
-
-  // Enhetstangent från s (behåller riktningen vi valt ovan)
-  const t = (sLenRaw>1e-6) ? { x:s.x/sLenRaw, y:s.y/sLenRaw } : t1;
-
-  // Liten, försiktig push-out
-  const size = Math.min(o.dimx, o.dimy);
-  const SLOP = Math.max(0.5, SLOP_FACTOR * size); // minst 0.5px för att slippa mikrosnap
-  let baseX = o.x, baseY = o.y;
-
-// kör push-out ENDAST om vi faktiskt är i overlap just nu
-const isOverlappingNow = o.collidestest ? o.collidestest()
-                                        : overlapsNoSideEffects(this, this.currentmap, o);
-
-if (isOverlappingNow){
-  const size = Math.min(o.dimx, o.dimy);
-  const SLOP = Math.max(0.4, 0.006 * size); // liten, försiktig nudge
-
-  for (let i=0; i<3; i++){
-    const nx = baseX + n.x * SLOP;
-    const ny = baseY + n.y * SLOP;
-
-    const ox = o.x, oy = o.y;
-    o.x = nx; o.y = ny;
-
-    const still = o.collidestest ? o.collidestest()
-                                 : overlapsNoSideEffects(this, this.currentmap, o);
-
-    o.x = ox; o.y = oy;
-
-    if (!still) { baseX = nx; baseY = ny; break; }  // bara acceptera om det faktiskt löste penetrationen
-  }
+    SimSolver.step(this);
 }
 
-
-  // Mjuk sweep längs +t och -t, välj den som går längst (men aldrig längre än "desired")
-  const step = Math.min(Math.max(STEP_MIN, 0.05*size), desired); // anpassa steg men max desired
-  const A = sweepAlong(this, this.currentmap, o, baseX, baseY,  t.x,  t.y, desired, step);
-  const B = sweepAlong(this, this.currentmap, o, baseX, baseY, -t.x, -t.y, desired, step);
-  const best = (A.travel >= B.travel) ? A : B;
-
-  // Sätt slutposition
-  o.x = best.x; o.y = best.y;
-
-  // Minimal efter-push om vi fortfarande nuddar (mycket liten för att undvika snap)
-  const ox=o.x, oy=o.y;
-  const still = o.collidestest ? o.collidestest()
-                             : overlapsNoSideEffects(this, this.currentmap, o);
-if (still){
-  const tiny = 0.25; // pytteliten nudge; kan sänkas
-  o.x += n.x * tiny;
-  o.y += n.y * tiny;
-}
-
-  return { travel: best.travel, x:o.x, y:o.y };
-};
-
-
-      // Prova båda sidorna och välj bäst
-      const candA = tryNormal(nA);
-      const candB = tryNormal(nB);
-      let best = null;
-      if (candA && candB) best = (candA.travel >= candB.travel) ? candA : candB;
-      else best = candA || candB;
-
-      if (best){
-        o.x = best.x;
-        o.y = best.y;
-      }
-    }
-  }
-}
-                
-                o.blockedx=false;o.blockedy=false;o.blocked=false;
-                if(o.freex === o.x&& o.rakna!==0){o.blockedx=true;o.blocked=true;}
-                if(o.freey === o.y&& o.rakna2!==0){o.blockedy=true;o.blocked=true;}
-                // Uppdatera floatposition
-                o.freex = o.x;
-                o.freey = o.y;
-            }
-        }
-    }
-}
     
     isclose(obj, obj2){
         for (let i = 0; i < obj.hadcollidedobj.length; i++) {
@@ -1736,6 +1781,7 @@ class Objectx {
         this.collideslistandir = [];
         this.collideslistanobj = [];
         this.hadcollidedobj = [];
+        this._contactNormals=[];
         this.rakna = 0;
         this.rakna2 = 0;
         this.animation = 0;
@@ -1790,44 +1836,7 @@ class Objectx {
         this._wantdy=0;
     }
     collidestest(){
-        // 1) Snabbväg med Broadphase-grid om den finns
-        const bp = (typeof game !== 'undefined' && game._bpGrid) ? game._bpGrid : null;
-        if (bp) {
-          const me = this;
-          const aabb = _aabbOf(me);                 // roterad AABB när rot != 0
-          const keys = _cellsFor(aabb);
-          const seen = new Set();
 
-          for (let ki = 0; ki < keys.length; ki++){
-            const key = keys[ki];
-            const bin = bp.get(key);
-            if (!bin) continue;
-
-            for (let bi = 0; bi < bin.length; bi++){
-              const other = bin[bi];
-              if (other === me) continue;
-              if (!other._bp_hasPhysics) continue;
-              // undvik dubbletter tvärs flera celler
-              const oid = other._oid || (other._oid = Symbol());
-              if (seen.has(oid)) continue;
-              seen.add(oid);
-
-              // om lagret är ghost eller objektet är ghost => räknas ej som "riktig" träff
-              if ((other._bp_ghostLayer === true) || (other.ghost === true)) {
-                // hoppa bara över — collidestest() ska inte trigga på ghost
-                continue;
-              }
-
-              // snabb vs exakt beroende på rotation
-              if (other.rot == 0 && this.rot == 0) {
-                if (this.collideswithfast(other)) return true;
-              } else {
-                if (this.collideswith(other)) return true;
-              }
-            }
-          }
-          return false;
-        }
 
         // 2) Fallback till ursprunglig O(N)-svep (oförändrad logik)
         for (let i2 = 0; i2 < game.maps[game.currentmap].layer.length; i2++) {
@@ -1860,86 +1869,7 @@ class Objectx {
     
     
     collideslist(maps, currentmap, dir) {
-        // Broadphase-based candidate search (added)
-        const bp = (typeof game !== 'undefined' && game._bpGrid) ? game._bpGrid : null;
-        if (bp) {
-            const me = this;
-            const aabb = _aabbOf(me);
-            const keys = _cellsFor(aabb);
-            const seen = new Set();
-            for (let ki = 0; ki < keys.length; ki++){
-                const key = keys[ki];
-                const bin = bp.get(key);
-                if (!bin) continue;
-                for (let bi = 0; bi < bin.length; bi++){
-                    const other = bin[bi];
-                    if (other === me) continue;
-                    if (!other._bp_hasPhysics) continue;
-                    const oid = other._oid || (other._oid = Symbol());
-                    if (seen.has(oid)) continue;
-                    seen.add(oid);
-
-                    if (other.rot == 0 && this.rot == 0) {
-                        if (this.collideswithfast(other)) {
-                            if ((other._bp_ghostLayer === true) || (other.ghost === true)) {
-                                this.collideslistan.push(other.name);
-                                this.collideslistandir.push("ghost");
-                                this.collideslistanobj.push(other);
-                                this.hadcollidedobj.push(other);
-
-                                other.collideslistan.push(this.name);
-                                other.collideslistandir.push("ghost");
-                                other.collideslistanobj.push(this);
-                                other.hadcollidedobj.push(this);
-                            } else {
-                                this.collideslistan.push(other.name);
-                                this.collideslistandir.push(dir);
-                                this.collideslistanobj.push(other);
-                                this.hadcollidedobj.push(other);
-
-                                other.collideslistan.push(this.name);
-                                if(dir=="up")other.collideslistandir.push("down");
-                                else if(dir=="down")other.collideslistandir.push("up");
-                                else if(dir=="left")other.collideslistandir.push("right");
-                                else if(dir=="right")other.collideslistandir.push("left");
-                                other.collideslistanobj.push(this);
-                                other.hadcollidedobj.push(this);
-                                return true;
-                            }
-                        }
-                    } else {
-                        if (this.collideswith(other)) {
-                            if ((other._bp_ghostLayer === true) || (other.ghost === true)) {
-                                this.collideslistan.push(other.name);
-                                this.collideslistandir.push("ghost");
-                                this.collideslistanobj.push(other);
-                                this.hadcollidedobj.push(other);
-
-                                other.collideslistan.push(this.name);
-                                other.collideslistandir.push("ghost");
-                                other.collideslistanobj.push(this);
-                                other.hadcollidedobj.push(this);
-                            } else {
-                                this.collideslistan.push(other.name);
-                                this.collideslistandir.push(dir);
-                                this.collideslistanobj.push(other);
-                                this.hadcollidedobj.push(other);
-
-                                other.collideslistan.push(this.name);
-                                if(dir=="up")other.collideslistandir.push("down");
-                                else if(dir=="down")other.collideslistandir.push("up");
-                                else if(dir=="left")other.collideslistandir.push("right");
-                                else if(dir=="right")other.collideslistandir.push("left");
-                                other.collideslistanobj.push(this);
-                                other.hadcollidedobj.push(this);
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-            return false;
-        }
+       
         // Fallback to original O(N) sweep if grid missing
 
         for (let i2 = 0; i2 < maps[currentmap].layer.length; i2++) {
@@ -1952,7 +1882,9 @@ class Objectx {
                     else {
                         if (objType.objects[i4].rot == 0 && this.rot == 0) {
                             if (this.collideswithfast(objType.objects[i4])) {
+                                
                                 if (maps[currentmap].layer[i2].ghost == true || objType.objects[i4].ghost == true) {
+                                    for(var u of this.collideslistanobj){if(u===objType.objects[i4])return false;}
                                     this.collideslistan.push(objType.name);
                                     this.collideslistandir.push("ghost");
                                     this.collideslistanobj.push(objType.objects[i4]);
@@ -1965,6 +1897,7 @@ class Objectx {
                                     
                                 }
                                 else {
+                                    for(var u of this.collideslistanobj){if(u===objType.objects[i4])return true;}
                                     this.collideslistan.push(objType.name);
                                     this.collideslistandir.push(dir);
                                     this.collideslistanobj.push(objType.objects[i4]);
@@ -1985,8 +1918,15 @@ class Objectx {
                             }
                         }
                         else {
+                            
+                            const rsum = 0.5*Math.hypot(this.dimx||0, this.dimy||0) + 0.5*Math.hypot(objType.objects[i4].dimx||0, objType.objects[i4].dimy||0);
+                            const dx = (objType.objects[i4].x + (objType.objects[i4].dimx||0)*0.5) - (this.x + (this.dimx||0)*0.5);
+                            const dy = (objType.objects[i4].y + (objType.objects[i4].dimy||0)*0.5) - (this.y + (this.dimy||0)*0.5);
+                            if ((dx*dx + dy*dy) > (rsum*rsum)) continue;
+                            
                             if (this.collideswith(objType.objects[i4])) {
                                 if (maps[currentmap].layer[i2].ghost == true || objType.objects[i4].ghost == true) {
+                                    for(var u of this.collideslistanobj){if(u===objType.objects[i4])return false;}
                                     this.collideslistan.push(objType.name);
                                     this.collideslistandir.push("ghost");
                                     this.collideslistanobj.push(objType.objects[i4]);
@@ -1999,6 +1939,7 @@ class Objectx {
                                     
                                 }
                                 else {
+                                    for(var u of this.collideslistanobj){if(u===objType.objects[i4])return true;}
                                     this.collideslistan.push(objType.name);
                                     this.collideslistandir.push(dir);
                                     this.collideslistanobj.push(objType.objects[i4]);

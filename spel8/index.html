@@ -1,4 +1,5 @@
 
+
 <html>
     <head>
         <meta name="viewport" content="user-scalable=no, shrink-to-fit=no">
@@ -244,6 +245,156 @@
   Visa Highscores
 </button>
         <script>
+// === Tiny Profiler (STRICT v2: exclusive + correct wall clock) ==============
+const Prof = (() => {
+  const EMA = 0.25;
+  const cfg = { x: 8, y: 200, maxLines: 10, width: 340, lineH: 16, bgAlpha: 0.8 };
+
+  // per-frame (exklusivt) + visning
+  const frameMs = new Map();   // ms denna frame per sektion (exklusivt)
+  const dispMs  = new Map();   // EMA av sektioner
+  let stack = [];
+  let lastTS = 0;
+
+  // väggtid för hela framen
+  let wallStart = 0;
+  let wallDur   = 16;
+  let dispWall  = 16;
+
+  let showHUD = true;
+  let inFrame = false;
+
+  // HUD-buffer
+  let buf = null, bctx = null, lastHUD = 0;
+
+  function _acc(name, dt){
+    frameMs.set(name, (frameMs.get(name) || 0) + dt);
+  }
+
+  function startFrame(){
+    if (inFrame) endFrame();        // städa om man råkat börja två ggr
+    inFrame = true;
+
+    wallStart = performance.now();
+
+    frameMs.clear();
+    stack.length = 0;
+    lastTS = performance.now();
+    stack.push("Frame");            // topp för exklusiv fördelning
+  }
+
+  function begin(name){
+    const now = performance.now();
+    if (stack.length) _acc(stack[stack.length-1], now - lastTS); // tilldela toppen
+    stack.push(name);
+    lastTS = now;
+  }
+
+  function end(){
+    const now = performance.now();
+    const cur = stack.pop() || "Frame";
+    _acc(cur, now - lastTS);
+    lastTS = now;
+  }
+
+  function section(name, fn){
+    begin(name);
+    try { return fn(); }
+    finally { end(); }
+  }
+
+  function endFrame(){
+    if (!inFrame) return;
+    const now = performance.now();
+    if (stack.length) _acc(stack[stack.length-1], now - lastTS);
+    lastTS = now;
+    inFrame = false;
+
+    wallDur = now - wallStart;                 // hela frame-väggtiden
+    dispWall = dispWall + EMA * (wallDur - dispWall);
+
+    // EMA för sektioner
+    const keys = new Set([...dispMs.keys(), ...frameMs.keys()]);
+    for (const k of keys){
+      const prev = dispMs.get(k) || 0;
+      const cur  = frameMs.get(k) || 0;
+      dispMs.set(k, prev + EMA*(cur - prev));
+    }
+  }
+
+  // Gör add() till no-op så inget kan dubbelräkna
+  let warnedAdd = false;
+  function add(){
+    if (!warnedAdd){
+      warnedAdd = true;
+      console.warn("[Prof] add() är avstängd i STRICT-läget. Använd section/begin/end.");
+    }
+  }
+
+  function setPosition(x, y){ cfg.x = x|0; cfg.y = y|0; }
+
+  function hudDraw(){
+    if (!showHUD) return;
+    const cvs = document.getElementById("myCanvas");
+    if (!cvs) return;
+    const ctx = cvs.getContext("2d");
+
+    if (!buf || buf.width!==cvs.width || buf.height!==cvs.height){
+      buf = document.createElement("canvas");
+      buf.width = cvs.width; buf.height = cvs.height;
+      bctx = buf.getContext("2d");
+    }
+
+    const now = performance.now();
+    if (!lastHUD || now - lastHUD > 150){
+      lastHUD = now;
+
+      const rows = Array.from(dispMs.entries())
+        .filter(([k]) => k !== "Frame")           // visa inte “Frame” (exklusiv rest)
+        .map(([k,ms]) => ({k, ms}))
+        .sort((a,b)=> b.ms - a.ms);
+
+      // “Other” = väggtid - kända sektioner
+      const sumKnown = rows.reduce((s,r)=> s + r.ms, 0);
+      const otherMs  = Math.max(0, dispWall - sumKnown);
+      if (otherMs > 0.05) rows.unshift({ k:"Other", ms:otherMs });
+
+      const total = Math.max(0.0001, sumKnown + otherMs); // nämnare
+      const fps = dispWall > 0 ? (1000/dispWall) : 0;
+
+      const lines = [
+        `FPS: ${fps.toFixed(1)}   frame: ${dispWall.toFixed(2)}ms`,
+        ...rows.slice(0, cfg.maxLines).map(it => `${it.k.padEnd(12)} ${it.ms.toFixed(2)}ms  ${(it.ms/total*100).toFixed(0)}%`)
+      ];
+
+      bctx.setTransform(1,0,0,1,0,0);
+      bctx.clearRect(0,0,buf.width,buf.height);
+      bctx.globalAlpha = cfg.bgAlpha;
+      bctx.fillStyle = "#000";
+      bctx.fillRect(cfg.x, cfg.y, cfg.width, (lines.length*cfg.lineH)+12);
+      bctx.globalAlpha = 1;
+      bctx.fillStyle = "#0f0";
+      bctx.font = "12px monospace";
+      for (let i=0;i<lines.length;i++){
+        bctx.fillText(lines[i], cfg.x + 8, cfg.y + 20 + i*cfg.lineH);
+      }
+    }
+
+    ctx.save();
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.drawImage(buf, 0, 0);
+    ctx.restore();
+  }
+
+  window.addEventListener('keydown', (e)=>{
+    if (e.key === 'F1'){ showHUD = !showHUD; e.preventDefault(); }
+  });
+
+  return { startFrame, endFrame, section, begin, end, add, hudDraw, setPosition };
+})();
+
+
+
 
 // --- Din Firebase-konfiguration (byt till din egen från Firebase Console) ---
   const firebaseConfig = {
@@ -543,10 +694,10 @@ resizeCanvas();
             let selectedWorkersBeforeBuild = [];
             let selectedWorkers = [];
             let lastTouchPos = null;
-            let gold = 600;
-            let wood = 500;
-            let rgold = 600;
-            let rwood = 500;
+            let gold = 11600;
+            let wood = 11500;
+            let rgold = 11600;
+            let rwood = 11500;
             let gameOver = false;
             let buildArmed = false;
             let popUsed = 0, popCap = 0;
@@ -827,7 +978,7 @@ resizeCanvas();
                 cursorX = e.clientX;
                 cursorY = e.clientY;
                 lastTouchPos = null; // ← detta säger "vi är i PC-läge"
-                ghostBuilding.animation=0;
+                if(ghostBuilding)ghostBuilding.animation=0;
             });
             document.addEventListener("mousedown", function(e) {
                 selectedWorkers2 = game.getAllObjectsoftype(game.getobjecttype("worker")).filter(o => o.selected );
@@ -919,7 +1070,7 @@ resizeCanvas();
              loadTopHighscoreHUD();
              
              var check = function(){
-                 
+                 Prof.startFrame();
                 // HUD: uppdatera speltid i sekunder → formatTime
                 // HUD: speltid
                 const elapsedSec = gameClock.seconds();
@@ -953,7 +1104,8 @@ resizeCanvas();
                 
                 
                 const __t0 = performance.now();
-                game.updateanimation(ctx);
+                
+                if(game.getobjecttype("guard"))game.updateanimation(ctx);
                 drawHealthBars();
                 const __t1 = performance.now();
                 window.__pf = (window.__pf||0) + 1;
@@ -1714,7 +1866,7 @@ if (worker.objects[i].workobject && isDepleted(worker.objects[i].workobject)&&wo
 
                     }
  
-                    
+                    Prof.section("AI", ()=> {
                     enemyTryToBuildBase();
                     enemyTryToBuildBar();
                     enemyTryToBuildHouse();
@@ -1733,11 +1885,13 @@ if (worker.objects[i].workobject && isDepleted(worker.objects[i].workobject)&&wo
                     updateArrows();
                     
                     checkWinLose(); 
+                    });
                 }
 
-                 
-                
+                    Prof.endFrame(); 
+                Prof.hudDraw();
                 window.requestAnimationFrame(check);   
+             
             };check();
             
             function isBuildPlacementValid(o) {
@@ -2871,8 +3025,27 @@ function updateOBBChaseTest(){
   function _dist(a,b){ return _D ? _D(a,b) : Math.hypot(a.x-b.x, a.y-b.y); }
   function getHP(o){ return (o.health ?? o.hp ?? o.HP ?? 0)|0; }
 
-  const OBB_SOLID_TYPES = ["tree","water","base","bar","house","rbase","rbar","rhouse"];
-  const obbs = collectOBBsFromGame(OBB_SOLID_TYPES, 0);
+  // === OBB-cache + index (ersätt ditt befintliga cacheblock) ===
+const OBB_SOLID_TYPES = ["tree","water","base","bar","house","rbase","rbar","rhouse"];
+
+if (!window.__OBB_CACHE) window.__OBB_CACHE = { key:"", prepped:[], index:null };
+(function refreshObbCache(){
+  let key = "";
+  for (const tn of OBB_SOLID_TYPES){
+    const t = game.getobjecttype(tn);
+    key += tn + ":" + (t?.objects?.length||0) + "|";
+  }
+  if (key !== window.__OBB_CACHE.key){
+    const raw = collectOBBsFromGame(OBB_SOLID_TYPES, 0);
+    const prepped = raw.map(prepOBB);
+    window.__OBB_CACHE.prepped = prepped;
+    window.__OBB_CACHE.index   = buildObbIndex(prepped, 96);
+    window.__OBB_CACHE.key     = key;
+    if (window.__PATH_CACHE) window.__PATH_CACHE.clear();
+  }
+})();
+const obbIndex = window.__OBB_CACHE.index;       // <— ny
+const obbs     = window.__OBB_CACHE.prepped;     // som tidigare
 
   // AI (r*) trupp & bygg
   const fighters = [..._list("rguard"), ..._list("rarcher")].filter(isAlive);
@@ -2947,6 +3120,12 @@ const PROGRESS_EPS          = 250;  // "moved" tröskel i px mellan kontroller
 
 function steerToGoal(u, goal){
   if (!u || !goal) return;
+  
+  if (!window.__OBB_TB) window.__OBB_TB = { last:0, tokens:0, perTick:8, minDt:14 };
+const tb = window.__OBB_TB;
+const nowT = performance.now();
+if (nowT - tb.last > tb.minDt){ tb.last = nowT; tb.tokens = tb.perTick; }
+  
   if (!u._obbAI) u._obbAI = {
     path:null, pi:0, repath:0, lastKey:null,
     backoff:100, lastPX:0, lastPY:0, progT:PROGRESS_CHECK_FR
@@ -2973,7 +3152,12 @@ function steerToGoal(u, goal){
 
     // === (Re)planering med backoff ===
     if (!u._obbAI.path || u._obbAI.repath <= 0){
-      const path = findPathOBB(U, goal, obbs, { cell:CELL, inflate:INFLATE, pad:PAD, maxGrid:MAXGRID, smooth:true });
+        if (tb.tokens <= 0) { u._obbAI.repath = 2; return; }  // flytta planeringen till nästa tick
+        tb.tokens--;
+      const path = findPathOBB(U, goal, obbs, {
+  cell:CELL, inflate:INFLATE, pad:PAD, maxGrid:MAXGRID, smooth:true,
+  obbIndex: obbIndex, obbKey: window.__OBB_CACHE.key
+});
       const jitter = (Math.random()*6)|0;
       if (path && path.length){
         u._obbAI.path   = path;
@@ -3116,6 +3300,8 @@ function steerToGoal(u, goal){
   }
 }
 //slut AI-----------------------------------------------------------------------------------------
+
+// === ROBUST & OPTIMERAD findPathOBB =====================================
 function findPathOBB(start, goal, obbs, opt = {}) {
   const cell    = opt.cell ?? 24;
   const inflate = opt.inflate ?? 16;
@@ -3123,42 +3309,108 @@ function findPathOBB(start, goal, obbs, opt = {}) {
   const maxGrid = opt.maxGrid ?? 512;
   const smooth  = opt.smooth ?? true;
 
-  // 1) Bounds för raster
-  let minx = Math.min(start.x, goal.x) - pad;
-  let miny = Math.min(start.y, goal.y) - pad;
-  let maxx = Math.max(start.x, goal.x) + pad;
-  let maxy = Math.max(start.y, goal.y) + pad;
+  // Prepp/index
+  const idx        = opt.obbIndex || (window.__OBB_CACHE && window.__OBB_CACHE.index) || null;
+  const allPrepped = (idx && idx.prepped) ? idx.prepped : (obbs || []).map(prepOBB);
+  const obbKey     = opt.obbKey || (window.__OBB_CACHE && window.__OBB_CACHE.key) || (`len:${allPrepped.length}`);
 
-  const prepped = obbs.map(prepOBB);
-  for (const O of prepped) {
-    const b = O.bounds;
-    minx = Math.min(minx, b.x1 - pad);
-    miny = Math.min(miny, b.y1 - pad);
-    maxx = Math.max(maxx, b.x2 + pad);
-    maxy = Math.max(maxy, b.y2 + pad);
+
+if (!window.__GRID_CACHE) window.__GRID_CACHE = new Map();
+const GRID_CACHE_MAX = 64;
+
+function gridCacheKey(minx, miny, maxx, maxy, cell, inflatePx, obbKey){
+  // aligna bounds till cellstorleken för fler träffar
+  const ax = Math.floor(minx/cell), ay = Math.floor(miny/cell);
+  const bx = Math.floor(maxx/cell), by = Math.floor(maxy/cell);
+  return `${ax},${ay},${bx},${by}|c${cell}|i${inflatePx}|${obbKey}`;
+}
+function gridCacheGet(k){
+  const m = window.__GRID_CACHE, v = m.get(k);
+  if (!v) return null; m.delete(k); m.set(k,v); return v;
+}
+function gridCacheSet(k, grid){
+  const m = window.__GRID_CACHE; m.set(k, grid);
+  if (m.size > GRID_CACHE_MAX){ const first = m.keys().next().value; m.delete(first); }
+}
+
+
+  // Mini-planerare så vi kan göra retries med olika hinder/snap
+  function planWith(obstacles, snapR = 12, smoothInput) {
+    // 1) Bounds (korridor + aktuella hinder)
+    let minx = Math.min(start.x, goal.x) - pad;
+    let miny = Math.min(start.y, goal.y) - pad;
+    let maxx = Math.max(start.x, goal.x) + pad;
+    let maxy = Math.max(start.y, goal.y) + pad;
+    for (const O of obstacles) {
+      const b = O.bounds;
+      if (b.x1 < minx) minx = b.x1; if (b.y1 < miny) miny = b.y1;
+      if (b.x2 > maxx) maxx = b.x2; if (b.y2 > maxy) maxy = b.y2;
+    }
+    ({minx, miny, maxx, maxy} = clampBoundsToGrid(minx, miny, maxx, maxy, cell, maxGrid));
+
+    // 2) Grid
+    const gKey = gridCacheKey(minx, miny, maxx, maxy, cell, inflate, obbKey);
+    let grid = gridCacheGet(gKey);
+    if (!grid){
+      grid = buildGridOBB(minx, miny, maxx, maxy, cell, obstacles, inflate);
+      gridCacheSet(gKey, grid);
+    }
+
+    // 3) Snap
+    let Sg = snapToWalkable(grid, worldToGrid(grid, start), snapR);
+    let Gg = snapToWalkable(grid, worldToGrid(grid, goal ), snapR);
+
+    // 4) Cache
+    const key = `${grid.minx|0},${grid.miny|0},${grid.w}x${grid.h}|${Sg.gx},${Sg.gy}->${Gg.gx},${Gg.gy}|${obbKey}`;
+    const cached = cacheGet ? cacheGet(key) : null;
+    if (cached) return cached;
+
+    // 5) A*
+    const raw = astar(grid, Sg, Gg, 1.05);
+    if (!raw) return null;
+
+    // 6) Smooth
+    const cells = smooth ? smoothPath(grid, raw, smoothInput) : raw;
+
+    // 7) Världs-punkter
+    const path  = cells.map(c => gridToWorld(grid, c.gx, c.gy));
+    if (cacheSet) cacheSet(key, path);
+    return path;
   }
 
-  // Klipp rasterstorlek
-  ({minx, miny, maxx, maxy} = clampBoundsToGrid(minx, miny, maxx, maxy, cell, maxGrid));
+  // === Bygg "relevant" hinderlista för korridoren ===
+  let relevant;
+  if (idx) {
+    const x1 = Math.min(start.x, goal.x) - pad;
+    const y1 = Math.min(start.y, goal.y) - pad;
+    const x2 = Math.max(start.x, goal.x) + pad;
+    const y2 = Math.max(start.y, goal.y) + pad;
+    relevant = queryObbsInAABB(idx, x1, y1, x2, y2);
+    if (!relevant || !relevant.length) relevant = allPrepped; // fall back: aldrig tom
+  } else {
+    const x1 = Math.min(start.x, goal.x) - pad;
+    const y1 = Math.min(start.y, goal.y) - pad;
+    const x2 = Math.max(start.x, goal.x) + pad;
+    const y2 = Math.max(start.y, goal.y) + pad;
+    relevant = allPrepped.filter(O => !(O.bounds.x2 < x1 || O.bounds.x1 > x2 || O.bounds.y2 < y1 || O.bounds.y1 > y2));
+    if (!relevant.length) relevant = allPrepped;
+  }
 
-  // 2) Bygg grid & rasterisera OBBs
-  const grid = buildGridOBB(minx, miny, maxx, maxy, cell, prepped, inflate);
+  // === Försök med växande tolerans (snabbast först) ======================
+  // 1) Korridor, normal snap
+  let path = planWith(relevant, 12, idx || relevant);
+  if (path) return path;
 
-  // 3) Snap start/goal till gångbar cell
-  let Sg = worldToGrid(grid, start);
-  let Gg = worldToGrid(grid, goal);
-  Sg = snapToWalkable(grid, Sg, 12);
-  Gg = snapToWalkable(grid, Gg, 12);
+  // 2) Korridor, större snap (hjälper när start/mål ligger nära uppblåst hinder)
+  path = planWith(relevant, 36, idx || relevant);
+  if (path) return path;
 
-  // 4) A*
-  const raw = astar(grid, Sg, Gg);
-  if (!raw) return null;
+  // 3) Safe mode: alla hinder, normal snap
+  path = planWith(allPrepped, 12, idx || allPrepped);
+  if (path) return path;
 
-  // 5) Smoothing via OBB-LOS
-  const cells = smooth ? smoothPath(grid, raw, prepped) : raw;
-
-  // 6) Till världspunkter
-  return cells.map(c => gridToWorld(grid, c.gx, c.gy));
+  // 4) Safe mode: alla hinder, ännu större snap
+  return planWith(allPrepped, 48, idx || allPrepped);
 }
 
 // ---------------- Grid & rasterisering ----------------
@@ -3170,24 +3422,32 @@ function buildGridOBB(minx, miny, maxx, maxy, cell, OBBs, inflatePx) {
 
   for (const O of OBBs) {
     const b = O.bounds;
-    const gx1 = Math.max(0, Math.floor((b.x1 - minx) / cell));
-    const gy1 = Math.max(0, Math.floor((b.y1 - miny) / cell));
-    const gx2 = Math.min(w-1, Math.floor((b.x2 - minx) / cell));
-    const gy2 = Math.min(h-1, Math.floor((b.y2 - miny) / cell));
+    const gx1 = Math.max(0, Math.floor((b.x1 - minx - inflatePx) / cell));
+    const gy1 = Math.max(0, Math.floor((b.y1 - miny - inflatePx) / cell));
+    const gx2 = Math.min(w-1, Math.floor((b.x2 - minx + inflatePx) / cell));
+    const gy2 = Math.min(h-1, Math.floor((b.y2 - miny + inflatePx) / cell));
     for (let gy=gy1; gy<=gy2; gy++) {
       const cy = miny + gy*cell + cell/2;
       for (let gx=gx1; gx<=gx2; gx++) {
         const cx = minx + gx*cell + cell/2;
-        if (pointInOBB(cx, cy, O)) walk[gy*w + gx] = 0;
+        if (pointInOBBInflated(cx, cy, O, inflatePx)) walk[gy*w + gx] = 0;
       }
     }
   }
 
-  // Clearance (inflate → celler)
-  const padCells = Math.max(0, Math.ceil(inflatePx / cell));
-  if (padCells > 0) dilate(walk, w, h, padCells);
+  // ❌ ta bort dilation:
+  // const padCells = Math.max(0, Math.ceil(inflatePx / cell));
+  // if (padCells > 0) dilate(walk, w, h, padCells);
 
   return { w, h, minx, miny, cell, walk };
+}
+
+function pointInOBBInflated(x, y, O, inflate){
+  const dx=x-O.cx, dy=y-O.cy;
+  const lx =  O.cos*dx + O.sin*dy;
+  const ly = -O.sin*dx + O.cos*dy;
+  // L∞-clearance: lägg på inflate i båda leden
+  return Math.abs(lx) <= (O.hw + inflate) && Math.abs(ly) <= (O.hh + inflate);
 }
 
 function worldToGrid(grid, p) {
@@ -3255,17 +3515,41 @@ function clampBoundsToGrid(minx, miny, maxx, maxy, cell, maxCells) {
 }
 
 // ---------------- A* (8-neighbors, corner-cut prevention) ----------------
+// === A* workspace (återanvänd arrays, undvik GC) ===
+const __ASTAR_WS = { g:new Float32Array(0), f:new Float32Array(0),
+  came:new Int32Array(0), pos:new Int32Array(0), heap:[] };
+function wsEnsure(N){
+  if (__ASTAR_WS.g.length < N){
+    __ASTAR_WS.g    = new Float32Array(N);
+    __ASTAR_WS.f    = new Float32Array(N);
+    __ASTAR_WS.came = new Int32Array(N);
+    __ASTAR_WS.pos  = new Int32Array(N);
+  }
+  __ASTAR_WS.g.fill(Infinity, 0, N);
+  __ASTAR_WS.f.fill(Infinity, 0, N);
+  __ASTAR_WS.came.fill(-1, 0, N);
+  __ASTAR_WS.pos.fill(-1, 0, N);
+  __ASTAR_WS.heap.length = 0;
+  return __ASTAR_WS;
+}
 
-function astar(grid, Sg, Gg) {
+// === Liten LRU-cache för paths (sparar massor när många jagar samma mål) ===
+if (!window.__PATH_CACHE) window.__PATH_CACHE = new Map();
+const PATH_CACHE_MAX = 300;
+function cacheKey(grid, Sg, Gg, obbKey){
+  return `${grid.minx|0},${grid.miny|0},${grid.w}x${grid.h}|${Sg.gx},${Sg.gy}->${Gg.gx},${Gg.gy}|${obbKey||""}`;
+}
+function cacheGet(k){ const v=window.__PATH_CACHE.get(k); if(!v) return null; window.__PATH_CACHE.delete(k); window.__PATH_CACHE.set(k,v); return v; }
+function cacheSet(k,v){ window.__PATH_CACHE.set(k,v); if(window.__PATH_CACHE.size>PATH_CACHE_MAX){ const f=window.__PATH_CACHE.keys().next().value; window.__PATH_CACHE.delete(f);} }
+
+function astar(grid, Sg, Gg, W = 1.05) {
   const {w,h,walk} = grid;
   const N = w*h, sIdx=Sg.gy*w+Sg.gx, gIdx=Gg.gy*w+Gg.gx;
   if (!walk[sIdx] || !walk[gIdx]) return null;
 
-  const gScore=new Float32Array(N); gScore.fill(Infinity); gScore[sIdx]=0;
-  const fScore=new Float32Array(N); fScore.fill(Infinity);
-  const came  =new Int32Array(N);   came.fill(-1);
+  const ws = wsEnsure(N);
+  const gScore=ws.g, fScore=ws.f, came=ws.came, pos=ws.pos, heap=ws.heap;
 
-  const heap=[], pos=new Int32Array(N); pos.fill(-1);
   const swap=(i,j)=>{ const a=heap[i],b=heap[j]; heap[i]=b; heap[j]=a; pos[a]=j; pos[b]=i; };
   const up=(i)=>{ while(i>0){ const p=(i-1)>>1; if(fScore[heap[p]]<=fScore[heap[i]]) break; swap(i,p); i=p; } };
   const down=(i)=>{ for(;;){ let l=i*2+1,r=l+1,m=i;
@@ -3273,17 +3557,17 @@ function astar(grid, Sg, Gg) {
     if(r<heap.length&&fScore[heap[r]]<fScore[heap[m]]) m=r;
     if(m===i) break; swap(i,m); i=m; } };
   const push=(idx)=>{ heap.push(idx); pos[idx]=heap.length-1; up(heap.length-1); };
-  const pop=()=>{ const t=heap[0], last=heap.pop(); if(heap.length){heap[0]=last; pos[last]=0; down(0);} pos[t]=-1; return t; };
-  const dec=(idx)=> up(pos[idx]);
+  const pop =()=>{ const t=heap[0], last=heap.pop(); if(heap.length){heap[0]=last; pos[last]=0; down(0);} pos[t]=-1; return t; };
+  const dec =(idx)=> up(pos[idx]);
 
   function heur(idx){
     const gx=idx%w, gy=(idx-gx)/w;
     const dx=Math.abs(gx-Gg.gx), dy=Math.abs(gy-Gg.gy);
-    const F=Math.SQRT2-1; return (dx<dy)? F*dx+dy : F*dy+dx; // Octile
+    const F=Math.SQRT2-1; 
+    return W * ((dx<dy)? F*dx+dy : F*dy+dx); // Octile * weight
   }
 
-  fScore[sIdx]=heur(sIdx); push(sIdx);
-
+  gScore[sIdx]=0; fScore[sIdx]=heur(sIdx); push(sIdx);
   const walkAt=(x,y)=>walk[y*w+x];
 
   while (heap.length) {
@@ -3302,8 +3586,8 @@ function astar(grid, Sg, Gg) {
       if (ox&&oy){ if(!walkAt(cgx,ny) || !walkAt(nx,cgy)) continue; } // anti corner cut
       const nIdx=ny*w+nx, cost=(ox&&oy)?Math.SQRT2:1, tent=gc+cost;
       if (tent<gScore[nIdx]){
-        came[nIdx]=cur; gScore[nIdx]=tent;
-        const old=fScore[nIdx]; fScore[nIdx]=tent+heur(nIdx);
+        const old=fScore[nIdx];
+        came[nIdx]=cur; gScore[nIdx]=tent; fScore[nIdx]=tent+heur(nIdx);
         if (pos[nIdx]===-1) push(nIdx); else if (fScore[nIdx]<old) dec(nIdx);
       }
     }
@@ -3313,7 +3597,38 @@ function astar(grid, Sg, Gg) {
 
 // ---------------- Smoothing & LOS mot OBB ----------------
 
-function smoothPath(grid, pathCells, OBBs) {
+function losBlockedOBB(A, B, idxOrArray) {
+  const x1 = Math.min(A.x,B.x), x2 = Math.max(A.x,B.x);
+  const y1 = Math.min(A.y,B.y), y2 = Math.max(A.y,B.y);
+  const list = (idxOrArray && idxOrArray.table)
+    ? queryObbsInAABB(idxOrArray, x1,y1,x2,y2)
+    : (idxOrArray || []);
+  for (let i=0;i<list.length;i++){
+    const O = list[i], b = O.bounds;
+    if (x2 < b.x1 || x1 > b.x2 || y2 < b.y1 || y1 > b.y2) continue; // coarse AABB
+    if (segmentHitsOBB(A,B,O)) return true;
+  }
+  return false;
+}
+
+function gridRayClear(grid, A, B){
+  // A, B i världskord → grid index
+  let a = worldToGrid(grid, A), b = worldToGrid(grid, B);
+  let x0=a.gx, y0=a.gy, x1=b.gx, y1=b.gy;
+  const dx=Math.abs(x1-x0), sx=x0<x1?1:-1;
+  const dy=-Math.abs(y1-y0), sy=y0<y1?1:-1;
+  let err=dx+dy, e2, w=grid.w, walk=grid.walk;
+  for(;;){
+    if (!walk[y0*w + x0]) return false;
+    if (x0===x1 && y0===y1) break;
+    e2 = 2*err;
+    if (e2 >= dy){ err += dy; x0 += sx; }
+    if (e2 <= dx){ err += dx; y0 += sy; }
+  }
+  return true;
+}
+
+function smoothPath(grid, pathCells, idxOrArray) {
   if (!pathCells || pathCells.length <= 2) return pathCells;
   const out=[pathCells[0]];
   let i=0;
@@ -3322,37 +3637,81 @@ function smoothPath(grid, pathCells, OBBs) {
     const Pi=gridToWorld(grid, pathCells[i].gx, pathCells[i].gy);
     for (; j>i+1; j--) {
       const Pj=gridToWorld(grid, pathCells[j].gx, pathCells[j].gy);
-      if (!losBlockedOBB(Pi, Pj, OBBs)) break;
+      // billig check först
+      if (!gridRayClear(grid, Pi, Pj)) continue;
+      // exakt OBB-LOS bara vid “kandidat”
+      if (!losBlockedOBB(Pi, Pj, idxOrArray)) break;
     }
     out.push(pathCells[j]); i=j;
   }
   return out;
 }
 
-function losBlockedOBB(A, B, OBBs) {
-  // Enkel O(n) – räcker fint för smoothing
-  for (const O of OBBs) {
-    if (segmentHitsOBB(A, B, O)) return true;
-  }
-  return false;
-}
-
 // ---------------- OBB-geo ----------------
-
+// === OBB prep + spatial index ===========================================
+let __OBB_ID_SEQ = 1;
 function prepOBB(s) {
+  // Tidig retur om redan preppad
+  if (s && s.kind === 'obb' && typeof s.cos === 'number') return s;
+
   const angle = s.angleRad || 0;
   const c = Math.cos(angle), t = Math.sin(angle);
-  const hw = s.w/2, hh = s.h/2;
-  // hörn för AABB-bounds
+  const hw = s.w * 0.5, hh = s.h * 0.5, cx = s.cx, cy = s.cy;
+
   const corners = [
-    {x: s.cx - hw*c + hh*t, y: s.cy - hw*t - hh*c},
-    {x: s.cx + hw*c + hh*t, y: s.cy + hw*t - hh*c},
-    {x: s.cx + hw*c - hh*t, y: s.cy + hw*t + hh*c},
-    {x: s.cx - hw*c - hh*t, y: s.cy - hw*t + hh*c},
+    {x: cx - hw*c + hh*t, y: cy - hw*t - hh*c},
+    {x: cx + hw*c + hh*t, y: cy + hw*t - hh*c},
+    {x: cx + hw*c - hh*t, y: cy + hw*t + hh*c},
+    {x: cx - hw*c - hh*t, y: cy - hw*t + hh*c},
   ];
-  let x1=Infinity,y1=Infinity,x2=-Infinity,y2=-Infinity;
-  for (const p of corners){ x1=Math.min(x1,p.x); y1=Math.min(y1,p.y); x2=Math.max(x2,p.x); y2=Math.max(y2,p.y); }
-  return { kind:'obb', cx:s.cx, cy:s.cy, hw, hh, cos:c, sin:t, bounds:{x1,y1,x2,y2} };
+  let x1=Infinity, y1=Infinity, x2=-Infinity, y2=-Infinity;
+  for (let i=0;i<4;i++){ const p=corners[i];
+    if (p.x<x1) x1=p.x; if (p.y<y1) y1=p.y;
+    if (p.x>x2) x2=p.x; if (p.y>y2) y2=p.y;
+  }
+  const ob = { kind:'obb', cx, cy, hw, hh, cos:c, sin:t, bounds:{x1,y1,x2,y2} };
+  ob._id = s._id || (__OBB_ID_SEQ++);
+  return ob;
+}
+
+// Bygger ett enkelt uniformt grid-index för OBB:er (för snabb LOS/filter)
+function buildObbIndex(prepped, bucket = 96){
+  if (!prepped || !prepped.length) return { table:[], gx1:0, gy1:0, W:0, H:0, bucket, prepped };
+  let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+  for (const o of prepped){ const b=o.bounds;
+    if (b.x1<minx) minx=b.x1; if (b.y1<miny) miny=b.y1;
+    if (b.x2>maxx) maxx=b.x2; if (b.y2>maxy) maxy=b.y2;
+  }
+  const gx1 = Math.floor(minx/bucket), gy1 = Math.floor(miny/bucket);
+  const gx2 = Math.floor(maxx/bucket), gy2 = Math.floor(maxy/bucket);
+  const W = Math.max(1, gx2-gx1+1), H = Math.max(1, gy2-gy1+1);
+  const table = new Array(W*H); for (let i=0;i<table.length;i++) table[i]=[];
+  function push(bx,by,ob){ table[(by-gy1)*W + (bx-gx1)].push(ob); }
+  for (const ob of prepped){
+    const b=ob.bounds;
+    const bx1=Math.floor(b.x1/bucket), by1=Math.floor(b.y1/bucket);
+    const bx2=Math.floor(b.x2/bucket), by2=Math.floor(b.y2/bucket);
+    for (let by=by1; by<=by2; by++) for (let bx=bx1; bx<=bx2; bx++) push(bx,by,ob);
+  }
+  return { table, gx1, gy1, W, H, bucket, prepped };
+}
+function queryObbsInAABB(idx, x1,y1,x2,y2){
+  if (!idx || !idx.table.length) return [];
+  const bx1 = Math.max(0, Math.floor(x1/idx.bucket) - idx.gx1);
+  const by1 = Math.max(0, Math.floor(y1/idx.bucket) - idx.gy1);
+  const bx2 = Math.min(idx.W-1, Math.floor(x2/idx.bucket) - idx.gx1);
+  const by2 = Math.min(idx.H-1, Math.floor(y2/idx.bucket) - idx.gy1);
+  const seen = new Set(); const out=[];
+  for (let by=by1; by<=by2; by++){
+    for (let bx=bx1; bx<=bx2; bx++){
+      const cell = idx.table[by*idx.W+bx];
+      for (let i=0;i<cell.length;i++){
+        const ob = cell[i];
+        if (!seen.has(ob._id)) { seen.add(ob._id); out.push(ob); }
+      }
+    }
+  }
+  return out;
 }
 
 function pointInOBB(x,y,O){
