@@ -1906,7 +1906,7 @@ if (worker.objects[i].workobject && isDepleted(worker.objects[i].workobject)&&wo
                 for (let type of resourceTypes) {
                     const resources = game.getAllObjectsoftype(game.getobjecttype(type));
                     for (let res of resources) {
-                        if(o==res)continue;
+                        if(o==res&&res.ghost)continue;
                         
                         const dist = game.getDistance(o.x, o.y, res.x, res.y);
                         if (dist < minDistanceToResources) {
@@ -2031,8 +2031,8 @@ if (worker.objects[i].workobject && isDepleted(worker.objects[i].workobject)&&wo
                 let bestPos = null;
                 let bestScore = Infinity;
 
-                for (let dx = -5; dx <= 5; dx++) {
-                    for (let dy = -5; dy <= 5; dy++) {
+                for (let dx = -10; dx <= 10; dx++) {
+                    for (let dy = -10; dy <= 10; dy++) {
                         const px = mine.x + dx * spacing;
                         const py = mine.y + dy * spacing;
 
@@ -2860,8 +2860,8 @@ function enemyTryToBuildHouse() {
   const spacing = 120;
   let bestPos = null, bestScore = Infinity;
 
-  for (let dx = -5; dx <= 5; dx++) {
-    for (let dy = -5; dy <= 5; dy++) {
+  for (let dx = -10; dx <= 10; dx++) {
+    for (let dy = -10; dy <= 10; dy++) {
       const px = anchor.x + dx*spacing;
       const py = anchor.y + dy*spacing;
 
@@ -3746,7 +3746,6 @@ function segmentAABB(x0,y0,x1,y1, rx1,ry1,rx2,ry2){
   }
   return true;
 }
-
 
 
 

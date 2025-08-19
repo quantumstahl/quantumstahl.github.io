@@ -128,11 +128,29 @@ const SimSolver = {
   DYN_INV_MASS: 1.0,
 
   step(game){
+      
+    function _pushCollisionLog(targetRef, otherRef, n, isGhost=false){
+        if (!targetRef) return;
+        let dir;
+        if (isGhost) {
+          dir = "ghost"; // eller t.ex. "ghost-left/right" om du vill mer detaljer
+        } else {
+          dir = Math.abs(n.x) > Math.abs(n.y)
+            ? (n.x>0 ? 'left' : 'right')
+            : (n.y>0 ? 'up'   : 'down');
+        }
+        targetRef.hadcollidedobj.push(otherRef || null);
+        targetRef.collideslistanobj.push(otherRef || null);
+        targetRef.collideslistandir.push(dir);
+        targetRef.collideslistan.push(otherRef?.name || 'any');
+    }  
+      
+      
     const map = game.maps[game.currentmap];
     const stat = [];
     const dyn  = [];
     let uid = 1;
-
+    const ghosts = [];
     // 1) Samla proxies
     for (let li=0; li<map.layer.length; li++){
       const layer = map.layer[li];
@@ -141,7 +159,38 @@ const SimSolver = {
         const ot = layer.objectype[oti];
         for (let oi=0; oi<ot.objects.length; oi++){
           const o = ot.objects[oi];
-          if (layer.ghost || o.ghost) continue;
+          
+          
+
+                if (layer.fysics == false || layer.solid) {
+                    o.rakna = 0;
+                    o.rakna2 = 0;
+                } else if (layer.ghost == true || o.ghost == true) {
+                    o.rakna = 0;
+                    o.rakna2 = 0;
+                } else {
+                    o.rakna = o.x - o.freex;
+                    o.rakna2 = o.y - o.freey;
+                    o._wantdx = o.rakna;   // <--- NYTT
+                    o._wantdy = o.rakna2;  // <--- NYTT
+                    o.x = o.freex;
+                    o.y = o.freey;
+                }
+                if (o.rakna !== 0 || o.rakna2 !== 0){ o.hadcollidedobj.length = 0;}
+                o.collideslistan.length = o.collideslistandir.length = o.collideslistanobj.length = 0;
+
+            if (layer.ghost || o.ghost) {
+                const G = { id:uid++, type:'ghost', invMass:0.0, x:o.x, y:o.y,
+                            w:o.dimx, h:o.dimy, rot:o.rot||0, ref:o };
+
+                // cachea hörn/AABB (bra för roterade triggers)
+                G._corners = getRotatedRectangleCorners(G.x,G.y,G.w,G.h,G.rot||0);
+                G._aabb    = _aabbFrom(G.x,G.y,G.w,G.h,G.rot||0);
+
+                ghosts.push(G);
+                continue; // gå inte in i stat/dyn-hanteringen
+              }
+              // --- SLUT NYTT ---
 
           const base = { w:o.dimx, h:o.dimy, rot:o.rot||0, ref:o };
 
@@ -164,16 +213,7 @@ const SimSolver = {
           if (isBuilding(o)) P = { id:uid++, type:'dyn', invMass:0, x:startX + wantdx, y:startY + wantdy, sx:startX, sy:startY, ...base };
           else               P = { id:uid++, type:'dyn', invMass:1, x:startX + wantdx, y:startY + wantdy, sx:startX, sy:startY, ...base };
 
-          // nollställ kollisionslistor som din övriga kod läser
-          o.hadcollidedobj    = o.hadcollidedobj || [];
-          o.hadcollidedobj.length = 0;
-          o.collideslistan    = o.collideslistan    || [];
-          o.collideslistandir = o.collideslistandir || [];
-          o.collideslistanobj = o.collideslistanobj || [];
-          o.collideslistan.length = o.collideslistandir.length = o.collideslistanobj.length = 0;
-
-          o._contactNormals = o._contactNormals || [];
-          o._contactNormals.length = 0;
+          
 
           dyn.push(P);
         }
@@ -183,6 +223,8 @@ const SimSolver = {
     // Bygg stat-grid EN gång och återanvänd (i iterationer + slide)
     const gridStat = new HashGrid(SOLVER_CELL);
     for (let i=0;i<stat.length;i++) gridStat.insert(stat[i]);
+    const gridGhost = new HashGrid(SOLVER_CELL);
+    for (let i=0;i<ghosts.length;i++) gridGhost.insert(ghosts[i]);
 
     // 2) Iterera Jacobi
     for (let it=0; it<this.ITER; it++){
@@ -230,13 +272,8 @@ const SimSolver = {
           if (B.type==='dyn'){ const vB = ensure(B.ref); vB.x += corrB.x; vB.y += corrB.y; }
 
           // loggning för din logik (slide/AI)
-          if (A.ref){
-            A.ref.hadcollidedobj.push(B.ref || B);
-            A.ref.collideslistanobj.push(B.ref || B);
-            const dir = Math.abs(n.x) > Math.abs(n.y) ? (n.x>0?'left':'right') : (n.y>0?'up':'down');
-            A.ref.collideslistandir.push(dir);
-            A.ref.collideslistan.push(B.ref?.name || 'any');
-          }
+          if (A.ref) _pushCollisionLog(A.ref, (B.ref || B), n,false);
+          if (B.ref) _pushCollisionLog(B.ref, (A.ref || A), { x:-n.x, y:-n.y },false);
         }
       }
 
@@ -319,6 +356,33 @@ const SimSolver = {
       // rensa normals för nästa frame
       o._contactNormals.length = 0;
     }
+
+        // --- NYTT: trigger-pass mot ghost ---
+    for (let i=0;i<dyn.length;i++){
+      const D = dyn[i];              // färdiga, slid:ade positioner
+      const aabbD = _aabbFrom(D.x, D.y, D.w, D.h, D.rot||0);
+      const nearG = gridGhost.query(aabbD);
+      for (let gi=0; gi<nearG.length; gi++){
+        const G = nearG[gi];
+
+        // Undvik projektiler om du vill (de hanterar träffar separat):
+        if (isProjectile(D.ref) || isProjectile(G.ref)) continue;
+
+        // Overlap? använd OBB-test (ingen MTV appliceras!)
+        const contact = obbObbMTV(D, G);
+        if (!contact) continue;
+
+        // Logga åt båda hållen, men flytta INTE
+        _pushCollisionLog(D.ref, (G.ref || G), contact.n, true);
+        _pushCollisionLog(G.ref, (D.ref || D), {x:-contact.n.x, y:-contact.n.y}, true);
+
+        // valfritt: flagga som triggerad den här framen
+        if (D.ref) D.ref._triggered = true;
+        if (G.ref) G.ref._triggered = true;
+      }
+    }
+
+
 
     // 3) skriv tillbaka
     for (let i=0;i<dyn.length;i++){
@@ -1098,32 +1162,7 @@ class Game5 {
     collitionengine() {
 
 
-    // 2. Beräkna rakna
-    for (let i2 = 0; i2 < this.maps[this.currentmap].layer.length; i2++) {
-        for (let i3 = 0; i3 < this.maps[this.currentmap].layer[i2].objectype.length; i3++) {
-            for (let o of this.maps[this.currentmap].layer[i2].objectype[i3].objects) {
-                if (this.maps[this.currentmap].layer[i2].fysics == false || this.maps[this.currentmap].layer[i2].solid) {
-                    o.rakna = 0;
-                    o.rakna2 = 0;
-                } else if (this.maps[this.currentmap].layer[i2].ghost == true || o.ghost == true) {
-                    o.rakna = 0;
-                    o.rakna2 = 0;
-                    o.collideslist(this.maps, this.currentmap, "ghost");
-                } else {
-                    o.rakna = o.x - o.freex;
-                    o.rakna2 = o.y - o.freey;
-                    o._wantdx = o.rakna;   // <--- NYTT
-                    o._wantdy = o.rakna2;  // <--- NYTT
-                    o.x = o.freex;
-                    o.y = o.freey;
-                }
-                if (o.rakna !== 0 || o.rakna2 !== 0){ o.hadcollidedobj.length = 0;}
-                o.collideslistan.length = 0;
-                o.collideslistandir.length = 0;
-                o.collideslistanobj.length = 0;
-            }
-        }
-    }
+
 
     // 3. Kör förflyttning + subpixlar
     SimSolver.step(this);
