@@ -67,12 +67,12 @@ function _pack(ix, iy){
 class HashGrid {
   constructor(cell = SOLVER_CELL){
     this.cell = cell;
-    this.invCell = 1 / cell;
-    this._map = new Map();            // <-- döp om
-    this._seenStamp = 1;
+    this.shift = CELL_SHIFT;
+    this.buckets = new Map();        // Map<number, {arr:Proxy[], stamp:int}>
+    this._seenStamp   = 1;
     this._bucketStamp = 1;
   }
-  clear(){ this._map.clear(); this._seenStamp = this._bucketStamp = 1; }
+  clear(){ this.buckets.clear(); this._seenStamp = this._bucketStamp = 1; }
 
   beginInsertCycle(){
     this._bucketStamp = (this._bucketStamp + 1) | 0;
@@ -81,13 +81,14 @@ class HashGrid {
 
   _bucket(ix, iy){
     const k = _pack(ix, iy);
-    let b = this._map.get(k);         // <-- använd _map
-    if (!b){ b = { arr: [], stamp: 0 }; this._map.set(k, b); }
+    let b = this.buckets.get(k);
+    if (!b){ b = { arr: [], stamp: 0 }; this.buckets.set(k, b); }
     if (b.stamp !== this._bucketStamp){ b.arr.length = 0; b.stamp = this._bucketStamp; }
     return b.arr;
   }
 
   insert(proxy){
+    // statics → återanvänd cache; dynamics → räkna om aabb varje gång
     const a = (proxy.type === 'static')
       ? (proxy._aabb || _aabbFrom(proxy.x, proxy.y, proxy.w, proxy.h, proxy.rot||0))
       :  _aabbFrom(proxy.x, proxy.y, proxy.w, proxy.h, proxy.rot||0);
@@ -95,15 +96,15 @@ class HashGrid {
     proxy._aabb = a;
     if (proxy._hgSeen !== 0) proxy._hgSeen = 0;
 
-    const inv = this.invCell;
-    const x1 = Math.floor(a.x * inv);
-    const y1 = Math.floor(a.y * inv);
-    const x2 = Math.floor((a.x + a.w) * inv);
-    const y2 = Math.floor((a.y + a.h) * inv);
+    // snabba index: >> CELL_SHIFT funkar bra för >=0 koordinater
+    const x1 = (a.x        >> this.shift);
+    const y1 = (a.y        >> this.shift);
+    const x2 = ((a.x+a.w)  >> this.shift);
+    const y2 = ((a.y+a.h)  >> this.shift);
 
     for (let iy=y1; iy<=y2; iy++){
       for (let ix=x1; ix<=x2; ix++){
-        this._bucket(ix, iy).push(proxy);   // <-- rätt: _bucket(), inte buckets()
+        this._bucket(ix, iy).push(proxy);
       }
     }
   }
@@ -113,16 +114,14 @@ class HashGrid {
     if (!this._seenStamp) this._seenStamp = 1;
     const stamp = this._seenStamp;
 
-    const inv = this.invCell;
-    const x1 = Math.floor(aabb.x * inv);
-    const y1 = Math.floor(aabb.y * inv);
-    const x2 = Math.floor((aabb.x + aabb.w) * inv);
-    const y2 = Math.floor((aabb.y + aabb.h) * inv);
+    const x1 = (aabb.x        >> this.shift);
+    const y1 = (aabb.y        >> this.shift);
+    const x2 = ((aabb.x+aabb.w) >> this.shift);
+    const y2 = ((aabb.y+aabb.h) >> this.shift);
 
     for (let iy=y1; iy<=y2; iy++){
       for (let ix=x1; ix<=x2; ix++){
-        const b = this._map.get(_pack(ix, iy));  // <-- _map
-        if (!b) continue;
+        const b = this.buckets.get(_pack(ix, iy)); if (!b) continue;
         const arr = b.arr;
         for (let i=0; i<arr.length; i++){
           const p = arr[i];
@@ -137,37 +136,34 @@ function _dot(a,b){ return a.x*b.x + a.y*b.y; }
 function _len(v){ return Math.hypot(v.x, v.y); }
 function _norm(v){ const L=_len(v)||1; return {x:v.x/L, y:v.y/L}; }
 
-function _axesFromCorners(cs){
-  const ex1 = cs[1].x - cs[0].x, ey1 = cs[1].y - cs[0].y;
-  const ex2 = cs[2].x - cs[1].x, ey2 = cs[2].y - cs[1].y;
-  const L1 = Math.hypot(ex1,ey1)||1, L2 = Math.hypot(ex2,ey2)||1;
-  return [{x:-ey1/L1, y:ex1/L1}, {x:-ey2/L2, y:ex2/L2}];
-}
-
 function obbObbMTV(A, B){
-  const Ac = A._corners || getRotatedRectangleCorners(A.x,A.y,A.w,A.h,A.rot||0);
-  const Bc = B._corners || getRotatedRectangleCorners(B.x,B.y,B.w,B.h,B.rot||0);
-  const axes = (A._axes || _axesFromCorners(Ac)).concat(B._axes || _axesFromCorners(Bc));
-
-  // warm start med förra normalen
-  if (A._lastN){
-    const n = A._lastN;
-    let amin=Infinity, amax=-Infinity, bmin=Infinity, bmax=-Infinity;
-    for (let i=0;i<4;i++){
-      const da = Ac[i].x*n.x + Ac[i].y*n.y; if (da<amin) amin=da; if (da>amax) amax=da;
-      const db = Bc[i].x*n.x + Bc[i].y*n.y; if (db<bmin) bmin=db; if (db>bmax) bmax=db;
-    }
-    if (amax <= bmin || bmax <= amin) return null;
+  const axes = [];
+  const Ac = A._corners || getRotatedRectangleCorners(A.x, A.y, A.w, A.h, A.rot||0);
+  const Bc = B._corners || getRotatedRectangleCorners(B.x, B.y, B.w, B.h, B.rot||0);
+  // Bygg 8 axlar utan extra allokeringar i loopen
+  for (let i=0;i<4;i++){
+    const p1=Ac[i], p2=Ac[(i+1)&3];
+    const ex=p2.x-p1.x, ey=p2.y-p1.y;
+    const n=_norm({x:-ey,y:ex}); axes.push(n);
+  }
+  for (let i=0;i<4;i++){
+    const p1=Bc[i], p2=Bc[(i+1)&3];
+    const ex=p2.x-p1.x, ey=p2.y-p1.y;
+    const n=_norm({x:-ey,y:ex}); axes.push(n);
   }
 
   let bestDepth = Infinity, bestAxis = null;
 
+  // lokal projektion utan onödiga closure-allokeringar
   for (let k=0;k<axes.length;k++){
     const ax = axes[k];
     let amin=Infinity, amax=-Infinity, bmin=Infinity, bmax=-Infinity;
+
     for (let i=0;i<4;i++){
-      const da = Ac[i].x*ax.x + Ac[i].y*ax.y; if (da<amin) amin=da; if (da>amax) amax=da;
-      const db = Bc[i].x*ax.x + Bc[i].y*ax.y; if (db<bmin) bmin=db; if (db>bmax) bmax=db;
+      const pa=Ac[i]; const da = pa.x*ax.x + pa.y*ax.y;
+      if (da<amin) amin=da; if (da>amax) amax=da;
+      const pb=Bc[i]; const db = pb.x*ax.x + pb.y*ax.y;
+      if (db<bmin) bmin=db; if (db>bmax) bmax=db;
     }
     if (amax <= bmin || bmax <= amin) return null;
     const overlap = Math.min(amax - bmin, bmax - amin);
@@ -176,11 +172,8 @@ function obbObbMTV(A, B){
   const centerA = {x:A.x + A.w/2, y:A.y + A.h/2};
   const centerB = {x:B.x + B.w/2, y:B.y + B.h/2};
   const AB = {x:centerB.x - centerA.x, y:centerB.y - centerA.y};
-  const sign = (AB.x*bestAxis.x + AB.y*bestAxis.y) >= 0 ? +1 : -1;
-
-  const n = {x:bestAxis.x*sign, y:bestAxis.y*sign};
-  A._lastN = n; B._lastN = {x:-n.x, y:-n.y};
-  return { n, depth: bestDepth };
+  const sign = (_dot(bestAxis, AB) >= 0) ? +1 : -1;
+  return { n: {x:bestAxis.x*sign, y:bestAxis.y*sign}, depth: bestDepth };
 }
 
 function circleCircleMTV(A,B){
@@ -206,9 +199,7 @@ const SimSolver = {
   DYN_INV_MASS: 1.0,
 
   step(game){
-    
     const prof = COLL_PROF ? _mkProf() : null;  
-    if (prof) prof.tic('precalc');  
     function _pushCollisionLog(targetRef, otherRef, n, isGhost=false){
         if (!targetRef) return;
         let dir;
@@ -274,26 +265,17 @@ const SimSolver = {
           const base = { w:o.dimx, h:o.dimy, rot:o.rot||0, ref:o };
 
           if (layer.solid === true ){
-                const S = { id:uid++, type:'static', invMass:0.0, x:o.x, y:o.y, ...base };
-                if ((S.rot|0) !== 0){
-                  S._corners = getRotatedRectangleCorners(S.x,S.y,S.w,S.h,S.rot||0);
-                  S._aabb    = _aabbFrom(S.x,S.y,S.w,S.h,S.rot||0);
-                  S._axes    = _axesFromCorners(S._corners);
-                } else {
-                  S._corners = null;
-                  S._aabb    = {x:S.x,y:S.y,w:S.w,h:S.h};
-                  S._axes    = null;
-                }
-                stat.push(S);
-                continue;
-              }
+            // cachea hörn/AABB för statics en gång
+            const S = { id:uid++, type:'static', invMass:0.0, x:o.x, y:o.y, ...base };
+            S._corners = S._corners || getRotatedRectangleCorners(S.x, S.y, S.w, S.h, S.rot||0);
+            S._aabb    = S._aabb    || _aabbFrom(S.x, S.y, S.w, S.h, S.rot||0);
+            stat.push(S);
+            continue;
+          }
 
           // Projektiler hoppar vi över i solvern (träfflogik i din egen kod)
           if (isProjectile(o)) continue;
-          
-          
-          
-          
+
           // Rörliga enheter (dynamics)
           const startX = o.x, startY = o.y;
           const wantdx = (o._wantdx||0), wantdy = (o._wantdy||0);
@@ -303,22 +285,25 @@ const SimSolver = {
 
           
 
-          
-
-          P._corners = ((P.rot|0) !== 0) ? getRotatedRectangleCorners(P.x,P.y,P.w,P.h,P.rot||0) : null;
-          P._aabb    = ((P.rot|0) !== 0) ? _aabbFrom(P.x,P.y,P.w,P.h,P.rot||0) : {x:P.x,y:P.y,w:P.w,h:P.h};
+          P._corners = getRotatedRectangleCorners(P.x, P.y, P.w, P.h, P.rot||0);
+          P._aabb    = _aabbFrom(P.x, P.y, P.w, P.h, P.rot||0);
           dyn.push(P);
         }
       }
     } 
 // Bygg stat-grid EN gång per frame (som innan)
-const { gridStat, gridGhost } = _ensureStaticGrids(stat, ghosts);
+const gridStat = new HashGrid(SOLVER_CELL);
+for (let i=0;i<stat.length;i++) gridStat.insert(stat[i]);
+
+// Bygg ghost-grid (som innan)
+const gridGhost = new HashGrid(SOLVER_CELL);
+for (let i=0;i<ghosts.length;i++) gridGhost.insert(ghosts[i]);
 
 // Skapa ett återanvänt dyn-grid (en instans) för alla iterationer
 const gridDyn = new HashGrid(SOLVER_CELL);
 // 2) Iterera Jacobi
 
- if (prof) prof.toc('precalc');  
+
 if (prof) prof.tic('calc');
 for (let it = 0; it < this.ITER; it++) {
   // — Hashgrid för dynamics (billig reset via bucket-stamp) —
@@ -453,13 +438,8 @@ for (let it = 0; it < this.ITER; it++) {
     d.x += d.ref.__dx;
     d.y += d.ref.__dy;
 
-    if ((d.rot|0) !== 0) {
-        d._corners = getRotatedRectangleCorners(d.x, d.y, d.w, d.h, d.rot||0);
-        d._aabb    = _aabbFrom(d.x, d.y, d.w, d.h, d.rot||0);
-      } else {
-        d._corners = null;
-        d._aabb    = { x:d.x, y:d.y, w:d.w, h:d.h };
-      }
+    d._corners = getRotatedRectangleCorners(d.x, d.y, d.w, d.h, d.rot || 0);
+    d._aabb    = _aabbFrom(d.x, d.y, d.w, d.h, d.rot || 0);
   }
 
   
@@ -621,28 +601,6 @@ function aabbAabbMTV(A, B){
 function aabbOverlapRect(a, b){
   return !(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y);
 }
-// --- module scope ---
-let _gridStat = null, _gridGhost = null;
-let _statStamp = 0, _ghostStamp = 0;
-
-function markStaticsDirty(){ _statStamp++; }  // call when you move/rotate/add/remove statics
-function markGhostsDirty(){  _ghostStamp++; } // call when ghost volumes change
-
-function _ensureStaticGrids(stat, ghosts){
-  if (!_gridStat || _gridStat._builtFor !== _statStamp){
-    _gridStat = new HashGrid(SOLVER_CELL);
-    for (let i=0;i<stat.length;i++) _gridStat.insert(stat[i]);
-    _gridStat._builtFor = _statStamp;
-  }
-  if (!_gridGhost || _gridGhost._builtFor !== _ghostStamp){
-    _gridGhost = new HashGrid(SOLVER_CELL);
-    for (let i=0;i<ghosts.length;i++) _gridGhost.insert(ghosts[i]);
-    _gridGhost._builtFor = _ghostStamp;
-  }
-  return { gridStat:_gridStat, gridGhost:_gridGhost };
-}
-
-
 
 let cococ=0;
 var cursorX;
@@ -1342,16 +1300,10 @@ class Game5 {
     addobject(objtype, x, y, dimx, dimy, rot, fliped) {
         objtype.objects.push(new Objectx(x, y, dimx, dimy, rot, fliped));
         objtype.objects[objtype.objects.length-1].name=objtype.name;
-        if(isBuilding(objtype.objects[objtype.objects.length-1]))markStaticsDirty();
-        if(objtype.objects[objtype.objects.length-1].ghost)markGhostsDirty();
         return objtype.objects[objtype.objects.length-1];
     }
     removeobject(objtype, obj) {
         const index = objtype.objects.indexOf(obj);
-        if(isBuilding(obj))markStaticsDirty();
-        if(obj.ghost)markGhostsDirty();
-        
-        
         if (index !== -1) {
             objtype.objects.splice(index, 1);
         }
