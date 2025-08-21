@@ -1,3 +1,14 @@
+const COLL_PROF = 1;
+function _mkProf(){
+  return {
+    t:{}, ms:{}, c:{},
+    tic(k){ this.t[k]=performance.now(); },
+    toc(k){ this.ms[k]=(this.ms[k]||0)+(performance.now()-this.t[k]); },
+    inc(k,n=1){ this.c[k]=(this.c[k]||0)+n; }
+  };
+}
+
+
 "use strict";
 const BUILDING_NAMES2   = new Set(["base","bar","rbase","rbar","house","rhouse","goldmine","tree","water"]);
 const PROJECTILE_NAMES = new Set(["arrow","bolt","bullet","proj","missile"]); // lägg till dina namn
@@ -23,7 +34,6 @@ function shouldCollide(A, B){
 }
 
 // ==== Simultaneous Collision Solver (Jacobi/PBD-lite) ====
-const SOLVER_CELL = 96;
 function _bpKey(ix, iy){ return ix + ":" + iy; }
 function _aabbFrom(x,y,w,h,rotDeg){
   if (!rotDeg) return {x, y, w, h};
@@ -44,22 +54,81 @@ function _cellsForAABB(a){
   for (let iy=y1; iy<=y2; iy++) for (let ix=x1; ix<=x2; ix++) out.push(_bpKey(ix,iy));
   return out;
 }
+// sätt detta nära dina konstanter
+const SOLVER_CELL = 128;     // 2^7 — välj 64/128/256 efter smak
+const CELL_SHIFT  = 7;       // log2(SOLVER_CELL)
+const GRID_OFFS   = 1<<15;   // för att packa ev. negativa index tryggt
+
+function _pack(ix, iy){
+  // packa till ett 32-bitars tal: [iy+OFFS | ix+OFFS]
+  return ((iy + GRID_OFFS) << 16) | ((ix + GRID_OFFS) & 0xFFFF);
+}
+
 class HashGrid {
-  constructor(cell=SOLVER_CELL){ this.cell = cell; this.map = new Map(); }
-  clear(){ this.map.clear(); }
+  constructor(cell = SOLVER_CELL){
+    this.cell = cell;
+    this.invCell = 1 / cell;
+    this._map = new Map();            // <-- döp om
+    this._seenStamp = 1;
+    this._bucketStamp = 1;
+  }
+  clear(){ this._map.clear(); this._seenStamp = this._bucketStamp = 1; }
+
+  beginInsertCycle(){
+    this._bucketStamp = (this._bucketStamp + 1) | 0;
+    if (!this._bucketStamp) this._bucketStamp = 1;
+  }
+
+  _bucket(ix, iy){
+    const k = _pack(ix, iy);
+    let b = this._map.get(k);         // <-- använd _map
+    if (!b){ b = { arr: [], stamp: 0 }; this._map.set(k, b); }
+    if (b.stamp !== this._bucketStamp){ b.arr.length = 0; b.stamp = this._bucketStamp; }
+    return b.arr;
+  }
+
   insert(proxy){
-    const aabb = proxy._aabb || _aabbFrom(proxy.x, proxy.y, proxy.w, proxy.h, proxy.rot||0);
-    proxy._aabb = aabb;
-    for (const k of _cellsForAABB(aabb)){
-      if (!this.map.has(k)) this.map.set(k, []);
-      this.map.get(k).push(proxy);
+    const a = (proxy.type === 'static')
+      ? (proxy._aabb || _aabbFrom(proxy.x, proxy.y, proxy.w, proxy.h, proxy.rot||0))
+      :  _aabbFrom(proxy.x, proxy.y, proxy.w, proxy.h, proxy.rot||0);
+
+    proxy._aabb = a;
+    if (proxy._hgSeen !== 0) proxy._hgSeen = 0;
+
+    const inv = this.invCell;
+    const x1 = Math.floor(a.x * inv);
+    const y1 = Math.floor(a.y * inv);
+    const x2 = Math.floor((a.x + a.w) * inv);
+    const y2 = Math.floor((a.y + a.h) * inv);
+
+    for (let iy=y1; iy<=y2; iy++){
+      for (let ix=x1; ix<=x2; ix++){
+        this._bucket(ix, iy).push(proxy);   // <-- rätt: _bucket(), inte buckets()
+      }
     }
   }
-  query(aabb){
-    const seen = new Set(), out=[];
-    for (const k of _cellsForAABB(aabb)){
-      const arr = this.map.get(k); if (!arr) continue;
-      for (let i=0;i<arr.length;i++){ const p = arr[i]; if(!seen.has(p.id)){ seen.add(p.id); out.push(p); } }
+
+  query(aabb, out = []){
+    this._seenStamp = (this._seenStamp + 1) | 0;
+    if (!this._seenStamp) this._seenStamp = 1;
+    const stamp = this._seenStamp;
+
+    const inv = this.invCell;
+    const x1 = Math.floor(aabb.x * inv);
+    const y1 = Math.floor(aabb.y * inv);
+    const x2 = Math.floor((aabb.x + aabb.w) * inv);
+    const y2 = Math.floor((aabb.y + aabb.h) * inv);
+
+    for (let iy=y1; iy<=y2; iy++){
+      for (let ix=x1; ix<=x2; ix++){
+        const b = this._map.get(_pack(ix, iy));  // <-- _map
+        if (!b) continue;
+        const arr = b.arr;
+        for (let i=0; i<arr.length; i++){
+          const p = arr[i];
+          if (p._hgSeen !== stamp){ p._hgSeen = stamp; out.push(p); }
+        }
+      }
     }
     return out;
   }
@@ -68,34 +137,37 @@ function _dot(a,b){ return a.x*b.x + a.y*b.y; }
 function _len(v){ return Math.hypot(v.x, v.y); }
 function _norm(v){ const L=_len(v)||1; return {x:v.x/L, y:v.y/L}; }
 
+function _axesFromCorners(cs){
+  const ex1 = cs[1].x - cs[0].x, ey1 = cs[1].y - cs[0].y;
+  const ex2 = cs[2].x - cs[1].x, ey2 = cs[2].y - cs[1].y;
+  const L1 = Math.hypot(ex1,ey1)||1, L2 = Math.hypot(ex2,ey2)||1;
+  return [{x:-ey1/L1, y:ex1/L1}, {x:-ey2/L2, y:ex2/L2}];
+}
+
 function obbObbMTV(A, B){
-  const axes = [];
-  const Ac = A._corners || getRotatedRectangleCorners(A.x, A.y, A.w, A.h, A.rot||0);
-  const Bc = B._corners || getRotatedRectangleCorners(B.x, B.y, B.w, B.h, B.rot||0);
-  // Bygg 8 axlar utan extra allokeringar i loopen
-  for (let i=0;i<4;i++){
-    const p1=Ac[i], p2=Ac[(i+1)&3];
-    const ex=p2.x-p1.x, ey=p2.y-p1.y;
-    const n=_norm({x:-ey,y:ex}); axes.push(n);
-  }
-  for (let i=0;i<4;i++){
-    const p1=Bc[i], p2=Bc[(i+1)&3];
-    const ex=p2.x-p1.x, ey=p2.y-p1.y;
-    const n=_norm({x:-ey,y:ex}); axes.push(n);
+  const Ac = A._corners || getRotatedRectangleCorners(A.x,A.y,A.w,A.h,A.rot||0);
+  const Bc = B._corners || getRotatedRectangleCorners(B.x,B.y,B.w,B.h,B.rot||0);
+  const axes = (A._axes || _axesFromCorners(Ac)).concat(B._axes || _axesFromCorners(Bc));
+
+  // warm start med förra normalen
+  if (A._lastN){
+    const n = A._lastN;
+    let amin=Infinity, amax=-Infinity, bmin=Infinity, bmax=-Infinity;
+    for (let i=0;i<4;i++){
+      const da = Ac[i].x*n.x + Ac[i].y*n.y; if (da<amin) amin=da; if (da>amax) amax=da;
+      const db = Bc[i].x*n.x + Bc[i].y*n.y; if (db<bmin) bmin=db; if (db>bmax) bmax=db;
+    }
+    if (amax <= bmin || bmax <= amin) return null;
   }
 
   let bestDepth = Infinity, bestAxis = null;
 
-  // lokal projektion utan onödiga closure-allokeringar
   for (let k=0;k<axes.length;k++){
     const ax = axes[k];
     let amin=Infinity, amax=-Infinity, bmin=Infinity, bmax=-Infinity;
-
     for (let i=0;i<4;i++){
-      const pa=Ac[i]; const da = pa.x*ax.x + pa.y*ax.y;
-      if (da<amin) amin=da; if (da>amax) amax=da;
-      const pb=Bc[i]; const db = pb.x*ax.x + pb.y*ax.y;
-      if (db<bmin) bmin=db; if (db>bmax) bmax=db;
+      const da = Ac[i].x*ax.x + Ac[i].y*ax.y; if (da<amin) amin=da; if (da>amax) amax=da;
+      const db = Bc[i].x*ax.x + Bc[i].y*ax.y; if (db<bmin) bmin=db; if (db>bmax) bmax=db;
     }
     if (amax <= bmin || bmax <= amin) return null;
     const overlap = Math.min(amax - bmin, bmax - amin);
@@ -104,8 +176,11 @@ function obbObbMTV(A, B){
   const centerA = {x:A.x + A.w/2, y:A.y + A.h/2};
   const centerB = {x:B.x + B.w/2, y:B.y + B.h/2};
   const AB = {x:centerB.x - centerA.x, y:centerB.y - centerA.y};
-  const sign = (_dot(bestAxis, AB) >= 0) ? +1 : -1;
-  return { n: {x:bestAxis.x*sign, y:bestAxis.y*sign}, depth: bestDepth };
+  const sign = (AB.x*bestAxis.x + AB.y*bestAxis.y) >= 0 ? +1 : -1;
+
+  const n = {x:bestAxis.x*sign, y:bestAxis.y*sign};
+  A._lastN = n; B._lastN = {x:-n.x, y:-n.y};
+  return { n, depth: bestDepth };
 }
 
 function circleCircleMTV(A,B){
@@ -122,13 +197,18 @@ function circleCircleMTV(A,B){
 }
 
 const MIN_PEN= 0;
+const PEN_SLOP   = 0.6;   // px som ignoreras (dead-zone) – minskar chatter
+const BETA       = 0.75;  // 0..1, hur stor del av återstående pen som tas per frame
+const MAX_CORR_PX= 8.0;   // max px per par och kropp per iteration (skydd mot “skott”)
 const SimSolver = {
   ITER: 3,
   STATIC_INV_MASS: 0.0,
   DYN_INV_MASS: 1.0,
 
   step(game){
-      
+    
+    const prof = COLL_PROF ? _mkProf() : null;  
+    if (prof) prof.tic('precalc');  
     function _pushCollisionLog(targetRef, otherRef, n, isGhost=false){
         if (!targetRef) return;
         let dir;
@@ -144,7 +224,6 @@ const SimSolver = {
         targetRef.collideslistandir.push(dir);
         targetRef.collideslistan.push(otherRef?.name || 'any');
     }  
-      
       
     const map = game.maps[game.currentmap];
     const stat = [];
@@ -195,17 +274,26 @@ const SimSolver = {
           const base = { w:o.dimx, h:o.dimy, rot:o.rot||0, ref:o };
 
           if (layer.solid === true ){
-            // cachea hörn/AABB för statics en gång
-            const S = { id:uid++, type:'static', invMass:0.0, x:o.x, y:o.y, ...base };
-            S._corners = S._corners || getRotatedRectangleCorners(S.x, S.y, S.w, S.h, S.rot||0);
-            S._aabb    = S._aabb    || _aabbFrom(S.x, S.y, S.w, S.h, S.rot||0);
-            stat.push(S);
-            continue;
-          }
+                const S = { id:uid++, type:'static', invMass:0.0, x:o.x, y:o.y, ...base };
+                if ((S.rot|0) !== 0){
+                  S._corners = getRotatedRectangleCorners(S.x,S.y,S.w,S.h,S.rot||0);
+                  S._aabb    = _aabbFrom(S.x,S.y,S.w,S.h,S.rot||0);
+                  S._axes    = _axesFromCorners(S._corners);
+                } else {
+                  S._corners = null;
+                  S._aabb    = {x:S.x,y:S.y,w:S.w,h:S.h};
+                  S._axes    = null;
+                }
+                stat.push(S);
+                continue;
+              }
 
           // Projektiler hoppar vi över i solvern (träfflogik i din egen kod)
           if (isProjectile(o)) continue;
-
+          
+          
+          
+          
           // Rörliga enheter (dynamics)
           const startX = o.x, startY = o.y;
           const wantdx = (o._wantdx||0), wantdy = (o._wantdy||0);
@@ -215,77 +303,169 @@ const SimSolver = {
 
           
 
+          
+
+          P._corners = ((P.rot|0) !== 0) ? getRotatedRectangleCorners(P.x,P.y,P.w,P.h,P.rot||0) : null;
+          P._aabb    = ((P.rot|0) !== 0) ? _aabbFrom(P.x,P.y,P.w,P.h,P.rot||0) : {x:P.x,y:P.y,w:P.w,h:P.h};
           dyn.push(P);
         }
       }
-    }
+    } 
+// Bygg stat-grid EN gång per frame (som innan)
+const { gridStat, gridGhost } = _ensureStaticGrids(stat, ghosts);
 
-    // Bygg stat-grid EN gång och återanvänd (i iterationer + slide)
-    const gridStat = new HashGrid(SOLVER_CELL);
-    for (let i=0;i<stat.length;i++) gridStat.insert(stat[i]);
-    const gridGhost = new HashGrid(SOLVER_CELL);
-    for (let i=0;i<ghosts.length;i++) gridGhost.insert(ghosts[i]);
+// Skapa ett återanvänt dyn-grid (en instans) för alla iterationer
+const gridDyn = new HashGrid(SOLVER_CELL);
+// 2) Iterera Jacobi
 
-    // 2) Iterera Jacobi
-    for (let it=0; it<this.ITER; it++){
-      // Kopiera stat-buckets; lägg bara in dyn varje varv
-      const g = new HashGrid(SOLVER_CELL);
-      g.map = new Map(gridStat.map);
-      for (let i=0;i<dyn.length;i++) g.insert(dyn[i]);
+ if (prof) prof.toc('precalc');  
+if (prof) prof.tic('calc');
+for (let it = 0; it < this.ITER; it++) {
+  // — Hashgrid för dynamics (billig reset via bucket-stamp) —
+  gridDyn.beginInsertCycle();
+  for (let i = 0; i < dyn.length; i++) gridDyn.insert(dyn[i]);
 
-      const disp = new Map();
-      const seen = new Set();
-      const ensure = (k)=>{ if(!disp.has(k)) disp.set(k,{x:0,y:0}); return disp.get(k); };
+  
 
-      for (let ai=0; ai<dyn.length; ai++){
-        const A = dyn[ai];
-        const aabbA = _aabbFrom(A.x, A.y, A.w, A.h, A.rot||0);
-        const near = g.query(aabbA);
-        for (let bi=0; bi<near.length; bi++){
-          const B = near[bi];
-          if (A.id === B.id) continue;
-          const key = (Math.min(A.id,B.id) << 16) | Math.max(A.id,B.id);
-          if (B.type==='dyn' && seen.has(key)) continue;
+  // Change A: init per-ref ackumulatorer (sloppa Map/ensure)
+  for (let i = 0; i < dyn.length; i++) {
+    const r = dyn[i].ref;
+    r.__dx = 0;
+    r.__dy = 0;
+  }
 
-          // Krockmask
-          if (!shouldCollide(A, B)) continue;
+  // Återanvänd små arrayer för att undvika GC
+  const tmpStat = [], tmpDyn = [];
+  const itrScale = (BETA / this.ITER); // Baumgarte per iteration
+  for (let ai = 0; ai < dyn.length; ai++) {
+    
+    const A = dyn[ai];
 
-          // Narrowphase
-          let contact = null;
-          if (B.type==='static') contact = obbObbMTV(A,B);
-          else { if(B.invMass==0||A.invMass==0) contact = obbObbMTV(A,B); else contact = circleCircleMTV(A,B); }
-          if (!contact || contact.depth < MIN_PEN) continue;
+    // --------- A mot statics ---------
+    tmpStat.length = 0;
+    const aAABB = A._aabb || _aabbFrom(A.x, A.y, A.w, A.h, A.rot || 0);
+    const nearStat = gridStat.query(aAABB, tmpStat);
+    
+    for (let bi = 0; bi < nearStat.length; bi++) {
+      const B = nearStat[bi];
+      if (!shouldCollide(A, B)) continue;
 
-          // Spara normal för slide när det är roterad static
-          if (B.type === 'static' && (B.rot || 0) !== 0) {
-            A.ref._contactNormals.push(contact.n);
-          }
+      // Change C: billig AABB-reject
+      const aAABB = A._aabb || _aabbFrom(A.x,A.y,A.w,A.h,A.rot||0);
+      const bAABB = B._aabb || _aabbFrom(B.x,B.y,B.w,B.h,B.rot||0);
+      if (!aabbOverlapRect(aAABB, bAABB)) continue;
+      // Change C: snabb MTV för oroterade, annars OBB
+      let contact = (((A.rot | 0) === 0) && ((B.rot | 0) === 0))
+        ? aabbAabbMTV(A, B)
+        : obbObbMTV(A, B); 
+      if (!contact) continue;
+      // Stabilisering: dead-zone + skala ner per iteration
+      let dpth = contact.depth - PEN_SLOP;
+      if (dpth <= 0) continue;
+      dpth *= itrScale;
 
-          if (B.type==='dyn') seen.add(key);
+      const n = contact.n;
+      const invA = A.invMass, invB = B.invMass, invSum = invA + invB || 1;
 
-          // Dela MTV
-          const n = contact.n, dpth = contact.depth;
-          const invA = A.invMass, invB = B.invMass, invSum = invA + invB || 1;
-          const corrA = {x: -n.x * dpth * (invA/invSum), y: -n.y * dpth * (invA/invSum)};
-          const corrB = {x:  n.x * dpth * (invB/invSum), y:  n.y * dpth * (invB/invSum)};
-          const vA = ensure(A.ref); vA.x += corrA.x; vA.y += corrA.y;
-          if (B.type==='dyn'){ const vB = ensure(B.ref); vB.x += corrB.x; vB.y += corrB.y; }
+      // Per-kropp korrigering
+      let cAx = -n.x * dpth * (invA / invSum);
+      let cAy = -n.y * dpth * (invA / invSum);
 
-          // loggning för din logik (slide/AI)
-          if (A.ref) _pushCollisionLog(A.ref, (B.ref || B), n,false);
-          if (B.ref) _pushCollisionLog(B.ref, (A.ref || A), { x:-n.x, y:-n.y },false);
-        }
+      // Klampa max per par/kropp/varv
+      const lenA = Math.hypot(cAx, cAy);
+      if (lenA > MAX_CORR_PX) { const s = MAX_CORR_PX / lenA; cAx *= s; cAy *= s; }
+
+      // Change A: ackumulera direkt
+      A.ref.__dx += cAx;  A.ref.__dy += cAy;
+
+      if (B.type === 'dyn') {
+        let cBx =  n.x * dpth * (invB / invSum);
+        let cBy =  n.y * dpth * (invB / invSum);
+        const lenB = Math.hypot(cBx, cBy);
+        if (lenB > MAX_CORR_PX) { const s = MAX_CORR_PX / lenB; cBx *= s; cBy *= s; }
+        B.ref.__dx += cBx;  B.ref.__dy += cBy;
       }
 
-      // applicera iterationens förskjutningar
-      if (disp.size === 0) break; // tidig brytning utan att ändra resultat
-      for (let i=0;i<dyn.length;i++){
-        const d = dyn[i];
-        const v = disp.get(d.ref); if (!v) continue;
-        d.x += v.x; d.y += v.y;
+      if (B.type === 'static' && (B.rot || 0) !== 0 && A.ref) {
+        A.ref._contactNormals.push(n);
       }
+      if (A.ref) _pushCollisionLog(A.ref, (B.ref || B), n, false);
+      if (B.ref) _pushCollisionLog(B.ref, (A.ref || A), { x: -n.x, y: -n.y }, false);
     }
 
+    // --------- A mot andra dynamics ---------
+    tmpDyn.length = 0;
+    const nearDyn = gridDyn.query(aAABB, tmpDyn);
+
+    for (let bi = 0; bi < nearDyn.length; bi++) {
+      const B = nearDyn[bi];
+
+      // Change B: behandla varje par exakt en gång
+      if (B.id <= A.id) continue;
+      if (!shouldCollide(A, B)) continue;
+
+      // Change C: billig AABB-reject
+      const aAABB = A._aabb || _aabbFrom(A.x,A.y,A.w,A.h,A.rot||0);
+      const bAABB = B._aabb || _aabbFrom(B.x,B.y,B.w,B.h,B.rot||0);
+      if (!aabbOverlapRect(aAABB, bAABB)) continue;
+
+      // Snabbgren: aabb/obb/circle
+      let contact;
+      if ((A.invMass == 0) || (B.invMass == 0)) {
+        contact = (((A.rot | 0) === 0) && ((B.rot | 0) === 0))
+          ? aabbAabbMTV(A, B)
+          : obbObbMTV(A, B);
+      } else {
+        contact = circleCircleMTV(A, B);
+      }
+      if (!contact) continue;
+      // Stabilisering
+      let dpth = contact.depth - PEN_SLOP;
+      if (dpth <= 0) continue;
+      dpth *= itrScale;
+
+      const n = contact.n;
+      const invA = A.invMass, invB = B.invMass, invSum = invA + invB || 1;
+
+      // A-korrigering
+      let cAx = -n.x * dpth * (invA / invSum);
+      let cAy = -n.y * dpth * (invA / invSum);
+      let L = Math.hypot(cAx, cAy);
+      if (L > MAX_CORR_PX) { const s = MAX_CORR_PX / L; cAx *= s; cAy *= s; }
+      A.ref.__dx += cAx;  A.ref.__dy += cAy;
+
+      // B-korrigering
+      let cBx =  n.x * dpth * (invB / invSum);
+      let cBy =  n.y * dpth * (invB / invSum);
+      L = Math.hypot(cBx, cBy);
+      if (L > MAX_CORR_PX) { const s = MAX_CORR_PX / L; cBx *= s; cBy *= s; }
+      B.ref.__dx += cBx;  B.ref.__dy += cBy;
+
+      if (A.ref) _pushCollisionLog(A.ref, (B.ref || B), n, false);
+      if (B.ref) _pushCollisionLog(B.ref, (A.ref || A), { x: -n.x, y: -n.y }, false);
+    }
+  }
+
+  // — Applicera och uppdatera cache inför nästa iteration —
+
+  for (let i = 0; i < dyn.length; i++) {
+    const d = dyn[i];
+    d.x += d.ref.__dx;
+    d.y += d.ref.__dy;
+
+    if ((d.rot|0) !== 0) {
+        d._corners = getRotatedRectangleCorners(d.x, d.y, d.w, d.h, d.rot||0);
+        d._aabb    = _aabbFrom(d.x, d.y, d.w, d.h, d.rot||0);
+      } else {
+        d._corners = null;
+        d._aabb    = { x:d.x, y:d.y, w:d.w, h:d.h };
+      }
+  }
+
+  
+}
+if (prof) prof.toc('calc');
+if (prof) prof.tic('slide');
     let stopper=false;
     // --- Riktad slide längs roterade statics (aligna med o.direction) ---
     const gStat = gridStat; // återanvänd stat-grid
@@ -406,195 +586,65 @@ const SimSolver = {
       o.x = d.x; o.y = d.y;
       o.freex = o.x; o.freey = o.y;
     }
+    if (prof) prof.toc('slide');
+    
+    if (prof){ if(cococ==60){console.table({ms:prof.ms, c:prof.c});cococ=0;} cococ++; }
+    
+    
   }
 };
+function aabbAabbMTV(A, B){
+  const ax1 = A.x,        ay1 = A.y;
+  const ax2 = A.x + A.w,  ay2 = A.y + A.h;
+  const bx1 = B.x,        by1 = B.y;
+  const bx2 = B.x + B.w,  by2 = B.y + B.h;
 
+  const ox = Math.min(ax2, bx2) - Math.max(ax1, bx1);
+  if (ox <= 0) return null;
 
+  const oy = Math.min(ay2, by2) - Math.max(ay1, by1);
+  if (oy <= 0) return null;
 
-
-function getRotatedRectangleCorners(x, y, w, h, rot) {
-    // Calculate the center of the rectangle
-    var cx = x + w / 2;
-    var cy = y + h / 2;
-    // Define the corners relative to the center
-    var pts = [
-        { x: -w / 2, y: -h / 2 },
-        { x: w / 2, y: -h / 2 },
-        { x: w / 2, y: h / 2 },
-        { x: -w / 2, y: h / 2 }
-    ];
-    var corners = [];
-    var cos = Math.cos(rot * Math.PI / 180);
-    var sin = Math.sin(rot * Math.PI / 180);
-    for (var i = 0; i < pts.length; i++) {
-        var rx = pts[i].x * cos - pts[i].y * sin;
-        var ry = pts[i].x * sin + pts[i].y * cos;
-        corners.push({ x: cx + rx, y: cy + ry });
-    }
-    return corners;
-}
-
-function SATCollision(corners1, corners2) {
-    // Helper function to compute the perpendicular (normalized) of an edge
-    function getAxis(corners, i) {
-        var p1 = corners[i];
-        var p2 = corners[(i + 1) % corners.length];
-        var axis = { x: p2.x - p1.x, y: p2.y - p1.y };
-        var perp = { x: -axis.y, y: axis.x };
-        var len = Math.sqrt(perp.x * perp.x + perp.y * perp.y);
-        if (len !== 0) {
-            perp.x /= len;
-            perp.y /= len;
-        }
-        return perp;
-    }
-    var axes = [];
-    // Get axes from both rectangles (4 from each, some may be duplicates)
-    for (var i = 0; i < 4; i++) {
-        axes.push(getAxis(corners1, i));
-        axes.push(getAxis(corners2, i));
-    }
-    // Check for separation on any axis
-    for (var i = 0; i < axes.length; i++) {
-        var axis = axes[i];
-        var min1 = Infinity, max1 = -Infinity;
-        for (var j = 0; j < corners1.length; j++) {
-            var proj = corners1[j].x * axis.x + corners1[j].y * axis.y;
-            if (proj < min1) min1 = proj;
-            if (proj > max1) max1 = proj;
-        }
-        var min2 = Infinity, max2 = -Infinity;
-        for (var j = 0; j < corners2.length; j++) {
-            var proj = corners2[j].x * axis.x + corners2[j].y * axis.y;
-            if (proj < min2) min2 = proj;
-            if (proj > max2) max2 = proj;
-        }
-        if (max1 <= min2 || max2 <= min1) {
-            return false;
-        }
-    }
-    return true;
-}
-
-var colli;
-colli = {
-    checkifcollides: function(x1, y1, w1, h1, r1, x2, y2, w2, h2, r2) {
-        var corners1 = getRotatedRectangleCorners(x1, y1, w1, h1, r1);
-        var corners2 = getRotatedRectangleCorners(x2, y2, w2, h2, r2);
-        return SATCollision(corners1, corners2);
-    }
-};
-function _dot(a,b){ return a.x*b.x + a.y*b.y; }
-function _len(v){ return Math.hypot(v.x, v.y); }
-function _norm(v){ const L=_len(v)||1; return {x:a(v.x/L), y:a(v.y/L)}; function a(n){return +n;} } // undvik NaN
-
-function getTwoNormals(x,y,w,h,rotDeg){
-  const r=(rotDeg||0)*Math.PI/180, c=Math.cos(r), s=Math.sin(r);
-  return [ _norm({x:c,y:s}), _norm({x:-s,y:c}) ];
-}
-
-function dirToVec(dir){
-  if (dir==="left")  return {x:-1,y:0};
-  if (dir==="right") return {x: 1,y:0};
-  if (dir==="up")    return {x: 0,y:-1}; // byt till +1 om din "up" = +y
-  if (dir==="down")  return {x: 0,y: 1};
-  return null;
-}
-
-// Overlap-test UTAN sidoeffekter under provsteg
-function overlapsNoSideEffects(game, mapIndex, o){
-  const A=o.hadcollidedobj?.slice()||[];
-  const L=o.collideslistan?.slice()||[];
-  const D=o.collideslistandir?.slice()||[];
-  const O=o.collideslistanobj?.slice()||[];
-  const hit = (
-    o.collideslist(game.maps, mapIndex, "left")  ||
-    o.collideslist(game.maps, mapIndex, "right") ||
-    o.collideslist(game.maps, mapIndex, "up")    ||
-    o.collideslist(game.maps, mapIndex, "down")
-  );
-  o.hadcollidedobj=A; o.collideslistan=L; o.collideslistandir=D; o.collideslistanobj=O;
-  return hit;
-}
-
-// Pressad mot väggen? (av sig själv eller andra)
-function isPressedAgainst(game, mapIndex, o, n, want){
-  if (_dot(want,n) < 0) return true; // egen rörelse trycker in
-  const ox=o.x, oy=o.y;
-  const over = (
-    o.collideslist(game.maps, mapIndex, "left")  ||
-    o.collideslist(game.maps, mapIndex, "right") ||
-    o.collideslist(game.maps, mapIndex, "up")    ||
-    o.collideslist(game.maps, mapIndex, "down")
-  );
-  o.x=ox; o.y=oy;
-  if (over) return true;              // står i kontakt/penetration
-  if (o.blockedx || o.blockedy) return true; // axel-block denna frame
-  return false;
-}
-
-// Mjuk sweep längs given tangent (testar kollision per litet steg)
-function sweepAlong(game, mapIndex, o, baseX, baseY, tx, ty, desiredLen, step){
-  let traveled=0, cx=baseX, cy=baseY;
-  const EPS=1e-4;
-  const ox=o.x, oy=o.y;
-  while (traveled + EPS < desiredLen){
-    const st = Math.min(step, desiredLen - traveled);
-    o.x = cx + tx*st; o.y = cy + ty*st;
-    const over = overlapsNoSideEffects(game, mapIndex, o);
-    if (over){
-      // liten finjust-binära för sista biten
-      let lo=0, hi=st;
-      for (let i=0;i<4;i++){
-        const mid=(lo+hi)*0.5;
-        o.x = cx + tx*mid; o.y = cy + ty*mid;
-        if (!overlapsNoSideEffects(game, mapIndex, o)) lo=mid; else hi=mid;
-      }
-      cx += tx*lo; cy += ty*lo; traveled += lo;
-      break;
-    }
-    cx += tx*st; cy += ty*st; traveled += st;
+  // Normal ska peka från A -> B
+  if (ox < oy){
+    const acx = A.x + A.w * 0.5;
+    const bcx = B.x + B.w * 0.5;
+    const nx  = (acx < bcx) ? +1 : -1;   // <-- fix: var fel tecken
+    return { n:{x:nx, y:0}, depth:ox };
+  } else {
+    const acy = A.y + A.h * 0.5;
+    const bcy = B.y + B.h * 0.5;
+    const ny  = (acy < bcy) ? +1 : -1;   // <-- fix: var fel tecken
+    return { n:{x:0, y:ny}, depth:oy };
   }
-  o.x=ox; o.y=oy;
-  return {x:cx, y:cy, travel:traveled};
+}
+function aabbOverlapRect(a, b){
+  return !(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y);
+}
+// --- module scope ---
+let _gridStat = null, _gridGhost = null;
+let _statStamp = 0, _ghostStamp = 0;
+
+function markStaticsDirty(){ _statStamp++; }  // call when you move/rotate/add/remove statics
+function markGhostsDirty(){  _ghostStamp++; } // call when ghost volumes change
+
+function _ensureStaticGrids(stat, ghosts){
+  if (!_gridStat || _gridStat._builtFor !== _statStamp){
+    _gridStat = new HashGrid(SOLVER_CELL);
+    for (let i=0;i<stat.length;i++) _gridStat.insert(stat[i]);
+    _gridStat._builtFor = _statStamp;
+  }
+  if (!_gridGhost || _gridGhost._builtFor !== _ghostStamp){
+    _gridGhost = new HashGrid(SOLVER_CELL);
+    for (let i=0;i<ghosts.length;i++) _gridGhost.insert(ghosts[i]);
+    _gridGhost._builtFor = _ghostStamp;
+  }
+  return { gridStat:_gridStat, gridGhost:_gridGhost };
 }
 
 
-"use strict";
 
-// === Broadphase grid helpers (added) ===
-function _bpKey(ix, iy){ return ix + ":" + iy; }
-function _aabbOf(o){
-    const w = o.dimx, h = o.dimy;
-    const rot = (o.rot||0) % 360;
-    if (!rot) return { x:o.x, y:o.y, w, h };
-    // Use existing engine helper to compute rotated corners
-    const corners = getRotatedRectangleCorners(o.x, o.y, w, h, rot);
-    let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
-    for (let i=0;i<corners.length;i++){
-        const c = corners[i];
-        if (c.x < minx) minx = c.x;
-        if (c.y < miny) miny = c.y;
-        if (c.x > maxx) maxx = c.x;
-        if (c.y > maxy) maxy = c.y;
-    }
-    return { x:minx, y:miny, w:(maxx-minx), h:(maxy-miny) };
-}
-function _cellsFor(aabb){
-    const x1 = Math.floor(aabb.x / BP_CELL);
-    const y1 = Math.floor(aabb.y / BP_CELL);
-    const x2 = Math.floor((aabb.x + aabb.w) / BP_CELL);
-    const y2 = Math.floor((aabb.y + aabb.h) / BP_CELL);
-    const out = [];
-    for (let iy=y1; iy<=y2; iy++){
-        for (let ix=x1; ix<=x2; ix++){
-            out.push(_bpKey(ix,iy));
-        }
-    }
-    return out;
-}
-// === End helpers ===
-
+let cococ=0;
 var cursorX;
 var cursorY;
 var game;
@@ -1109,10 +1159,11 @@ class Game5 {
      //   try {
             Prof.section("Collision", ()=> {
             this.updateUnitMovement();
+            
             this.collitionengine();
-              });
+           });   
             
-            
+            ///JAJAJAJAJAJAJAJAJAJAJ AJJAAJAJAJAJJAJAJA
             
             
         
@@ -1291,10 +1342,16 @@ class Game5 {
     addobject(objtype, x, y, dimx, dimy, rot, fliped) {
         objtype.objects.push(new Objectx(x, y, dimx, dimy, rot, fliped));
         objtype.objects[objtype.objects.length-1].name=objtype.name;
+        if(isBuilding(objtype.objects[objtype.objects.length-1]))markStaticsDirty();
+        if(objtype.objects[objtype.objects.length-1].ghost)markGhostsDirty();
         return objtype.objects[objtype.objects.length-1];
     }
     removeobject(objtype, obj) {
         const index = objtype.objects.indexOf(obj);
+        if(isBuilding(obj))markStaticsDirty();
+        if(obj.ghost)markGhostsDirty();
+        
+        
         if (index !== -1) {
             objtype.objects.splice(index, 1);
         }
@@ -1906,103 +1963,7 @@ class Objectx {
     
     
     
-    collideslist(maps, currentmap, dir) {
-       
-        // Fallback to original O(N) sweep if grid missing
 
-        for (let i2 = 0; i2 < maps[currentmap].layer.length; i2++) {
-            let layer = maps[currentmap].layer[i2];
-            for (let i3 = 0; i3 < layer.objectype.length; i3++) {
-                let objType = layer.objectype[i3];
-                for (let i4 = 0; i4 < objType.objects.length; i4++) {
-                    if ((objType.objects[i4] == this) || maps[currentmap].layer[i2].fysics == false) {
-                    }
-                    else {
-                        if (objType.objects[i4].rot == 0 && this.rot == 0) {
-                            if (this.collideswithfast(objType.objects[i4])) {
-                                
-                                if (maps[currentmap].layer[i2].ghost == true || objType.objects[i4].ghost == true) {
-                                    for(var u of this.collideslistanobj){if(u===objType.objects[i4])return false;}
-                                    this.collideslistan.push(objType.name);
-                                    this.collideslistandir.push("ghost");
-                                    this.collideslistanobj.push(objType.objects[i4]);
-                                    this.hadcollidedobj.push(objType.objects[i4]);
-                                    
-                                    objType.objects[i4].collideslistan.push(this.name);
-                                    objType.objects[i4].collideslistandir.push("ghost");
-                                    objType.objects[i4].collideslistanobj.push(this);
-                                    objType.objects[i4].hadcollidedobj.push(this);
-                                    
-                                }
-                                else {
-                                    for(var u of this.collideslistanobj){if(u===objType.objects[i4])return true;}
-                                    this.collideslistan.push(objType.name);
-                                    this.collideslistandir.push(dir);
-                                    this.collideslistanobj.push(objType.objects[i4]);
-                                    this.hadcollidedobj.push(objType.objects[i4]);
-                                    
-                     
-                                    objType.objects[i4].collideslistan.push(this.name);
-                                    if(dir=="up")objType.objects[i4].collideslistandir.push("down");
-                                    else if(dir=="down")objType.objects[i4].collideslistandir.push("up");
-                                    else if(dir=="left")objType.objects[i4].collideslistandir.push("right");
-                                    else if(dir=="right")objType.objects[i4].collideslistandir.push("left");
-                                    objType.objects[i4].collideslistanobj.push(this);
-                                    objType.objects[i4].hadcollidedobj.push(this);
-                                    
-                                    
-                                    return true;
-                                }
-                            }
-                        }
-                        else {
-                            
-                            const rsum = 0.5*Math.hypot(this.dimx||0, this.dimy||0) + 0.5*Math.hypot(objType.objects[i4].dimx||0, objType.objects[i4].dimy||0);
-                            const dx = (objType.objects[i4].x + (objType.objects[i4].dimx||0)*0.5) - (this.x + (this.dimx||0)*0.5);
-                            const dy = (objType.objects[i4].y + (objType.objects[i4].dimy||0)*0.5) - (this.y + (this.dimy||0)*0.5);
-                            if ((dx*dx + dy*dy) > (rsum*rsum)) continue;
-                            
-                            if (this.collideswith(objType.objects[i4])) {
-                                if (maps[currentmap].layer[i2].ghost == true || objType.objects[i4].ghost == true) {
-                                    for(var u of this.collideslistanobj){if(u===objType.objects[i4])return false;}
-                                    this.collideslistan.push(objType.name);
-                                    this.collideslistandir.push("ghost");
-                                    this.collideslistanobj.push(objType.objects[i4]);
-                                    this.hadcollidedobj.push(objType.objects[i4]);
-                                    
-                                    objType.objects[i4].collideslistan.push(this.name);
-                                    objType.objects[i4].collideslistandir.push("ghost");
-                                    objType.objects[i4].collideslistanobj.push(this);
-                                    objType.objects[i4].hadcollidedobj.push(this);
-                                    
-                                }
-                                else {
-                                    for(var u of this.collideslistanobj){if(u===objType.objects[i4])return true;}
-                                    this.collideslistan.push(objType.name);
-                                    this.collideslistandir.push(dir);
-                                    this.collideslistanobj.push(objType.objects[i4]);
-                                    this.hadcollidedobj.push(objType.objects[i4]);
-                                    
-                                    objType.objects[i4].collideslistan.push(this.name);
-                                    if(dir=="up")objType.objects[i4].collideslistandir.push("down");
-                                    else if(dir=="down")objType.objects[i4].collideslistandir.push("up");
-                                    else if(dir=="left")objType.objects[i4].collideslistandir.push("right");
-                                    else if(dir=="right")objType.objects[i4].collideslistandir.push("left");
-                                    objType.objects[i4].collideslistanobj.push(this);
-                                    objType.objects[i4].hadcollidedobj.push(this);
-                                    
-                                    
-                                    
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return false;
-    }
     collideswith(obj) {
         return colli.checkifcollides(this.x, this.y, this.dimx, this.dimy, this.rot,
             obj.x, obj.y, obj.dimx, obj.dimy, obj.rot);
@@ -2217,3 +2178,77 @@ function drawSelectRing(ctx, o,zoom, camX, camY){
   ctx.fillStyle="rgba(0,0,0,.9)"; ctx.fill(); ctx.restore();
   }
 }
+//SAT
+
+function getRotatedRectangleCorners(x, y, w, h, rot) {
+    // Calculate the center of the rectangle
+    var cx = x + w / 2;
+    var cy = y + h / 2;
+    // Define the corners relative to the center
+    var pts = [
+        { x: -w / 2, y: -h / 2 },
+        { x: w / 2, y: -h / 2 },
+        { x: w / 2, y: h / 2 },
+        { x: -w / 2, y: h / 2 }
+    ];
+    var corners = [];
+    var cos = Math.cos(rot * Math.PI / 180);
+    var sin = Math.sin(rot * Math.PI / 180);
+    for (var i = 0; i < pts.length; i++) {
+        var rx = pts[i].x * cos - pts[i].y * sin;
+        var ry = pts[i].x * sin + pts[i].y * cos;
+        corners.push({ x: cx + rx, y: cy + ry });
+    }
+    return corners;
+}
+
+function SATCollision(corners1, corners2) {
+    // Helper function to compute the perpendicular (normalized) of an edge
+    function getAxis(corners, i) {
+        var p1 = corners[i];
+        var p2 = corners[(i + 1) % corners.length];
+        var axis = { x: p2.x - p1.x, y: p2.y - p1.y };
+        var perp = { x: -axis.y, y: axis.x };
+        var len = Math.sqrt(perp.x * perp.x + perp.y * perp.y);
+        if (len !== 0) {
+            perp.x /= len;
+            perp.y /= len;
+        }
+        return perp;
+    }
+    var axes = [];
+    // Get axes from both rectangles (4 from each, some may be duplicates)
+    for (var i = 0; i < 4; i++) {
+        axes.push(getAxis(corners1, i));
+        axes.push(getAxis(corners2, i));
+    }
+    // Check for separation on any axis
+    for (var i = 0; i < axes.length; i++) {
+        var axis = axes[i];
+        var min1 = Infinity, max1 = -Infinity;
+        for (var j = 0; j < corners1.length; j++) {
+            var proj = corners1[j].x * axis.x + corners1[j].y * axis.y;
+            if (proj < min1) min1 = proj;
+            if (proj > max1) max1 = proj;
+        }
+        var min2 = Infinity, max2 = -Infinity;
+        for (var j = 0; j < corners2.length; j++) {
+            var proj = corners2[j].x * axis.x + corners2[j].y * axis.y;
+            if (proj < min2) min2 = proj;
+            if (proj > max2) max2 = proj;
+        }
+        if (max1 <= min2 || max2 <= min1) {
+            return false;
+        }
+    }
+    return true;
+}
+
+var colli;
+colli = {
+    checkifcollides: function(x1, y1, w1, h1, r1, x2, y2, w2, h2, r2) {
+        var corners1 = getRotatedRectangleCorners(x1, y1, w1, h1, r1);
+        var corners2 = getRotatedRectangleCorners(x2, y2, w2, h2, r2);
+        return SATCollision(corners1, corners2);
+    }
+};
