@@ -1298,7 +1298,7 @@ resizeCanvas();
                                         false
                                     );
 
-                                    const overlaps = newUnit.collideslist(game.maps, game.currentmap, "any");
+                                    const overlaps = newUnit.collidestest();
 
                                     if (!overlaps) {
                                         placed = true;
