@@ -147,13 +147,13 @@
                     
                     if("ontouchstart" in document.documentElement){
                             if(joy.GetDir()=="N"){}
-                            else if(joy.GetDir()=="NE"){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}    
-                            else if(joy.GetDir()=="E"){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}
-                            else if(joy.GetDir()=="SE"){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}    
+                            else if(joy.GetDir()=="NE"){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}    
+                            else if(joy.GetDir()=="E"){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}
+                            else if(joy.GetDir()=="SE"){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}    
                             else if(joy.GetDir()=="S"){}
-                            else if(joy.GetDir()=="SW"){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}    
-                            else if(joy.GetDir()=="W"){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}    
-                            else if(joy.GetDir()=="NW"){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}     
+                            else if(joy.GetDir()=="SW"){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}    
+                            else if(joy.GetDir()=="W"){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}    
+                            else if(joy.GetDir()=="NW"){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}     
                             else if(joy.GetDir()=="C") {
                            
                             }
