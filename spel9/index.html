@@ -1,0 +1,335 @@
+
+
+<html>
+    <head>
+        <meta name="viewport" content="user-scalable=no, shrink-to-fit=no">
+        <meta charset="utf-8">
+        <meta name="keywords" content="mobilspel, mobilegames, js games, javascript games">
+        <link rel="icon" href="images/swordguy.png" type="image/vnd.microsoft.icon" />
+	<title>Test4</title>
+        
+        <script src="js/Game5.js"></script>
+        <script src="js/joy.js"></script>
+
+    </head>
+    <body>
+        <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
+    
+        <script>
+            function mobileAndTabletCheck() {const isMobile = {Android: function() {return navigator.userAgent.match(/Android/i);},BlackBerry: function() {return navigator.userAgent.match(/BlackBerry/i);},iOS: function() {return navigator.userAgent.match(/iPhone|iPod/i);},Opera: function() {return navigator.userAgent.match(/Opera Mini/i);},Windows: function() {return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i);},any: function() {return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows()|| (navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints && navigator.maxTouchPoints > 1));}};return isMobile.any();}
+
+            const canvas = document.getElementById("myCanvas");
+            const ctx = canvas.getContext("2d");
+            document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
+            document.getElementById("myCanvas").style.width=window.innerWidth;
+            document.getElementById("myCanvas").style.height=window.innerHeight;
+
+      
+
+
+
+            game = new Game5("Spelet");
+            joy = new JoyStick('myCanvas');
+            var audio = new Audio('sounds/cast3.mp3');
+            audio.loop = true;
+             
+             const context = new (window.AudioContext || window.webkitAudioContext)();
+             const audio2 = async url => {   
+             const source = context.createBufferSource(); 
+                const audioBuffer = await fetch(url)
+                  .then(res => res.arrayBuffer())
+                  .then(ArrayBuffer => context.decodeAudioData(ArrayBuffer)); 
+                source.buffer = audioBuffer;
+                source.connect(context.destination);
+                source.start();
+            };
+          
+            
+            document.addEventListener("touchstart" , function(e) {
+                e.preventDefault();
+				
+                    try{if(audio.paused){ 
+                        audio.play();
+                    }
+                    }catch(error){};
+                    if(context.state === 'suspended'){context.suspend();context.resume();}           
+                    
+                    
+                    
+                    
+            });
+            
+            
+            
+            document.addEventListener("visibilitychange", event => {
+                if (document.visibilityState === "visible") {
+                        audio.pause();audio.src = 'sounds/war3.mp3';context.resume();
+                        
+                }
+                else {
+                   audio.pause(); audio.src = "";context.suspend();
+                
+              }
+          });
+
+           
+            
+            
+  
+            document.addEventListener('click', (event) => {try{if(audio.paused){ audio.play();}}catch(error){};});
+
+            
+            let keyState = {
+                w: false,
+                a: false,
+                s: false,
+                d: false,
+                space: false
+            };
+            
+            document.addEventListener("keydown", function(e) {
+                try{if(audio.paused){ audio.play();}}catch(error){};
+                if (e.key === "w") keyState.w = true;
+                if (e.key === "a") keyState.a = true;
+                if (e.key === "s") keyState.s = true;
+                if (e.key === "d") keyState.d = true;
+                if (e.key === " ") keyState.space = true;
+            });
+
+            document.addEventListener("keyup", function(e) {
+                if (e.key === "w") keyState.w = false;
+                if (e.key === "a") keyState.a = false;
+                if (e.key === "s") keyState.s = false;
+                if (e.key === "d") keyState.d = false;
+                if (e.key === " ") keyState.space = false;
+            });
+
+            
+
+            jump=false;
+            count=0;
+            jumplength=30;
+            attack=false;
+            acount=0;
+            attacklength=25;
+            ecount=0;
+            
+             
+            var check = function(){
+                if(canvas.width===10||canvas.width===100){canvas.width=document.body.clientWidth;canvas.height=document.body.clientHeight-8;}  
+                ctx.fillStyle = "black";
+                ctx.fillRect(0, 0, canvas.width, canvas.height); 
+
+                const bird=game.getobjecttype("swordguy");
+                const rat=game.getobjecttype("rat");
+                const abutton=game.getobjecttype("abutton");
+                const bbutton=game.getobjecttype("bbutton");
+                
+                
+                if(bird){
+                    
+                    bbutton.objects[0].x=canvas.width-400;bbutton.objects[0].y=canvas.height-400;
+                    abutton.objects[0].x=canvas.width-250;abutton.objects[0].y=canvas.height-250;
+                    
+                    if(!mobileAndTabletCheck()){abutton.objects[0].x=canvas.width+300;abutton.objects[0].y=canvas.height+400;bbutton.objects[0].x=canvas.width+300;bbutton.objects[0].y=canvas.height+400;}
+                    
+                    
+                    
+                    game.updateanimation(ctx);
+                    game.setcameraobj(bird.objects[0],canvas.width,null);
+                    bird.objects[0].dual=40;
+                    bird.objects[0].animation=0;
+                    bird.objects[0].y=bird.objects[0].y+11;
+                    if(keyState.d){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}
+                    if(keyState.a){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}
+                    if(keyState.w||abutton.objects[0].mousepressed==true){jump=true; }
+                    
+                    
+                    if("ontouchstart" in document.documentElement){
+                            if(joy.GetDir()=="N"){}
+                            else if(joy.GetDir()=="NE"){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}    
+                            else if(joy.GetDir()=="E"){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}
+                            else if(joy.GetDir()=="SE"){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}    
+                            else if(joy.GetDir()=="S"){}
+                            else if(joy.GetDir()=="SW"){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}    
+                            else if(joy.GetDir()=="W"){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}    
+                            else if(joy.GetDir()=="NW"){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}     
+                            else if(joy.GetDir()=="C") {
+                           
+                            }
+                        
+                         joy.redraw();
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    if(jump==true){
+                        bird.objects[0].animation=2;
+                        if(count==0){}
+                        if(count<jumplength){bird.objects[0].y=bird.objects[0].y-22;count++;}
+
+
+                        if(game.collideswith(bird.objects[0],"any","down")){
+                            count=0;
+                            jump=false;
+                        }
+                    }
+                    if(keyState.space||bbutton.objects[0].mousepressed==true){attack=true;}
+                    
+                    if(attack==true){
+                        if(acount===0){bird.images[3].ani=0;bird.images[3].counter = 0;}
+                        bird.objects[0].animation=3;
+                        if(acount<attacklength){acount++;}
+                        else{attack=false;acount=0;}
+                    }
+                    
+                    for(let r of rat.objects){
+                        r.y+=11;
+                        r.dual=20;
+                        if(r.fliped==true){r.x-=3;r.direction="left";}
+                        if(r.fliped==false){r.x+=3;r.direction="right";}
+                        
+                        
+                        
+                    }
+                    drawHealthBars();
+                    
+                  if(acount==20)  handleCombat("swordguy", ["rat"], 20);
+                  
+                  ecount++;
+                  
+                  
+                    if(ecount==20)handleCombat("rat", ["swordguy"], 10);
+                    
+                    if(ecount==25)ecount=0;
+                    
+                }
+                window.requestAnimationFrame(check);   
+            };check();
+            
+const Heroes = new Set(["swordguy"]); // byggnader
+function drawHealthBars() {
+    if(!game.maps[game.currentmap])return;
+    
+  const map = game.maps[game.currentmap];
+  const zoom = 1 + (map.zoom / 100); // samma zoom som du använder för input
+  const camX = map.camerax;
+  const camY = map.cameray;
+
+  const objs = game.getAllObjects().filter(o => o.name=="swordguy"|| o.name=="rat");
+  for (const o of objs) {
+
+
+    // defaultvärden om hälsa saknas
+    if (o.maxhealth == null){ o.maxhealth = Heroes.has(o.name) ? 800 : 100;o.health = o.maxhealth;}
+    if (o.health == null) o.health = o.maxhealth;
+
+    const hpPct = Math.max(0, Math.min(1, o.health / o.maxhealth));
+
+    // Värld → skärm
+    const sx = (o.x + camX) * zoom;
+    const sy = (o.y + camY) * zoom;
+
+    const barW = Math.max(20, o.dimx * zoom);  // skala med zoom, ha en min.bredd
+    const barH = Math.max(3, 5 * (zoom >= 1 ? zoom : 1)); // öka svagt med zoom
+    const offsetY = -10 * zoom; // ovanför objektet
+    
+    
+    
+    if(o.name=="swordguy"){
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.fillRect(50, 50 + offsetY, 800, 30);
+
+        // Röd full bar
+        ctx.fillStyle = "red";
+        ctx.fillRect(50, 50 + offsetY, 800, 30);
+
+        // Grön nuvarande HP
+        ctx.fillStyle = "lime";
+        ctx.fillRect(50, 50 + offsetY, 800 * hpPct, 30);
+
+        // Kant
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(50, 50 + offsetY, 800, 30);
+        
+    }
+    else{
+    // Bakgrund
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(sx, sy + offsetY, barW, barH);
+
+    // Röd full bar
+    ctx.fillStyle = "red";
+    ctx.fillRect(sx, sy + offsetY, barW, barH);
+
+    // Grön nuvarande HP
+    ctx.fillStyle = "lime";
+    ctx.fillRect(sx, sy + offsetY, barW * hpPct, barH);
+
+    // Kant
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(sx, sy + offsetY, barW, barH);
+    }
+    
+  
+    
+    
+    
+  }
+  
+          
+  
+  
+}
+function handleCombat(attackerType, enemyTypes, damage) {
+    const attackers = game.getobjecttype(attackerType).objects;
+    for (const unit of attackers) {
+        // Kolla alla fiendetyper
+        for (const enemyType of enemyTypes) {
+            let target = null;
+            
+            target =game.collideswith(unit, enemyType, "ghost");
+
+            
+            
+            if (target) {
+                // Om målet inte har health, sätt standardvärde
+                target.health -= damage;
+                spawnDamageNumber(-damage, unit.x, unit.y, { color: "#ff4d4d" }); // röd
+                spawnHitParticles(target.x+target.dimx/2, target.y+target.dimy/2, 6);
+                
+
+
+                if (target.health <= 0) {
+                    // Ta bort objektet om health tar slut
+                    game.removeobject(game.getobjecttype(enemyType), target);
+                }
+            }
+        }
+    }
+}
+
+
+
+        </script>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+    </body>
+</html>
