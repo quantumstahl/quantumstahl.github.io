@@ -804,6 +804,7 @@ let lastPanY = null;
 let dragWasActive = false;
 let tapTimeout = null;
 let allowSingleTap = true;
+const selectenable=false;
 
 class Game5 {
     
@@ -1325,31 +1326,33 @@ class Game5 {
                 }
             }
         }
-        if (dragSelectStart && dragSelectEnd) {
-            ctx.save();
-            const zoomFactor = 1 + (1 * this.maps[this.currentmap].zoom / 100);
-            ctx.scale(zoomFactor, zoomFactor);
-
-            const x = Math.min(dragSelectStart.x, dragSelectEnd.x) + this.getcamerax();
-            const y = Math.min(dragSelectStart.y, dragSelectEnd.y) + this.getcameray();
-            const w = Math.abs(dragSelectEnd.x - dragSelectStart.x);
-            const h = Math.abs(dragSelectEnd.y - dragSelectStart.y);
-
-     
-
-            // Kant
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = "#00ff00";
-            ctx.strokeRect(x, y, w, h);
-            
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = "black";
-            ctx.strokeRect(x, y, w, h);
-            
-
-            ctx.restore();
-        }
         
+        if(selectenable==true){
+            if (dragSelectStart && dragSelectEnd) {
+                ctx.save();
+                const zoomFactor = 1 + (1 * this.maps[this.currentmap].zoom / 100);
+                ctx.scale(zoomFactor, zoomFactor);
+
+                const x = Math.min(dragSelectStart.x, dragSelectEnd.x) + this.getcamerax();
+                const y = Math.min(dragSelectStart.y, dragSelectEnd.y) + this.getcameray();
+                const w = Math.abs(dragSelectEnd.x - dragSelectStart.x);
+                const h = Math.abs(dragSelectEnd.y - dragSelectStart.y);
+
+
+
+                // Kant
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = "#00ff00";
+                ctx.strokeRect(x, y, w, h);
+
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = "black";
+                ctx.strokeRect(x, y, w, h);
+
+
+                ctx.restore();
+            }
+        }
         updateAndDrawFX(ctx);
   
         

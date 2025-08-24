@@ -89,8 +89,8 @@ var JoyStick = (function(container, parameters, callback)
 
     var canvas = document.getElementById("myCanvas");
     canvas.id = title;
-    width = 100; 
-    height = 100; 
+    width = 300; 
+    height = 300; 
     canvas.width = width;
     canvas.height = height;
     var context=canvas.getContext("2d");
