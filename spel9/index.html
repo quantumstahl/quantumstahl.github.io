@@ -136,7 +136,15 @@
                     
                     
                     game.updateanimation(ctx);
-                    game.setcameraobj(bird.objects[0],canvas.width,null);
+                    game.setcameraobj(bird.objects[0], canvas.width, null);
+                    
+                    if (hitstopFrames > 0){
+                        hitstopFrames--;
+                        requestAnimationFrame(check);
+                        return; // stoppa all logik den här framen
+                    }
+                    
+                    
                     bird.objects[0].dual=40;
                     bird.objects[0].animation=0;
                     bird.objects[0].y=bird.objects[0].y+11;
@@ -160,17 +168,6 @@
                         
                          joy.redraw();
                     }
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
                     if(jump==true){
                         bird.objects[0].animation=2;
                         if(count==0){}
@@ -194,14 +191,22 @@
                     updateRats();
                     drawHealthBars();
                     
-                  if(acount==20)  handleCombat("swordguy", ["rat"], 20);
-                  
-                  ecount++;
-                  
-                  
+                    if(acount==20)  handleCombat("swordguy", ["rat"], 20);
+                    ecount++;
                     if(ecount==20)handleCombat("rat", ["swordguy"], 10);
-                    
                     if(ecount==25)ecount=0;
+                    
+                    
+                    let offx = 0, offy = 0;
+                    if (shakeTime > 0){
+                      shakeTime--;
+                      offx = (Math.random()-0.5) * shakeMag;
+                      offy = (Math.random()-0.5) * shakeMag;
+                    }
+                    ctx.restore();
+                    ctx.save();
+                    ctx.translate(offx, offy);
+                    
                     
                 }
                 window.requestAnimationFrame(check);   
@@ -284,31 +289,32 @@ function drawHealthBars() {
   
 }
 function handleCombat(attackerType, enemyTypes, damage) {
-    const attackers = game.getobjecttype(attackerType).objects;
-    for (const unit of attackers) {
-        // Kolla alla fiendetyper
-        for (const enemyType of enemyTypes) {
-            let target = null;
-            
-            target =game.collideswith(unit, enemyType, "ghost");
+  const attackers = game.getobjecttype(attackerType).objects;
+  for (const unit of attackers) {
+    for (const enemyType of enemyTypes) {
+      const target = game.collideswith(unit, enemyType, "ghost");
+      if (target) {
+        // === DAMAGE ===
+        target.health -= damage;
+        spawnDamageNumber(-damage, unit.x, unit.y, { color: "#ff4d4d" });
+        spawnHitParticles(target.x+target.dimx/2, target.y+target.dimy/2, 6);
 
-            
-            
-            if (target) {
-                // Om målet inte har health, sätt standardvärde
-                target.health -= damage;
-                spawnDamageNumber(-damage, unit.x, unit.y, { color: "#ff4d4d" }); // röd
-                spawnHitParticles(target.x+target.dimx/2, target.y+target.dimy/2, 6);
-                
+        // === JUICE ===
+        hitStop(3);                // fryser ~3 frames (≈50 ms vid 60fps)
+        cameraShake(20, 120);       // 120 ms shake
+       
+        // === KNOCKBACK ===
+        const dir = (unit.x < target.x) ? +1 : -1;
+        target.vx = dir * 30;  // kastas åt sidan
+        target.vy = -25;       // lite upp i luften
 
-
-                if (target.health <= 0) {
-                    // Ta bort objektet om health tar slut
-                    game.removeobject(game.getobjecttype(enemyType), target);
-                }
-            }
+        // === DÖD ===
+        if (target.health <= 0) {
+          game.removeobject(game.getobjecttype(enemyType), target);
         }
+      }
     }
+  }
 }
 // ====== Tunables ======
 const RAT_AI = {
@@ -334,7 +340,8 @@ function initRat(r){
     vx:0, timer:0,
     target:null,
     turnCD:0,       // <— NYTT
-    alertT:0        // <— NYTT (för “!” och ev. ‘alert’-animation)
+    alertT:0,        // <— NYTT (för “!” och ev. ‘alert’-animation)
+    vy:0
   };
 }
 
@@ -365,7 +372,7 @@ function updateRats(){
   const rats = game.getobjecttype('rat')?.objects || [];
   for (const r of rats){
     initRat(r);
-
+    updatePhysics(r);
     // din grav / dual hack
     r.y += 11; 
     r.dual = 20;
@@ -463,6 +470,36 @@ function updateRats(){
     r.direction = r.fliped ? 'left' : 'right';
   }
 }
+function updatePhysics(obj){
+  // Gravitation
+  obj.vy += 1.2;         // grav styrka
+  if (obj.vy > 11) obj.vy = 11; // clamp fallhastighet
+
+  // Rörelse
+  obj.x += obj.vx;
+  obj.y += obj.vy;
+
+  // Friktion på marken
+  if (game.collideswith(obj,"any","down")){
+    //obj.vy = 0;
+    //obj.y = Math.floor(obj.y/32)*32 - obj.h; // snap to tile
+    obj.vx *= 0.85; // bromsa horisontellt
+    if (Math.abs(obj.vx)<0.2) obj.vx = 0;
+  }
+}
+// Camera shake
+let shakeTime = 0, shakeMag = 0;
+function cameraShake(mag, ms){
+  shakeMag = mag;
+  shakeTime = Math.floor(ms / (1000/60)); // räkna om ms → frames
+}
+
+// Hitstop
+let hitstopFrames = 0;
+function hitStop(fr){
+  hitstopFrames = fr;
+}
+
 
 
         </script>

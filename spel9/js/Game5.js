@@ -1552,6 +1552,8 @@ class Game5 {
         } catch (error) {}
         return null;
     }
+
+    
     
     setcameraobj(obj, canvasx, canvasy) {
         if (canvasx != null)
@@ -2128,6 +2130,8 @@ class Objectx {
         this._wantdy=0;
         this.dual=0;
         this.alertT=0;
+        this.vx=0;
+        this.vy=0;
      
     }
     collidestest(){
