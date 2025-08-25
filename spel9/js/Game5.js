@@ -233,9 +233,87 @@ function _pushCollisionLog(targetRef, otherRef, n, isGhost=false){
         targetRef.collideslistandir.push(dir);
         targetRef.collideslistan.push(otherRef?.name || 'any');
       } 
+function coalesceStaticsRobust(stat, {
+  yTol = 2.0,       // px: block inom detta ΔY hamnar i samma rad
+  gapTol = 2.0,     // px: tillåt så här stor glipa mellan block när vi slår ihop
+  sideSkin = 0.5    // px: skär bort lite på sidorna för att slippa fastna i mikrosömmar
+} = {}){
+  const passthrough = [];
+  const rows = []; // [{y:medelY, items:[S...]}]
 
+  // 1) Dela upp i rader med Y-tolerans
+  const tiles = [];
+  for (const S of stat){
+    if (S.type !== 'static' || (S.rot|0) !== 0){ passthrough.push(S); continue; }
+    tiles.push(S);
+  }
+  tiles.sort((a,b)=> a.y - b.y);
+
+  for (const S of tiles){
+    // hitta rad där |S.y - row.y| <= yTol
+    let row = null, bestDy = Infinity;
+    for (const r of rows){
+      const dy = Math.abs(S.y - r.y);
+      if (dy <= yTol && dy < bestDy){ bestDy = dy; row = r; }
+    }
+    if (!row){ row = { y:S.y, items:[] }; rows.push(row); }
+    row.items.push(S);
+    // uppdatera radens representativa Y (glidande medel)
+    row.y = (row.y * (row.items.length-1) + S.y) / row.items.length;
+  }
+
+  const merged = [];
+
+  // 2) Inom varje rad: normalisera Y och slå ihop i X (med gap-tolerans)
+  for (const row of rows){
+    const Y = row.y;
+    // normalisera y och skin:a sidor
+    const arr = row.items.map(s =>{
+      const out = { ...s };
+      out.y = Y; // snäpp upp/ner till radens nivå
+      if (sideSkin > 0){
+        out.x += sideSkin;
+        out.w -= sideSkin*2;
+        if (out.w < 1) out.w = 1; // skydd
+      }
+      return out;
+    }).filter(s => s.w > 0);
+
+    arr.sort((a,b)=> a.x - b.x);
+
+    // slå ihop: tillåt små glipor upp till gapTol
+    let cur = null;
+    for (const s of arr){
+      if (!cur){
+        cur = { ...s, children:[s] };
+        continue;
+      }
+      const right = cur.x + cur.w;
+      if (s.x - right <= gapTol){ // NUDDAR ELLER LITEN GLIPA → MERGE
+        const newRight = Math.max(right, s.x + s.w);
+        cur.w = newRight - cur.x;
+        cur.children.push(s);
+      } else {
+        // flush
+        cur._corners = null;
+        cur._aabb = { x:cur.x, y:cur.y, w:cur.w, h:cur.h };
+        cur._axes = null;
+        merged.push(cur);
+        cur = { ...s, children:[s] };
+      }
+    }
+    if (cur){
+      cur._corners = null;
+      cur._aabb = { x:cur.x, y:cur.y, w:cur.w, h:cur.h };
+      cur._axes = null;
+      merged.push(cur);
+    }
+  }
+
+  return merged.concat(passthrough);
+}
     const map = game.maps[game.currentmap];
-    const stat = [];
+    let stat = [];
     const dyn  = [];
     let uid = 1;
     const ghosts = [];
@@ -288,6 +366,7 @@ function _pushCollisionLog(targetRef, otherRef, n, isGhost=false){
 
           if (layer.solid === true ){
                 const S = { id:uid++, type:'static', invMass:0.0, x:o.x, y:o.y, ...base };
+
                 if ((S.rot|0) !== 0){
                   S._corners = getRotatedRectangleCorners(S.x,S.y,S.w,S.h,S.rot||0);
                   S._aabb    = _aabbFrom(S.x,S.y,S.w,S.h,S.rot||0);
@@ -372,6 +451,7 @@ if ((o.dual|0) > 0 && ((o.rot|0) === 0)){
         }
       }
     } 
+    stat = coalesceStaticsRobust(stat, { yTol: 2, gapTol: 2, sideSkin: 0.5 });
     markGhostsDirty();
 // Bygg stat-grid EN gång per frame (som innan)
 const { gridStat, gridGhost } = _ensureStaticGrids(stat, ghosts);
@@ -430,55 +510,7 @@ for (let it = 0; it < this.ITER; it++) {
 
 
       
-      
-/* === ANTI-SIDE-STICK: dämpad vertikal + pin till top === */
-if (contact.n.x !== 0 && contact.n.y === 0 && ((B.rot|0)===0)) {
-  const Aref = A.ref || null;
-  const wanty = Aref ? (Aref._wantdy||0) : 0;
 
-  // effektiv topp under A:s mitt
-  const AcenterX = A.x + A.w*0.5;
-  const BtopEff  = effectiveTopY(B, AcenterX);
-
-  // nära toppytan?
-  const Abot = A.y + A.h;
-  if (Abot >= BtopEff - STEP_EPS && Abot <= BtopEff + STEP_MAX) {
-    // vertikal overlap mot effektiva toppen
-    const oyEff = Math.min(A.y + A.h, B.y + B.h) - Math.max(A.y, BtopEff);
-    if (oyEff > 0) {
-      // *** DÄMPA LYFTET kraftigt för att undvika "hopp" ***
-      const MAX_LIFT = 1.8;        // <- prova 0.5–1.0 om du vill
-      const lift = Math.min(oyEff, MAX_LIFT);
-
-      // tvinga upp-normal men med dämpat djup
-      contact = { n:{x:0, y:+4}, depth: lift };
-
-      // *** PINNA BOTTNEN till topplinjen den här framen ***
-      // (minskar subpixelläges-flyt som annars ger studs)
-      const PIN_EPS = 0.25;         // liten säkerhetsmarginal så vi inte “svävar”
-      const targetY = (BtopEff - A.h) + PIN_EPS;
-
-      // Endast om vi inte redan rör oss tydligt uppåt (vill undvika att sabba hopp)
-      if (wanty >= -0.25) {
-        // Lägg pin på solvernivå: flytta A:s proxy direkt
-        // (d.x/d.y uppdateras senare i din apply-loop)
-        A.y = Math.min(A.y, targetY);
-        // Nolla ev. uppåtkorrigering i ackumulatorn så den inte lägger till mer lyft
-        if (Aref) {
-          if (Aref.__dy < 0) Aref.__dy = 0;
-        }
-        // Uppdatera cache för AABB så efterföljande kontakter ser den pinnade höjden
-        if ((A.rot|0) !== 0) {
-          A._corners = getRotatedRectangleCorners(A.x, A.y, A.w, A.h, A.rot||0);
-          A._aabb    = _aabbFrom(A.x, A.y, A.w, A.h, A.rot||0);
-        } else {
-          A._corners = null;
-          A._aabb    = { x:A.x, y:A.y, w:A.w, h:A.h };
-        }
-      }
-    }
-  }
-}
       
       
       
@@ -775,7 +807,7 @@ function _ensureStaticGrids(stat, ghosts){
   }
   return { gridStat:_gridStat, gridGhost:_gridGhost };
 }
-const EDGE_DROP_MAX = 2;   // testa 1..3
+const EDGE_DROP_MAX = 0;   // testa 1..3
 // Hur brant droppen ska kännas (1 = linjär, 2 = lite rundare)
 const EDGE_POWER    = 1.0;
 
@@ -1942,6 +1974,7 @@ class Objecttype {
           if (o.fliped === true) ctx.scale(-1, 1);
           // rita bilden centrerad
           ctx.drawImage(img, -w/2, -h/2, w, h);
+          
           ctx.restore();
 
           // ===== (valfritt) markeringsram när selected =====
@@ -1970,6 +2003,19 @@ class Objecttype {
             ctx.strokeRect(camerax + o.x, cameray + o.y, w, h);
             ctx.restore();
           }
+          
+          if(o.alertT>0){
+              ctx.save();
+              ctx.scale(scale, scale);
+              ctx.font = "bold 60px serif";;
+              ctx.fillStyle = "red";
+              ctx.fillText('!', camerax + cx-10, cameray + o.y-20);
+              ctx.restore();
+          }
+          
+          
+          
+          
         }
     }
 }
@@ -2081,6 +2127,8 @@ class Objectx {
         this._wantdx=0;
         this._wantdy=0;
         this.dual=0;
+        this.alertT=0;
+     
     }
     collidestest(){
 

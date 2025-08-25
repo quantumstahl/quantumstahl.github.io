@@ -191,15 +191,7 @@
                         else{attack=false;acount=0;}
                     }
                     
-                    for(let r of rat.objects){
-                        r.y+=11;
-                        r.dual=20;
-                        if(r.fliped==true){r.x-=3;r.direction="left";}
-                        if(r.fliped==false){r.x+=3;r.direction="right";}
-                        
-                        
-                        
-                    }
+                    updateRats();
                     drawHealthBars();
                     
                   if(acount==20)  handleCombat("swordguy", ["rat"], 20);
@@ -318,7 +310,159 @@ function handleCombat(attackerType, enemyTypes, damage) {
         }
     }
 }
+// ====== Tunables ======
+const RAT_AI = {
+  SPEED:        2.2,
+  CHASE_SPEED:  3.2,
+  SIGHT_X:     260,
+  SIGHT_Y:      48,
+  FORGET_X:    360,
+  ATTACK_RANGE: 34,
+  WINDUP_FR:     8,
+  ATTACK_CD_FR: 26,
+  TURN_CD_FR:   102,   // <— NYTT: “safe window” efter vändning
+  ALERT_T_FR:   50,   // hur länge “!” visas när de får aggro
+  SEP_RADIUS:   24,
+  SEP_PUSH:      0.6
+};
 
+function initRat(r){
+  if (r.ai) return;
+  r.ai = {
+    state:'patrol',
+    dir: (r.fliped ? -1 : 1),
+    vx:0, timer:0,
+    target:null,
+    turnCD:0,       // <— NYTT
+    alertT:0        // <— NYTT (för “!” och ev. ‘alert’-animation)
+  };
+}
+
+function nearestPlayer(from){
+  const t = game.getobjecttype('swordguy');
+  if (!t || !t.objects || !t.objects.length) return null;
+  let best=null,bd=1e9;
+  for (const p of t.objects){
+    const d = Math.abs(p.x-from.x) + Math.abs(p.y-from.y);
+    if (d<bd){ bd=d; best=p; }
+  }
+  return best;
+}
+
+function ratSeparation(r, rats){
+  for (const o of rats){
+    if (o===r) continue;
+    const dx=r.x-o.x, dy=r.y-o.y;
+    const d2=dx*dx+dy*dy; if (d2===0) continue;
+    if (d2 <= RAT_AI.SEP_RADIUS*RAT_AI.SEP_RADIUS){
+      const d=Math.sqrt(d2), f=RAT_AI.SEP_PUSH*(1-d/RAT_AI.SEP_RADIUS);
+      r.x += (dx/d)*f;
+    }
+  }
+}
+
+function updateRats(){
+  const rats = game.getobjecttype('rat')?.objects || [];
+  for (const r of rats){
+    initRat(r);
+
+    // din grav / dual hack
+    r.y += 11; 
+    r.dual = 20;
+
+    ratSeparation(r, rats);
+
+    // target + avstånd
+    if (!r.ai.target) r.ai.target = nearestPlayer(r);
+    const P = r.ai.target;
+    let dx=0, dy=0, distX=1e9;
+    if (P){ dx=P.x-r.x; dy=P.y-r.y; distX=Math.abs(dx); }
+
+    // tick timers
+    if (r.ai.turnCD > 0){ r.ai.turnCD--;}
+    if (r.alertT > 0) r.alertT--;
+
+    // ——— Aggro/forget
+    const seesPlayer = (P && distX < RAT_AI.SIGHT_X && Math.abs(dy) < RAT_AI.SIGHT_Y);
+    if (r.ai.state==='patrol' && seesPlayer){ 
+      r.ai.state = 'chase'; 
+      r.alertT = RAT_AI.ALERT_T_FR;          // <— visa “!”
+      // valfritt: setta animation “alert”
+    }
+    if (r.ai.state!=='patrol' && (!P || distX>RAT_AI.FORGET_X)){
+      r.ai.state = 'patrol'; r.ai.target=null;
+    }
+
+    // ——— Vändhantering: om spelaren är på andra sidan → vänd + turn cooldown
+    // Ger ett “backstab-fönster”: under turnCD kan råttan inte starta attack.
+    const desiredDir = (dx < 0 ? -1 : 1);
+    if (P){
+      
+      if (desiredDir !== r.ai.dir){
+          if(r.ai.turnCD==0)r.ai.turnCD = RAT_AI.TURN_CD_FR
+          if(r.ai.turnCD==1)r.ai.dir   = desiredDir;
+
+      }
+    }
+
+    // ——— State machine
+    switch (r.ai.state){
+      case 'patrol': {
+        r.ai.vx = RAT_AI.SPEED * r.ai.dir;
+        if (!game.collideswiths(r,'swordguy')){
+          if (game.collideswith(r,'any','left'))  r.ai.dir = +1;
+          if (game.collideswith(r,'any','right')) r.ai.dir = -1;
+        }
+        break;
+      }
+
+      case 'chase': {
+        r.ai.vx = RAT_AI.CHASE_SPEED * r.ai.dir;
+
+        if (!game.collideswiths(r,'swordguy')){
+          if (game.collideswith(r,'any','left'))  r.ai.dir = +1;
+          if (game.collideswith(r,'any','right')) r.ai.dir = -1;
+        }
+
+        // Attack bara när:
+        // - vi är inom range
+        // - vi FAKTISKT FÖR rätten (dx*dir > 0)
+        // - och vi är inte i vänd-cooldown
+        if (P && distX <= RAT_AI.ATTACK_RANGE && (dx * r.ai.dir) > 0 && r.ai.turnCD === 0){
+          r.ai.state = 'windup';
+          r.ai.timer = RAT_AI.WINDUP_FR;
+          r.ai.vx = 0;
+          // r.animation = 'attack_start';
+        }
+        break;
+      }
+
+      case 'windup': {
+        r.ai.vx = 0;
+        r.ai.timer--;
+        if (r.ai.timer <= 0){
+          handleCombat("rat", ["swordguy"], 10);
+          r.ai.state = 'cooldown';
+          r.ai.timer = RAT_AI.ATTACK_CD_FR;
+          // cameraShake(3,120); hitStop(50); // om du har sådant
+        }
+        break;
+      }
+
+      case 'cooldown': {
+        r.ai.vx = -0.6 * r.ai.dir; // backa liten bit
+        r.ai.timer--;
+        if (r.ai.timer <= 0) r.ai.state = 'chase';
+        break;
+      }
+    }
+
+    // Rörelse + facing
+    if(desiredDir === r.ai.dir)r.x += r.ai.vx;
+    r.fliped = (r.ai.dir < 0);
+    r.direction = r.fliped ? 'left' : 'right';
+  }
+}
 
 
         </script>
