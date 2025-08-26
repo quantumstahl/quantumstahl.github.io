@@ -465,6 +465,15 @@ E*?
 images/rat3.png
 E*?
 images/rat4.png
+D*?
+
+10
+E*?
+images/ratattack2.png
+E*?
+images/ratattack3.png
+E*?
+images/ratattck1.png
 F*?
 3359
 750

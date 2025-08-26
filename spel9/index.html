@@ -112,7 +112,6 @@
             attack=false;
             acount=0;
             attacklength=25;
-            ecount=0;
             
              
             var check = function(){
@@ -147,10 +146,10 @@
                     
                     bird.objects[0].dual=40;
                     bird.objects[0].animation=0;
-                    bird.objects[0].y=bird.objects[0].y+11;
+                //    bird.objects[0].y=bird.objects[0].y+11;
                     if(keyState.d){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}
                     if(keyState.a){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}
-                    if(keyState.w||abutton.objects[0].mousepressed==true){jump=true; }
+                    if(keyState.w||abutton.objects[0].mousepressed==true){if(game.collideswith(bird.objects[0],"any","down"))jump=true; }
                     
                     
                     if("ontouchstart" in document.documentElement){
@@ -174,7 +173,7 @@
                         if(count<jumplength){bird.objects[0].y=bird.objects[0].y-22;count++;}
 
 
-                        if(game.collideswith(bird.objects[0],"any","down")){
+                        if(game.collideswith(bird.objects[0],"any","down")&&count>2){
                             count=0;
                             jump=false;
                         }
@@ -192,9 +191,7 @@
                     drawHealthBars();
                     
                     if(acount==20)  handleCombat("swordguy", ["rat"], 20);
-                    ecount++;
-                    if(ecount==20)handleCombat("rat", ["swordguy"], 10);
-                    if(ecount==25)ecount=0;
+                    updatePhysics(bird.objects[0]);
                     
                     
                     let offx = 0, offy = 0;
@@ -305,8 +302,8 @@ function handleCombat(attackerType, enemyTypes, damage) {
        
         // === KNOCKBACK ===
         const dir = (unit.x < target.x) ? +1 : -1;
-        target.vx = dir * 30;  // kastas åt sidan
-        target.vy = -25;       // lite upp i luften
+        target.vx = dir * 20;  // kastas åt sidan
+        target.vy = -20;       // lite upp i luften
 
         // === DÖD ===
         if (target.health <= 0) {
@@ -324,7 +321,7 @@ const RAT_AI = {
   SIGHT_Y:      48,
   FORGET_X:    360,
   ATTACK_RANGE: 34,
-  WINDUP_FR:     8,
+  WINDUP_FR:     20,
   ATTACK_CD_FR: 26,
   TURN_CD_FR:   102,   // <— NYTT: “safe window” efter vändning
   ALERT_T_FR:   50,   // hur länge “!” visas när de får aggro
@@ -373,9 +370,10 @@ function updateRats(){
   for (const r of rats){
     initRat(r);
     updatePhysics(r);
+    r.animation = 0;
     // din grav / dual hack
     r.y += 11; 
-    r.dual = 20;
+    r.dual = 30;
 
     ratSeparation(r, rats);
 
@@ -435,23 +433,29 @@ function updateRats(){
         // - vi är inom range
         // - vi FAKTISKT FÖR rätten (dx*dir > 0)
         // - och vi är inte i vänd-cooldown
-        if (P && distX <= RAT_AI.ATTACK_RANGE && (dx * r.ai.dir) > 0 && r.ai.turnCD === 0){
+        if (P && game.collideswith(r, "swordguy", "ghost") && (dx * r.ai.dir) > 0 && r.ai.turnCD === 0){
           r.ai.state = 'windup';
           r.ai.timer = RAT_AI.WINDUP_FR;
           r.ai.vx = 0;
-          // r.animation = 'attack_start';
+           r.animation = 1;
         }
         break;
       }
 
       case 'windup': {
         r.ai.vx = 0;
+        r.animation = 1; // attack animation
+
         r.ai.timer--;
-        if (r.ai.timer <= 0){
+
+        // När halva windupen passerat → träffen går igenom
+        if (r.ai.timer === Math.floor(RAT_AI.WINDUP_FR/2)) {
           handleCombat("rat", ["swordguy"], 10);
+        }
+
+        if (r.ai.timer <= 0) {
           r.ai.state = 'cooldown';
           r.ai.timer = RAT_AI.ATTACK_CD_FR;
-          // cameraShake(3,120); hitStop(50); // om du har sådant
         }
         break;
       }
