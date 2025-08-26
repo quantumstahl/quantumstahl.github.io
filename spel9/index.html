@@ -146,7 +146,7 @@
                     
                     bird.objects[0].dual=40;
                     bird.objects[0].animation=0;
-                //    bird.objects[0].y=bird.objects[0].y+11;
+                    bird.objects[0].y=bird.objects[0].y+11;
                     if(keyState.d){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}
                     if(keyState.a){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}
                     if(keyState.w||abutton.objects[0].mousepressed==true){if(game.collideswith(bird.objects[0],"any","down"))jump=true; }
@@ -303,7 +303,7 @@ function handleCombat(attackerType, enemyTypes, damage) {
         // === KNOCKBACK ===
         const dir = (unit.x < target.x) ? +1 : -1;
         target.vx = dir * 20;  // kastas åt sidan
-        target.vy = -20;       // lite upp i luften
+        target.vy = -25;       // lite upp i luften
 
         // === DÖD ===
         if (target.health <= 0) {
@@ -476,8 +476,10 @@ function updateRats(){
 }
 function updatePhysics(obj){
   // Gravitation
-  obj.vy += 1.2;         // grav styrka
-  if (obj.vy > 11) obj.vy = 11; // clamp fallhastighet
+  if(obj.vy<0)obj.vy += 1.2;         // grav styrka
+  
+  
+  //if (obj.vy > 11) obj.vy = 11; // clamp fallhastighet
 
   // Rörelse
   obj.x += obj.vx;
