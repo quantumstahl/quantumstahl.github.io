@@ -112,7 +112,7 @@
             attack=false;
             acount=0;
             attacklength=25;
-            
+            coins=0;
              
             var check = function(){
                 if(canvas.width===10||canvas.width===300){canvas.width=document.body.clientWidth;canvas.height=document.body.clientHeight-8;}  
@@ -123,7 +123,9 @@
                 const rat=game.getobjecttype("rat");
                 const abutton=game.getobjecttype("abutton");
                 const bbutton=game.getobjecttype("bbutton");
-                
+                const coin=game.getobjecttype("coin");
+                const apple=game.getobjecttype("apple");
+                const coinicon=game.getobjecttype("coinicon");
                 
                 if(bird){
                     
@@ -136,6 +138,11 @@
                     
                     game.updateanimation(ctx);
                     game.setcameraobj(bird.objects[0], canvas.width, null);
+                    coinicon.objects[0].x=40;coinicon.objects[0].y=100;
+                    ctx.font = "100px serif";
+                    ctx.fillText(": "+coins, 150, 190);
+                    
+                    
                     
                     if (hitstopFrames > 0){
                         hitstopFrames--;
@@ -190,9 +197,9 @@
                     updateRats();
                     drawHealthBars();
                     
-                    if(acount==20)  handleCombat("swordguy", ["rat"], 20);
+                    if(acount==20)  handleCombat("swordguy", ["rat"], 50);
                     updatePhysics(bird.objects[0]);
-                    
+                    updateLoot(bird.objects[0]);
                     
                     let offx = 0, offy = 0;
                     if (shakeTime > 0){
@@ -223,7 +230,7 @@ function drawHealthBars() {
 
 
     // defaultvärden om hälsa saknas
-    if (o.maxhealth == null){ o.maxhealth = Heroes.has(o.name) ? 800 : 100;o.health = o.maxhealth;}
+    if (o.maxhealth == null){ o.maxhealth = Heroes.has(o.name) ? 200 : 100;o.health = o.maxhealth;}
     if (o.health == null) o.health = o.maxhealth;
 
     const hpPct = Math.max(0, Math.min(1, o.health / o.maxhealth));
@@ -307,6 +314,42 @@ function handleCombat(attackerType, enemyTypes, damage) {
 
         // === DÖD ===
         if (target.health <= 0) {
+            
+            
+            // --- DROP LOOT ---
+            const cx = target.x + target.dimx/2;
+            const cy = target.y+target.dimy-30; // vid marken
+
+            // Coin (100% chans)
+            const c = game.addobject(game.getobjecttype("coin"),  cx, cy, 16,16, 0, false);
+            c.vx = (Math.random()*2 - 1) * 1.2;
+            c.vy = -6 - Math.random()*2;
+            c.ay = 0.6;
+            c.state = 'air';
+            c.t = 0;
+            c.pickDelay = 10;          // kan inte plockas direkt
+            c.despawn = 60*20;         // ~20s
+
+            // apple (30% chans)
+            if (Math.random() < 0.3){
+              const a = game.addobject(game.getobjecttype("apple"), cx+8, cy, 16,16, 0, false);
+              a.vx = (Math.random()*2 - 1) * 1.0;
+              a.vy = -7;
+              a.ay = 0.6;
+              a.state = 'air';
+              a.t = 0;
+              a.pickDelay = 10;
+              a.despawn = 60*25;
+            } 
+            
+            
+            
+            
+            
+            
+            
+            
+            
           game.removeobject(game.getobjecttype(enemyType), target);
         }
       }
@@ -504,6 +547,79 @@ function cameraShake(mag, ms){
 let hitstopFrames = 0;
 function hitStop(fr){
   hitstopFrames = fr;
+}
+function groundSnapGhost(o){
+  // Om din motor tillåter: if (game.collideswith(o,"ground","down")) return true;
+  const grounds = game.getobjecttype("ground")?.objects || [];
+  let bestY = +Infinity;
+  for (const g of grounds){
+    const overlapX = (o.x+o.dimx > g.x) && (o.x < g.x+g.dimx);
+    if (!overlapX) continue;
+    bestY = Math.min(bestY, g.y - o.dimy);
+  }
+  if (bestY < +Infinity && o.y >= bestY){
+    o.y = bestY;
+    return true;
+  }
+  return false;
+}
+
+function updateLoot(player){
+  const sets = [game.getobjecttype("coin"), game.getobjecttype("apple")];
+  for (const type of sets){
+    const arr = type?.objects || [];
+    for (let i=arr.length-1; i>=0; --i){
+      const o = arr[i];
+      o.t++; if (o.pickDelay>0) o.pickDelay--;
+      if (o.despawn-- <= 0){ game.removeobject(type, o); continue; }
+
+      if (o.state === 'air'){
+        // enkel “fysik”
+        o.vy += (o.ay || 0.6);
+        o.x  += (o.vx || 0);
+        o.y  += (o.vy || 0);
+
+        // landa på mark (ghost → manuell snap)
+        if (groundSnapGhost(o)){
+          o.state = 'rest';
+          o.vx = 0; o.vy = 0;
+          o.baseY = o.y;
+        }
+      } else { // 'rest' → bob + magnet
+        // bob
+        o.y = o.baseY + Math.sin(o.t*0.2)*0.6;
+
+        // magnet mot spelaren inom radie
+        const px = player.x + player.dimx/2, py = player.y + player.dimy/2;
+        const ox = o.x + o.dimx/2,          oy = o.y + o.dimy/2;
+        const dx = px-ox, dy = py-oy;
+        const d2 = dx*dx + dy*dy;
+        const R = 140; // magnetradie px
+        if (d2 < R*R){
+          const invd = 1/Math.max(1, Math.sqrt(d2));
+          const s = 3.0; // sugstyrka
+          o.x += dx*invd*s;
+          o.y += dy*invd*s;
+        }
+      }
+
+      // pickup (ghost-kollision)
+      if (o.pickDelay<=0){
+        if (type === game.getobjecttype("coin") && game.collideswith(player,"coin","ghost")){
+          game.removeobject(type,o);
+          coins++;
+          audio2("sounds/coin.mp3");
+          continue;
+        }
+        if (type === game.getobjecttype("apple") && game.collideswith(player,"apple","ghost")){
+          game.removeobject(type,o);
+          player.health = Math.min(player.maxhealth, (player.health)+20);
+          audio2("sounds/apple.mp3");
+          continue;
+        }
+      }
+    }
+  }
 }
 
 

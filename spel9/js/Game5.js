@@ -717,7 +717,7 @@ if (prof) prof.tic('slide');
         if (!contact) continue;
 
         // Logga åt båda hållen, men flytta INTE
-       // _pushCollisionLog(D.ref, (G.ref || G), contact.n, true);
+        _pushCollisionLog(D.ref, (G.ref || G), contact.n, true);
         _pushCollisionLog(G.ref, (D.ref || D), {x:-contact.n.x, y:-contact.n.y}, true);
 
         // valfritt: flagga som triggerad den här framen
@@ -2132,7 +2132,8 @@ class Objectx {
         this.alertT=0;
         this.vx=0;
         this.vy=0;
-     
+        this.pickDelay=0;
+        this.despawn =100;
     }
     collidestest(){
 
