@@ -113,6 +113,8 @@
             acount=0;
             attacklength=25;
             coins=0;
+            levelCompleteTimer = 0;
+            showLevelComplete = false;
              
             var check = function(){
                 if(canvas.width===10||canvas.width===300){canvas.width=document.body.clientWidth;canvas.height=document.body.clientHeight-8;}  
@@ -200,6 +202,9 @@
                     if(acount==20)  handleCombat("swordguy", ["rat"], 50);
                     updatePhysics(bird.objects[0]);
                     updateLoot(bird.objects[0]);
+                    updateGoal(bird.objects[0]);
+                    drawHUD(ctx);
+                    
                     
                     let offx = 0, offy = 0;
                     if (shakeTime > 0){
@@ -621,6 +626,53 @@ function updateLoot(player){
     }
   }
 }
+function updateGoal(player){
+    
+   if(showLevelComplete){
+    levelCompleteTimer--;
+    if (levelCompleteTimer <= 1){
+      showLevelComplete = false;
+      game.currentmap = (game.currentmap+1) % game.maps.length;
+      markStaticsDirty();
+    }
+  }  
+    
+    
+    
+  const p = game.collideswith(player, "portal", "ghost");
+  if (p&&levelCompleteTimer===0){
+    // Liten effekt innan bytet
+    cameraShake(6, 200);
+    //hitStop(5);
+    levelCompleteTimer = 240;
+    showLevelComplete=true;
+    // Byt till nästa bana
+    //game.currentmap = (game.currentmap + 1) % game.maps.length;
+    //markStaticsDirty();
+
+
+  }
+
+  
+  
+  
+}
+
+function drawHUD(ctx){
+  // Level complete overlay
+  if (showLevelComplete){
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    ctx.fillStyle = "#FFD700";
+    ctx.font = "bold 32px pixel, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("LEVEL COMPLETE!", canvas.width/2, canvas.height/2);
+    ctx.restore();
+  }
+}
+
 
 
 

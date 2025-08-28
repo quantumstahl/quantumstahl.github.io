@@ -1835,13 +1835,12 @@ class Game5 {
 }
     getAllObjects() {
         const list = [];
-        for (let map of this.maps) {
-            for (let layer of map.layer) {
+            for (let layer of game.maps[game.currentmap].layer) {
                 for (let objtype of layer.objectype) {
                     list.push(...objtype.objects);
                 }
             }
-        }
+        
         return list;
     }
     getAllObjectsoftype(objtype){
