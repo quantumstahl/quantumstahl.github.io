@@ -395,56 +395,66 @@ const predY  = startY + wantdy;
 
 let solidX = predX, solidY = predY, solidW = o.dimx, solidH = o.dimy;
 let insetOffX = 0, insetOffY = 0;
-
+// ====== DUAL-CUT: dela kroppen i ghost-front + dyn-back ======
 const dualPct = Math.max(0, Math.min(o.dual|0, 100));
-if (!isBuilding(o) && !o.ghost && ((o.rot|0) === 0) && dualPct > 0){
-  const p   = dualPct / 100;
-  const cutX = Math.min(solidW - 1, solidW * p);
-  const cutY = Math.min(solidH - 1, solidH * p);
-  const dir  = (o.direction||'').toString().trim().toLowerCase();
+const hasDual = (!isBuilding(o) && !o.ghost && ((o.rot|0) === 0) && dualPct > 0);
 
-  if (dir === 'left'){
-    solidX += cutX; solidW -= cutX; insetOffX = cutX;
-  } else if (dir === 'right'){
-    solidW -= cutX; /* insetOffX = 0 */
-  } else if (dir === 'up'){
-    solidY += cutY; solidH -= cutY; insetOffY = cutY;   // krymp i toppen
+
+let ghostFront = null; // {x,y,w,h}
+if (hasDual){
+  const p = dualPct / 100;
+  const dir = (o.direction||'').toString().trim().toLowerCase();
+  const W = o.dimx, H = o.dimy;
+
+  if (dir === 'right'){
+    const gw = Math.max(1, Math.floor(W * p));
+    const sw = Math.max(1, W - gw);
+    ghostFront = { x: predX + sw, y: predY, w: gw, h: H };
+    solidX = predX; solidW = sw;
+    insetOffX = 0;              // bakdel börjar vid predX → ingen kompensation
+
+  } else if (dir === 'left'){
+    const gw = Math.max(1, Math.floor(W * p));
+    const sw = Math.max(1, W - gw);
+    ghostFront = { x: predX, y: predY, w: gw, h: H };
+    solidX = predX + gw; solidW = sw;
+    insetOffX = gw;             // *** VIKTIGT: komp för att bakdel flyttats till höger ***
+
   } else if (dir === 'down'){
-    solidH -= cutY; /* insetOffY = 0 */                 // krymp i botten
+    const gh = Math.max(1, Math.floor(H * p));
+    const sh = Math.max(1, H - gh);
+    ghostFront = { x: predX, y: predY + sh, w: W, h: gh };
+    solidY = predY; solidH = sh;
+    insetOffY = 0;              // bakdel startar vid predY
+
+  } else if (dir === 'up'){
+    const gh = Math.max(1, Math.floor(H * p));
+    const sh = Math.max(1, H - gh);
+    ghostFront = { x: predX, y: predY, w: W, h: gh };
+    solidY = predY + gh; solidH = sh;
+    insetOffY = gh;             // *** VIKTIGT: komp för att bakdel flyttats ned ***
   }
 }
 
-// Skapa dynamisk proxy med riktad inset
+// === DYN-proxy: alltid bakdelen (eller hela kroppen om ingen dual) ===
 let P;
 if (isBuilding(o)) P = { id:uid++, type:'dyn', invMass:0, x:solidX, y:solidY, sx:startX, sy:startY, w:solidW, h:solidH, rot:o.rot||0, ref:o };
 else               P = { id:uid++, type:'dyn', invMass:1, x:solidX, y:solidY, sx:startX, sy:startY, w:solidW, h:solidH, rot:o.rot||0, ref:o };
 
 P._insetOffX = insetOffX;
 P._insetOffY = insetOffY;
-
-P._corners = ((P.rot|0) !== 0) ? getRotatedRectangleCorners(P.x,P.y,P.w,P.h,P.rot||0) : null;
-P._aabb    = ((P.rot|0) !== 0) ? _aabbFrom(P.x,P.y,P.w,P.h,P.rot||0) : {x:P.x,y:P.y,w:P.w,h:P.h};
+P._corners = null;
+P._aabb    = { x:P.x, y:P.y, w:P.w, h:P.h };
 dyn.push(P);
 
-// === Ghost-näsa i exakt direction (utan att röra solid) ===
-if ((o.dual|0) > 0 && ((o.rot|0) === 0)){
-  const p = dualPct / 100;
-  const s = (o.direction||'').toString().trim().toLowerCase();
-  if (s === 'left' || s === 'right'){
-    const ghW = o.dimx * p;
-    const nx  = (s === 'right') ? predX + o.dimx : predX - ghW;
-    const G = { id:uid++, type:'ghost', invMass:0, x:nx, y:predY, w:ghW, h:o.dimy, rot:0, ref:o };
-    G._corners = getRotatedRectangleCorners(G.x,G.y,G.w,G.h,0);
-    G._aabb    = { x:G.x, y:G.y, w:G.w, h:G.h };
-    ghosts.push(G);
-  } else if (s === 'up' || s === 'down'){
-    const ghH = o.dimy * p;
-    const ny  = (s === 'down') ? predY + o.dimy : predY - ghH; // “up” = mindre y
-    const G = { id:uid++, type:'ghost', invMass:0, x:predX, y:ny, w:o.dimx, h:ghH, rot:0, ref:o };
-    G._corners = getRotatedRectangleCorners(G.x,G.y,G.w,G.h,0);
-    G._aabb    = { x:G.x, y:G.y, w:G.w, h:G.h };
-    ghosts.push(G);
-  }
+// === GHOST-proxy: endast om dual och ghostFront finns ===
+if (ghostFront){
+  const G = { id:uid++, type:'ghost', invMass:0, x:ghostFront.x, y:ghostFront.y, w:ghostFront.w, h:ghostFront.h, rot:0, ref:o };
+  G._corners = null;
+  G._aabb    = { x:G.x, y:G.y, w:G.w, h:G.h };
+  G._ghostClass = 'dualFront';   // <— inte "nose": detta är CUT-fronten
+  G._owner = o;
+  ghosts.push(G);
 }
 
 
@@ -705,6 +715,9 @@ if (prof) prof.tic('slide');
     for (let i=0;i<dyn.length;i++){
       const D = dyn[i];              // färdiga, slid:ade positioner
       const aabbD = _aabbFrom(D.x, D.y, D.w, D.h, D.rot||0);
+      
+            
+      
       const nearG = gridGhost.query(aabbD);
       for (let gi=0; gi<nearG.length; gi++){
         const G = nearG[gi];
@@ -715,7 +728,7 @@ if (prof) prof.tic('slide');
         // Overlap? använd OBB-test (ingen MTV appliceras!)
         const contact = obbObbMTV(D, G);
         if (!contact) continue;
-
+      
         // Logga åt båda hållen, men flytta INTE
         _pushCollisionLog(D.ref, (G.ref || G), contact.n, true);
         _pushCollisionLog(G.ref, (D.ref || D), {x:-contact.n.x, y:-contact.n.y}, true);
@@ -1335,7 +1348,7 @@ class Game5 {
     
     
     updateanimation(ctx) {
-     //   try {
+        try {
     
             this.updateUnitMovement();
             
@@ -1388,7 +1401,7 @@ class Game5 {
         updateAndDrawFX(ctx);
   
         
-      //  } catch (error) {}
+        } catch (error) {}
     }
     collitionengine() {
 
@@ -1905,8 +1918,26 @@ class Layer {
         this.ghost = false;
     }
 }
-
+const tintCanvas = document.createElement("canvas");
+const tintCtx = tintCanvas.getContext("2d");
 class Objecttype {
+    
+    
+     drawTinted(ctx, sprite, x, y,w,h, tint){
+        tintCanvas.width = sprite.width;
+        tintCanvas.height = sprite.height;
+
+        tintCtx.clearRect(0,0,tintCanvas.width,tintCanvas.height);
+        tintCtx.drawImage(sprite, 0, 0);
+        tintCtx.globalCompositeOperation = "source-atop";
+        tintCtx.fillStyle = tint;
+        tintCtx.fillRect(0,0,tintCanvas.width,tintCanvas.height);
+        tintCtx.globalCompositeOperation = "source-over";
+
+        ctx.drawImage(tintCanvas, x, y,w,h);
+      }
+    
+    
     constructor(name) {
         this.images = [];
         this.objects = [];
@@ -1974,7 +2005,15 @@ class Objecttype {
           ctx.rotate(rad);
           if (o.fliped === true) ctx.scale(-1, 1);
           // rita bilden centrerad
-          ctx.drawImage(img, -w/2, -h/2, w, h);
+          
+          
+          if(o.flashTimer>0){
+             this.drawTinted(ctx, img, -w/2, -h/2,w,h, "rgba(255,60,60,0.6)");
+             o.flashTimer--;
+              
+          }
+          else
+            ctx.drawImage(img, -w/2, -h/2, w, h);
           
           ctx.restore();
 
@@ -2133,6 +2172,7 @@ class Objectx {
         this.vy=0;
         this.pickDelay=0;
         this.despawn =100;
+        this.flashTimer=0;
     }
     collidestest(){
 

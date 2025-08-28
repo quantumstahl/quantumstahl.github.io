@@ -76,7 +76,7 @@
             
             
   
-            document.addEventListener('click', (event) => {try{if(audio.paused){ audio.play();}}catch(error){};});
+            document.addEventListener('click', (event) => {try{if(audio.paused&&gameState!=='game_over'){ audio.play();}}catch(error){};});
 
             
             let keyState = {
@@ -88,7 +88,7 @@
             };
             
             document.addEventListener("keydown", function(e) {
-                try{if(audio.paused){ audio.play();}}catch(error){};
+                try{if(audio.paused&&gameState!=='game_over'){ audio.play();}}catch(error){};
                 if (e.key === "w") keyState.w = true;
                 if (e.key === "a") keyState.a = true;
                 if (e.key === "s") keyState.s = true;
@@ -115,6 +115,11 @@
             coins=0;
             levelCompleteTimer = 0;
             showLevelComplete = false;
+            let gameState = 'play'; // 'play' | 'level_complete' | 'game_over'
+            let stateTimer = 0;
+            let wantRestart = false;
+            window.addEventListener('keydown', e => { if (e.code==='Space') if(gameState === 'game_over')wantRestart = true; });
+            canvas.addEventListener('pointerdown', () => { if(gameState === 'game_over')wantRestart = true; });
              
             var check = function(){
                 if(canvas.width===10||canvas.width===300){canvas.width=document.body.clientWidth;canvas.height=document.body.clientHeight-8;}  
@@ -139,8 +144,10 @@
                     
                     
                     game.updateanimation(ctx);
-                    game.setcameraobj(bird.objects[0], canvas.width, null);
+                    
                     coinicon.objects[0].x=40;coinicon.objects[0].y=100;
+                    ctx.restore();
+                    ctx.fillStyle="black";
                     ctx.font = "100px serif";
                     ctx.fillText(": "+coins, 150, 190);
                     
@@ -152,58 +159,60 @@
                         return; // stoppa all logik den här framen
                     }
                     
-                    
-                    bird.objects[0].dual=40;
-                    bird.objects[0].animation=0;
-                    bird.objects[0].y=bird.objects[0].y+11;
-                    if(keyState.d){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}
-                    if(keyState.a){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}
-                    if(keyState.w||abutton.objects[0].mousepressed==true){if(game.collideswith(bird.objects[0],"any","down"))jump=true; }
-                    
-                    
-                    if("ontouchstart" in document.documentElement){
-                            if(joy.GetDir()=="N"){}
-                            else if(joy.GetDir()=="NE"){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}    
-                            else if(joy.GetDir()=="E"){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}
-                            else if(joy.GetDir()=="SE"){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}    
-                            else if(joy.GetDir()=="S"){}
-                            else if(joy.GetDir()=="SW"){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}    
-                            else if(joy.GetDir()=="W"){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}    
-                            else if(joy.GetDir()=="NW"){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}     
-                            else if(joy.GetDir()=="C") {
-                           
-                            }
-                        
-                         joy.redraw();
-                    }
-                    if(jump==true){
-                        bird.objects[0].animation=2;
-                        if(count==0){}
-                        if(count<jumplength){bird.objects[0].y=bird.objects[0].y-22;count++;}
+                    if(bird.objects[0]){
+                        game.setcameraobj(bird.objects[0], canvas.width, null);
+                        bird.objects[0].dual=40;
+                        bird.objects[0].animation=0;
+                        bird.objects[0].y=bird.objects[0].y+11;
+                        if(keyState.d){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}
+                        if(keyState.a){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}
+                        if(keyState.w||abutton.objects[0].mousepressed==true){if(game.collideswith(bird.objects[0],"any","down"))jump=true; }
 
 
-                        if(game.collideswith(bird.objects[0],"any","down")&&count>2){
-                            count=0;
-                            jump=false;
+                        if("ontouchstart" in document.documentElement){
+                                if(joy.GetDir()=="N"){}
+                                else if(joy.GetDir()=="NE"){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}    
+                                else if(joy.GetDir()=="E"){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}
+                                else if(joy.GetDir()=="SE"){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}    
+                                else if(joy.GetDir()=="S"){}
+                                else if(joy.GetDir()=="SW"){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}    
+                                else if(joy.GetDir()=="W"){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}    
+                                else if(joy.GetDir()=="NW"){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}     
+                                else if(joy.GetDir()=="C") {
+
+                                }
+
+                             joy.redraw();
                         }
+                        if(jump==true){
+                            bird.objects[0].animation=2;
+                            if(count==0){}
+                            if(count<jumplength){bird.objects[0].y=bird.objects[0].y-22;count++;}
+
+
+                            if(game.collideswith(bird.objects[0],"any","down")&&count>2){
+                                count=0;
+                                jump=false;
+                            }
+                        }
+                        if(keyState.space||bbutton.objects[0].mousepressed==true){attack=true;}
+
+                        if(attack==true){
+                            if(acount===0){bird.images[3].ani=0;bird.images[3].counter = 0;}
+                            bird.objects[0].animation=3;
+                            if(acount<attacklength){acount++;}
+                            else{attack=false;acount=0;}
+                        }
+                        updatePhysics(bird.objects[0]);
+                        updateLoot(bird.objects[0]);
+                        updateGoal(bird.objects[0]);
                     }
-                    if(keyState.space||bbutton.objects[0].mousepressed==true){attack=true;}
-                    
-                    if(attack==true){
-                        if(acount===0){bird.images[3].ani=0;bird.images[3].counter = 0;}
-                        bird.objects[0].animation=3;
-                        if(acount<attacklength){acount++;}
-                        else{attack=false;acount=0;}
-                    }
-                    
                     updateRats();
                     drawHealthBars();
                     
-                    if(acount==20)  handleCombat("swordguy", ["rat"], 50);
-                    updatePhysics(bird.objects[0]);
-                    updateLoot(bird.objects[0]);
-                    updateGoal(bird.objects[0]);
-                    drawHUD(ctx);
+                    if(acount==25)  handleCombat("swordguy", ["rat"], 50);
+                    
+                    
                     
                     
                     let offx = 0, offy = 0;
@@ -218,6 +227,8 @@
                     
                     
                 }
+                drawOverlays(ctx);
+                gameover();
                 window.requestAnimationFrame(check);   
             };check();
             
@@ -235,7 +246,7 @@ function drawHealthBars() {
 
 
     // defaultvärden om hälsa saknas
-    if (o.maxhealth == null){ o.maxhealth = Heroes.has(o.name) ? 200 : 100;o.health = o.maxhealth;}
+    if (o.maxhealth == null){ o.maxhealth = Heroes.has(o.name) ? 30 : 100;o.health = o.maxhealth;}
     if (o.health == null) o.health = o.maxhealth;
 
     const hpPct = Math.max(0, Math.min(1, o.health / o.maxhealth));
@@ -305,13 +316,14 @@ function handleCombat(attackerType, enemyTypes, damage) {
       if (target) {
         // === DAMAGE ===
         target.health -= damage;
+        target.flashTimer = 12;
         spawnDamageNumber(-damage, unit.x, unit.y, { color: "#ff4d4d" });
         spawnHitParticles(target.x+target.dimx/2, target.y+target.dimy/2, 6);
 
         // === JUICE ===
         hitStop(3);                // fryser ~3 frames (≈50 ms vid 60fps)
         cameraShake(20, 120);       // 120 ms shake
-       
+        
         // === KNOCKBACK ===
         const dir = (unit.x < target.x) ? +1 : -1;
         target.vx = dir * 20;  // kastas åt sidan
@@ -319,7 +331,13 @@ function handleCombat(attackerType, enemyTypes, damage) {
 
         // === DÖD ===
         if (target.health <= 0) {
-            
+            if(target.name=="swordguy"){
+                gameState='game_over';
+                audio.currentTime = 0;
+                audio.pause();
+                stateTimer=150;
+                
+            }
             
             // --- DROP LOOT ---
             const cx = target.x + target.dimx/2;
@@ -421,7 +439,7 @@ function updateRats(){
     r.animation = 0;
     // din grav / dual hack
     r.y += 11; 
-    r.dual = 30;
+    r.dual = 35;
 
     ratSeparation(r, rats);
 
@@ -610,15 +628,15 @@ function updateLoot(player){
 
       // pickup (ghost-kollision)
       if (o.pickDelay<=0){
-        if (type === game.getobjecttype("coin") && game.collideswith(player,"coin","ghost")){
+        if (type === game.getobjecttype("coin") && game.collideswith(o,"swordguy","ghost")){
           game.removeobject(type,o);
           coins++;
           audio2("sounds/coin.mp3");
           continue;
         }
-        if (type === game.getobjecttype("apple") && game.collideswith(player,"apple","ghost")){
+        if (type === game.getobjecttype("apple") && game.collideswith(o,"swordguy","ghost")){
           game.removeobject(type,o);
-          player.health = Math.min(player.maxhealth, (player.health)+20);
+          player.health = Math.min(player.maxhealth, (player.health)+10);
           audio2("sounds/apple.mp3");
           continue;
         }
@@ -628,49 +646,73 @@ function updateLoot(player){
 }
 function updateGoal(player){
     
-   if(showLevelComplete){
+   if(gameState === 'level_complete'){
     levelCompleteTimer--;
     if (levelCompleteTimer <= 1){
-      showLevelComplete = false;
+      gameState = 'play';
       game.currentmap = (game.currentmap+1) % game.maps.length;
       markStaticsDirty();
     }
   }  
-    
-    
-    
   const p = game.collideswith(player, "portal", "ghost");
   if (p&&levelCompleteTimer===0){
     // Liten effekt innan bytet
     cameraShake(6, 200);
     //hitStop(5);
     levelCompleteTimer = 240;
-    showLevelComplete=true;
+    gameState = 'level_complete';
     // Byt till nästa bana
     //game.currentmap = (game.currentmap + 1) % game.maps.length;
     //markStaticsDirty();
-
-
   }
 
   
   
   
 }
+function gameover(){
+    stateTimer--;
+    if (wantRestart){
+        gameState = 'play';
+        game.load();
+        audio.play();
+        coins=0;
+        wantRestart=false;
+    }
+}
 
-function drawHUD(ctx){
-  // Level complete overlay
-  if (showLevelComplete){
+
+function drawOverlays(ctx){
+  if (gameState === 'level_complete' || gameState === 'game_over'){
     ctx.save();
     ctx.fillStyle = "rgba(0,0,0,0.5)";
     ctx.fillRect(0,0,canvas.width,canvas.height);
-
-    ctx.fillStyle = "#FFD700";
-    ctx.font = "bold 32px pixel, sans-serif";
+    ctx.fillStyle = (gameState==='level_complete') ? "#FFD700" : "#ff4d4d";
+    ctx.font = "bold 32px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("LEVEL COMPLETE!", canvas.width/2, canvas.height/2);
+    ctx.fillText(gameState==='level_complete' ? "LEVEL COMPLETE!" : "GAME OVER", canvas.width/2, canvas.height/2);
+    ctx.font = "16px sans-serif";
+    ctx.fillStyle = "#fff";
+    ctx.fillText(gameState==='game_over' ? "Tap/Space för att försöka igen" : "", canvas.width/2, canvas.height/2+28);
     ctx.restore();
   }
+  if (gameState === 'game_over'){
+  // röd overlay
+  const alpha = Math.min(1, (150 - stateTimer)/150);
+  ctx.fillStyle = `rgba(255,0,0,${0.4*alpha})`;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  ctx.fillStyle = "#ff4d4d";
+  ctx.font = "bold 32px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("GAME OVER", canvas.width/2, canvas.height/2);
+
+  ctx.font = "16px sans-serif";
+  ctx.fillStyle = "#fff";
+  ctx.fillText("Tap/Space för att försöka igen", canvas.width/2, canvas.height/2+28);
+}
+  
+  
 }
 
 
