@@ -709,7 +709,7 @@ function updateGoal(player){
     }
   }  
   const p = game.collideswith(player, "portal", "ghost");
-  if (p&&levelCompleteTimer===0){
+  if (gameState !== 'overworld'&&p&&levelCompleteTimer===0){
     // Liten effekt innan bytet
     cameraShake(6, 200);
     //hitStop(5);
