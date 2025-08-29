@@ -826,7 +826,7 @@ if (keyState.w&&wstopper===false) {iy -= 1;wstopper=true;}
 const next = chooseNeighborByInput(ix,iy);
 if (next!=null) moveToNode(next);
 
-if (keyState.space){game.load().then(stuff).catch(console.error);  }
+if (keyState.space||(game.getobjecttype("abutton")&&game.getobjecttype("abutton").objects[0].mousepressed==true)){game.load().then(stuff).catch(console.error);  }
 
 
 
