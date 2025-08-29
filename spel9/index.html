@@ -63,7 +63,7 @@
             
             document.addEventListener("visibilitychange", event => {
                 if (document.visibilityState === "visible") {
-                        audio.pause();audio.src = 'sounds/war3.mp3';context.resume();
+                        audio.pause();audio.src = 'sounds/cast3.mp3';context.resume();
                         
                 }
                 else {
@@ -115,14 +115,53 @@
             coins=0;
             levelCompleteTimer = 0;
             showLevelComplete = false;
-            let gameState = 'play'; // 'play' | 'level_complete' | 'game_over'
+            let countercleared=0;
+            let overworldPlayer = { node:0, from:0, progress:1, speed:0.02, x:0, y:0 };
+            let gameState = 'play'; // 'play' | 'level_complete' | 'game_over'| "overworld" 
+            // === Overworld data ===
+            let overworldNodes = [
+              {id:0, x:100, y:200, type:"level", cleared:false},
+              {id:1, x:200, y:200, type:"town",  cleared:false},
+              {id:2, x:300, y:200, type:"level", cleared:false},
+              {id:3, x:400, y:150, type:"level", cleared:false}, // gren uppåt
+            ];
+
+            let overworldEdges = [
+              [0,1], [1,2], [2,3] // kopplingar
+            ];
+            let OW = { adj: buildAdjList(overworldNodes, overworldEdges) };
+            const overworldimage=new Image();
+            overworldimage.src="images/overworld.png";
+            let dstopper=false;
+            let astopper=false;
+            let wstopper=false;
+            let sstopper=false;
+            
             let stateTimer = 0;
             let wantRestart = false;
             window.addEventListener('keydown', e => { if (e.code==='Space') if(gameState === 'game_over')wantRestart = true; });
             canvas.addEventListener('pointerdown', () => { if(gameState === 'game_over')wantRestart = true; });
              
             var check = function(){
-                if(canvas.width===10||canvas.width===300){canvas.width=document.body.clientWidth;canvas.height=document.body.clientHeight-8;}  
+                if(canvas.width===10||canvas.width===300){
+                    canvas.width=document.body.clientWidth;
+                    canvas.height=document.body.clientHeight-8;
+                    overworldNodes = [
+                             {id:0, x:canvas.width/8, y:canvas.height/2.5, type:"level", cleared:false,prereq:[]},
+                             {id:1, x:canvas.width/2.2, y:canvas.height/2.3, type:"level",  cleared:false,prereq:[0]},
+                             {id:2, x:canvas.width/2.1, y:canvas.height/6.5, type:"level", cleared:false,prereq:[1]},
+                             {id:3, x:canvas.width/1.35, y:canvas.height/2.2, type:"level", cleared:false,prereq:[1]}, // gren uppåt
+                             {id:4, x:canvas.width/2.2, y:canvas.height/1.3, type:"level", cleared:false,prereq:[1]},
+                             {id:5, x:canvas.width/1.3, y:canvas.height/1.4, type:"level", cleared:false,prereq:[4]},
+                             {id:6, x:canvas.width/1.1, y:canvas.height/1.1, type:"level", cleared:false,prereq:[5]},
+                           ];
+
+                   overworldEdges = [
+                             [0,1], [1,2], [1,3],[1,4],[4,5],[5,6] // kopplingar
+                           ];
+
+                   OW = { adj: buildAdjList(overworldNodes, overworldEdges) };
+              }  
                 ctx.fillStyle = "black";
                 ctx.fillRect(0, 0, canvas.width, canvas.height); 
 
@@ -134,7 +173,8 @@
                 const apple=game.getobjecttype("apple");
                 const coinicon=game.getobjecttype("coinicon");
                 
-                if(bird){
+                if(bird&&gameState !== 'overworld'){
+                    if(!audio.src.endsWith("cast3.mp3")){audio.src = "sounds/cast3.mp3";}
                     
                     bbutton.objects[0].x=canvas.width-400;bbutton.objects[0].y=canvas.height-400;
                     abutton.objects[0].x=canvas.width-250;abutton.objects[0].y=canvas.height-250;
@@ -169,21 +209,7 @@
                         if(keyState.w||abutton.objects[0].mousepressed==true){if(game.collideswith(bird.objects[0],"any","down"))jump=true; }
 
 
-                        if("ontouchstart" in document.documentElement){
-                                if(joy.GetDir()=="N"){}
-                                else if(joy.GetDir()=="NE"){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}    
-                                else if(joy.GetDir()=="E"){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}
-                                else if(joy.GetDir()=="SE"){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}    
-                                else if(joy.GetDir()=="S"){}
-                                else if(joy.GetDir()=="SW"){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}    
-                                else if(joy.GetDir()=="W"){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}    
-                                else if(joy.GetDir()=="NW"){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}     
-                                else if(joy.GetDir()=="C") {
-
-                                }
-
-                             joy.redraw();
-                        }
+                        
                         if(jump==true){
                             bird.objects[0].animation=2;
                             if(count==0){}
@@ -226,9 +252,35 @@
                     ctx.translate(offx, offy);
                     
                     
-                }
+                
                 drawOverlays(ctx);
                 gameover();
+                }
+                if (gameState==="overworld"){
+                    
+                   
+                    if(!audio.src.endsWith("COV.mp3")){audio.src = 'sounds/COV.mp3';}
+                    updateOverworld();
+                    drawOverworld(ctx);
+                }
+                if("ontouchstart" in document.documentElement){
+                    if(joy.GetDir()=="N"){}
+                    else if(joy.GetDir()=="NE"){keyState.d = true;}    
+                    else if(joy.GetDir()=="E"){keyState.d = true;}
+                    else if(joy.GetDir()=="SE"){keyState.d = true;}    
+                    else if(joy.GetDir()=="S"){}
+                    else if(joy.GetDir()=="SW"){keyState.a = true;}    
+                    else if(joy.GetDir()=="W"){keyState.a = true;}    
+                    else if(joy.GetDir()=="NW"){keyState.a = true;}     
+                    else if(joy.GetDir()=="C") {
+
+                    }
+
+                 joy.redraw();
+                }
+                
+                
+                
                 window.requestAnimationFrame(check);   
             };check();
             
@@ -649,9 +701,11 @@ function updateGoal(player){
    if(gameState === 'level_complete'){
     levelCompleteTimer--;
     if (levelCompleteTimer <= 1){
-      gameState = 'play';
-      game.currentmap = (game.currentmap+1) % game.maps.length;
-      markStaticsDirty();
+      markCleared(overworldPlayer.node);
+      gameState = 'overworld';
+      levelCompleteTimer=0;
+      //game.currentmap = (game.currentmap+1) % game.maps.length;
+      //markStaticsDirty();
     }
   }  
   const p = game.collideswith(player, "portal", "ghost");
@@ -697,24 +751,182 @@ function drawOverlays(ctx){
     ctx.restore();
   }
   if (gameState === 'game_over'){
-  // röd overlay
-  const alpha = Math.min(1, (150 - stateTimer)/150);
-  ctx.fillStyle = `rgba(255,0,0,${0.4*alpha})`;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+        // röd overlay
+        const alpha = Math.min(1, (150 - stateTimer)/150);
+        ctx.fillStyle = `rgba(255,0,0,${0.4*alpha})`;
+        ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  ctx.fillStyle = "#ff4d4d";
-  ctx.font = "bold 32px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("GAME OVER", canvas.width/2, canvas.height/2);
+        ctx.fillStyle = "#ff4d4d";
+        ctx.font = "bold 32px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("GAME OVER", canvas.width/2, canvas.height/2);
 
-  ctx.font = "16px sans-serif";
-  ctx.fillStyle = "#fff";
-  ctx.fillText("Tap/Space för att försöka igen", canvas.width/2, canvas.height/2+28);
-}
-  
-  
+        ctx.font = "16px sans-serif";
+        ctx.fillStyle = "#fff";
+        ctx.fillText("Tap/Space för att försöka igen", canvas.width/2, canvas.height/2+28);
+    }
 }
 
+
+// === Update overworld ===
+
+
+
+
+
+// När du byter nod
+function moveToNode(next){
+  overworldPlayer.from = overworldPlayer.node;
+  overworldPlayer.node = next;
+  overworldPlayer.progress = 0; // starta resa
+}
+
+// Uppdatering varje frame
+function updateOverworld(){
+    
+
+    
+    
+    
+  const curIdx  = overworldPlayer.node;
+  const fromIdx = overworldPlayer.from;
+  const from    = overworldNodes[fromIdx];
+  const to      = overworldNodes[curIdx];
+
+  if (overworldPlayer.progress < 1){
+    overworldPlayer.progress += overworldPlayer.speed; // 0.02 ≈ 50 frames = ~0.8s
+    if (overworldPlayer.progress > 1) overworldPlayer.progress = 1;
+  }
+
+  // Lerp mellan from och to
+  const t = overworldPlayer.progress;
+  overworldPlayer.x = from.x + (to.x - from.x) * t;
+  overworldPlayer.y = from.y + (to.y - from.y) * t;
+
+  // Bara acceptera ny input om progress är klar
+  if (t >= 1){
+    handleOverworldInput();
+  }
+}
+
+// Input (bara byta nod när man står still)
+function handleOverworldInput(){
+  if(!keyState.d)dstopper=false;
+if(!keyState.a)astopper=false;
+if(!keyState.w)wstopper=false;
+if(!keyState.s)sstopper=false;
+
+
+let ix = 0, iy = 0;
+if (keyState.d&&dstopper===false) {ix += 1;dstopper=true;}
+if (keyState.a&&astopper===false) {ix -= 1;astopper=true;}
+if (keyState.s&&sstopper===false) {iy += 1;sstopper=true;}
+if (keyState.w&&wstopper===false) {iy -= 1;wstopper=true;}
+
+const next = chooseNeighborByInput(ix,iy);
+if (next!=null) moveToNode(next);
+
+if (keyState.space){game.load().then(stuff).catch(console.error);  }
+
+
+
+
+}
+function stuff(){
+    game.currentmap = overworldPlayer.node; markStaticsDirty(); gameState = "play";
+    
+    
+    
+}
+
+
+
+function drawOverworld(ctx){
+  
+  ctx.drawImage(overworldimage,0,0,canvas.width,canvas.height);
+
+
+
+
+
+
+  for (const n of overworldNodes){
+    const unlocked = isUnlocked(n);
+    ctx.save();
+    ctx.globalAlpha = unlocked ? 0.00 : 0.85;
+    ctx.fillStyle = unlocked ? "#cfd3d8" : "#9aa0a6"; // platta
+    ctx.beginPath(); ctx.arc(n.x, n.y, 40, 0, Math.PI*2); ctx.fill();
+
+    // hänglås på låsta noder
+    if (!unlocked){
+      ctx.fillStyle = "#333";
+      ctx.fillRect(n.x-6, n.y-2, 12, 10);         // kropp
+      ctx.beginPath(); ctx.arc(n.x, n.y-6, 6, Math.PI, 0); ctx.lineWidth=2; ctx.strokeStyle="#333"; ctx.stroke();
+    }
+    ctx.restore();
+
+    // cleared markering (liten stjärna)
+    if (n.cleared){
+        countercleared++;
+        ctx.globalAlpha=0.85;
+      if(countercleared<100)  {
+        ctx.fillStyle = "green";
+        ctx.beginPath();  ctx.ellipse(n.x, n.y, 50, 100, Math.PI / 2, 0, Math.PI*2);ctx.fill();
+      }
+      if(countercleared>100)  {
+        ctx.fillStyle = "lightgreen";
+        ctx.beginPath();  ctx.ellipse(n.x, n.y, 50, 100, Math.PI / 2, 0, Math.PI*2);ctx.fill();
+      }
+      if(countercleared>200)countercleared=0;
+    }
+  }
+
+  // rita spelarikonen vid overworldPlayer.x/y
+
+
+
+
+
+
+
+  // player
+  const p = overworldNodes[overworldPlayer.node];
+  
+ 
+  
+  if(game.getobjecttype("swordguy"))ctx.drawImage(game.getobjecttype("swordguy").images[0].getimage(),overworldPlayer.x,overworldPlayer.y-80,80,80);
+
+
+}
+
+function buildAdjList(nodes, edges){
+  const adj = Array(nodes.length).fill(0).map(()=>[]);
+  for (const [a,b] of edges){ adj[a].push(b); adj[b].push(a); }
+  return adj;
+}
+function isUnlocked(node){
+  if (node.id === 0) return true;          // start
+  if (!node.prereq || node.prereq.length===0) return true;
+  return node.prereq.every(id => overworldNodes[id]?.cleared);
+}
+function markCleared(id){
+  const n = overworldNodes.find(n=>n.id===id);
+  if (n) n.cleared = true;
+}
+function chooseNeighborByInput(ix, iy){
+  const cur = overworldNodes[overworldPlayer.node];
+  let best=null, bestDot=0;
+
+  for (const ni of OW.adj[overworldPlayer.node]){
+    const n = overworldNodes[ni];
+    if (!isUnlocked(n)) continue;                 // <<< låsta noder ignoreras
+    const vx=n.x-cur.x, vy=n.y-cur.y;
+    const len=Math.hypot(vx,vy)||1, dx=vx/len, dy=vy/len;
+    const dot = dx*ix + dy*iy;
+    if (dot>bestDot){ bestDot=dot; best=ni; }
+  }
+  return (bestDot>0.5)? best : null;
+}
 
 
 

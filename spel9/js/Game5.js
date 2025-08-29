@@ -1210,59 +1210,84 @@ class Game5 {
         
         
     }
-    load() {
-        this.maps = [];
-        var client = new XMLHttpRequest();
-        client.open('GET', "maps/Spelet.txt");
-        client.onload = function() {
-            var lines = client.responseText.split('\n');
-            if (game.maps.length == 0) {
-                for (var i = 0; i < lines.length; i++) {
-                    game.name = lines[0];
-                    game.currentmap = lines[1];
-                    if (lines[i] == "A*?") {
-                        game.maps.push(new Maps(lines[i + 1]));
-                        game.getlastmaps().camerax = Number(lines[i + 2]);
-                        game.getlastmaps().cameray = Number(lines[i + 3]);
-                        i = i + 3;
-                    }
-                    else if (lines[i] == "B*?") {
-                        game.getlastmaps().layer.push(new Layer(lines[i + 1]));
-                        game.getlastlayer().lock = JSON.parse(lines[i + 2]);
-                        game.getlastlayer().moving = Number(lines[i + 3]);
-                        game.getlastlayer().fysics = JSON.parse(lines[i + 4]);
-                        game.getlastlayer().solid = JSON.parse(lines[i + 5]);
-                        game.getlastlayer().ghost = JSON.parse(lines[i + 6]);
-                        i = i + 6;
-                    }
-                    else if (lines[i] == "C*?") {
-                        game.getlastlayer().objectype.push(new Objecttype(lines[i + 1]));
-                        game.getlastObjecttype().standarddimx = Number(lines[i + 2]);
-                        game.getlastObjecttype().standarddimy = Number(lines[i + 3]);
-                        game.getlastObjecttype().rot = Number(lines[i + 4]);
-                        game.getlastObjecttype().fliped = JSON.parse(lines[i + 5]);
-                        i = i + 5;
-                    }
-                    else if (lines[i] == "D*?") {
-                        game.getlastObjecttype().images.push(new Sprites(lines[i + 1]));
-                        game.getlastSprites().speed = Number(lines[i + 2]);
-                        i = i + 2;
-                    }
-                    else if (lines[i] == "E*?") {
-                        game.getlastSprites().images.push(new String(lines[i + 1]));
-                        i = i + 1;
-                    }
-                    else if (lines[i] == "F*?") {
-                        game.getlastObjecttype().objects.push(new Objectx(Number(lines[i + 1]), Number(lines[i + 2]), Number(lines[i + 3]), Number(lines[i + 4]), Number(lines[i + 5]), JSON.parse(lines[i + 6])));
-                        i = i + 6;
-                        game.getlastobject().name=game.getlastObjecttype().name;
-                    }
-                }
-            }
-        }
-        client.send();
+    load = function load(){
+  this.maps = [];
+  return new Promise((resolve, reject)=>{
+    const client = new XMLHttpRequest();
+    client.open('GET', "maps/Spelet.txt");
+    client.onload = function(){
+      try {
+        game.parseMapText(client.responseText);
+        game.isLoaded = true;
+        resolve();
+      } catch (e){ reject(e); }
+    };
+    client.onerror = ()=>reject(new Error("XHR error"));
+    client.send();
+  });
+};
+
+  parseMapText(text){
+  const lines = text.split(/\r?\n/);
+  if (game.maps.length !== 0) return;
+
+  for (let i=0; i<lines.length; i++){
+    game.name        = lines[0];
+    game.currentmap  = Number(lines[1]) || 0;
+
+    if (lines[i]==="A*?"){
+      game.maps.push(new Maps(lines[i+1]));
+      game.getlastmaps().camerax = Number(lines[i+2]);
+      game.getlastmaps().cameray = Number(lines[i+3]);
+      i += 3;
     }
-    
+    else if (lines[i]==="B*?"){
+      game.getlastmaps().layer.push(new Layer(lines[i+1]));
+      game.getlastlayer().lock   = JSON.parse(lines[i+2]);
+      game.getlastlayer().moving = Number(lines[i+3]);
+      game.getlastlayer().fysics = JSON.parse(lines[i+4]);
+      game.getlastlayer().solid  = JSON.parse(lines[i+5]);
+      game.getlastlayer().ghost  = JSON.parse(lines[i+6]);
+      i += 6;
+    }
+    else if (lines[i]==="C*?"){
+      game.getlastlayer().objectype.push(new Objecttype(lines[i+1]));
+      game.getlastObjecttype().standarddimx = Number(lines[i+2]);
+      game.getlastObjecttype().standarddimy = Number(lines[i+3]);
+      game.getlastObjecttype().rot          = Number(lines[i+4]);
+      game.getlastObjecttype().fliped       = JSON.parse(lines[i+5]);
+      i += 5;
+    }
+    else if (lines[i]==="D*?"){
+      game.getlastObjecttype().images.push(new Sprites(lines[i+1]));
+      game.getlastSprites().speed = Number(lines[i+2]);
+      i += 2;
+    }
+    else if (lines[i]==="E*?"){
+      game.getlastSprites().images.push(String(lines[i+1]));
+      i += 1;
+    }
+    else if (lines[i]==="F*?"){
+      game.getlastObjecttype().objects.push(
+        new Objectx(Number(lines[i+1]), Number(lines[i+2]),
+                    Number(lines[i+3]), Number(lines[i+4]),
+                    Number(lines[i+5]), JSON.parse(lines[i+6]))
+      );
+      i += 6;
+      game.getlastobject().name = game.getlastObjecttype().name;
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
     getlastmaps(){
         return this.maps[this.maps.length-1];
     }
