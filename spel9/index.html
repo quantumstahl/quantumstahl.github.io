@@ -173,17 +173,16 @@
                 const apple=game.getobjecttype("apple");
                 const coinicon=game.getobjecttype("coinicon");
                 
+                if(bird){
+                    bbutton.objects[0].x=canvas.width-400;bbutton.objects[0].y=canvas.height-400;
+                    abutton.objects[0].x=canvas.width-250;abutton.objects[0].y=canvas.height-250;
+                    if(!mobileAndTabletCheck()){abutton.objects[0].x=canvas.width+300;abutton.objects[0].y=canvas.height+400;bbutton.objects[0].x=canvas.width+300;bbutton.objects[0].y=canvas.height+400;}
+                    game.updateanimation(ctx);
+                }
+                
                 if(bird&&gameState !== 'overworld'){
                     if(!audio.src.endsWith("cast3.mp3")){audio.src = "sounds/cast3.mp3";}
                     
-                    bbutton.objects[0].x=canvas.width-400;bbutton.objects[0].y=canvas.height-400;
-                    abutton.objects[0].x=canvas.width-250;abutton.objects[0].y=canvas.height-250;
-                    
-                    if(!mobileAndTabletCheck()){abutton.objects[0].x=canvas.width+300;abutton.objects[0].y=canvas.height+400;bbutton.objects[0].x=canvas.width+300;bbutton.objects[0].y=canvas.height+400;}
-                    
-                    
-                    
-                    game.updateanimation(ctx);
                     
                     coinicon.objects[0].x=40;coinicon.objects[0].y=100;
                     ctx.restore();
@@ -264,12 +263,12 @@
                     drawOverworld(ctx);
                 }
                 if("ontouchstart" in document.documentElement){
-                    keyState.d=false;keyState.a = false;
-                    if(joy.GetDir()=="N"){}
+                    keyState.d=false;keyState.a = false;keyState.w=false;keyState.s = false;
+                    if(joy.GetDir()=="N"){keyState.w = true;}
                     else if(joy.GetDir()=="NE"){keyState.d = true;}    
                     else if(joy.GetDir()=="E"){keyState.d = true;}
                     else if(joy.GetDir()=="SE"){keyState.d = true;}    
-                    else if(joy.GetDir()=="S"){}
+                    else if(joy.GetDir()=="S"){keyState.s = true;}
                     else if(joy.GetDir()=="SW"){keyState.a = true;}    
                     else if(joy.GetDir()=="W"){keyState.a = true;}    
                     else if(joy.GetDir()=="NW"){keyState.a = true;}     
@@ -845,9 +844,10 @@ function stuff(){
 function drawOverworld(ctx){
   
   ctx.drawImage(overworldimage,0,0,canvas.width,canvas.height);
+  
+  ctx.drawImage(game.getobjecttype("abutton").images[0].getimage(),canvas.width-250,canvas.height-250,150,150);
 
-
-
+  
 
 
 
