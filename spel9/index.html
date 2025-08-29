@@ -139,6 +139,8 @@
             
             let stateTimer = 0;
             let wantRestart = false;
+            let gemeovercounter=0;
+            
             window.addEventListener('keydown', e => { if (e.code==='Space') if(gameState === 'game_over')wantRestart = true; });
             canvas.addEventListener('pointerdown', () => { if(gameState === 'game_over')wantRestart = true; });
              
@@ -233,11 +235,12 @@
                         updateGoal(bird.objects[0]);
                     }
                     updateRats();
+                    updateArchers();
                     drawHealthBars();
+                    updateArrows();
+                    if(acount==25)  handleCombat("swordguy", ["rat","archer"], 50);
                     
-                    if(acount==25)  handleCombat("swordguy", ["rat"], 50);
-                    
-                    
+                    handleCombat("arrow", ["swordguy"], 10);
                     
                     
                     let offx = 0, offy = 0;
@@ -371,6 +374,9 @@ function handleCombat(attackerType, enemyTypes, damage) {
         target.flashTimer = 12;
         spawnDamageNumber(-damage, unit.x, unit.y, { color: "#ff4d4d" });
         spawnHitParticles(target.x+target.dimx/2, target.y+target.dimy/2, 6);
+        
+        if(unit.name==="arrow")game.removeobject(game.getobjecttype(attackerType), unit);
+        
 
         // === JUICE ===
         hitStop(3);                // fryser ~3 frames (≈50 ms vid 60fps)
@@ -727,11 +733,12 @@ function updateGoal(player){
 function gameover(){
     stateTimer--;
     if (wantRestart){
-        gameState = 'play';
         game.load();
         audio.play();
         coins=0;
         wantRestart=false;
+        gameState = 'overworld';
+        gemeovercounter=20;
     }
 }
 
@@ -825,8 +832,8 @@ if (keyState.w&&wstopper===false) {iy -= 1;wstopper=true;}
 
 const next = chooseNeighborByInput(ix,iy);
 if (next!=null) moveToNode(next);
-
-if (keyState.space||(game.getobjecttype("abutton")&&game.getobjecttype("abutton").objects[0].mousepressed==true)){game.load().then(stuff).catch(console.error);  }
+gemeovercounter--;
+if (gemeovercounter<1&&(keyState.space||(game.getobjecttype("abutton")&&game.getobjecttype("abutton").objects[0].mousepressed==true))){game.load().then(stuff).catch(console.error);  }
 
 
 
@@ -845,7 +852,7 @@ function drawOverworld(ctx){
   
   ctx.drawImage(overworldimage,0,0,canvas.width,canvas.height);
   
-  if(game.getobjecttype("abutton"))ctx.drawImage(game.getobjecttype("abutton").images[0].getimage(),canvas.width-250,canvas.height-250,150,150);
+  if(game.getobjecttype("abutton")&&mobileAndTabletCheck())ctx.drawImage(game.getobjecttype("abutton").images[0].getimage(),canvas.width-250,canvas.height-250,150,150);
 
   
 
@@ -928,8 +935,139 @@ function chooseNeighborByInput(ix, iy){
   }
   return (bestDot>0.5)? best : null;
 }
+const ARCHER_AI = {
+  SIGHT_X: 680,
+  ATTACK_RANGE: 620,
+  MIN_DISTANCE: 120,
+  WINDUP_FR: 80,
+  COOLDOWN_FR: 80,
+  SPEED: 2.2,
+};
+
+function initArcher(r){
+  if (r.ai) return;
+  r.ai = { state:"patrol", dir:(r.fliped?-1:1), timer:0, target:null };
+}
+
+function updateArchers(){
+  const archers = game.getobjecttype("archer")?.objects || [];
+  const players = game.getobjecttype("swordguy")?.objects || [];
+  if (!players.length) return;
+
+  for (const r of archers){
+    initArcher(r);
+
+    // === fysik ===
+    updatePhysics(r);
+    r.y += 11;   // ditt “dual/grav hack”
+    r.dual = 10;
+
+    const p = players[0];
+    const dx = p.x - r.x, dy = p.y - r.y;
+    const dist = Math.hypot(dx,dy);
+    const dir = dx<0 ? -1 : 1;
+    r.fliped = dir<0; r.direction = (dir<0)?"left":"right";
+
+    if (r.ai.timer>0) r.ai.timer--;
+
+    switch(r.ai.state){
+      case "patrol": {
+        // enkel patrull → gå i riktning
+        
+        r.x += r.ai.dir * ARCHER_AI.SPEED;
+        if (game.collideswith(r,"any","left"))  r.ai.dir = +1;
+        if (game.collideswith(r,"any","right")) r.ai.dir = -1;
+
+        if (dist < ARCHER_AI.SIGHT_X){
+          r.ai.state = "aim";
+        }
+        break;
+      }
+
+      case "aim": {
+        if (dist < ARCHER_AI.MIN_DISTANCE){
+          // backa om spelaren kommer nära
+          r.x -= dir * ARCHER_AI.SPEED;
+        } else if (dist < ARCHER_AI.ATTACK_RANGE && r.ai.timer===0){
+          r.ai.state = "windup";
+          r.ai.timer = ARCHER_AI.WINDUP_FR;
+          r.animation = 1; // sikta
+        } else {
+          // för långt bort → gå mot spelaren
+          r.x += dir * ARCHER_AI.SPEED*0.6;
+        }
+        break;
+      }
+
+      case "windup": {
+        r.ai.timer--;
+        r.animation = 1; // “dra strängen”
+        if (r.ai.timer<=0){
+          shootArrow(r.x, r.y, dir);
+          r.ai.state="cooldown";
+          r.ai.timer=ARCHER_AI.COOLDOWN_FR;
+        }
+        break;
+      }
+
+      case "cooldown": {
+        r.ai.timer--;
+        r.animation = 0; // idle
+        if (r.ai.timer<=0) r.ai.state="aim";
+        break;
+      }
+    }
+  }
+}
+
+function shootArrow(x,y,dir){
+  const arrow = game.addobject(game.getobjecttype("arrow"), x, y, game.getobjecttype("arrow").standarddimx, game.getobjecttype("arrow").standarddimy, 0, dir<0);
+
+  
+    // fysik-komponent
+  arrow.vx = dir * 20.5;   // horisontell fart
+  arrow.vy = -1.0;        // liten båge uppåt
+  arrow.ay = 0.1;        // gravitation
+  arrow.life = 60*3;      // 3s livstid
+  arrow.damage = 8;       // skada på spelaren
+  arrow.stuck = false;    // när den fastnar i mark/vägg
+  
+  
+}
+function updateArrows(){
+  const A = game.getobjecttype("arrow");
+  const P = game.getobjecttype("swordguy")?.objects?.[0];
+  if (!A) return;
+
+  for (let i = A.objects.length - 1; i >= 0; --i){
+    const a = A.objects[i];
+
+    // döda gamla pilar
+    if (--a.life <= 0){ game.removeobject(A, a); continue; }
+
+    if (!a.stuck){
+      // fysik
+      a.vy += (a.ay || 0);
+      if (a.vy > 14) a.vy = 14;
+
+      a.x += (a.vx || 0);
+      a.y += (a.vy || 0);
+
+      // kollision med världen (vänster/höger/mark)
+      if (!game.collideswith(a, "archer", "ghost")&&game.collideswith(a, "any", "ghost")) {
+       
+        // fastna i ytan: nolla hastigheten, kortare liv
+        a.vx = 0; a.vy = 0; a.ay = 0; a.stuck = true;
+        a.life = Math.min(a.life, 45);
+        // valfritt: gnist-partiklar här
+      }
 
 
+    }
+
+
+  }
+}
 
         </script>
         

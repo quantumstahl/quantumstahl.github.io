@@ -11,7 +11,7 @@ function _mkProf(){
 
 "use strict";
 const BUILDING_NAMES2   = new Set(["base","bar","rbase","rbar","house","rhouse","goldmine","tree","water"]);
-const PROJECTILE_NAMES = new Set(["arrow","bolt","bullet","proj","missile"]); // lägg till dina namn
+const PROJECTILE_NAMES = new Set(["bajs"]); // lägg till dina namn
 
 function isBuilding(o){ return !!o && BUILDING_NAMES2.has(o.name); }
 function isProjectile(o){ return !!o && PROJECTILE_NAMES.has(o.name); }
@@ -738,8 +738,65 @@ if (prof) prof.tic('slide');
         if (G.ref) G.ref._triggered = true;
       }
     }
+  if (!gridStat) return; // säkerhet
+
+  const LOOT_ITER = 3;        // få varv räcker
+  const MAX_STEP  = 12;       // max px per korrigering
+  const EPS_PEN   = 0.05;     // liten dead-zone
+
+  for (let gi=0; gi<ghosts.length; gi++){
+    const G = ghosts[gi];
+    if (!G) continue;
 
 
+    // Kör några varv MTV-resolv mot statics
+    for (let it=0; it<LOOT_ITER; it++){
+      const aabbG = G._aabb || _aabbFrom(G.x, G.y, G.w, G.h, G.rot||0);
+      const nearS = gridStat.query(aabbG);
+
+      let moved = false;
+
+      for (let si=0; si<nearS.length; si++){
+        const S = nearS[si];
+
+        // snabb AABB-reject
+        const aabbS = S._aabb || _aabbFrom(S.x, S.y, S.w, S.h, S.rot||0);
+        if (!aabbOverlapRect(aabbG, aabbS)) continue;
+
+        // MTV (snabb för oroterade)
+        const contact = (((S.rot|0)===0) && ((G.rot|0)===0))
+          ? aabbAabbMTV({x:G.x,y:G.y,w:G.w,h:G.h}, S)
+          : obbObbMTV({x:G.x,y:G.y,w:G.w,h:G.h,rot:G.rot||0}, S);
+
+        if (!contact) continue;
+
+        // skala & klampa så det inte “skjuter” iväg
+        let depth = contact.depth - EPS_PEN;
+        if (depth <= 0) continue;
+        if (depth > MAX_STEP) depth = MAX_STEP;
+
+        G.x -= contact.n.x * depth;
+        G.y -= contact.n.y * depth;
+
+        // uppdatera cache
+        G._aabb = { x:G.x, y:G.y, w:G.w, h:G.h };
+        G._corners = null;
+
+        moved = true;
+
+        // logga valfritt som "ghost" på lootens ägare/ref
+        if (G.ref) _pushCollisionLog(G.ref, (S.ref || S), contact.n, true);
+      }
+
+      if (!moved) break;
+    }
+
+    // skriv tillbaka till loot-objektet
+    if (G.ref){
+      G.ref.x = G.x; G.ref.y = G.y;
+      G.ref.freex = G.ref.x; G.ref.freey = G.ref.y;
+    }
+  }
 
     // 3) skriv tillbaka
     for (let i=0;i<dyn.length;i++){
