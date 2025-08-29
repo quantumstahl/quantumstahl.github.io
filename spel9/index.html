@@ -117,7 +117,7 @@
             showLevelComplete = false;
             let countercleared=0;
             let overworldPlayer = { node:0, from:0, progress:1, speed:0.02, x:0, y:0 };
-            let gameState = 'play'; // 'play' | 'level_complete' | 'game_over'| "overworld" 
+            let gameState = 'overworld'; // 'play' | 'level_complete' | 'game_over'| "overworld" 
             // === Overworld data ===
             let overworldNodes = [
               {id:0, x:100, y:200, type:"level", cleared:false},
@@ -845,7 +845,7 @@ function drawOverworld(ctx){
   
   ctx.drawImage(overworldimage,0,0,canvas.width,canvas.height);
   
-  ctx.drawImage(game.getobjecttype("abutton").images[0].getimage(),canvas.width-250,canvas.height-250,150,150);
+  if(game.getobjecttype("abutton"))ctx.drawImage(game.getobjecttype("abutton").images[0].getimage(),canvas.width-250,canvas.height-250,150,150);
 
   
 
