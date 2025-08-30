@@ -369,6 +369,7 @@ function handleCombat(attackerType, enemyTypes, damage) {
     for (const enemyType of enemyTypes) {
       const target = game.collideswith(unit, enemyType, "ghost");
       if (target) {
+          
         // === DAMAGE ===
         target.health -= damage;
         target.flashTimer = 12;
@@ -936,8 +937,8 @@ function chooseNeighborByInput(ix, iy){
   return (bestDot>0.5)? best : null;
 }
 const ARCHER_AI = {
-  SIGHT_X: 680,
-  ATTACK_RANGE: 620,
+  SIGHT_X: 480,
+  ATTACK_RANGE: 420,
   MIN_DISTANCE: 120,
   WINDUP_FR: 80,
   COOLDOWN_FR: 80,
@@ -1025,7 +1026,7 @@ function shootArrow(x,y,dir){
 
   
     // fysik-komponent
-  arrow.vx = dir * 20.5;   // horisontell fart
+  arrow.vx = dir * 18.5;   // horisontell fart
   arrow.vy = -1.0;        // liten båge uppåt
   arrow.ay = 0.1;        // gravitation
   arrow.life = 60*3;      // 3s livstid
