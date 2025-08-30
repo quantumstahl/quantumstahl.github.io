@@ -183,7 +183,7 @@
                 }
                 
                 if(bird&&gameState !== 'overworld'){
-                    if(!audio.src.endsWith("cast3.mp3")){audio.src = "sounds/cast3.mp3";audio.play();}
+                    if(!audio.src.endsWith("cast3.mp3")&&(!audio.src.endsWith("drak.mp3")||game.getobjecttype("warlock").objects.length===0)){audio.src = "sounds/cast3.mp3";audio.play();}
                     
                     
                     coinicon.objects[0].x=40;coinicon.objects[0].y=100;
@@ -239,7 +239,14 @@
                     drawHealthBars();
                     updateArrows();
                     updateShields();
-                    if(acount==25)  handleCombat("swordguy", ["rat","archer","tank"], 50);
+                    updateBats();
+                    updateMages();
+                    runScheduled();
+                    updateWarlocks();
+                    updateFireballs();
+                    updateFirePillars();
+                    
+                    if(acount==25)  handleCombat("swordguy", ["rat","archer","tank","bat","mage","warlock"], 50);
                     
                     handleCombat("arrow", ["swordguy"], 10);
                     
@@ -297,14 +304,14 @@ function drawHealthBars() {
   const camX = map.camerax;
   const camY = map.cameray;
 
-  const objs = game.getAllObjects().filter(o => o.name=="swordguy"|| o.name=="rat"|| o.name=="archer"|| o.name=="tank");
+  const objs = game.getAllObjects().filter(o => o.name=="swordguy"|| o.name=="rat"|| o.name=="archer"|| o.name=="tank"|| o.name=="bat"|| o.name=="mage"|| o.name=="warlock");
   for (const o of objs) {
 
 
     // defaultvärden om hälsa saknas
-    
+    if (o.maxhealth == null&&o.name=="warlock"){o.maxhealth = 400;o.health = o.maxhealth;}
     if (o.maxhealth == null&&o.name=="tank"){o.maxhealth = 200;o.health = o.maxhealth;}
-    
+    if (o.maxhealth == null&&(o.name=="mage"||o.name=="bat")){o.maxhealth = 50;o.health = o.maxhealth;}
     if (o.maxhealth == null){ o.maxhealth = Heroes.has(o.name) ? 30 : 100;o.health = o.maxhealth;}
     if (o.health == null) o.health = o.maxhealth;
 
@@ -382,7 +389,15 @@ function handleCombat(attackerType, enemyTypes, damage) {
                     continue; // hoppa över damage
                 }
         }
-          
+        if (enemyType==='warlock' && target.ai?.phase===3 && target.ai.shieldUp){
+            if (attackFromFront(unit, target)){   // funktionen vi skrev tidigare
+              // block! clank + liten knockback på spelaren
+              const k = (unit.x<target.x)?-1:+1;
+              unit.vx = (unit.vx||0) + k*3; unit.vy = -3;
+              spawnHitParticles(target.x+target.dimx/2, target.y, 8, '#aaa');
+              continue; // ingen skada
+            }
+          }  
           
         // === DAMAGE ===
         target.health -= damage;
@@ -1226,6 +1241,625 @@ function attackFromFront(attacker, defender){
   // Om attacker är framför shielden (i samma riktning som defender tittar)
   return (dx * ddir > 0);
 }
+// ===== Tunables =====
+const BAT_AI = {
+  SIGHT_X:        460,  // ser spelaren
+  SIGHT_Y:        840,
+  HOVER_SPEED:    1.6,
+  SWOOP_SPEED:    6.6,
+  RETREAT_SPEED:  3.4,
+  HOVER_AMPL:     10,   // sinus-amplitud
+  HOVER_FREQ:     0.12, // sinus-hastighet
+  SWOOP_COOLDOWN: 40,   // frames mellan dyk
+  CONTACT_DMG:    8,
+};
+
+function initBat(b){
+  if (b.ai) return;
+  b.ai = {
+    state: 'perch', // 'perch' | 'hover' | 'swoop' | 'retreat' | 'cooldown'
+    dir: (b.fliped ? -1 : 1),
+    t: 0,
+    cd: 0,
+    homeY: b.y,          // baseline för hover/retreat
+  };
+  b.vx = 0; b.vy = 0;    // flygare – ingen grav
+}
+
+function updateBats(){
+  const bats = game.getobjecttype("bat")?.objects || [];
+  const player = game.getobjecttype("swordguy")?.objects?.[0];
+  if (!player) return;
+
+  for (const b of bats){
+    initBat(b);
+    const dx = player.x - b.x;
+    const dy = player.y - b.y;
+    const adx = Math.abs(dx), ady = Math.abs(dy);
+    const sgn = dx < 0 ? -1 : 1;
+    b.fliped = (sgn < 0);
+    b.direction = b.fliped ? "left":"right";
+
+    if (b.ai.cd > 0) b.ai.cd--;
+    b.ai.t++;
+
+    const sees = (adx < BAT_AI.SIGHT_X && ady < BAT_AI.SIGHT_Y);
+
+    switch (b.ai.state){
+
+      case 'perch': { // hänger “sovande”
+        b.fliped = (sgn > 0);
+        b.direction = b.fliped ? "left":"right";      
+        b.animation=0;
+        b.rot=180;
+        b.vx = b.vy = 0;
+        if (sees) {
+          b.ai.state = 'hover';
+          b.ai.homeY = b.y - 24; // dra upp lite innan hover
+        }
+        break;
+      }
+
+      case 'hover': { // sväva i sinus, håll avstånd horisontellt
+        b.animation=1;  
+        b.rot=0;
+        b.vx = sgn * BAT_AI.HOVER_SPEED * 0.6;
+        b.vy = Math.sin(b.ai.t * BAT_AI.HOVER_FREQ) * 0.6;
+
+        // undvik väggar lätt
+        if (game.collideswith(b,"any","left"))  b.vx = Math.abs(b.vx);
+        if (game.collideswith(b,"any","right")) b.vx = -Math.abs(b.vx);
+
+        // starta swoop när rätt avstånd
+        if (sees && b.ai.cd === 0 && adx < 180){
+          b.ai.state = 'swoop';
+        } else if (!sees){
+          // tappa target → glid tillbaka mot homeY
+          b.vy += (b.ai.homeY - b.y) * 0.02;
+        }
+        break;
+      }
+
+      case 'swoop': { // dyk mot spelarens position
+        b.animation=0;  
+        b.rot=0;
+        const len = Math.max(1, Math.hypot(dx, dy));
+        b.vx = (dx/len) * BAT_AI.SWOOP_SPEED;
+        b.vy = (dy/len) * BAT_AI.SWOOP_SPEED;
+
+        // Om vi passerat under spelaren eller nära → gå till retreat
+        if (b.y > player.y + 10 || len < 24){
+          b.ai.state = 'retreat';
+          b.ai.cd = BAT_AI.SWOOP_COOLDOWN;
+        }
+        break;
+      }
+
+      case 'retreat': { // dra uppåt till baseline
+        b.animation=1;
+        b.rot=0;
+        // uppåt + bort lite
+        b.vx = -sgn * BAT_AI.RETREAT_SPEED * 0.6;
+        b.vy = -BAT_AI.RETREAT_SPEED;
+
+        // när vi är tillbaka nära homeY → hover
+        if (b.y <= b.ai.homeY){
+          b.y = b.ai.homeY;
+          b.ai.state = 'hover';
+        }
+        break;
+      }
+    }
+
+    // position uppdateras
+    b.x += b.vx;
+    b.y += b.vy;
+
+    
+    
+      if (!b.hitCD || b.hitCD <= 0){
+        handleCombat("bat", ["swordguy"], 10);   // din funktion
+
+
+        b.hitCD = 30;
+      }
+      if (b.hitCD && b.hitCD > 0) b.hitCD--;
+    }
+    
+}
+const MAGE_AI = {
+  SIGHT_X:       600,
+  ATTACK_RANGE:  260,
+  MIN_DISTANCE:  120,
+  WINDUP_FR:      60,   // längre än archer
+  COOLDOWN_FR:    60,
+  SPEED:         1.6,
+};
+
+function initMage(r){
+  if (r.ai) return;
+  r.ai = { state:"idle", dir:(r.fliped?-1:1), timer:0, target:null };
+}
+
+function updateMages(){
+  const mages = game.getobjecttype("mage")?.objects || [];
+  const players = game.getobjecttype("swordguy")?.objects || [];
+  if (!players.length) return;
+
+  for (const r of mages){
+    initMage(r);
+    updatePhysics(r);
+    r.y+=11;
+    const p = players[0];
+    const dx = p.x - r.x;
+    const dy = p.y - r.y;
+    const dist = Math.hypot(dx,dy);
+    const dir = dx<0 ? -1 : 1;
+
+    r.fliped = dir<0;
+    r.direction = r.fliped ? "left":"right";
+
+    if (r.ai.timer>0) r.ai.timer--;
+
+    switch(r.ai.state){
+      case "idle": {
+        // börja jaga om spelaren nära nog
+        if (dist < MAGE_AI.SIGHT_X){
+          r.ai.state = "chase";
+        }
+        break;
+      }
+
+      case "chase": {
+        // håll avstånd
+        if (dist < MAGE_AI.MIN_DISTANCE){
+          r.x -= dir * MAGE_AI.SPEED;
+        } else if (dist > MAGE_AI.ATTACK_RANGE){
+          r.x += dir * MAGE_AI.SPEED * 0.6;
+        }
+
+        // attack
+        if (dist < MAGE_AI.ATTACK_RANGE && r.ai.timer===0){
+          r.ai.state="windup";
+          r.ai.timer=MAGE_AI.WINDUP_FR;
+          r.animation=1; // “cast”-pose
+        }
+        break;
+      }
+
+      case "windup": {
+        r.ai.timer--;
+        r.animation=1; // glow
+        if (r.ai.timer<=0){
+          shootFireball(r,dir);
+          r.ai.state="cooldown";
+          r.ai.timer=MAGE_AI.COOLDOWN_FR;
+        }
+        break;
+      }
+
+      case "cooldown": {
+        r.ai.timer--;
+        r.animation=0;
+        if (r.ai.timer<=0) r.ai.state="chase";
+        break;
+      }
+    }
+  }
+}
+function shootFireball(r,dir){
+  const F = game.getobjecttype("fire");
+  const f = game.addobject(F, r.x+(dir*20), r.y+10, 36, 36, 0, (dir<0));
+
+  f.vx = dir*4.0;
+  f.vy = -0.5;   // liten båge
+  f.ay = 0.1;    // lätt grav
+  f.life = 120;  // 2 sek
+  f.damage = 12;
+}
+function updateFireballs(){
+  const F = game.getobjecttype("fire");
+  const P = game.getobjecttype("swordguy")?.objects?.[0];
+  if (!F) return;
+
+  for (let i=F.objects.length-1;i>=0;--i){
+    const f = F.objects[i];
+    if (--f.life<=0){ game.removeobject(F,f); continue; }
+
+    f.vy += (f.ay||0);
+    f.x += f.vx;
+    f.y += f.vy;
+
+    // träffar spelaren?
+    if (P && game.collideswith(f,"swordguy","ghost")){
+      handleCombat("fire", ["swordguy"], 10);
+      spawnHitParticles(P.x+P.dimx/2,P.y,10,"#ff9933");
+      cameraShake(4,120);
+      hitStop(3);
+      game.removeobject(F,f);
+      continue;
+    }
+
+    // krockar med vägg
+    if (game.collideswith(f,"any","down") || game.collideswith(f,"any","left") || game.collideswith(f,"any","right")){
+      spawnHitParticles(f.x+f.dimx/2,f.y+f.dimy/2,12,"#ff6600");
+      game.removeobject(F,f);
+    }
+  }
+}
+
+// ================== Tunables ==================
+const WARLOCK_AI = {
+  HP: 400,
+
+  SPEED: 1.2,
+  SIGHT_X: 9999,
+
+  WINDUP_FR: 26,
+  COOLDOWN_FR: 40,
+
+  FIREBALL_DMG: 14,
+  FIREBALL_VX: 4.2,
+
+  PILLAR_COUNT: 3,
+  PILLAR_SPACING: 40,
+  PILLAR_DELAY_FR: 12,
+
+  SUMMON_COUNT: 2,
+  SUMMON_CD_FR: 900,
+
+  DASH_SPEED: 5.2,
+  DASH_FR: 24,
+  DASH_DMG: 12,
+
+  SHIELD_T_FR: 240,       // hur länge skölden ligger uppe i fas 3
+  TELEPORT_CD_FR: 180,
+
+  HURT_KNOCK: 4
+};
+
+// =============== Init boss ====================
+function initWarlock(b){
+  if (b.ai) return;
+  b.maxHealth = WARLOCK_AI.HP;
+  b.health = b.maxHealth;
+  b.ai = {
+    state: 'idle', dir: (b.fliped?-1:1),
+    timer: 0, cd: 0, phase: 1,
+    shieldUp: false, tpCD: 0, summonCD: 60
+  };
+  b.vx = 0; b.vy = 0;
+}
+
+// =============== Main update ==================
+function updateWarlocks(){
+  const W = game.getobjecttype('warlock')?.objects || [];
+  const P = game.getobjecttype('swordguy')?.objects?.[0];
+  if (!P) return;
+
+  for (const b of W){
+    initWarlock(b);
+    // fas efter HP
+    if(b.isonscreen&&!audio.src.endsWith("drak.mp3")){audio.src = "sounds/drak.mp3";audio.play();}
+    
+    const hpPct = b.health / b.maxHealth;
+    b.ai.phase = (hpPct > 0.70) ? 1 : (hpPct > 0.35 ? 2 : 3);
+
+    // grundriktning mot spelaren
+    const dx = P.x - b.x-b.dimx/2, dy = P.y - b.y;
+    const dir = dx < 0 ? -1 : 1;
+    b.fliped = (dir<0);
+    b.direction = b.fliped ? 'left':'right';
+
+    // timers
+    if (b.ai.timer>0) b.ai.timer--;
+    if (b.ai.cd>0) b.ai.cd--;
+    if (b.ai.tpCD>0) b.ai.tpCD--;
+    if (b.ai.summonCD>0) b.ai.summonCD--;
+
+    // enkel “grav” så han står på mark
+    b.y += 11; b.dual = 50;
+
+    switch(b.ai.state){
+
+      case 'idle': {
+        // glid långsamt i sidled för att hålla liv i fighten
+        b.x += dir * WARLOCK_AI.SPEED * 0.5;
+
+        // fasbeteende
+        if (b.ai.phase===1){
+          if (b.ai.cd===0){ startCast(b, 'fireball'); }
+        } else if (b.ai.phase===2){
+          // teleporta ibland + fireball / pillar
+          if (b.ai.tpCD===0 && Math.random()<0.02){
+            doTeleport(b, P);
+            b.ai.tpCD = WARLOCK_AI.TELEPORT_CD_FR;
+          } else if (b.ai.summonCD===0){
+            startCast(b, 'summon');
+            b.ai.summonCD = WARLOCK_AI.SUMMON_CD_FR;
+          } else if (b.ai.cd===0){
+            if (Math.random()<0.5) startCast(b, 'fireball');
+            else startCast(b, 'pillar');
+          }
+        } else { // phase 3
+          if (!b.ai.shieldUp){
+            b.ai.shieldUp = true;
+            b.ai.shieldT = WARLOCK_AI.SHIELD_T_FR;
+          }
+          if (b.ai.shieldT>0) b.ai.shieldT--;
+
+          if (b.ai.cd===0){
+            if (Math.random()<0.45) startCast(b, 'tri_fire');
+            else startCast(b, 'dash');
+          }
+        }
+        break;
+      }
+
+      case 'windup': {
+        if (b.ai.timer <= 0){
+          const handled = resolveCast(b, P, dir); // boolean
+          if (!handled){                          // endast enkla casts
+            b.ai.state = 'cooldown';
+            b.ai.timer = WARLOCK_AI.COOLDOWN_FR;
+          }
+        }
+        break;
+      }
+
+      case 'cooldown': {
+        if (b.ai.timer<=0){
+          b.ai.state='idle';
+          b.ai.cd = 140; // liten allmän CD
+        }
+        break;
+      }
+
+      case 'dash': {
+        b.x += b.ai.dashDir * WARLOCK_AI.DASH_SPEED;
+        b.ai.timer--;
+        // skada spelaren vid kontakt
+        if (game.collideswith(b, 'swordguy','ghost')){
+          handleCombat("warlock", ["swordguy"], 10);
+          const k = (b.x<P.x)?+1:-1;
+          P.vx = (P.vx||0) + k*5; P.vy = -6;
+        }
+        if (b.ai.timer<=0){ b.ai.state='cooldown'; b.ai.timer=WARLOCK_AI.COOLDOWN_FR; }
+        break;
+      }
+    }
+
+    // slå av sköld om tiden ute i fas 3
+    if (b.ai.phase===3 && b.ai.shieldUp && b.ai.shieldT<=0) b.ai.shieldUp=false;
+  }
+}
+
+// =============== Casting helpers ==============
+function startCast(b, type){
+  b.ai.state = 'windup';
+  b.ai.timer = WARLOCK_AI.WINDUP_FR;
+  b.ai.castType = type;
+  b.animation = 1; // “casting”-pose i dina sprites
+}
+
+
+
+// =============== Attacks ======================
+function shootFireballFrom(b, dir, angle){
+  const F = game.getobjecttype('fire');
+  const f = game.addobject(F, b.x + dir*22, b.y + 6, 36, 36, 0, (dir<0));
+  const base = WARLOCK_AI.FIREBALL_VX;
+  const vx = dir * base * Math.cos(angle);
+  const vy = base * Math.sin(angle) * -1; // lätt uppåt
+  f.vx = vx; f.vy = vy; f.ay = 0.12; f.life = 120; f.damage = WARLOCK_AI.FIREBALL_DMG;
+}
+
+
+
+// enkel scheduler (ramräknare). Kör i din mainloop: runScheduled()
+let _sched = [];
+function schedule(fn, delay){ _sched.push({fn, t:delay}); }
+function runScheduled(){
+  for (let i=_sched.length-1;i>=0;--i){
+    const s=_sched[i]; s.t--;
+    if (s.t<=0){ try{s.fn();}finally{_sched.splice(i,1);} }
+  }
+}
+// kalla runScheduled() varje frame i din loop.
+
+
+
+// Minions (t.ex. bat/archer)
+function summonMinionsNear(b){
+  const types = ['bat','archer'];
+  for (let i=0;i<WARLOCK_AI.SUMMON_COUNT;i++){
+    const t = game.getobjecttype(types[i%types.length]);
+    const x = b.x + (Math.random()<0.5?-1:1)*(60 + Math.random()*40);
+    const y = b.y - 10;
+    game.addobject(t, x, y, t.standarddimx||32, t.standarddimy||32, 0, (x<b.x));
+  }
+}
+
+// teleport – kort blink till en plats 140px åt valfri sida med fri mark
+function doTeleport(b, P){
+  const dir = (Math.random()<0.5)? -1 : 1;
+  const nx = b.x + dir*740;
+  b.x = nx; // kan göras mjukare med effekter
+  cameraShake(3,120);
+}
+
+
+
+//=== resolveCast: ersätt bara 'pillar'-fallet ===
+function resolveCast(b, P, dir){
+  const type = b.ai.castType; 
+  b.animation = 2;
+
+  if (type==='fireball'){
+    shootFireballFrom(b, dir, 0);
+    return false;
+  }
+  if (type==='tri_fire'){
+    shootFireballFrom(b, dir, -0.18);
+    shootFireballFrom(b, dir,  0);
+    shootFireballFrom(b, dir, +0.18);
+    return false;
+  }
+  if (type==='pillar'){
+    castFirePillarsAtTarget(P);   // <— NY
+    return false;
+  }
+  if (type==='summon'){
+    summonMinionsNear(b);
+    return false;
+  }
+  if (type==='dash'){
+    b.ai.state  = 'dash';
+    b.ai.dashDir = dir;
+    b.ai.timer  = WARLOCK_AI.DASH_FR;
+    return true;
+  }
+}
+
+// === Nya/justerade tunables ===
+Object.assign(WARLOCK_AI, {
+  PILLAR_TELEGRAPH_FR: 12,   // markvarningstid
+  PILLAR_DESCENT_FR:   26,   // större = långsammare
+  PILLAR_LINGER_FR:    16,   // efterbränna
+  PILLAR_WIDTH:        20,   // smal blixt
+  PILLAR_TIP_H:        18,   // skadande spets
+  PILLAR_TIP_DMG:      14,
+  PILLAR_LINGER_DMG:    6,
+  // start-höjd ovanför fötter (random inom intervallet)
+  PILLAR_START_MIN:   600,
+  PILLAR_START_MAX:   800
+});
+
+// === Kalla denna vid cast (behåll gärna din tri_fire etc) ===
+function castFirePillarsAtTarget(target){
+  const w = (target?.dimx || 32);
+  const h = (target?.dimy || 32);
+  const centerX = (target?.x || 0) + w/2;
+  const groundY = (target?.y || 0) + h; // fötter vid cast-ögonblicket
+
+  for (let i=0; i<WARLOCK_AI.PILLAR_COUNT; i++){
+    const x = centerX + (i-1)*WARLOCK_AI.PILLAR_SPACING;
+    schedule(() => spawnFirePillar(x, groundY), i*WARLOCK_AI.PILLAR_DELAY_FR);
+  }
+}
+
+// === Spawner: lås X; starta högt upp, väx nedåt ===
+function spawnFirePillar(xCenter, groundY){
+  const PILL = game.getobjecttype('firepillar');
+  if (!PILL) return;
+
+  const w = WARLOCK_AI.PILLAR_WIDTH;
+  const startH = WARLOCK_AI.PILLAR_START_MIN +
+                 Math.random()*(WARLOCK_AI.PILLAR_START_MAX - WARLOCK_AI.PILLAR_START_MIN);
+  const startY = groundY - startH;           // 600–800 px ovanför fötter
+
+  // Vi börjar med en mark-telegraph (tunn linje på marken)
+  const p = game.addobject(PILL, xCenter - w/2, groundY - 4, w, 4, 0, false);
+
+  // Lås X och stäng av fysik så den aldrig glider
+  p.lockX = xCenter - w/2;
+  p.vx = p.vy = p.ax = p.ay = 0;
+  p.ghost = true;
+  p.rot = 0; p.fliped = false;
+
+  // interna fält
+  p.mode       = 'telegraph';
+  p.t          = WARLOCK_AI.PILLAR_TELEGRAPH_FR;
+  p.animation  = 0;
+
+  // fall/kolonn-data
+  p.startY     = startY;          // översta Y (fix)
+  p.groundY    = groundY;         // dit vi växer
+  p.fullH      = groundY - startY; // totala höjden när klar
+  p.tipH       = WARLOCK_AI.PILLAR_TIP_H;
+  p.curH       = 0;               // nuvarande höjd (växer från 0 → fullH)
+  p.growPerFr  = (groundY - startY) / WARLOCK_AI.PILLAR_DESCENT_FR;
+  p.lingerT    = WARLOCK_AI.PILLAR_LINGER_FR;
+}
+
+// === Uppdatering: väx nedåt, skada bara i spetsen, lås X varje frame ===
+function updateFirePillars(){
+  const PILL = game.getobjecttype('firepillar');
+  const P    = game.getobjecttype('swordguy')?.objects?.[0];
+  if (!PILL) return;
+
+  const Pw = (P?.dimx || 32), Ph = (P?.dimy || 32);
+  const overlap = (ax,ay,aw,ah,bx,by,bw,bh) =>
+    (ax < bx + bw) && (ax + aw > bx) && (ay < by + bh) && (ay + ah > by);
+
+  for (let i=PILL.objects.length-1; i>=0; --i){
+    const p = PILL.objects[i];
+
+    // Lås X + nolla fysik
+    p.x = p.lockX;
+    p.vx = p.vy = p.ax = p.ay = 0;
+
+    if (p.mode === 'telegraph'){
+      p.animation = 0;
+      p.t--;
+      // (valfritt: blinka bredd/alpha här)
+      if (p.t <= 0){
+        // Växande kolonn: placera överst och börja med 0 höjd
+        p.mode = 'fall';
+        p.animation = 0;
+        p.curH = 0;
+        p.dimx = WARLOCK_AI.PILLAR_WIDTH;
+        p.dimy = 0;                // börjar osynlig
+        p.y    = p.startY;         // takposition (fix)
+      }
+      continue;
+    }
+
+    if (p.mode === 'fall'){
+      // Väx nedåt genom att öka höjden
+      p.curH += p.growPerFr;
+      if (p.curH > p.fullH) p.curH = p.fullH;
+
+      // Kolonnens hitbox = hela det som syns
+      p.dimx = WARLOCK_AI.PILLAR_WIDTH;
+      p.dimy = p.curH;
+      p.y    = p.startY; // toppläget är konstant, vi växer nedåt
+
+      // Spetsens hitbox: nedersta tipH
+      if (p.curH >= p.tipH){
+        const tipY = p.startY + p.curH - p.tipH;
+        if (P && overlap(p.x, tipY, p.dimx, p.tipH, P.x, P.y, Pw, Ph)){
+          handleCombat("firepillar", ["swordguy"], 10);
+          P.vy = -3; P.vx = (P.x < (p.x + p.dimx/2) ? -2 : 2);
+        }
+      }
+
+      // Träffat mark/fötter → linger
+      if (p.curH >= p.fullH){
+        p.mode = 'linger';
+        p.animation = 0;
+        // låt dimy vara hela kolonnens höjd; y förblir startY
+      }
+      continue;
+    }
+
+    if (p.mode === 'linger'){
+      p.lingerT--;
+      if (P && game.collideswith(p, 'swordguy', 'ghost')){
+        handleCombat("firepillar", ["swordguy"], 10);
+      }
+      if (p.lingerT <= 0){
+        game.removeobject(PILL, p);
+      }
+    }
+  }
+}
+
+
+
+
+
+
 
         </script>
         

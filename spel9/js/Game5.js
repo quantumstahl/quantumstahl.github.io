@@ -730,7 +730,7 @@ if (prof) prof.tic('slide');
         if (!contact) continue;
       
         // Logga åt båda hållen, men flytta INTE
-        _pushCollisionLog(D.ref, (G.ref || G), contact.n, true);
+       // _pushCollisionLog(D.ref, (G.ref || G), contact.n, true);
         _pushCollisionLog(G.ref, (D.ref || D), {x:-contact.n.x, y:-contact.n.y}, true);
 
         // valfritt: flagga som triggerad den här framen
@@ -2114,7 +2114,7 @@ class Objecttype {
           }
 
           // ===== ghost-byggen (oförändrat, men du kan rotera om du vill) =====
-          if (o.ghost && o.name !== "tree") {
+          if (o.ghost && o.name !== "tree"&&o.buildobject!==null) {
             let valid = true;
             try { if (typeof window.isBuildPlacementValid === "function") valid = !!window.isBuildPlacementValid(o); } catch(e){}
             ctx.save();
