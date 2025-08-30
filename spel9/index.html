@@ -238,7 +238,8 @@
                     updateArchers();
                     drawHealthBars();
                     updateArrows();
-                    if(acount==25)  handleCombat("swordguy", ["rat","archer"], 50);
+                    updateShields();
+                    if(acount==25)  handleCombat("swordguy", ["rat","archer","tank"], 50);
                     
                     handleCombat("arrow", ["swordguy"], 10);
                     
@@ -296,11 +297,14 @@ function drawHealthBars() {
   const camX = map.camerax;
   const camY = map.cameray;
 
-  const objs = game.getAllObjects().filter(o => o.name=="swordguy"|| o.name=="rat");
+  const objs = game.getAllObjects().filter(o => o.name=="swordguy"|| o.name=="rat"|| o.name=="archer"|| o.name=="tank");
   for (const o of objs) {
 
 
     // defaultvärden om hälsa saknas
+    
+    if (o.maxhealth == null&&o.name=="tank"){o.maxhealth = 200;o.health = o.maxhealth;}
+    
     if (o.maxhealth == null){ o.maxhealth = Heroes.has(o.name) ? 30 : 100;o.health = o.maxhealth;}
     if (o.health == null) o.health = o.maxhealth;
 
@@ -369,6 +373,16 @@ function handleCombat(attackerType, enemyTypes, damage) {
     for (const enemyType of enemyTypes) {
       const target = game.collideswith(unit, enemyType, "ghost");
       if (target) {
+          
+          if (enemyType === "tank"){
+                if (attackFromFront(unit, target)){
+                    // Blockerat!
+                    spawnHitParticles(target.x+target.dimx/2, target.y+target.dimy/2, 8, "#aaa");
+                    //playSound("clank");
+                    continue; // hoppa över damage
+                }
+        }
+          
           
         // === DAMAGE ===
         target.health -= damage;
@@ -1055,7 +1069,7 @@ function updateArrows(){
       a.y += (a.vy || 0);
 
       // kollision med världen (vänster/höger/mark)
-      if (!game.collideswith(a, "archer", "ghost")&&game.collideswith(a, "any", "ghost")) {
+      if (!game.collideswith(a, "archer", "ghost")&&!game.collideswith(a, "rat", "ghost")&&!game.collideswith(a, "tank", "ghost")&&game.collideswith(a, "any", "ghost")) {
        
         // fastna i ytan: nolla hastigheten, kortare liv
         a.vx = 0; a.vy = 0; a.ay = 0; a.stuck = true;
@@ -1068,6 +1082,149 @@ function updateArrows(){
 
 
   }
+}
+
+const SHIELD_AI = {
+  SPEED: 1.4,
+  CHASE_SPEED: 2.4,
+  TURN_CD_FR: 80,     // långsam vändning
+  BLOCK_FR: 9999,     // default: block aktivt
+  BASH_RANGE: 50,     // om spelaren är nära → bash
+  BASH_FR: 24,
+  COOLDOWN_FR: 40,
+};
+
+function initShield(r){
+  if (r.ai) return;
+  r.ai = {
+    state: "patrol",
+    dir: (r.fliped ? -1 : 1),
+    timer: 0,
+    turnCD: 0,
+    blocking: true
+  };
+}
+
+function updateShields(){
+  const shields = game.getobjecttype("tank")?.objects || [];
+  const players = game.getobjecttype("swordguy")?.objects || [];
+  if (!players.length) return;
+
+  for (const r of shields){
+    initShield(r);
+    updatePhysics(r);
+    r.animation = 0;
+    // din grav / dual hack
+    r.y += 11; 
+    r.dual = 35;
+
+
+    // target + avstånd
+    if (!r.ai.target) r.ai.target = nearestPlayer(r);
+    const P = r.ai.target;
+    let dx=0, dy=0, distX=1e9;
+    if (P){ dx=P.x-r.x; dy=P.y-r.y; distX=Math.abs(dx); }
+
+    // tick timers
+    if (r.ai.turnCD > 0){ r.ai.turnCD--;}
+    if (r.alertT > 0) r.alertT--;
+
+    // ——— Aggro/forget
+    const seesPlayer = (P && distX < RAT_AI.SIGHT_X && Math.abs(dy) < RAT_AI.SIGHT_Y);
+    if (r.ai.state==='patrol' && seesPlayer){ 
+      r.ai.state = 'chase'; 
+      r.alertT = RAT_AI.ALERT_T_FR;          // <— visa “!”
+      // valfritt: setta animation “alert”
+    }
+    if (r.ai.state!=='patrol' && (!P || distX>RAT_AI.FORGET_X)){
+      r.ai.state = 'patrol'; r.ai.target=null;
+    }
+
+    // ——— Vändhantering: om spelaren är på andra sidan → vänd + turn cooldown
+    // Ger ett “backstab-fönster”: under turnCD kan råttan inte starta attack.
+    const desiredDir = (dx < 0 ? -1 : 1);
+    if (P){
+      
+      if (desiredDir !== r.ai.dir){
+          if(r.ai.turnCD==0)r.ai.turnCD = SHIELD_AI.TURN_CD_FR
+          if(r.ai.turnCD==1)r.ai.dir   = desiredDir;
+
+      }
+    }
+
+    // ——— State machine
+    switch (r.ai.state){
+      case 'patrol': {
+        r.ai.vx = RAT_AI.SPEED * r.ai.dir;
+        if (!game.collideswiths(r,'swordguy')){
+          if (game.collideswith(r,'any','left'))  r.ai.dir = +1;
+          if (game.collideswith(r,'any','right')) r.ai.dir = -1;
+        }
+        break;
+      }
+
+      case 'chase': {
+        r.ai.vx = RAT_AI.CHASE_SPEED * r.ai.dir;
+
+        if (!game.collideswiths(r,'swordguy')){
+          if (game.collideswith(r,'any','left'))  r.ai.dir = +1;
+          if (game.collideswith(r,'any','right')) r.ai.dir = -1;
+        }
+
+        // Attack bara när:
+        // - vi är inom range
+        // - vi FAKTISKT FÖR rätten (dx*dir > 0)
+        // - och vi är inte i vänd-cooldown
+        if (P && game.collideswith(r, "swordguy", "ghost") && (dx * r.ai.dir) > 0 && r.ai.turnCD === 0){
+          r.ai.state = 'windup';
+          r.ai.timer = RAT_AI.WINDUP_FR;
+          r.ai.vx = 0;
+           r.animation = 1;
+        }
+        break;
+      }
+
+      case 'windup': {
+        r.ai.vx = 0;
+        r.animation = 1; // attack animation
+
+        r.ai.timer--;
+
+        // När halva windupen passerat → träffen går igenom
+        if (r.ai.timer === Math.floor(RAT_AI.WINDUP_FR/2)) {
+          handleCombat("tank", ["swordguy"], 10);
+        }
+
+        if (r.ai.timer <= 0) {
+          r.ai.state = 'cooldown';
+          r.ai.timer = RAT_AI.ATTACK_CD_FR;
+        }
+        break;
+      }
+
+      case 'cooldown': {
+        r.ai.vx = -0.6 * r.ai.dir; // backa liten bit
+        r.ai.timer--;
+        if (r.ai.timer <= 0) r.ai.state = 'chase';
+        break;
+      }
+    }
+
+    // Rörelse + facing
+    if(desiredDir === r.ai.dir)r.x += r.ai.vx;
+    r.fliped = (r.ai.dir < 0);
+    r.direction = r.fliped ? 'left' : 'right';
+  }
+}
+function attackFromFront(attacker, defender){
+  // Riktningen defendern tittar åt
+  const ddir = defender.fliped ? -1 : 1;
+
+  // Delta mellan attacker och defender
+  const dx = (attacker.x + attacker.dimx/2) - (defender.x + defender.dimx/2);
+
+  // Om attacker är framför shielden (i samma riktning som defender tittar)
+  return (dx * ddir > 0);
 }
 
         </script>
