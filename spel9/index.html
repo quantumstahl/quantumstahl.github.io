@@ -183,7 +183,7 @@
                 }
                 
                 if(bird&&gameState !== 'overworld'){
-                    if(!audio.src.endsWith("cast3.mp3")){audio.src = "sounds/cast3.mp3";}
+                    if(!audio.src.endsWith("cast3.mp3")){audio.src = "sounds/cast3.mp3";audio.play();}
                     
                     
                     coinicon.objects[0].x=40;coinicon.objects[0].y=100;
@@ -262,7 +262,7 @@
                 if (gameState==="overworld"){
                     
                    
-                    if(!audio.src.endsWith("COV.mp3")){audio.src = 'sounds/COV.mp3';}
+                    if(!audio.src.endsWith("COV.mp3")){audio.src = 'sounds/COV.mp3';audio.play();}
                     updateOverworld();
                     drawOverworld(ctx);
                 }
