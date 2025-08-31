@@ -375,6 +375,20 @@ function drawHealthBars() {
   
 }
 function handleCombat(attackerType, enemyTypes, damage) {
+  function attackFromFront(attacker, defender){
+  const ddir = defender.fliped ? -1 : 1;
+  const ax = attacker.x + attacker.dimx/2;
+  const dx = ax - (defender.x + defender.dimx/2);
+  return (dx * ddir > 0);
+}
+
+function warlockFrontOpen(w){
+  // endast under OFF-fönstret
+  return w.ai?.phase === 3 && w.ai?.shieldState === 'off';
+}  
+    
+    
+    
   const attackers = game.getobjecttype(attackerType).objects;
   for (const unit of attackers) {
     for (const enemyType of enemyTypes) {
@@ -389,15 +403,28 @@ function handleCombat(attackerType, enemyTypes, damage) {
                     continue; // hoppa över damage
                 }
         }
-        if (enemyType==='warlock' && target.ai?.phase===3 && target.ai.shieldUp){
-            if (attackFromFront(unit, target)){   // funktionen vi skrev tidigare
-              // block! clank + liten knockback på spelaren
-              const k = (unit.x<target.x)?-1:+1;
-              unit.vx = (unit.vx||0) + k*3; unit.vy = -3;
-              spawnHitParticles(target.x+target.dimx/2, target.y, 8, '#aaa');
-              continue; // ingen skada
+        if (enemyType === 'warlock'){
+            const front = attackFromFront(unit, target);
+
+            if (target.ai?.phase === 3 && front){
+              if (target.ai.shieldState === 'on' || target.ai.shieldState === 'warn'){
+                // block → flash blå
+                target.flashTimer = 6;
+                target.flashTimercolor = "#rgba(168, 199, 255, 0.8)";
+
+                spawnHitParticles(target.x+target.dimx/2, target.y, 6, "#a8c7ff");
+                cameraShake(2,80);
+
+                // knockback på spelaren
+                const k = (unit.x<target.x)?-1:+1;
+                unit.vx = (unit.vx||0)+k*2.5;
+                unit.vy = -3;
+
+                return; // block = ingen skada
+              }
+              // shieldState === 'off' ⇒ attack går igenom
             }
-          }  
+          }
           
         // === DAMAGE ===
         target.health -= damage;
@@ -1256,6 +1283,7 @@ const BAT_AI = {
 
 function initBat(b){
   if (b.ai) return;
+  b.dual=5;
   b.ai = {
     state: 'perch', // 'perch' | 'hover' | 'swoop' | 'retreat' | 'cooldown'
     dir: (b.fliped ? -1 : 1),
@@ -1512,11 +1540,35 @@ const WARLOCK_AI = {
   DASH_FR: 24,
   DASH_DMG: 12,
 
-  SHIELD_T_FR: 240,       // hur länge skölden ligger uppe i fas 3
+  SHIELD_T_FR: 10,       // hur länge skölden ligger uppe i fas 3
   TELEPORT_CD_FR: 180,
 
   HURT_KNOCK: 4
 };
+const WARLOCK_SHIELD = {
+  ON_FR:   50,  // block
+  WARN_FR: 14,  // blink
+  OFF_FR:  18   // öppet
+};
+
+function updateShieldCycle(b){
+  const C = WARLOCK_SHIELD;
+  const CYC = C.ON_FR + C.WARN_FR + C.OFF_FR;
+  b.ai.shieldTick = (b.ai.shieldTick+1) % CYC;
+
+  if (b.ai.shieldTick < C.ON_FR){
+    b.ai.shieldState = 'on';
+    b.flashTimer = 0; // ingen blink
+  } else if (b.ai.shieldTick < C.ON_FR+C.WARN_FR){
+    b.ai.shieldState = 'warn';
+    b.flashTimer = 4;               // blinka några frames
+    b.flashTimercolor = "rgba(168, 199, 255, 0.6)";  // blå glöd
+  } else {
+    b.ai.shieldState = 'off';
+    b.flashTimer = 0;
+  }
+}
+
 
 // =============== Init boss ====================
 function initWarlock(b){
@@ -1526,7 +1578,7 @@ function initWarlock(b){
   b.ai = {
     state: 'idle', dir: (b.fliped?-1:1),
     timer: 0, cd: 0, phase: 1,
-    shieldUp: false, tpCD: 0, summonCD: 60
+    shieldUp: false, tpCD: 0, summonCD: 60,shieldState:'off',shieldTick:0
   };
   b.vx = 0; b.vy = 0;
 }
@@ -1546,7 +1598,7 @@ function updateWarlocks(){
     b.ai.phase = (hpPct > 0.70) ? 1 : (hpPct > 0.35 ? 2 : 3);
 
     // grundriktning mot spelaren
-    const dx = P.x - b.x-b.dimx/2, dy = P.y - b.y;
+    const dx = P.x - b.x-b.dimx/3, dy = P.y - b.y;
     const dir = dx < 0 ? -1 : 1;
     b.fliped = (dir<0);
     b.direction = b.fliped ? 'left':'right';
@@ -1582,16 +1634,12 @@ function updateWarlocks(){
             else startCast(b, 'pillar');
           }
         } else { // phase 3
-          if (!b.ai.shieldUp){
-            b.ai.shieldUp = true;
-            b.ai.shieldT = WARLOCK_AI.SHIELD_T_FR;
-          }
-          if (b.ai.shieldT>0) b.ai.shieldT--;
+            updateShieldCycle(b); // sköter flash+state
 
-          if (b.ai.cd===0){
-            if (Math.random()<0.45) startCast(b, 'tri_fire');
-            else startCast(b, 'dash');
-          }
+            if (b.ai.cd===0){
+              if (Math.random()<0.45) startCast(b, "tri_fire");
+              else startCast(b, "dash");
+            }
         }
         break;
       }
@@ -1647,7 +1695,7 @@ function startCast(b, type){
 // =============== Attacks ======================
 function shootFireballFrom(b, dir, angle){
   const F = game.getobjecttype('fire');
-  const f = game.addobject(F, b.x + dir*22, b.y + 6, 36, 36, 0, (dir<0));
+  const f = game.addobject(F, b.x+b.dimx/2 + dir*22, b.y + 6, 36, 36, 0, (dir<0));
   const base = WARLOCK_AI.FIREBALL_VX;
   const vx = dir * base * Math.cos(angle);
   const vy = base * Math.sin(angle) * -1; // lätt uppåt
@@ -1683,7 +1731,7 @@ function summonMinionsNear(b){
 // teleport – kort blink till en plats 140px åt valfri sida med fri mark
 function doTeleport(b, P){
   const dir = (Math.random()<0.5)? -1 : 1;
-  const nx = b.x + dir*740;
+  const nx = b.x + dir*640;
   b.x = nx; // kan göras mjukare med effekter
   cameraShake(3,120);
 }
@@ -1780,6 +1828,7 @@ function spawnFirePillar(xCenter, groundY){
   p.curH       = 0;               // nuvarande höjd (växer från 0 → fullH)
   p.growPerFr  = (groundY - startY) / WARLOCK_AI.PILLAR_DESCENT_FR;
   p.lingerT    = WARLOCK_AI.PILLAR_LINGER_FR;
+  p.hitCD=0;
 }
 
 // === Uppdatering: väx nedåt, skada bara i spetsen, lås X varje frame ===
@@ -1829,7 +1878,18 @@ function updateFirePillars(){
       if (p.curH >= p.tipH){
         const tipY = p.startY + p.curH - p.tipH;
         if (P && overlap(p.x, tipY, p.dimx, p.tipH, P.x, P.y, Pw, Ph)){
-          handleCombat("firepillar", ["swordguy"], 10);
+            
+            
+           if (!p.hitCD || p.hitCD <= 0){
+            handleCombat("firepillar", ["swordguy"], 10); // din funktion
+
+
+             p.hitCD = 30;
+           }
+           if (p.hitCD && p.hitCD > 0) p.hitCD--;  
+            
+            
+          
           P.vy = -3; P.vx = (P.x < (p.x + p.dimx/2) ? -2 : 2);
         }
       }
@@ -1846,7 +1906,11 @@ function updateFirePillars(){
     if (p.mode === 'linger'){
       p.lingerT--;
       if (P && game.collideswith(p, 'swordguy', 'ghost')){
-        handleCombat("firepillar", ["swordguy"], 10);
+        if (!p.hitCD || p.hitCD <= 0){  
+            handleCombat("firepillar", ["swordguy"], 10);
+            p.hitCD = 30;
+        }
+        if (p.hitCD && p.hitCD > 0) p.hitCD--;  
       }
       if (p.lingerT <= 0){
         game.removeobject(PILL, p);

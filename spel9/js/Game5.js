@@ -730,7 +730,7 @@ if (prof) prof.tic('slide');
         if (!contact) continue;
       
         // Logga åt båda hållen, men flytta INTE
-       // _pushCollisionLog(D.ref, (G.ref || G), contact.n, true);
+       if(G._ghostClass !== 'dualFront') _pushCollisionLog(D.ref, (G.ref || G), contact.n, true);
         _pushCollisionLog(G.ref, (D.ref || D), {x:-contact.n.x, y:-contact.n.y}, true);
 
         // valfritt: flagga som triggerad den här framen
@@ -2090,7 +2090,7 @@ class Objecttype {
           
           
           if(o.flashTimer>0){
-             this.drawTinted(ctx, img, -w/2, -h/2,w,h, "rgba(255,60,60,0.6)");
+             this.drawTinted(ctx, img, -w/2, -h/2,w,h, o.flashTimercolor);
              o.flashTimer--;
               
           }
@@ -2255,6 +2255,7 @@ class Objectx {
         this.pickDelay=0;
         this.despawn =100;
         this.flashTimer=0;
+        this.flashTimercolor="rgba(255,60,60,0.6)";
     }
     collidestest(){
 
