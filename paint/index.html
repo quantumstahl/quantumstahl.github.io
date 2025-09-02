@@ -322,7 +322,7 @@
 <button id="project2Btn" style="position:absolute; top:150px; left:100px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:60px; text-align:center; font-size:16px; ">Canvas 2</button>
 <button id="project3Btn" style="position:absolute; top:150px; left:202px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:60px; text-align:center; font-size:16px; ">Canvas 3</button>
 <button id="ResizeBtn" style="position: absolute;right: 0%; top:150px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:60px; text-align:center; font-size:16px; ">Resize</button>
-<div class="tool-buttons" style="position: absolute; top: 120px; z-index: 110; display: grid; grid-template-columns: 40px 40px 40px; grid-gap: 5px; transform: translateY(-50%);">
+<div class="tool-buttons" style="position: absolute; top: 120px; z-index: 110; display: grid; grid-template-columns: repeat(8, 40px); grid-gap: 5px; transform: translateY(-50%);">
 <!-- Pen Tool -->
 <button class="tool-btn" id="penTool" style="width: 40px; height: 40px; background-color: #d4ffd4; border: 2px solid #4CAF50; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;" title="Pen Tool (P)">
 <svg style="width: 100%; height: 100%;" viewbox="0 0 24 24">
@@ -376,6 +376,62 @@
 <path d="M3 3h18v18H3V3zm6 0v18M15 3v18M3 9h18M3 15h18" fill="none" stroke="#333" stroke-width="2"></path>
 </svg>
 </button>
+<!-- Lasso Tool -->
+<button class="tool-btn" id="lassoTool" title="Lasso (L)"
+  style="width:40px;height:40px;background-color:#f1f1f1;border:2px solid #ccc;border-radius:4px;cursor:pointer;padding:2px;position:relative;">
+  <svg viewBox="0 0 24 24" style="width:100%;height:100%;">
+    <path d="M4,12c0-4,4-7,8-7s8,3,8,7-4,7-8,7c-1.6,0-3.1-.4-4.4-1.1l-2.6,1 1.2-2.4C4.7,15.2,4,13.7,4,12z" fill="#333"/>
+  </svg>
+</button>
+
+<!-- Rotate Right 90° -->
+<button class="tool-btn" id="rotateRightBtn" title="Rotate +90° (R)"
+  style="width:40px;height:40px;background-color:#f1f1f1;border:2px solid #ccc;border-radius:4px;cursor:pointer;padding:2px;position:relative;">
+  <svg viewBox="0 0 24 24" style="width:100%;height:100%;">
+    <path d="M15.55 5.55L11 1v3.07C6.05 4.56 2.5 8.54 2.5 13.5 2.5 18.47 6.53 22.5 11.5 22.5S20.5 18.47 20.5 13.5h-2
+             c0 3.86-3.14 7-7 7s-7-3.14-7-7c0-3.58 2.65-6.53 6.1-6.96V9l4.45-3.45z" fill="#333"></path>
+  </svg>
+</button>
+
+<!-- Rotate Left 90° -->
+<button class="tool-btn" id="rotateLeftBtn" title="Rotate -90° (Shift+R)"
+  style="width:40px;height:40px;background-color:#f1f1f1;border:2px solid #ccc;border-radius:4px;cursor:pointer;padding:2px;position:relative;">
+  <svg viewBox="0 0 24 24" style="width:100%;height:100%;">
+    <path d="M8.45 5.55L13 1v3.07C17.95 4.56 21.5 8.54 21.5 13.5c0 4.97-4.03 9-9 9s-9-4.03-9-9h2
+             c0 3.86 3.14 7 7 7s7-3.14 7-7c0-3.58-2.65-6.53-6.1-6.96V9L8.45 5.55z" fill="#333"></path>
+  </svg>
+</button>
+
+<!-- Flip Horizontal -->
+<button class="tool-btn" id="flipHBtn" title="Flip Horizontal (H)"
+  style="width:40px;height:40px;background-color:#f1f1f1;border:2px solid #ccc;border-radius:4px;cursor:pointer;padding:2px;position:relative;">
+  <svg viewBox="0 0 24 24" style="width:100%;height:100%;">
+    <path d="M3 4h8v16H3zM13 4h8v16h-8z" fill="#333"/>
+    <path d="M12 4v16" stroke="#333" stroke-width="1.5"/>
+  </svg>
+</button>
+
+<!-- Flip Vertical -->
+<button class="tool-btn" id="flipVBtn" title="Flip Vertical (V)"
+  style="width:40px;height:40px;background-color:#f1f1f1;border:2px solid #ccc;border-radius:4px;cursor:pointer;padding:2px;position:relative;">
+  <svg viewBox="0 0 24 24" style="width:100%;height:100%;">
+    <path d="M4 3h16v8H4zM4 13h16v8H4z" fill="#333"/>
+    <path d="M4 12h16" stroke="#333" stroke-width="1.5"/>
+  </svg>
+</button>
+
+<!-- Free Rotate -->
+<button class="tool-btn" id="rotateFreeBtn" title="Rotate Free… (Ctrl+R)"
+  style="width:40px;height:40px;background-color:#f1f1f1;border:2px solid #ccc;border-radius:4px;cursor:pointer;padding:2px;position:relative;">
+  <svg viewBox="0 0 24 24" style="width:100%;height:100%;">
+    <path d="M12 2a10 10 0 100 20 10 10 0 000-20z" fill="none" stroke="#333" stroke-width="2"/>
+    <path d="M12 6v6l4 2" stroke="#333" stroke-width="2" fill="none"/>
+  </svg>
+</button>
+
+
+
+
 </div>
 <!-- Zoom centered in toolbar -->
 <div class="zoom-container">
@@ -1148,35 +1204,46 @@ function setPixelInImageData(imageData, x, y, color) {
         imageData.data[idx + 3] = colorData[3];
     }
 }
-function switchTool(newTool) {
-    // Update the current tool
-    currentTool = newTool;
-    
-    // Update the UI buttons
-    const toolButtons = {
-        pen: document.getElementById('penTool'),
-        fill: document.getElementById('fillTool'),
-        select: document.getElementById('selectTool'),
-        eyedropper: document.getElementById('eyedropperTool'),
-        copy: document.getElementById('cTool'),
-        text: document.getElementById('textTool')
-    };
-    
-    // Update appearance of all tool buttons
-    Object.keys(toolButtons).forEach(tool => {
-        if (toolButtons[tool]) {
-            if (tool === currentTool) {
-                toolButtons[tool].style.backgroundColor = '#d4ffd4';
-                toolButtons[tool].style.borderColor = '#4CAF50';
-            } else {
-                toolButtons[tool].style.backgroundColor = '#f1f1f1';
-                toolButtons[tool].style.borderColor = '#ccc';
-            }
-        }
-    });
-    
-    console.log("Switched to tool:", newTool);
-}            
+function switchTool(newTool, opts = {}) {
+  // 1) Sätt aktivt verktyg
+  const prevTool = window.currentTool;
+  window.currentTool = newTool;
+
+  // 2) UI-knappar (lägg till lasso här!)
+  const toolButtons = {
+    pen:        document.getElementById('penTool'),
+    fill:       document.getElementById('fillTool'),
+    select:     document.getElementById('selectTool'),
+    eyedropper: document.getElementById('eyedropperTool'),
+    copy:       document.getElementById('cTool'),
+    text:       document.getElementById('textTool'),
+    lasso:      document.getElementById('lassoTool') // ← NY
+  };
+
+  Object.keys(toolButtons).forEach(tool => {
+    const btn = toolButtons[tool];
+    if (!btn) return;
+    if (tool === window.currentTool) {
+      btn.style.backgroundColor = '#d4ffd4';
+      btn.style.borderColor = '#4CAF50';
+    } else {
+      btn.style.backgroundColor = '#f1f1f1';
+      btn.style.borderColor = '#ccc';
+    }
+  });
+
+  // 3) Avsluta pågående lasso-drag när vi lämnar lasso-verktyget
+  if (newTool !== 'lasso') {
+    if (typeof isLassoActive !== 'undefined') isLassoActive = false;
+    // Rensa markering helt bara om man vill
+    if (opts.clearSelection === true && typeof clearSelection === 'function') {
+      clearSelection();
+    }
+  }
+
+  // (valfritt) logg
+  // console.log("Switched to tool:", newTool, "from", prevTool);
+}        
             // Ensure the drawing canvas is big enough for the image
             function ensureCanvasSize(width, height) {
                 // Resize the drawing canvas if the new dimensions are larger
@@ -1388,7 +1455,568 @@ function switchTool(newTool) {
 
                 startan = true;
             });
-            
+            //NYTT----------------------------------------------------------------------------------
+            // ======== LASSO + TRANSFORM STATE ========
+let lassoPoints = [];
+let isLassoActive = false;
+let hasSelection = false;
+let selectionBBox = null;         // {x,y,w,h} i canvas-pixelkoordinater (inte skärm)
+let selectionPath = null;         // Path2D för klippning
+let selectionMaskCanvas = null;   // mask av markerat område
+let selectionImageCanvas = null;  // utdraget pixelinnehåll för transform
+let selectionPathCanvas = null; // overlay-path i skärm-koordinater
+let selectionPathImg = null; 
+
+function clearSelection() {
+  hasSelection = false;
+  isLassoActive = false;
+  selectionBBox = null;
+  selectionPathCanvas = null;  // om du använder den
+  selectionPathImg = null;
+  selectionImageCanvas = null;
+  selectionMaskCanvas = null;
+}
+
+function _effectiveZoom(){ return (zoom > 10) ? (zoom/100) : zoom; }
+function _canvasXYtoImageXY(cx, cy){
+  const z=_effectiveZoom();
+  return { x: Math.floor((cx - drawstartx)/z), y: Math.floor((cy - drawstarty)/z) };
+}
+function _eraseSelectionAt(ix, iy){
+  if (!selectionMaskCanvas) return;
+  drawingCtx.save();
+  drawingCtx.translate(ix, iy);
+  drawingCtx.globalCompositeOperation = 'destination-out';
+  drawingCtx.drawImage(selectionMaskCanvas, 0, 0);
+  drawingCtx.restore();
+  drawingCtx.globalCompositeOperation = 'source-over';
+}
+
+// Bygg en mask (svart) från alphat i selectionImageCanvas
+function _rebuildMaskFromImageCanvas(){
+  if (!selectionImageCanvas) return;
+  const w = selectionImageCanvas.width;
+  const h = selectionImageCanvas.height;
+  const m = document.createElement('canvas');
+  m.width = w; m.height = h;
+  const mctx = m.getContext('2d'); disableSmoothing(mctx);
+
+  // Lägg in bilden, låt alpha styra var masken finns
+  mctx.drawImage(selectionImageCanvas, 0, 0);
+  mctx.globalCompositeOperation = 'source-in';
+  mctx.fillStyle = '#000';           // mask = svart där alpha > 0
+  mctx.fillRect(0,0,w,h);
+  mctx.globalCompositeOperation = 'source-over';
+
+  selectionMaskCanvas = m;
+}
+
+function _imageXYtoCanvasXY(ix, iy) {
+  const z = _effectiveZoom();
+  const x = drawstartx + ix * z;
+  const y = drawstarty + iy * z;
+  return {x, y};
+}
+
+function _mkPathFromPoints(pts) {
+  const p = new Path2D();
+  if (!pts.length) return p;
+  p.moveTo(pts[0].x, pts[0].y);
+  for (let i=1;i<pts.length;i++) p.lineTo(pts[i].x, pts[i].y);
+  p.closePath();
+  return p;
+}
+
+function _computeBBoxFromImagePts(ptsImg) {
+  let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+  for (const p of ptsImg) {
+    if (p.x<minX) minX=p.x;
+    if (p.y<minY) minY=p.y;
+    if (p.x>maxX) maxX=p.x;
+    if (p.y>maxY) maxY=p.y;
+  }
+  const x=minX, y=minY, w=Math.max(1, maxX-minX+1), h=Math.max(1, maxY-minY+1);
+  return {x, y, w, h};
+}
+
+// Ritar lasso-overlay (på huvud-ctx)
+function _drawLassoOverlay() {
+  if (!isLassoActive || lassoPoints.length < 2) return;
+  ctx.save();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+  ctx.setLineDash([4,3]);
+  ctx.beginPath();
+  const p0 = lassoPoints[0];
+  ctx.moveTo(p0.cx, p0.cy);
+  for (let i = 1; i < lassoPoints.length; i++) ctx.lineTo(lassoPoints[i].cx, lassoPoints[i].cy);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// Ta ut markerat område till selectionImageCanvas + skapa mask
+function _extractSelection() {
+  if (!selectionBBox || !selectionPathImg) return;
+  const { x, y, w, h } = selectionBBox;
+
+  selectionImageCanvas = document.createElement('canvas');
+  selectionImageCanvas.width = w;
+  selectionImageCanvas.height = h;
+  const sctx = selectionImageCanvas.getContext('2d');
+  disableSmoothing(sctx);
+
+  selectionMaskCanvas = document.createElement('canvas');
+  selectionMaskCanvas.width = w;
+  selectionMaskCanvas.height = h;
+  const mctx = selectionMaskCanvas.getContext('2d');
+  disableSmoothing(mctx);
+
+  // Rita mask i bild-koordinater, translaterad så (x,y) blir (0,0)
+  mctx.save();
+  mctx.translate(-x, -y);
+  mctx.fillStyle = '#000';
+  mctx.fill(selectionPathImg);
+  mctx.restore();
+
+  // Klipp originalbilden till masken
+  sctx.drawImage(drawingCanvas, -x, -y);
+  sctx.globalCompositeOperation = 'destination-in';
+  sctx.drawImage(selectionMaskCanvas, 0, 0);
+  sctx.globalCompositeOperation = 'source-over';
+}
+
+// Rensa originalpixlar endast inom masken
+function _eraseSelectionFromDrawing() {
+  const {x,y,w,h} = selectionBBox;
+  drawingCtx.save();
+  drawingCtx.translate(x, y);
+  // skapa clip från mask
+  const t = drawingCtx;
+  t.globalCompositeOperation = 'destination-out';
+  t.drawImage(selectionMaskCanvas, 0, 0);
+  t.globalCompositeOperation = 'source-over';
+  drawingCtx.restore();
+}
+
+// Klistra tillbaka (utan transform)
+function _pasteSelectionAt(x, y) {
+  drawingCtx.drawImage(selectionImageCanvas, x, y);
+}
+
+// === TRANSFORMER ===
+function rotateSelection(deg) {
+  const selectionActive = !!(hasSelection && selectionBBox && selectionImageCanvas);
+
+  if (selectionActive) {
+    startSelectionSession();
+
+    const { x, y, w, h } = selectionBBox; // KÄLL-läge
+    if (!selErasedOnce) { _eraseSelectionAt(x, y); selErasedOnce = true; }
+
+    const rad = (deg * Math.PI) / 180;
+    let outW = w, outH = h;
+    if (Math.abs(deg % 180) === 90) { outW = h; outH = w; }
+
+    const out = document.createElement('canvas');
+    out.width = outW; out.height = outH;
+    const octx = out.getContext('2d'); disableSmoothing(octx);
+    octx.translate(outW/2, outH/2);
+    octx.rotate(rad);
+    octx.drawImage(selectionImageCanvas, -w/2, -h/2);
+
+    selectionImageCanvas = out;
+    _rebuildMaskFromImageCanvas();
+
+    const cx = x + w/2, cy = y + h/2;
+    const nx = Math.round(cx - outW/2);
+    const ny = Math.round(cy - outH/2);
+    selectionBBox = { x: nx, y: ny, w: outW, h: outH };
+    return; // (commit sker när sessionen avslutas)
+  }
+
+  // --- HELA BILDEN ---
+  beginAction();  // <-- SAKNADES
+  const z = (zoom > 10 ? zoom/100 : zoom);
+  const w = Math.floor(drawareax / z), h = Math.floor(drawareay / z);
+
+  const rad = (deg*Math.PI)/180;
+  const cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad));
+  const outW = Math.ceil(w*cos + h*sin);
+  const outH = Math.ceil(h*cos + w*sin);
+
+  // rotera dokumentytan (0..w,0..h) till out-canvas
+  const tmp = document.createElement('canvas'); tmp.width = outW; tmp.height = outH;
+  const tctx = tmp.getContext('2d'); disableSmoothing(tctx);
+  tctx.translate(outW/2, outH/2);
+  tctx.rotate(rad);
+  // rita endast dokumentytan (inte hela drawingCanvas)
+  tctx.drawImage(drawingCanvas, 0, 0, w, h, -w/2, -h/2, w, h);
+
+  // rensa gamla dokumentytan och skriv in roterade resultatet
+  drawingCtx.clearRect(0, 0, w, h);
+  drawingCtx.drawImage(tmp, 0, 0);
+
+  // uppdatera dokumentmått + centrera vy om storleken ändrades
+  if (outW !== w || outH !== h) {
+    drawareax = outW * z;
+    drawareay = outH * z;
+    // centrera
+    const dpr = (window.devicePixelRatio || 1);
+    drawstartx = Math.floor((canvas.width / dpr - drawareax) / 2);
+    drawstarty = Math.floor((canvas.height / dpr - drawareay) / 2);
+  }
+
+  endAction();
+}
+
+function flipSelection(axis /* 'h'|'v' */) {
+  const selectionActive = !!(hasSelection && selectionBBox && selectionImageCanvas);
+
+  if (selectionActive) {
+    startSelectionSession();
+
+    const { x, y, w, h } = selectionBBox;
+    if (!selErasedOnce) { _eraseSelectionAt(x, y); selErasedOnce = true; }
+
+    const out = document.createElement('canvas');
+    out.width = w; out.height = h;
+    const octx = out.getContext('2d'); disableSmoothing(octx);
+
+    const ax = (axis || 'h').toLowerCase();  // <-- normalisera
+    octx.save();
+    if (ax === 'h') { octx.translate(w, 0); octx.scale(-1, 1); }
+    else            { octx.translate(0, h); octx.scale(1, -1); }
+    octx.drawImage(selectionImageCanvas, 0, 0);
+    octx.restore();
+
+    selectionImageCanvas = out;
+    _rebuildMaskFromImageCanvas();
+    // bbox oförändrad
+    return;
+  }
+
+  // --- HELA BILDEN ---
+  beginAction(); // <-- SAKNADES
+  const z = (zoom > 10 ? zoom/100 : zoom);
+  const w = Math.floor(drawareax / z), h = Math.floor(drawareay / z);
+
+  const tmp = document.createElement('canvas'); tmp.width = w; tmp.height = h;
+  const tctx = tmp.getContext('2d'); disableSmoothing(tctx);
+
+  const ax = (axis || 'h').toLowerCase();
+  tctx.save();
+  if (ax === 'h') { tctx.translate(w, 0); tctx.scale(-1, 1); }
+  else            { tctx.translate(0, h); tctx.scale(1, -1); }
+  // rita endast dokumentytan
+  tctx.drawImage(drawingCanvas, 0, 0, w, h, 0, 0, w, h);
+  tctx.restore();
+
+  drawingCtx.clearRect(0, 0, w, h);
+  drawingCtx.drawImage(tmp, 0, 0);
+  endAction();
+}
+
+// Fri rotation med grad-dialog
+function rotateSelectionFree() {
+  const val = prompt('Rotate degrees (e.g. 20 or -30):', '20');
+  const deg = Number(val);
+  if (!isFinite(deg)) return;
+
+  const selectionActive = !!(hasSelection && selectionBBox && selectionImageCanvas);
+
+  if (selectionActive) {
+    startSelectionSession();
+
+    const { x, y, w, h } = selectionBBox; // KÄLL-läge
+    if (!selErasedOnce) { _eraseSelectionAt(x, y); selErasedOnce = true; }
+
+    const rad = (deg*Math.PI)/180;
+    const cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad));
+    const outW = Math.ceil(w*cos + h*sin);
+    const outH = Math.ceil(h*cos + w*sin);
+
+    const out = document.createElement('canvas'); out.width = outW; out.height = outH;
+    const octx = out.getContext('2d'); disableSmoothing(octx);
+    octx.translate(outW/2, outH/2);
+    octx.rotate(rad);
+    octx.drawImage(selectionImageCanvas, -w/2, -h/2);
+
+    selectionImageCanvas = out;
+    _rebuildMaskFromImageCanvas();
+
+    const cx = x + w/2, cy = y + h/2;
+    const nx = Math.round(cx - outW/2);
+    const ny = Math.round(cy - outH/2);
+    selectionBBox = { x: nx, y: ny, w: outW, h: outH };
+    return;
+  }
+
+  // --- HELA BILDEN ---
+  beginAction(); // <-- SAKNADES
+  const z = (zoom > 10 ? zoom/100 : zoom);
+  const w = Math.floor(drawareax / z), h = Math.floor(drawareay / z);
+
+  const rad = (deg*Math.PI)/180;
+  const cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad));
+  const outW = Math.ceil(w*cos + h*sin);
+  const outH = Math.ceil(h*cos + w*sin);
+
+  const tmp = document.createElement('canvas'); tmp.width = outW; tmp.height = outH;
+  const tctx = tmp.getContext('2d'); disableSmoothing(tctx);
+  tctx.translate(outW/2, outH/2);
+  tctx.rotate(rad);
+  // rita endast dokumentytan
+  tctx.drawImage(drawingCanvas, 0, 0, w, h, -w/2, -h/2, w, h);
+
+  // rensa gamla dokumentytan och skriv in roterade
+  drawingCtx.clearRect(0, 0, w, h);
+  drawingCtx.drawImage(tmp, 0, 0);
+
+  // uppdatera dokumentmått + centrera vy (viktigt för fri vinkel)
+  if (outW !== w || outH !== h) {
+    drawareax = outW * z;
+    drawareay = outH * z;
+    const dpr = (window.devicePixelRatio || 1);
+    drawstartx = Math.floor((canvas.width / dpr - drawareax) / 2);
+    drawstarty = Math.floor((canvas.height / dpr - drawareay) / 2);
+  }
+
+  endAction();
+}
+
+// ======== TOOL SWITCH HOOKS ========
+document.getElementById('lassoTool')?.addEventListener('click', ()=> switchTool('lasso'));
+document.getElementById('rotateRightBtn')?.addEventListener('click', ()=> rotateSelection(90));
+document.getElementById('rotateLeftBtn')?.addEventListener('click', ()=> rotateSelection(-90));
+document.getElementById('flipHBtn')?.addEventListener('click', ()=> flipSelection('h'));
+document.getElementById('flipVBtn')?.addEventListener('click', ()=> flipSelection('v'));
+document.getElementById('rotateFreeBtn')?.addEventListener('click', ()=> rotateSelectionFree());
+
+// tangentbordsgenvägar: R=+90, Shift+R=-90, H=flipH, V=flipV, L=lasso, Ctrl+R=free
+document.addEventListener('keydown', (e)=>{
+  if (e.ctrlKey && (e.key==='r' || e.key==='R')) { e.preventDefault(); rotateSelectionFree(); return; }
+  if (e.key==='r' || e.key==='R') { e.preventDefault(); rotateSelection( e.shiftKey? -90 : +90 ); return; }
+  if (e.key==='h' || e.key==='H') { e.preventDefault(); flipSelection('h'); return; }
+  if (e.key==='v' || e.key==='V') { e.preventDefault(); flipSelection('v'); return; }
+  if (e.key==='l' || e.key==='L') { e.preventDefault(); switchTool('lasso'); return; }
+});
+document.addEventListener('keydown', (e)=>{
+  if (e.key === 'Escape') {
+    if (selSessionActive) {
+      commitSelectionSession();  // skriver in urklippet och avslutar
+    } else {
+      // ingen session: stäng bara ev. lasso-skiss/markering
+      isLassoActive = false;
+      hasSelection = false;
+      selectionBBox = null;
+      selectionPathCanvas = null;
+      selectionPathImg = null;
+      selectionImageCanvas = null;
+      selectionMaskCanvas = null;
+    }
+  }
+});
+
+
+// Gör switchTool medveten om lasso/selection
+const _origSwitchTool = switchTool;
+switchTool = function(newTool){
+  _origSwitchTool(newTool);
+  if (newTool !== 'lasso') {
+    isLassoActive = false;
+  }
+};
+
+let isDraggingSelection = false;
+let dragSelX = 0,  dragSelY  = 0;       // aktuell “overlay”-position i bildpixlar
+let dragOffsetIX = 0, dragOffsetIY = 0; // pekarens offset i bbox
+
+let selSessionActive = false;           // en flytt-session pågår
+let selErasedOnce    = false;           // originalplatsen raderad (en gång)
+
+function startSelectionSession() {
+  if (!selSessionActive) {
+    if (typeof beginAction === 'function') beginAction(); // snapshot för undo
+    selSessionActive = true;
+    selErasedOnce = false;
+  }
+}
+
+function commitSelectionSession() {
+  if (!selSessionActive) return;
+  // om vi redan raderat originalet: skriv in urklippet på nuvarande bbox.position
+  if (selErasedOnce && selectionImageCanvas && selectionBBox) {
+    drawingCtx.drawImage(selectionImageCanvas, selectionBBox.x, selectionBBox.y);
+  }
+  if (typeof endAction === 'function') endAction(); // redo-steg klart
+  // stäng session + markering
+  selSessionActive = false;
+  selErasedOnce = false;
+  isDraggingSelection = false;
+  // val: behåll markeringen eller avsluta helt. Här avslutar vi:
+  hasSelection = false;
+  selectionBBox = null;
+  selectionImageCanvas = null;
+  selectionMaskCanvas = null;
+}
+
+function cancelSelectionSession() {
+  if (!selSessionActive) return;
+  // Återställ canvas om vi raderat original
+  if (selErasedOnce && typeof undo === 'function') undo();
+  // återställ UI-state till startläget
+  selSessionActive = false;
+  selErasedOnce = false;
+  isDraggingSelection = false;
+  // hoppa tillbaka markeringen till startpunkt
+  if (selectionBBox) { selectionBBox.x = dragStartX; selectionBBox.y = dragStartY; }
+}
+// ======== POINTER-HANTERING FÖR LASSO ========
+canvas.addEventListener('pointerdown', (ev)=>{
+  if (currentTool !== 'lasso') return;
+  if (ev.pointerType === 'touch') ev.preventDefault(); 
+  const rect = canvas.getBoundingClientRect();
+  const cx = ev.clientX - rect.left;
+  const cy = ev.clientY - rect.top;
+  const pImg = _canvasXYtoImageXY(cx, cy);
+
+  // Klick inne i befintlig markering → starta/mata på en flytt-session
+  if (hasSelection && selectionBBox &&
+      pImg.x >= selectionBBox.x && pImg.x < selectionBBox.x + selectionBBox.w &&
+      pImg.y >= selectionBBox.y && pImg.y < selectionBBox.y + selectionBBox.h) {
+
+    startSelectionSession();
+
+    // Radera originalområdet bara första gången
+    if (!selErasedOnce) {
+      dragStartX = selectionBBox.x;
+      dragStartY = selectionBBox.y;
+      _eraseSelectionAt(dragStartX, dragStartY);  // gör hål en gång
+      selErasedOnce = true;
+    }
+
+    isDraggingSelection = true;
+    dragSelX = selectionBBox.x;
+    dragSelY = selectionBBox.y;
+    dragOffsetIX = pImg.x - selectionBBox.x;
+    dragOffsetIY = pImg.y - selectionBBox.y;
+    return;
+  }
+
+  // Annars: börja NY lasso-kurva
+  
+  commitSelectionSession();  
+    isLassoActive = true;
+    hasSelection = false;
+    selectionBBox = null;
+    selectionPathCanvas = null;
+    selectionPathImg = null;
+    selectionImageCanvas = null;
+    selectionMaskCanvas = null;
+
+    lassoPoints = [];
+    lassoPoints.push({ cx, cy, ix:pImg.x, iy:pImg.y });
+  
+});
+
+canvas.addEventListener('pointermove', (ev)=>{
+  if (currentTool !== 'lasso') return;
+  if (ev.pointerType === 'touch') ev.preventDefault(); 
+  const rect = canvas.getBoundingClientRect();
+  const cx = ev.clientX - rect.left;
+  const cy = ev.clientY - rect.top;
+  const pImg = _canvasXYtoImageXY(cx, cy);
+
+  if (isDraggingSelection && selectionBBox) {
+    let nx = pImg.x - dragOffsetIX;
+    let ny = pImg.y - dragOffsetIY;
+    //nx = Math.max(0, Math.min(nx, drawingCanvas.width  - selectionBBox.w));
+   // ny = Math.max(0, Math.min(ny, drawingCanvas.height - selectionBBox.h));
+    dragSelX = nx; dragSelY = ny;
+    return;
+  }
+
+  if (!isLassoActive) return;
+  const last = lassoPoints[lassoPoints.length-1];
+  if (!last || last.ix !== pImg.x || last.iy !== pImg.y) {
+    lassoPoints.push({ cx, cy, ix:pImg.x, iy:pImg.y });
+  }
+});
+
+function _finalizeLasso() {
+  if (lassoPoints.length < 3) { isLassoActive = false; return; }
+
+  // 1) Overlay-path i skärm-koordinater (för att rita “marching ants”)
+  const pCanvas = new Path2D();
+  pCanvas.moveTo(lassoPoints[0].cx, lassoPoints[0].cy);
+  for (let i = 1; i < lassoPoints.length; i++) pCanvas.lineTo(lassoPoints[i].cx, lassoPoints[i].cy);
+  pCanvas.closePath();
+  selectionPathCanvas = pCanvas;
+
+  // 2) Mask-path i bildens pixelkoordinater (detta används när vi extraherar pixlar)
+  const pImg = new Path2D();
+  pImg.moveTo(lassoPoints[0].ix, lassoPoints[0].iy);
+  for (let i = 1; i < lassoPoints.length; i++) pImg.lineTo(lassoPoints[i].ix, lassoPoints[i].iy);
+  pImg.closePath();
+  selectionPathImg = pImg;
+
+  // 3) BBox i bildens pixelkoordinater
+  const ptsImg = lassoPoints.map(p => ({ x: p.ix, y: p.iy }));
+  const bbox = _computeBBoxFromImagePts(ptsImg);
+  selectionBBox = { x: bbox.x, y: bbox.y, w: bbox.w, h: bbox.h };
+
+  _extractSelection();
+  hasSelection = true;
+  isLassoActive = false;
+}
+
+canvas.addEventListener('pointerup', (ev)=>{
+  if (currentTool !== 'lasso') return;
+  if (ev.pointerType === 'touch') ev.preventDefault(); 
+  if (isDraggingSelection && selectionImageCanvas && selectionBBox) {
+    // flytten “gäller” visuellt: uppdatera bbox men skriv inte till canvas ännu
+    selectionBBox.x = dragSelX;
+    selectionBBox.y = dragSelY;
+    isDraggingSelection = false;
+    return;
+  }
+
+  // färdigritad lasso → skapa markering + extrakt
+  if (lassoPoints.length > 6) _finalizeLasso();
+});
+
+// Högerklick = ångra drag (återställ snapshot)
+canvas.addEventListener('contextmenu', (e)=>{
+  if (selSessionActive) {
+    e.preventDefault();
+    cancelSelectionSession();    // återställ hålet och positionen
+  }
+});
+
+// även dubbelklick → stäng/avsluta
+canvas.addEventListener('dblclick', (ev)=>{
+  
+  if (currentTool!=='lasso') return;
+  commitSelectionSession();      
+  clearSelection();
+});
+canvas.addEventListener('contextmenu', (e)=>{
+  e.preventDefault();
+  isLassoActive = false;
+  if (isDraggingSelection) {
+    // Avbryt flytt: bara lämna allt som innan drag-start
+    isDraggingSelection = false;
+    
+    // (vi har inte skrivit till drawingCanvas under drag, så inget mer behövs)
+  }
+}); 
+canvas.addEventListener('pointercancel', (ev)=>{
+  if (currentTool !== 'lasso') return;
+  // Avbryt drag, men rulla inte tillbaka (sessionen lever kvar)
+  isDraggingSelection = false;
+});
+
+            //check---------------------------------------------------------------------------------------
             var check = function() {
                 // Update canvas size
                 if (canvas.width !== window.innerWidth * (window.devicePixelRatio || 1) ||
@@ -1447,8 +2075,8 @@ function switchTool(newTool) {
                     if (newDrawareay < 10) {
                         newDrawstarty = drawstarty + drawareay - 10;
                         newDrawareay = 10;
-                    } else if (newDrawstarty < 100) {
-                        newDrawstarty = 100 + 2.5;
+                    } else if (newDrawstarty < 155) {
+                        newDrawstarty = 155 + 2.5;
                         newDrawareay = drawareay + (-newDrawstarty + drawstarty);
                     }
 
@@ -1499,8 +2127,8 @@ function switchTool(newTool) {
                         if (drawareay > 10)
                             newDrawstarty = drawstarty + drawareay - 10;
                         newDrawareay = 10;
-                    } else if (y < 100) {
-                        newDrawstarty = 100 + 2.5;
+                    } else if (y < 155) {
+                        newDrawstarty = 155 + 2.5;
                         newDrawareay = drawareay + (-newDrawstarty + drawstarty);
                     }
 
@@ -1931,6 +2559,38 @@ function switchTool(newTool) {
                 ctx.strokeRect(selLeft, selTop, selWidth, selHeight);
                 ctx.setLineDash([]);
             }
+                            // ======== RITA LOOPEN/SELECTION-OVERLAY I DIN huvud-loop ========
+               // i din render/overlay-del
+               
+               if(currentTool!=="lasso"){isDraggingSelection = false;if (selSessionActive) commitSelectionSession();clearSelection();}
+               
+               
+                  // visa urklippet i overlay på nuvarande (ev. drag) position
+                if (selectionImageCanvas && selectionBBox) {
+                  const showX = isDraggingSelection ? dragSelX : selectionBBox.x;
+                  const showY = isDraggingSelection ? dragSelY : selectionBBox.y;
+
+                  const { w, h } = selectionBBox;
+                  const p = _imageXYtoCanvasXY(showX, showY);
+                  const z = _effectiveZoom();
+                  ctx.drawImage(selectionImageCanvas, p.x, p.y, w*z, h*z);
+
+                  // “marching ants”
+                  const p0 = _imageXYtoCanvasXY(showX, showY);
+                  const p1 = _imageXYtoCanvasXY(showX + w, showY + h);
+                  ctx.save();
+                  ctx.setLineDash([4,3]);
+                  ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+                  ctx.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
+                  if (selectionPathCanvas) ctx.stroke(selectionPathCanvas);
+                  ctx.restore();
+                }
+
+                _drawLassoOverlay();
+
+            
+            
+            
                 window.requestAnimationFrame(check);   
             }; 
             
@@ -2238,6 +2898,11 @@ function switchTool(newTool) {
         currentImage.src = selectionCanvas.toDataURL();
         endAction();
     }
+ 
+    
+    
+    
+    
 }
 });
             
@@ -2858,7 +3523,9 @@ img.onload = function() {
         select: document.getElementById('selectTool'),
         eyedropper: document.getElementById('eyedropperTool'),
         copy: document.getElementById('cTool'),
-        text: document.getElementById('textTool')
+        text: document.getElementById('textTool'),
+        lasso: document.getElementById('lassoTool')
+        
     };
     
     // Function to update tool button appearance
@@ -2896,7 +3563,8 @@ img.onload = function() {
                 case 's': currentTool = 'select'; break;
                 case 'e': currentTool = 'eyedropper'; break;
                 case 'c': currentTool = 'copy'; break; 
-                case 't': currentTool = 'text'; break;     
+                case 't': currentTool = 'text'; break; 
+                case 'l': currentTool = 'lasso'; break;
                 
             }
             updateToolButtons();
