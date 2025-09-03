@@ -2025,6 +2025,24 @@ canvas.addEventListener('dblclick', (ev)=>{
   commitSelectionSession();      
   clearSelection();
 });
+
+canvas.addEventListener("touchstart", tapHandler);
+
+var tapedTwice = false;
+
+function tapHandler(event) {
+    if(!tapedTwice) {
+        tapedTwice = true;
+        setTimeout( function() { tapedTwice = false; }, 300 );
+        return false;
+    }
+    event.preventDefault();
+    commitSelectionSession();      
+    clearSelection();
+ }
+
+
+
 canvas.addEventListener('contextmenu', (e)=>{
   e.preventDefault();
   isLassoActive = false;
@@ -2495,6 +2513,12 @@ canvas.addEventListener('dblclick', (ev) => {
     if (typeof clearSelection === 'function') clearSelection();                 // rensa ants/overlay
   }
 });
+
+
+
+
+
+
 async function pasteFromClipboard() {
   try {
     // 1) Försök modern Clipboard API (bilder)
