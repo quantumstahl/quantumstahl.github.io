@@ -341,21 +341,12 @@
 <path d="M3,5h2V3C3,3,3,5,3,5z M7,3v2h2V3H7z M11,3v2h2V3H11z M15,3v2h2V3H15z M19,3v2h2V3H19z M3,9h2V7H3V9z M19,7v2h2V7H19z M3,13h2 v-2H3V13z M19,11v2h2v-2H19z M3,17h2v-2H3V17z M19,15v2h2v-2H19z M3,21h2v-2H3V21z M7,21h2v-2H7V21z M11,21h2v-2h-2V21z M15,21h2 v-2h-2V21z M19,21h2v-2h-2V21z" fill="#333"></path>
 </svg>
 </button>
-<!-- Copy (action only) -->
-<button class="tool-btn" id="copyBtn" title="Copy selection (Ctrl/Cmd+C)"
-  style="width:40px;height:40px;background-color:#f1f1f1;border:2px solid #ccc;border-radius:4px;cursor:pointer;padding:2px;position:relative;">
-  <svg viewBox="0 0 24 24" style="width:100%;height:100%;">
-    <path d="M16 1H4c-1.1 0-2 .9-2 2v12h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" fill="#333"/>
-  </svg>
-</button>
-<!-- Paste (action only) -->
-<button class="tool-btn" id="pasteBtn" title="Paste (Ctrl/Cmd+V)"
-  style="width:40px;height:40px;background-color:#f1f1f1;border:2px solid #ccc;border-radius:4px;cursor:pointer;padding:2px;position:relative;">
-  <svg viewBox="0 0 24 24" style="width:100%;height:100%;">
-    <!-- clipboard + plus -->
-    <path d="M16 2h-2.18C13.4.84 12.3 0 11 0S8.6.84 8.18 2H6c-1.1 0-2 .9-2 2v16c0 1.11.9 2 2 2h10c1.1 0 2-.89 2-2V4c0-1.1-.9-2-2-2zM11 2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1z" fill="#333"/>
-    <path d="M12 8v3H9v2h3v3h2v-3h3v-2h-3V8h-2z" fill="#333"/>
-  </svg>
+<!-- New C Tool -->
+<button class="tool-btn" id="cTool" style="width: 40px; height: 40px; background-color: #f1f1f1; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;" title="C Tool">
+<svg style="width: 100%; height: 100%;" viewbox="0 0 24 24">
+<path d="M3,5h2V3C3,3,3,5,3,5z M7,3v2h2V3H7z M11,3v2h2V3H11z M15,3v2h2V3H15z M19,3v2h2V3H19z M3,9h2V7H3V9z M19,7v2h2V7H19z M3,13h2 v-2H3V13z M19,11v2h2v-2H19z M3,17h2v-2H3V17z M19,15v2h2v-2H19z M3,21h2v-2H3V21z M7,21h2v-2H7V21z M11,21h2v-2h-2V21z M15,21h2 v-2h-2V21z M19,21h2v-2h-2V21z" fill="#333"></path>
+<text dominant-baseline="alphabetic" fill="#333" font-family="Arial" font-size="12" text-anchor="middle" x="12" y="16">C</text>
+</svg>
 </button>
 <!-- Eyedropper/Pipette Tool -->
 <button class="tool-btn" id="eyedropperTool" style="width: 40px; height: 40px; background-color: #f1f1f1; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; padding: 2px; position: relative;" title="Color Picker (E)">
@@ -1224,6 +1215,7 @@ function switchTool(newTool, opts = {}) {
     fill:       document.getElementById('fillTool'),
     select:     document.getElementById('selectTool'),
     eyedropper: document.getElementById('eyedropperTool'),
+    copy:       document.getElementById('cTool'),
     text:       document.getElementById('textTool'),
     lasso:      document.getElementById('lassoTool') // ← NY
   };
@@ -1515,7 +1507,7 @@ function _rebuildMaskFromImageCanvas(){
   mctx.fillStyle = '#000';           // mask = svart där alpha > 0
   mctx.fillRect(0,0,w,h);
   mctx.globalCompositeOperation = 'source-over';
-  _binarizeAndDilateMask(m, 1); // ← NYTT
+
   selectionMaskCanvas = m;
 }
 
@@ -1578,7 +1570,6 @@ function _extractSelection() {
   selectionMaskCanvas.height = h;
   const mctx = selectionMaskCanvas.getContext('2d');
   disableSmoothing(mctx);
-  
 
   // Rita mask i bild-koordinater, translaterad så (x,y) blir (0,0)
   mctx.save();
@@ -1586,7 +1577,7 @@ function _extractSelection() {
   mctx.fillStyle = '#000';
   mctx.fill(selectionPathImg);
   mctx.restore();
-  _binarizeAndDilateMask(selectionMaskCanvas, 1);
+
   // Klipp originalbilden till masken
   sctx.drawImage(drawingCanvas, -x, -y);
   sctx.globalCompositeOperation = 'destination-in';
@@ -1800,23 +1791,14 @@ document.getElementById('rotateLeftBtn')?.addEventListener('click', ()=> rotateS
 document.getElementById('flipHBtn')?.addEventListener('click', ()=> flipSelection('h'));
 document.getElementById('flipVBtn')?.addEventListener('click', ()=> flipSelection('v'));
 document.getElementById('rotateFreeBtn')?.addEventListener('click', ()=> rotateSelectionFree());
-document.getElementById('copyBtn')?.addEventListener('click', () => {
-  // Trigga copy-event => vår listener lägger dataURL i urklipp
-  document.execCommand('copy');
-});
-document.getElementById('pasteBtn')?.addEventListener('click', pasteFromClipboard);
 
 // tangentbordsgenvägar: R=+90, Shift+R=-90, H=flipH, V=flipV, L=lasso, Ctrl+R=free
 document.addEventListener('keydown', (e)=>{
-   const mod = e.ctrlKey || e.metaKey;
-   if (mod && e.key.toLowerCase() === 'c') { copySelection(); return; }  
-   if (mod && e.key.toLowerCase() === 'v') {pasteFromClipboard();return;}
-   if (e.ctrlKey && (e.key==='r' || e.key==='R')) { e.preventDefault(); rotateSelectionFree(); return; }
-   if (e.key==='r' || e.key==='R') { e.preventDefault(); rotateSelection( e.shiftKey? -90 : +90 ); return; }
-   if (e.key==='h' || e.key==='H') { e.preventDefault(); flipSelection('h'); return; }
-   if (e.key==='v' || e.key==='V') { e.preventDefault(); flipSelection('v'); return; }
-   if (e.key==='l' || e.key==='L') { e.preventDefault(); switchTool('lasso'); return; }
-  
+  if (e.ctrlKey && (e.key==='r' || e.key==='R')) { e.preventDefault(); rotateSelectionFree(); return; }
+  if (e.key==='r' || e.key==='R') { e.preventDefault(); rotateSelection( e.shiftKey? -90 : +90 ); return; }
+  if (e.key==='h' || e.key==='H') { e.preventDefault(); flipSelection('h'); return; }
+  if (e.key==='v' || e.key==='V') { e.preventDefault(); flipSelection('v'); return; }
+  if (e.key==='l' || e.key==='L') { e.preventDefault(); switchTool('lasso'); return; }
 });
 document.addEventListener('keydown', (e)=>{
   if (e.key === 'Escape') {
@@ -1890,11 +1872,7 @@ function cancelSelectionSession() {
   if (selectionBBox) { selectionBBox.x = dragStartX; selectionBBox.y = dragStartY; }
 }
 // ======== POINTER-HANTERING FÖR LASSO ========
-
-let isdragdrag=false;
-
 canvas.addEventListener('pointerdown', (ev)=>{
-    isdragdrag=true;
   if (currentTool !== 'lasso') return;
   if (ev.pointerType === 'touch') ev.preventDefault(); 
   const rect = canvas.getBoundingClientRect();
@@ -1993,7 +1971,6 @@ function _finalizeLasso() {
 }
 
 canvas.addEventListener('pointerup', (ev)=>{
-    isdragdrag=false;
   if (currentTool !== 'lasso') return;
   if (ev.pointerType === 'touch') ev.preventDefault(); 
   if (isDraggingSelection && selectionImageCanvas && selectionBBox) {
@@ -2038,626 +2015,6 @@ canvas.addEventListener('pointercancel', (ev)=>{
   // Avbryt drag, men rulla inte tillbaka (sessionen lever kvar)
   isDraggingSelection = false;
 });
-// Tröska bort halv-alfa → 0/255
-function _binarizeAlpha(canvas, threshold = 128) {
-  const w = canvas.width, h = canvas.height;
-  if (!w || !h) return;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  const img = ctx.getImageData(0, 0, w, h);
-  const data = img.data;
-  for (let i = 0; i < data.length; i += 4) {
-    data[i+3] = (data[i+3] >= threshold ? 255 : 0);
-  }
-  ctx.putImageData(img, 0, 0);
-}
-
-// Väx masken 1 px (mycket enkel 3×3-dilation på alfa)
-// iterationer=1 räcker oftast; öka om du fortfarande ser glipor.
-function _dilateAlpha(canvas, iterations = 1) {
-  const w = canvas.width, h = canvas.height;
-  if (!w || !h || iterations <= 0) return;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-  for (let it=0; it<iterations; it++) {
-    const src = ctx.getImageData(0, 0, w, h);
-    const s = src.data;
-    const dst = ctx.createImageData(w, h);
-    const d = dst.data;
-
-    for (let y=0; y<h; y++) {
-      for (let x=0; x<w; x++) {
-        let on = 0;
-        // 8-grannar
-        for (let dy=-1; dy<=1; dy++) {
-          const yy = y+dy; if (yy<0 || yy>=h) continue;
-          for (let dx=-1; dx<=1; dx++) {
-            const xx = x+dx; if (xx<0 || xx>=w) continue;
-            const ai = ((yy*w + xx) << 2) + 3;
-            if (s[ai] >= 128) { on = 1; break; }
-          }
-          if (on) break;
-        }
-        const i = ((y*w + x) << 2);
-        d[i]   = s[i];
-        d[i+1] = s[i+1];
-        d[i+2] = s[i+2];
-        d[i+3] = on ? 255 : 0; // bara alfa spelar roll för masken
-      }
-    }
-    ctx.putImageData(dst, 0, 0);
-  }
-}
-
-// Kombinerad
-function _binarizeAndDilateMask(maskCanvas, dilatePx = 1) {
-  _binarizeAlpha(maskCanvas, 128);
-  if (dilatePx > 0) _dilateAlpha(maskCanvas, dilatePx);
-}
-let resizeOccurred = false;
-// === NYTT: helpers ===
-function _effZ(){ return (zoom > 10 ? zoom/100 : zoom); }
-
-// snapshot av dokumentytan (0..docW × 0..docH) — inte hela drawingCanvas
-function _snapshotDocArea(docW, docH){
-  const c = document.createElement('canvas');
-  c.width = docW; c.height = docH;
-  const cctx = c.getContext('2d'); disableSmoothing(cctx);
-  cctx.drawImage(drawingCanvas, 0,0, docW,docH, 0,0, docW,docH);
-  return c;
-}
-
-// rita tillbaka utan förlust (oavsett riktning)
-function blitNoLoss(tempCanvas, newW, newH, dx, dy, bgColor = 'transparent'){
-  const oldW = tempCanvas.width, oldH = tempCanvas.height;
-
-  const dstX = (dx>0 ? dx : 0) | 0;
-  const dstY = (dy>0 ? dy : 0) | 0;
-  const srcX = (dx<0 ? -dx : 0) | 0;
-  const srcY = (dy<0 ? -dy : 0) | 0;
-
-  const copyW = Math.max(0, Math.min(oldW - srcX, newW - dstX)) | 0;
-  const copyH = Math.max(0, Math.min(oldH - srcY, newH - dstY)) | 0;
-
-  // 1) clearRect gör ytan helt transparent
-  drawingCtx.clearRect(0, 0, Math.max(oldW,newW), Math.max(oldH,newH));
-
-  // 2) Fyll endast om du VILL ha en bakgrundsfärg
-  if (bgColor && bgColor !== 'transparent') {
-    drawingCtx.save();
-    drawingCtx.fillStyle = bgColor; // t.ex. '#ffffff'
-    drawingCtx.fillRect(0, 0, newW, newH);
-    drawingCtx.restore();
-  }
-
-  // 3) Kopiera overlap (förlustfritt)
-  if (copyW>0 && copyH>0){
-    drawingCtx.drawImage(
-      tempCanvas,
-      srcX, srcY, copyW, copyH,
-      dstX, dstY, copyW, copyH
-    );
-  }
-}
-
-// dx,dy beroende på vilket hörn som dras — bevara motsatt hörn
-function offsetForCorner(corner, oldW, oldH, newW, newH){
-  switch((corner||'SE').toUpperCase()){
-    case 'NW': return { dx: newW - oldW, dy: newH - oldH }; // botten-höger fast
-    case 'NE': return { dx: 0,            dy: newH - oldH }; // botten-vänster fast
-    case 'SW': return { dx: newW - oldW,  dy: 0            }; // toppen-höger fast
-    case 'SE':
-    default:   return { dx: 0,            dy: 0            }; // toppen-vänster fast
-  }
-}
-// === NYTT: resize-session ===
-// === state för resize ===
-let rc_active = false;
-let rc_corner = 'SE';
-let rc_oldW = 0, rc_oldH = 0;     // dokumentmått i bildpixlar
-let rc_prevW = 0, rc_prevH = 0;   // preview-mått i bildpixlar
-let rc_baseStartX = 0, rc_baseStartY = 0; // drawstart vid start (skärmpixlar)
-let rc_snap = null;
-let rc_anchorX=0, rc_anchorY=0, rc_anchorSet=false;
-let rc_lastSW=0, rc_lastSH=0;
-
-function _effZ(){ return (zoom > 10 ? zoom/100 : zoom); }
-function sx2ix(sx){ const z=_effZ(); return Math.round((sx - rc_baseStartX) / z); }
-function sy2iy(sy){ const z=_effZ(); return Math.round((sy - rc_baseStartY) / z); }
-
-function _snapshotDocArea(w,h){
-  const c = document.createElement('canvas'); c.width=w; c.height=h;
-  const cctx = c.getContext('2d'); cctx.imageSmoothingEnabled = false;
-  cctx.drawImage(drawingCanvas, 0,0, w,h, 0,0, w,h);
-  return c;
-}
-
-function resizeStart(corner){
-  if (rc_active) return;
-  const z = _effZ();
-  rc_corner = corner.toUpperCase();
-  rc_oldW = Math.floor(drawareax / z);
-  rc_oldH = Math.floor(drawareay / z);
-  rc_prevW = rc_oldW;
-  rc_prevH = rc_oldH;
-  rc_baseStartX = Math.round(drawstartx);   // <- BASELÄGE
-  rc_baseStartY = Math.round(drawstarty);   // <- BASELÄGE
-  rc_snap = _snapshotDocArea(rc_oldW, rc_oldH);
-  beginAction?.(); // ett undo-steg
-  rc_active = true;
-}
-
-// Anropar du med canvas-skärmkoordinater (dina x,y):
-function resizePreviewFromCanvasXY(sx, sy){
-  if (!rc_active) return;
-  const W = rc_oldW, H = rc_oldH;
-  const imgX = sx2ix(sx);
-  const imgY = sy2iy(sy);
-
-  switch(rc_corner){
-    case 'SE': rc_prevW = Math.max(1, imgX);     rc_prevH = Math.max(1, imgY);     break;
-    case 'NE': rc_prevW = Math.max(1, imgX);     rc_prevH = Math.max(1, H - imgY); break;
-    case 'SW': rc_prevW = Math.max(1, W - imgX); rc_prevH = Math.max(1, imgY);     break;
-    case 'NW': rc_prevW = Math.max(1, W - imgX); rc_prevH = Math.max(1, H - imgY); break;
-  }
-}
-
-function resizeCommit(){
-  if (!rc_active) return;
-  const newW = rc_prevW|0, newH = rc_prevH|0;
-  const {dx,dy} = offsetForCorner(rc_corner, rc_oldW, rc_oldH, newW, newH);
-
-  blitNoLoss(rc_snap, newW, newH, dx, dy, /* bgColor */ null);
-
-  // uppdatera drawarea (skärmpixlar)
-  const z = _effZ();
-  drawareax = newW * z;
-  drawareay = newH * z;
-
-  // Håll valfritt hörn visuellt "fast" genom att flytta drawstart* (för NW/NE/SW)
-  // SE: top-left fast → inget att göra
-  if (rc_corner === 'NW' || rc_corner === 'NE') drawstarty += (rc_oldH - newH) * z;
-  if (rc_corner === 'NW' || rc_corner === 'SW') drawstartx += (rc_oldW - newW) * z;
-
-  if (typeof endAction === 'function') endAction();
-  rc_active = false; rc_snap = null;
-}
-
-function resizeCancel(){
-  if (!rc_active) return;
-  if (typeof undo === 'function') undo(); // backa snapshot-start
-  rc_active = false; rc_snap = null;
-}
-function quantizeToZoomGrid(screenValue, z) {
-  // Snäpper till närmaste multipel av z (så 1 doc-pixel = exakt z skärmpixlar)
-  return Math.round(screenValue / z) * z;
-}
-//funkar lite
-function drawResizeOverlay() {
-  if (!rc_active) return;
-
-  const z = (zoom > 10 ? zoom/100 : zoom);
-  const oldW = rc_oldW, oldH = rc_oldH;
-  const newW = rc_prevW|0, newH = rc_prevH|0;
-
-  // ... (behåll din offsetForCorner etc)
-
-  const { dx, dy } = offsetForCorner(rc_corner, oldW, oldH, newW, newH);
-
-  const dstX = (dx > 0 ? dx : 0) | 0;
-  const dstY = (dy > 0 ? dy : 0) | 0;
-  const srcX = (dx < 0 ? -dx : 0) | 0;
-  const srcY = (dy < 0 ? -dy : 0) | 0;
-  const copyW = Math.max(0, Math.min(oldW - srcX, newW - dstX)) | 0;
-  const copyH = Math.max(0, Math.min(oldH - srcY, newH - dstY)) | 0;
-
-  // Förhandsvisningens topp-vänster i SKÄRMpixlar (håll motsatt hörn "fast")
-  let previewTLx = drawstartx + ((rc_corner==='NW' || rc_corner==='SW') ? (oldW - newW) * z : 0);
-  let previewTLy = drawstarty + ((rc_corner==='NW' || rc_corner==='NE') ? (oldH - newH) * z : 0);
-
-  // === VIKTIGT: kvantisera skärmpixlar till zoom-rutnätet ===
-  previewTLx = quantizeToZoomGrid(previewTLx, z);
-  previewTLy = quantizeToZoomGrid(previewTLy, z);
-
-  // Skärm-rektar (kvantisera även storleken)
-  const prevW = quantizeToZoomGrid(newW * z, z);
-  const prevH = quantizeToZoomGrid(newH * z, z);
-
-  const docX0 = drawstartx,             docY0 = drawstarty;
-  const docX1 = docX0 + quantizeToZoomGrid(oldW * z, z);
-  const docY1 = docY0 + quantizeToZoomGrid(oldH * z, z);
-
-  const prevX0 = Math.floor(previewTLx), prevY0 = Math.floor(previewTLy);
-  const prevX1 = prevX0 + prevW,         prevY1 = prevY0 + prevH;
-
-  // Destinationspunkt för snapshot i SKÄRMpixlar → kvantisera
-  const dstXs = quantizeToZoomGrid(prevX0 + dstX * z, z);
-  const dstYs = quantizeToZoomGrid(prevY0 + dstY * z, z);
-  const drawW = quantizeToZoomGrid(copyW * z, z);
-  const drawH = quantizeToZoomGrid(copyH * z, z);
-
-  ctx.save();
-  disableSmoothing(ctx);
-
-  // 1) Bakgrund i nya ytan
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(prevX0, prevY0, prevW, prevH);
-
-  // 2) Rita snapshot (endast overlap) på kvantiserad plats
-  if (rc_snap && copyW > 0 && copyH > 0) {
-      ctx.drawImage(
-      rc_snap,
-      srcX, srcY, copyW, copyH,        // KÄLLA: orörd i doc-pixlar
-      dstXs,dstYs, drawW, drawH // MÅL: kvantiserade skärmpixlar
-    );
-  }
-
-  // 3) Skugga UTANFÖR nya ytan
-  ctx.fillStyle = 'rgba(0,0,0,0.10)';
-  ctx.fillRect(docX0, docY0, Math.max(0, prevX0 - docX0), docY1 - docY0);
-  ctx.fillRect(Math.min(docX1, prevX1), docY0, Math.max(0, docX1 - prevX1), docY1 - docY0);
-  ctx.fillRect(prevX0, docY0, Math.max(0, prevX1 - prevX0), Math.max(0, prevY0 - docY0));
-  ctx.fillRect(prevX0, Math.min(docY1, prevY1), Math.max(0, prevX1 - prevX0), Math.max(0, docY1 - prevY1));
-
-  // 4) Ram
-  ctx.setLineDash([6,4]);
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = 'rgba(0,0,0,0.9)';
-  ctx.strokeRect(prevX0 + 0.5, prevY0 + 0.5, prevW, prevH);
-
-  ctx.restore();
-}
-let isRectSelecting = false;
-
-canvas.addEventListener('pointerdown', (ev)=>{
-  if (currentTool !== 'select') return;
-  if (ev.pointerType === 'touch') ev.preventDefault();
-  const rect = canvas.getBoundingClientRect();
-  const cx = ev.clientX - rect.left;
-  const cy = ev.clientY - rect.top;
-  const pImg = _canvasXYtoImageXY(cx, cy);
-
-  // Klick inne i befintlig rektangelmarkering → börja flytta (som lasso)
-  if (hasSelection && selectionBBox &&
-      pImg.x >= selectionBBox.x && pImg.x < selectionBBox.x + selectionBBox.w &&
-      pImg.y >= selectionBBox.y && pImg.y < selectionBBox.y + selectionBBox.h) {
-
-    startSelectionSession();
-    if (!selErasedOnce) {
-      dragStartX = selectionBBox.x;
-      dragStartY = selectionBBox.y;
-      _eraseSelectionAt(dragStartX, dragStartY);
-      selErasedOnce = true;
-    }
-    isDraggingSelection = true;
-    dragSelX = selectionBBox.x;
-    dragSelY = selectionBBox.y;
-    dragOffsetIX = pImg.x - selectionBBox.x;
-    dragOffsetIY = pImg.y - selectionBBox.y;
-    return;
-  }
-
-  // Ny rektangel
-  commitSelectionSession();
-  isRectSelecting = true;
-  selectionStartX = selectionEndX = pImg.x;
-  selectionStartY = selectionEndY = pImg.y;
-  // nolla gamla
-  hasSelection = false;
-  selectionBBox = null;
-  selectionPathCanvas = null;
-  selectionPathImg = null;
-  selectionImageCanvas = null;
-  selectionMaskCanvas = null;
-});
-
-canvas.addEventListener('pointermove', (ev)=>{
-  if (currentTool !== 'select') return;
-  if (ev.pointerType === 'touch') ev.preventDefault();
-  const rect = canvas.getBoundingClientRect();
-  const cx = ev.clientX - rect.left;
-  const cy = ev.clientY - rect.top;
-  const pImg = _canvasXYtoImageXY(cx, cy);
-
-  if (isDraggingSelection && selectionBBox) {
-    dragSelX = pImg.x - dragOffsetIX;
-    dragSelY = pImg.y - dragOffsetIY;
-    return;
-  }
-  if (isRectSelecting) {
-    selectionEndX = pImg.x;
-    selectionEndY = pImg.y;
-  }
-});
-
-function _finalizeRectSelection() {
-  const x0 = Math.min(selectionStartX, selectionEndX);
-  const y0 = Math.min(selectionStartY, selectionEndY);
-  const w  = Math.max(1, Math.abs(selectionEndX - selectionStartX));
-  const h  = Math.max(1, Math.abs(selectionEndY - selectionStartY));
-  if (w <= 0 || h <= 0) return;
-
-  // Canvas-path (skärm) för “marching ants”
-  const p0 = _imageXYtoCanvasXY(x0, y0);
-  const z  = _effectiveZoom();
-  const pCanvas = new Path2D();
-  pCanvas.rect(p0.x, p0.y, w*z, h*z);
-  selectionPathCanvas = pCanvas;
-
-  // Mask-path i bildkoordinater
-  const pImg = new Path2D();
-  pImg.rect(x0, y0, w, h);
-  selectionPathImg = pImg;
-
-  selectionBBox = { x: x0, y: y0, w, h };
-  _extractSelection(); // bygger selectionImageCanvas + mask från pathen
-  hasSelection = true;
-}
-
-canvas.addEventListener('pointerup', (ev)=>{
-  if (currentTool !== 'select') return;
-  if (ev.pointerType === 'touch') ev.preventDefault();
-  if (isDraggingSelection && selectionImageCanvas && selectionBBox) {
-    selectionBBox.x = dragSelX;
-    selectionBBox.y = dragSelY;
-    isDraggingSelection = false;
-    return;
-  }
-  if (isRectSelecting) {
-    isRectSelecting = false;
-    _finalizeRectSelection();
-  }
-});
-
-canvas.addEventListener('pointercancel', ()=>{ if (currentTool==='select') { isDraggingSelection=false; isRectSelecting=false; }});
-async function copySelection() {
-  // Välj källa: aktiv selection → annars hela dokumentytan
-  let srcCanvas = null;
-
-  if (hasSelection && selectionImageCanvas) {
-    srcCanvas = selectionImageCanvas;
-  } else {
-    // Kopiera hela dokumentytan (origo-bilden, inte zoomad)
-    const z = _effectiveZoom();
-    const w = Math.floor(drawareax / z), h = Math.floor(drawareay / z);
-    const tmp = document.createElement('canvas'); tmp.width = w; tmp.height = h;
-    const tctx = tmp.getContext('2d'); disableSmoothing(tctx);
-    tctx.drawImage(drawingCanvas, 0, 0, w, h, 0, 0, w, h);
-    srcCanvas = tmp;
-  }
-
-  // Försök Clipboard API (bild)
-  try {
-    const blob = await new Promise(res => srcCanvas.toBlob(res, 'image/png'));
-    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-    console.log('Selection copied to clipboard (image/png).');
-  } catch (err) {
-    // Fallback: Base64-text
-    try {
-      await navigator.clipboard.writeText(srcCanvas.toDataURL('image/png'));
-      alert('Kopierade som data-URL (fallback).');
-    } catch (err2) {
-      console.warn('Clipboard copy failed:', err2);
-      alert('Kunde inte kopiera till urklipp i den här webbläsaren.');
-    }
-  }
-}
-function _drawSelectOverlay() {
-  // Visa bara medan man drar en rektangel i select/copy-läge
-  if (!isSelecting || (currentTool !== 'select' && currentTool !== 'copy')) return;
-
-  const z = (typeof _effectiveZoom === 'function') ? _effectiveZoom() : zoom;
-
-  const left   = drawstartx + Math.min(selectionStartX, selectionEndX) * z;
-  const top    = drawstarty + Math.min(selectionStartY, selectionEndY) * z;
-  const width  = Math.abs(selectionEndX - selectionStartX) * z;
-  const height = Math.abs(selectionEndY - selectionStartY) * z;
-
-  if (width <= 0 || height <= 0) return;
-
-  ctx.save();
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = 'rgba(0,0,0,0.9)';
-  ctx.setLineDash([4, 3]);          // samma “ants”-stil som lasso
-  ctx.strokeRect(left, top, width, height);
-  ctx.restore();
-}
-// === Double-click för SELECT: färdigställ eller commit+clear ===
-canvas.addEventListener('dblclick', (ev) => {
-  if (currentTool !== 'select') return;
-  ev.preventDefault();
-
-  // 1) Om vi håller på att rita rektangel → färdigställ rutan
-  if ((typeof isRectSelecting !== 'undefined' && isRectSelecting) ||
-      (typeof isSelecting !== 'undefined' && isSelecting)) {
-    if (typeof isRectSelecting !== 'undefined') isRectSelecting = false;
-    if (typeof isSelecting !== 'undefined')     isSelecting = false;
-    if (typeof _finalizeRectSelection === 'function') _finalizeRectSelection(); // skapar selectionPath/Mask/BBox
-    return;
-  }
-
-  // 2) Om vi har en aktiv markering/drag-session → commit & clear (samma som lasso)
-  if ((typeof isDraggingSelection !== 'undefined' && isDraggingSelection) ||
-      (typeof selSessionActive !== 'undefined' && selSessionActive) ||
-      (typeof hasSelection !== 'undefined' && hasSelection)) {
-
-    // Om vi draggar, baka in drag-positionen i BBox först
-    if (typeof isDraggingSelection !== 'undefined' && isDraggingSelection) {
-      if (typeof selectionBBox !== 'undefined' && selectionBBox) {
-        selectionBBox.x = dragSelX;
-        selectionBBox.y = dragSelY;
-      }
-      isDraggingSelection = false;
-    }
-
-    if (typeof commitSelectionSession === 'function') commitSelectionSession(); // skriv tillbaka
-    if (typeof clearSelection === 'function') clearSelection();                 // rensa ants/overlay
-  }
-});
-async function pasteFromClipboard() {
-  try {
-    // 1) Försök modern Clipboard API (bilder)
-    if (navigator.clipboard && navigator.clipboard.read) {
-      const items = await navigator.clipboard.read();
-      for (const item of items) {
-        const type = item.types.find(t => t.startsWith('image/'));
-        if (type) {
-          const blob = await item.getType(type);
-          const bmp  = await createImageBitmap(blob);
-          _activatePastedBitmap(bmp);
-          return;
-        }
-      }
-      // Ingen bild? prova text-dataURL
-      const txt = await navigator.clipboard.readText();
-      if (txt && txt.startsWith('data:image/')) {
-        const bmp = await _bitmapFromDataURL(txt);
-        _activatePastedBitmap(bmp);
-        return;
-      }
-      alert('Urklipp innehåller ingen bild.');
-      return;
-    }
-
-    // 2) Fallback: endast text (data-URL) tillåts
-    if (navigator.clipboard && navigator.clipboard.readText) {
-      const txt = await navigator.clipboard.readText();
-      if (txt && txt.startsWith('data:image/')) {
-        const bmp = await _bitmapFromDataURL(txt);
-        _activatePastedBitmap(bmp);
-        return;
-      }
-    }
-
-    alert('Kunde inte läsa urklipp (webbläsarbegränsning). Prova klistra in via Ctrl/Cmd+V direkt i appen.');
-  } catch (err) {
-    console.warn('pasteFromClipboard failed:', err);
-    alert('Kunde inte läsa urklipp. Webbläsaren kan kräva HTTPS/behörighet.');
-  }
-}
-
-// Hjälpare: dataURL -> ImageBitmap
-async function _bitmapFromDataURL(dataURL) {
-  const res = await fetch(dataURL);
-  const blob = await res.blob();
-  return await createImageBitmap(blob);
-}
-
-// Aktivera som flyttbar markering (ingen direkt målning på ritytan)
-function _activatePastedBitmap(imgBitmap) {
-  // 1) Bygg en canvas av den inklistrade bilden
-  const w = imgBitmap.width | 0, h = imgBitmap.height | 0;
-  if (!w || !h) return;
-  const c = document.createElement('canvas');
-  c.width = w; c.height = h;
-  const cctx = c.getContext('2d');
-  if (typeof disableSmoothing === 'function') disableSmoothing(cctx);
-  cctx.drawImage(imgBitmap, 0, 0);
-
-    // 2) Placera i mitten av vyn (bildkoordinater)
-    const z = (typeof _effectiveZoom === 'function') ? _effectiveZoom() : (window.zoom || 1);
-
-    // Rätt sätt: konvertera canvas-mitten → bildkoordinater
-    let centerImg;
-    if (typeof _canvasXYtoImageXY === 'function') {
-      centerImg = _canvasXYtoImageXY(drawareax/2, drawareay/2);
-    } else {
-      // Fallback om helper saknas: (canvasX - drawstart) / zoom
-      centerImg = {
-        x: ((drawareax/2) - drawstartx) / z,
-        y: ((drawareay/2) - drawstarty) / z
-      };
-    }
-
-    // Centera bilden kring vymitten
-    const cx = Math.max(0, (centerImg.x - w/2) | 0);
-    const cy = Math.max(0, (centerImg.y - h/2) | 0);
-
-  // 3) Mata in i selection-systemet
-  selectionImageCanvas = c;
-  selectionBBox = { x: cx, y: cy, w, h };
-
-
-
-  // Bygg mask från bilden (används av transform/erase)
-  if (typeof _rebuildMaskFromImageCanvas === 'function') _rebuildMaskFromImageCanvas();
-
-  // 4) Flagga markering + “pågående session” så commit ritar in bilden
-  hasSelection = true;
-  isDraggingSelection = false;
-  selSessionActive = true;   // ← viktigt
-  selErasedOnce    = true;   // ← gör att commitSelectionSession() ritar in bilden
-
-  // 5) Byt till select så användaren kan dra direkt
-  if (typeof currentTool !== 'undefined') currentTool = 'select';
-
-  // 6) Be om en redraw
-  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(()=>{});
-}
-window.addEventListener('paste', async (e) => {
-  // Försök hitta bild
-  const cd = e.clipboardData;
-  if (!cd) return;
-  // 1) Filer (png/jpg/webp) direkt
-  if (cd.files && cd.files.length) {
-    const file = Array.from(cd.files).find(f => f.type.startsWith('image/'));
-    if (file) {
-      e.preventDefault();
-      const bmp = await createImageBitmap(file);
-      _activatePastedBitmap(bmp);
-      return;
-    }
-  }
-  // 2) Items (t.ex. från Photoshop etc.)
-  if (cd.items && cd.items.length) {
-    const it = Array.from(cd.items).find(i => i.type && i.type.startsWith('image/'));
-    if (it) {
-      e.preventDefault();
-      const blob = it.getAsFile();
-      const bmp = await createImageBitmap(blob);
-      _activatePastedBitmap(bmp);
-      return;
-    }
-  }
-  // 3) Text-dataURL
-  const txt = cd.getData('text/plain');
-  if (txt && txt.startsWith('data:image/')) {
-    e.preventDefault();
-    const bmp = await _bitmapFromDataURL(txt);
-    _activatePastedBitmap(bmp);
-  }
-});
-// === COPY: skriv data-URL till urklipp via copy-event (funkar utan HTTPS) ===
-function _buildCopyDataURL() {
-  // 1) Om vi har ett urklipp från markering (lasso/rect)
-  if (window.hasSelection && window.selectionImageCanvas) {
-    return window.selectionImageCanvas.toDataURL('image/png');
-  }
-  // 2) Om bbox finns men inte ett färdigt canvas
-  if (window.hasSelection && window.selectionBBox) {
-    const { x, y, w, h } = window.selectionBBox;
-    const c = document.createElement('canvas'); c.width = w; c.height = h;
-    const cctx = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(cctx);
-    cctx.drawImage(drawingCanvas, x, y, w, h, 0, 0, w, h);
-    return c.toDataURL('image/png');
-  }
-  // 3) Annars: kopiera hela dokumentytan (inte hela offscreen)
-  const z = (window.zoom > 10 ? window.zoom/100 : window.zoom);
-  const w = Math.floor(window.drawareax / z);
-  const h = Math.floor(window.drawareay / z);
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  const cctx = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(cctx);
-  cctx.drawImage(drawingCanvas, 0, 0, w, h, 0, 0, w, h);
-  return c.toDataURL('image/png');
-}
-
-document.addEventListener('copy', (e) => {
-  const url = _buildCopyDataURL();
-  if (!url) return;
-  e.clipboardData.setData('text/plain', url);
-  e.clipboardData.setData('text/uri-list', url);
-  e.preventDefault(); // vi tar över copy helt
-});
-
 
             //check---------------------------------------------------------------------------------------
             var check = function() {
@@ -2693,7 +2050,7 @@ document.addEventListener('copy', (e) => {
                 }
                 
                 
-   
+                let resizeOccurred = false;
                 
                 // Store the old dimensions before any changes
                 const oldDrawStartX = drawstartx;
@@ -2701,8 +2058,256 @@ document.addEventListener('copy', (e) => {
                 const oldDrawAreaX = drawareax;
                 const oldDrawAreaY = drawareay;
                 
+                // Determine if any corner is being moved and update dimensions
+                if (movecorners1 == true) {
+                    // Calculate new position and dimensions normally first
+                    let newDrawstartx = x + 7.5;
+                    let newDrawstarty = y + 2.5;
+                    let newDrawareax = drawareax + (-newDrawstartx + drawstartx);
+                    let newDrawareay = drawareay + (-newDrawstarty + drawstarty);
+
+                    // Apply minimum size constraints
+                    if (newDrawareax < 10) {
+                        newDrawstartx = drawstartx + drawareax - 10;
+                        newDrawareax = 10;
+                    }
+
+                    if (newDrawareay < 10) {
+                        newDrawstarty = drawstarty + drawareay - 10;
+                        newDrawareay = 10;
+                    } else if (newDrawstarty < 155) {
+                        newDrawstarty = 155 + 2.5;
+                        newDrawareay = drawareay + (-newDrawstarty + drawstarty);
+                    }
+
+                    // CRITICAL FIX: Quantize the position changes to be exact pixel boundaries for the zoom level
+              
+                        // Calculate how much the position is changing
+                        const deltaX = newDrawstartx - drawstartx;
+                        const deltaY = newDrawstarty - drawstarty;
+
+                        // Quantize these deltas to whole pixels in the original (unzoomed) coordinate space
+                        const quantizedDeltaX = quantizeValue(deltaX, zoom);
+                        const quantizedDeltaY = quantizeValue(deltaY, zoom);
+
+                        // Apply the quantized deltas to get stable coordinates
+                        newDrawstartx = drawstartx + quantizedDeltaX;
+                        newDrawstarty = drawstarty + quantizedDeltaY;
+
+                        // Recalculate dimensions to match the quantized positions
+                        newDrawareax = drawareax + (drawstartx - newDrawstartx);
+                        newDrawareay = drawareay + (drawstarty - newDrawstarty);
+        
+
+                    // Update the actual values
+                    drawstartx = newDrawstartx;
+                    drawstarty = newDrawstarty;
+                    drawareax = newDrawareax;
+                    drawareay = newDrawareay;
+                   
+                    resizeOccurred = true;
+                }
                 
+               if (movecorners2 == true) {
+                    // Normal calculations first
+                    let newDrawareax = drawareax;
+                    let newDrawstarty = Math.round((y + 2.5)*zoom)/zoom;
+                    let newDrawareay = drawareay + (-newDrawstarty + drawstarty);
+
+                    // Width calculations
+                    if (x > canvas.width/devicePixelRatio - 5)
+                        newDrawareax = drawareax + (canvas.width/devicePixelRatio - 5 - drawareax - drawstartx - 2.5);
+                    else if (drawareax + (x - drawareax - drawstartx - 2.5) < 10)
+                        newDrawareax = 10;
+                    else
+                        newDrawareax = Math.round((drawareax + (x - drawareax - drawstartx - 2.5))/zoom)*zoom;
+
+                    // Height calculations
+                    if (newDrawareay < 10) {
+                        if (drawareay > 10)
+                            newDrawstarty = drawstarty + drawareay - 10;
+                        newDrawareay = 10;
+                    } else if (y < 155) {
+                        newDrawstarty = 155 + 2.5;
+                        newDrawareay = drawareay + (-newDrawstarty + drawstarty);
+                    }
+
+                    // CRITICAL FIX: Quantize the Y-position changes (top edge)
+          
+                        // For top-right corner, Y position changes but X stays fixed
+                        const deltaY = newDrawstarty - drawstarty;
+
+                        // Quantize the delta to whole pixels in the unzoomed space
+                        const quantizedDeltaY = quantizeValue(deltaY, zoom);
+
+                        // Apply the quantized delta for position
+                        newDrawstarty = drawstarty + quantizedDeltaY;
+
+                        // Recalculate height based on the quantized position
+                        newDrawareay = drawareay + (drawstarty - newDrawstarty);
+                  
+
+                    // Update the values
+                    drawstarty = newDrawstarty;
+                    drawareax = newDrawareax;
+                    drawareay = newDrawareay;
+
+                    resizeOccurred = true;
+                }
+
+                // For corner 3 (bottom-left)
+                if (movecorners3 == true) {
+                    // Normal calculations first
+                    let newDrawstartx =Math.round((x + 7.5)/zoom)*zoom;
+                    let newDrawareax = drawareax + (-newDrawstartx + drawstartx);
+                    let newDrawareay = drawareay;
+
+                    // Width calculations
+                    if (newDrawareax < 10) {
+                   
+                    
+                            newDrawstartx = drawstartx + drawareax - 10;
+                        newDrawareax = 10;
+                    }
+
+                    // Height calculations
+                    if (drawareay + (y - drawareay - drawstarty - 7.5) < 10)
+                        newDrawareay = 10;
+                    else if (y > canvas.height/devicePixelRatio - 50)
+                        newDrawareay = -drawstarty + canvas.height/devicePixelRatio - 50;
+                    else {
+                        newDrawareay = Math.round((drawareay + (y - drawareay - drawstarty - 7.5))/zoom)*zoom;
+                    }
+
+                    // CRITICAL FIX: Quantize the X-position changes (left edge)
+           
+                        // For bottom-left corner, X position changes but Y stays fixed
+                        const deltaX = newDrawstartx - drawstartx;
+
+                        // Quantize the delta to whole pixels in the unzoomed space
+                        const quantizedDeltaX = quantizeValue(deltaX, zoom);
+
+                        // Apply the quantized delta for position
+                        newDrawstartx = drawstartx + quantizedDeltaX;
+
+                        // Recalculate width based on the quantized position
+                        newDrawareax = drawareax + (drawstartx - newDrawstartx);
+               
+
+                    // Update the values
+                    drawstartx = newDrawstartx;
+                    drawareax = newDrawareax;
+                    drawareay = newDrawareay;
+
+                    resizeOccurred = true;
+                }
                 
+                if (movecorners4 == true) {
+                    // Bottom-right corner being moved
+                    if (x > canvas.width/devicePixelRatio - 5)
+                        drawareax = drawareax + (canvas.width/devicePixelRatio - 5 - drawareax - drawstartx - 2.5);
+                    else if (drawareax + (x - drawareax - drawstartx - 2.5) < 10)
+                        drawareax = 10;
+                    else {
+                        drawareax = Math.round((drawareax + (x - drawareax - drawstartx - 2.5))/zoom)*zoom;
+                    }
+                    
+                    if (drawareay + (y - drawareay - drawstarty - 7.5) < 10)
+                        drawareay = 10;
+                    else if (y > canvas.height/devicePixelRatio - 50)
+                        drawareay = -drawstarty + canvas.height/devicePixelRatio - 50;
+                    else {
+                        drawareay = Math.round((drawareay + (y - drawareay - drawstarty - 7.5))/zoom)*zoom;
+                    }
+                    
+                    resizeOccurred = true;
+                }
+                
+                if (resizeOccurred) {
+                    // Update the first image dimensions to match the new drawing area size
+                    firstImageWidth = Math.floor(drawareax / zoom);
+                    firstImageHeight = Math.floor(drawareay / zoom);
+
+                    // 1. Save current drawing to tempCanvas
+                    tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+                    tempCtx.drawImage(drawingCanvas, 0, 0);
+
+                    // 2. Clear the drawing canvas with white
+                    drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+
+
+                    // 3. Define source and destination for different corner scenarios
+                    const oldWidth = Math.floor(oldDrawAreaX / zoom);
+                    const oldHeight = Math.floor(oldDrawAreaY / zoom);
+                    const newWidth = Math.floor(drawareax / zoom);
+                    const newHeight = Math.floor(drawareay / zoom);
+                    drawingCtx.fillStyle = "white";
+                    let srcX = 0, srcY = 0;
+                    let dstX = 0, dstY = 0;
+                    let srcWidth = newWidth;
+                    let srcHeight = newHeight;
+
+                    if (movecorners1) {
+                        const trimmedFromRight = (oldWidth - newWidth);
+                        const trimmedFromBottom = (oldHeight - newHeight);
+                        srcX = trimmedFromRight;
+                        srcY = trimmedFromBottom;
+                        if (srcX + srcWidth > oldWidth) srcWidth = oldWidth - srcX;
+                        if (srcY + srcHeight > oldHeight) srcHeight = oldHeight - srcY;
+                        if (newWidth > oldWidth) {
+                            drawingCtx.fillRect(0, 0, newWidth - oldWidth, newHeight);
+                        }
+                        if (newHeight > oldHeight) {
+                            drawingCtx.fillRect(0, 0, newWidth, newHeight - oldHeight);
+                        }
+                    } 
+                    else if (movecorners2) {
+                        srcX = 0;
+                        srcY = ( oldHeight - newHeight);
+                        if (srcY + srcHeight > oldHeight) srcHeight = oldHeight - srcY;
+                        if (newWidth > oldWidth) {
+                            drawingCtx.fillRect(oldWidth, 0, newWidth - oldWidth, newHeight);
+                        }
+                        if (newHeight > oldHeight) {
+                            drawingCtx.fillRect(0, 0, newWidth, newHeight - oldHeight);
+                        }
+                    } 
+                    else if (movecorners3) {
+                        srcX = ( oldWidth - newWidth);
+                        srcY = 0;
+                        if (srcX + srcWidth > oldWidth) srcWidth = oldWidth - srcX;
+                        if (newWidth > oldWidth) {
+                            drawingCtx.fillRect(0, 0, newWidth - oldWidth, newHeight);
+                        }
+                        if (newHeight > oldHeight) {
+                            drawingCtx.fillRect(0, oldHeight, newWidth, newHeight - oldHeight);
+                        }
+                    } 
+                    else if (movecorners4) {
+                        srcX = 0;
+                        srcY = 0;
+                        if (newWidth > oldWidth) {
+                            drawingCtx.fillRect(oldWidth, 0, newWidth - oldWidth, newHeight);
+                        }
+                        if (newHeight > oldHeight) {
+                            drawingCtx.fillRect(0, oldHeight, newWidth, newHeight - oldHeight);
+                        }
+                        
+                    }
+
+                    // Only draw if we have valid dimensions
+                    if (srcWidth > 0 && srcHeight > 0) {
+                        drawingCtx.drawImage(
+                            tempCanvas,
+                            srcX, srcY, srcWidth, srcHeight,
+                            dstX, dstY, srcWidth, srcHeight
+                        );
+                    }
+
+                    isImageWaiting = false;
+                    isMovingImage = false;
+                    currentImage = null;
+                }
                 
                 if (movescrollx == true) {
                     movescrollxvalue = -savescrollxvalue + x + scrollx;
@@ -2898,15 +2503,12 @@ document.addEventListener('copy', (e) => {
                 ctx.fillStyle = "rgb(241, 241, 241)";
                 ctx.fillRect(0, 0, canvas.width/devicePixelRatio, 155);
                 // Draw corner handles
+                ctx.fillStyle = "black";
+                ctx.fillRect(drawstartx-10, drawstarty-10, 10, 10);
+                ctx.fillRect(drawstartx+drawareax, drawstarty-10, 10, 10);
+                ctx.fillRect(drawstartx-10, drawstarty+drawareay, 10, 10);
+                ctx.fillRect(drawstartx+drawareax, drawstarty+drawareay, 10, 10);
                 
-                
-                if(!movecorners1&&!movecorners2&&!movecorners3&&!movecorners4){
-                    ctx.fillStyle = "black";
-                    ctx.fillRect(drawstartx-10, drawstarty-10, 10, 10);
-                    ctx.fillRect(drawstartx+drawareax, drawstarty-10, 10, 10);
-                    ctx.fillRect(drawstartx-10, drawstarty+drawareay, 10, 10);
-                    ctx.fillRect(drawstartx+drawareax, drawstarty+drawareay, 10, 10);
-                }
                 // Draw scrollbars
                 ctx.fillStyle = "rgb(100, 100, 100)";
                 let sbThickness = getScrollbarThickness();
@@ -2944,14 +2546,27 @@ document.addEventListener('copy', (e) => {
                     movescrollyvalue = 0;
                     scrolly = 0;
                 }
+            if (isSelecting && (currentTool === 'select'|| currentTool === 'copy')) {
+                ctx.strokeStyle = "#4CAF50";
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+
+                const selLeft = drawstartx + Math.min(selectionStartX, selectionEndX) * zoom;
+                const selTop = drawstarty + Math.min(selectionStartY, selectionEndY) * zoom;
+                const selWidth = Math.abs(selectionEndX - selectionStartX) * zoom;
+                const selHeight = Math.abs(selectionEndY - selectionStartY) * zoom;
+
+                ctx.strokeRect(selLeft, selTop, selWidth, selHeight);
+                ctx.setLineDash([]);
+            }
                             // ======== RITA LOOPEN/SELECTION-OVERLAY I DIN huvud-loop ========
                // i din render/overlay-del
                
-               if(currentTool!=="lasso"&&currentTool !== 'select'){isDraggingSelection = false;if (selSessionActive) commitSelectionSession();clearSelection();}
+               if(currentTool!=="lasso"){isDraggingSelection = false;if (selSessionActive) commitSelectionSession();clearSelection();}
                
                
                   // visa urklippet i overlay på nuvarande (ev. drag) position
-                if (selectionImageCanvas &&selectionBBox) {
+                if (selectionImageCanvas && selectionBBox) {
                   const showX = isDraggingSelection ? dragSelX : selectionBBox.x;
                   const showY = isDraggingSelection ? dragSelY : selectionBBox.y;
 
@@ -2971,9 +2586,8 @@ document.addEventListener('copy', (e) => {
                   ctx.restore();
                 }
 
-                if(isdragdrag&&currentTool === 'lasso')_drawLassoOverlay();
-                if(isdragdrag&&isRectSelecting&&currentTool === 'select')_drawSelectOverlay();
-                drawResizeOverlay();
+                _drawLassoOverlay();
+
             
             
             
@@ -2983,15 +2597,7 @@ document.addEventListener('copy', (e) => {
             check();
             
             // Process mouse events
-            window.addEventListener("mousemove", (e) => {
-                
-                
-            if (movecorners1 || movecorners2 || movecorners3 || movecorners4) {
-              
-        resizePreviewFromCanvasXY(x, y);  // <<<<<<<<<< NYTT
-        // (rita overlay i din render-loop via drawResizeOverlay())
-        
-      }    
+            window.addEventListener("mousemove", (e) => {  
                 
                 
            if (e.target === canvas){      
@@ -3019,7 +2625,7 @@ document.addEventListener('copy', (e) => {
     }
     
     // Handle selection tool
-    if (isSelecting && (currentTool === 'select')) {
+    if (isSelecting && (currentTool === 'select'|| currentTool === 'copy')) {
         selectionEndX = Math.floor((x - drawstartx) / zoom);
         selectionEndY = Math.floor((y - drawstarty) / zoom);
         
@@ -3032,9 +2638,6 @@ document.addEventListener('copy', (e) => {
     if (isDrawing && y > heightCheck && currentTool === 'pen'&&!movescrolly&&!movescrollx) {
         drawPixel(x, y);
     }
-    
-    
-    
 }});
             
             window.addEventListener("mousedown", (e) => {
@@ -3042,9 +2645,6 @@ document.addEventListener('copy', (e) => {
     const mousePos = getCanvasMousePosition(e);
     x = mousePos.x;
     y = mousePos.y;
-    
-
-    
     
     // Check if clicking on the image overlay first
  if(currentImage && x >= currentImageX && x <= currentImageX + currentImageWidth &&
@@ -3069,7 +2669,7 @@ document.addEventListener('copy', (e) => {
                     
                     return;
                 }
-                else if((currentTool === 'select')&&currentImage!=null){
+                else if((currentTool === 'select'|| currentTool === 'copy')&&currentImage!=null){
                         
                         let unzoomedX = Math.round((currentImageX - drawstartx) / zoom);
                         let unzoomedY = Math.round((currentImageY - drawstarty) / zoom);
@@ -3086,28 +2686,24 @@ document.addEventListener('copy', (e) => {
         movecorners1 = true;
         dragStartX = x;
         dragStartY = y;
-        resizeStart('NW'); 
         return;
     }
     if (x >= drawstartx+drawareax-5 && x < drawstartx+drawareax+15 && y >= drawstarty-15 && y < drawstarty+5) {
         movecorners2 = true;
         dragStartX = x;
         dragStartY = y;
-        resizeStart('NE');   
         return;
     }
     if (x >= drawstartx-15 && x < drawstartx && y >= drawstarty+drawareay && y < drawstarty-5+drawareay+15) {
         movecorners3 = true;
         dragStartX = x;
         dragStartY = y;
-        resizeStart('SW');    
         return;
     }
     if (x >= drawstartx+drawareax-5 && x < drawstartx+drawareax+15 && y >= drawstarty+drawareay-5 && y < drawstarty+drawareay+15) {
         movecorners4 = true;
         dragStartX = x;
         dragStartY = y;
-        resizeStart('SE');
         return;
     }
     
@@ -3155,7 +2751,7 @@ document.addEventListener('copy', (e) => {
             endAction();
             
         }
-        else if ((currentTool === 'select')) {
+        else if ((currentTool === 'select'|| currentTool === 'copy')) {
             // Selection tool
             beginAction();
             isSelecting = true;
@@ -3192,10 +2788,10 @@ document.addEventListener('copy', (e) => {
                 } });    
             
             window.addEventListener('mouseup', (e) => {
-    if (movecorners1 || movecorners2 || movecorners3 || movecorners4) {
-  resizeCommit();                   // <<<<<<<<<< NYTT
-  movecorners1 = movecorners2 = movecorners3 = movecorners4 = false;
-}
+    movecorners1 = false;
+    movecorners2 = false;
+    movecorners3 = false;
+    movecorners4 = false;
     movescrollx = false;
     movescrolly = false;
     isposetive = false;
@@ -3213,15 +2809,101 @@ document.addEventListener('copy', (e) => {
 
     
     
+    
+    if(currentTool == 'move'&&isMovingImage==false){switchTool('select');}
+    if(currentTool == "move2"&&isMovingImage==false){switchTool('copy');}
+    
+    
+    // Handle selection completion
+    if (isSelecting && (currentTool === 'select'|| currentTool === 'copy')) {
+    isSelecting = false;
+    
+    
+        // Calculate the selection boundaries
+    selLeft = Math.min(selectionStartX, selectionEndX);
+    selTop = Math.min(selectionStartY, selectionEndY);
+    selWidth = Math.abs(selectionEndX - selectionStartX);
+    selHeight = Math.abs(selectionEndY - selectionStartY);
+    
 
     
     
-// i mouseup/touchend för select:
-isSelecting = false;
-selLeft = Math.min(selectionStartX, selectionEndX); // om du använder dessa lokalt
-selTop  = Math.min(selectionStartY, selectionEndY);
-// ... men slutligen:
-//if(currentTool === 'select')_finalizeRectSelection();
+    
+    
+    console.log("Selection created:", selLeft, selTop, selWidth, selHeight);
+    
+    // Only proceed if we have a valid selection (non-zero area)
+    if (selWidth > 0 && selHeight > 0) {
+        
+        // Create a temporary canvas to hold the selection
+        const selectionCanvas = document.createElement('canvas');
+        selectionCanvas.width = selWidth;
+        selectionCanvas.height = selHeight;
+        const selectionCtx = selectionCanvas.getContext('2d');
+        disableSmoothing(selectionCtx);
+        
+        // Copy the selection from the main canvas
+        
+        selectionCtx.drawImage(
+            drawingCanvas, 
+            selLeft, selTop, selWidth, selHeight,
+            0, 0, selWidth, selHeight
+        );
+        
+        // Create an image from the selection canvas
+        currentImage = new Image();
+  
+            // Once loaded, set up the draggable selection
+            currentImageOriginalWidth = selWidth;
+            currentImageOriginalHeight = selHeight;
+            currentImageWidth = selWidth * zoom;
+            currentImageHeight = selHeight * zoom;
+            
+            // Position at original location
+            currentImageX = drawstartx + selLeft * zoom;
+            currentImageY = drawstarty + selTop * zoom;
+            prevzoom=zoom;
+            // Start in moving state immediately
+            isMovingImage = true;
+            dragOffsetX = 0;
+            dragOffsetY = 0;
+            isMovingImage = false;
+            selectionNeedsClick = true;
+            currentImagecanvas=currentproject;
+            
+            // Clear the selected area on the canvas (like cut operation)
+            
+            
+            if(currentTool === 'select'){
+                if (!isTransparentBrush) {
+                    drawingCtx.fillStyle = "white";
+                    drawingCtx.fillRect(selLeft, selTop, selWidth, selHeight);
+                } else {
+                    drawingCtx.clearRect(selLeft, selTop, selWidth, selHeight);
+                }
+
+                // Switch to the "move" tool interface state
+                currentTool = 'move';
+            }
+            else currentTool = 'move2';
+            
+            // Update UI to reflect we're in move mode
+            const toolButtons = document.querySelectorAll('.tool-btn');
+            toolButtons.forEach(btn => {
+                btn.style.backgroundColor = '#f1f1f1';
+                btn.style.borderColor = '#ccc';
+            });
+    
+        
+        currentImage.src = selectionCanvas.toDataURL();
+        endAction();
+    }
+ 
+    
+    
+    
+    
+}
 });
             
             // Stop drawing if the mouse leaves the canvas
@@ -3289,7 +2971,7 @@ selTop  = Math.min(selectionStartY, selectionEndY);
                     }
                     return;
     }
-    else if((currentTool === 'select')&&currentImage!=null){
+    else if((currentTool === 'select'|| currentTool === 'copy')&&currentImage!=null){
                         
                         let unzoomedX = Math.round((currentImageX - drawstartx) / zoom);
                         let unzoomedY = Math.round((currentImageY - drawstarty) / zoom);
@@ -3356,19 +3038,15 @@ selTop  = Math.min(selectionStartY, selectionEndY);
             // Enable dragging for the corresponding corner
             if (cornerTouched === 1) {
                 movecorners1 = true;
-                resizeStart('NW');  
                 return;
             } else if (cornerTouched === 2) {
                 movecorners2 = true;
-                resizeStart('NE');
                 return;
             } else if (cornerTouched === 3) {
                 movecorners3 = true;
-                resizeStart('SW');
                 return;
             } else if (cornerTouched === 4) {
                 movecorners4 = true;
-                resizeStart('SE');  
                 return;
             }
 
@@ -3439,7 +3117,7 @@ selTop  = Math.min(selectionStartY, selectionEndY);
                 floodFill(canvasX, canvasY);
                 endAction();
             }
-             else if ((currentTool === 'select')) {
+             else if ((currentTool === 'select'|| currentTool === 'copy')) {
                 // Selection tool
                 beginAction();
                 isSelecting = true;
@@ -3526,7 +3204,7 @@ function handleTouchMove(e) {
     y = touchY;
 
     // Handle selection tool
-    if (isSelecting && (currentTool === 'select')) {
+    if (isSelecting && (currentTool === 'select'|| currentTool === 'copy')) {
         selectionEndX = Math.floor((x - drawstartx) / zoom);
         selectionEndY = Math.floor((y - drawstarty) / zoom);
     }
@@ -3544,12 +3222,6 @@ function handleTouchMove(e) {
         drawPixel(touchX, touchY);
      
     }
-    if (movecorners1 || movecorners2 || movecorners3 || movecorners4) {
-        resizePreviewFromCanvasXY(x, y);  // <<<<<<<<<< NYTT
-        // (rita overlay i din render-loop via drawResizeOverlay())
-        return;
-      }
-    
  
 }
 
@@ -3567,23 +3239,95 @@ function handleTouchMove(e) {
     lastX = 0;
     lastY = 0;
     
-    if (movecorners1 || movecorners2 || movecorners3 || movecorners4) {
-        resizeCommit();                   // <<<<<<<<<< NYTT
-        movecorners1 = movecorners2 = movecorners3 = movecorners4 = false;
+    movecorners1 = false;
+    movecorners2 = false;
+    movecorners3 = false;
+    movecorners4 = false;
+    
+    // Handle selection completion
+    
+    if(currentTool == 'move'&&isMovingImage==false)switchTool('select');
+    if(currentTool == 'move2'&&isMovingImage==false)switchTool('copy');
+    
+    
+    
+    
+        if (isSelecting && (currentTool === 'select'|| currentTool === 'copy')) {
+    isSelecting = false;
+    
+    // Calculate the selection boundaries
+    const selLeft = Math.min(selectionStartX, selectionEndX);
+    const selTop = Math.min(selectionStartY, selectionEndY);
+    const selWidth = Math.abs(selectionEndX - selectionStartX);
+    const selHeight = Math.abs(selectionEndY - selectionStartY);
+    
+    console.log("Selection created:", selLeft, selTop, selWidth, selHeight);
+    
+    // Only proceed if we have a valid selection (non-zero area)
+    if (selWidth > 0 && selHeight > 0) {
         
-      }
-    
-
-    
-    
-    // i mouseup/touchend för select:
-isSelecting = false;
-selLeft = Math.min(selectionStartX, selectionEndX); // om du använder dessa lokalt
-selTop  = Math.min(selectionStartY, selectionEndY);
-// ... men slutligen:
-//if(currentTool === 'select')_finalizeRectSelection();
-    
-
+        // Create a temporary canvas to hold the selection
+        const selectionCanvas = document.createElement('canvas');
+        selectionCanvas.width = selWidth;
+        selectionCanvas.height = selHeight;
+        const selectionCtx = selectionCanvas.getContext('2d');
+        disableSmoothing(selectionCtx);
+        
+        // Copy the selection from the main canvas
+        selectionCtx.drawImage(
+            drawingCanvas, 
+            selLeft, selTop, selWidth, selHeight,
+            0, 0, selWidth, selHeight
+        );
+        
+        // Create an image from the selection canvas
+        currentImage = new Image();
+   
+            // Once loaded, set up the draggable selection
+            currentImageOriginalWidth = selWidth;
+            currentImageOriginalHeight = selHeight;
+            currentImageWidth = selWidth * zoom;
+            currentImageHeight = selHeight * zoom;
+            
+            // Position at original location
+            currentImageX = drawstartx + selLeft * zoom;
+            currentImageY = drawstarty + selTop * zoom;
+            
+            // Start in moving state immediately
+            isMovingImage = true;
+            dragOffsetX = 0;
+            dragOffsetY = 0;
+            isMovingImage = false;
+            selectionNeedsClick = true;
+            currentImagecanvas=currentproject;
+            
+            
+            
+            if((currentTool === 'select')){
+            // Clear the selected area on the canvas (like cut operation)
+            if (!isTransparentBrush) {
+                drawingCtx.fillStyle = "white";
+                drawingCtx.fillRect(selLeft, selTop, selWidth, selHeight);
+            } else {
+                drawingCtx.clearRect(selLeft, selTop, selWidth, selHeight);
+            }
+            
+            // Switch to the "move" tool interface state
+            currentTool = 'move';
+            }
+            else currentTool = 'move2';
+            // Update UI to reflect we're in move mode
+            const toolButtons = document.querySelectorAll('.tool-btn');
+            toolButtons.forEach(btn => {
+                btn.style.backgroundColor = '#f1f1f1';
+                btn.style.borderColor = '#ccc';
+            });
+      
+        
+        currentImage.src = selectionCanvas.toDataURL();
+        endAction();
+    }
+}
 }
            
      //==========LOAD IMAGES MOBILE===========
@@ -3778,6 +3522,7 @@ img.onload = function() {
         fill: document.getElementById('fillTool'),
         select: document.getElementById('selectTool'),
         eyedropper: document.getElementById('eyedropperTool'),
+        copy: document.getElementById('cTool'),
         text: document.getElementById('textTool'),
         lasso: document.getElementById('lassoTool')
         
@@ -3817,6 +3562,7 @@ img.onload = function() {
                 case 'f': currentTool = 'fill'; break;
                 case 's': currentTool = 'select'; break;
                 case 'e': currentTool = 'eyedropper'; break;
+                case 'c': currentTool = 'copy'; break; 
                 case 't': currentTool = 'text'; break; 
                 case 'l': currentTool = 'lasso'; break;
                 
