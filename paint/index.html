@@ -1800,9 +1800,27 @@ document.getElementById('rotateLeftBtn')?.addEventListener('click', ()=> rotateS
 document.getElementById('flipHBtn')?.addEventListener('click', ()=> flipSelection('h'));
 document.getElementById('flipVBtn')?.addEventListener('click', ()=> flipSelection('v'));
 document.getElementById('rotateFreeBtn')?.addEventListener('click', ()=> rotateSelectionFree());
-document.getElementById('copyBtn')?.addEventListener('click', () => {
-  // Trigga copy-event => vår listener lägger dataURL i urklipp
-  copySelectionMobileFriendly();
+document.getElementById('copyBtn')?.addEventListener('click', async () => {
+  // a) In-app-urklipp (allt du behöver för att Ctrl/Cmd+V funkar i appen)
+  setAppClipboardFromSelection();
+
+  // b) Systemurklipp (bästa möjliga)
+  try {
+    const url = _buildCopyDataURL(); // se fix nedan
+    if (!url) throw new Error('empty');
+    if (navigator.clipboard && window.ClipboardItem) {
+      const blob = await (await fetch(url)).blob();
+      await navigator.clipboard.write([ new ClipboardItem({ [blob.type]: blob }) ]);
+      // ok
+    } else if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(url);
+      // ok
+    } else {
+      // på iOS funkar det ofta inte — men appClipboard räcker
+    }
+  } catch (_) {
+    // Ignorera tyst – in-app paste kommer funka ändå
+  }
 });
 document.getElementById('pasteBtn')?.addEventListener('click', pasteFromClipboard);
 
@@ -2494,44 +2512,48 @@ canvas.addEventListener('dblclick', (ev) => {
   }
 });
 async function pasteFromClipboard() {
+  let pasted = false;
+
+  // 1) Försök systemurklipp (HTTPS + stöd krävs)
   try {
-    // 1) Försök modern Clipboard API (bilder)
     if (navigator.clipboard && navigator.clipboard.read) {
       const items = await navigator.clipboard.read();
-      for (const item of items) {
-        const type = item.types.find(t => t.startsWith('image/'));
+      for (const it of items) {
+        const type = it.types.find(t => t.startsWith('image/'));
         if (type) {
-          const blob = await item.getType(type);
-          const bmp  = await createImageBitmap(blob);
-          _activatePastedBitmap(bmp);
-          return;
+          const blob = await it.getType(type);
+          const bmp = await createImageBitmap(blob);
+          _activatePastedCanvasOrBitmap(bmp);
+          pasted = true;
+          break;
         }
       }
-      // Ingen bild? prova text-dataURL
-      const txt = await navigator.clipboard.readText();
-      if (txt && txt.startsWith('data:image/')) {
-        const bmp = await _bitmapFromDataURL(txt);
-        _activatePastedBitmap(bmp);
-        return;
-      }
-      alert('Urklipp innehåller ingen bild.');
-      return;
-    }
-
-    // 2) Fallback: endast text (data-URL) tillåts
-    if (navigator.clipboard && navigator.clipboard.readText) {
-      const txt = await navigator.clipboard.readText();
-      if (txt && txt.startsWith('data:image/')) {
-        const bmp = await _bitmapFromDataURL(txt);
-        _activatePastedBitmap(bmp);
-        return;
+      if (!pasted) {
+        const txt = await navigator.clipboard.readText();
+        if (txt && txt.startsWith('data:image/')) {
+          const resp = await fetch(txt); const blob = await resp.blob();
+          const bmp = await createImageBitmap(blob);
+          _activatePastedCanvasOrBitmap(bmp);
+          pasted = true;
+        }
       }
     }
+  } catch (e) {
+    // INGEN alert här – vi kan fortfarande ha andra källor
+    console.warn('System clipboard blocked/unavailable:', e);
+  }
 
-    alert('Kunde inte läsa urklipp (webbläsarbegränsning). Prova klistra in via Ctrl/Cmd+V direkt i appen.');
-  } catch (err) {
-    console.warn('pasteFromClipboard failed:', err);
-    alert('Kunde inte läsa urklipp. Webbläsaren kan kräva HTTPS/behörighet.');
+  // 2) Fallback: in-app-urklipp
+  if (!pasted && window.appClipboard && appClipboard.canvas) {
+    _activatePastedCanvasOrBitmap(appClipboard.canvas);
+    pasted = true;
+  }
+
+  // 3) Sista chans: vänta på paste-event (Ctrl/Cmd+V) → inget att göra här
+
+  if (!pasted) {
+    // Visa alert ENDAST om allt ovan failade
+    alert('Urklipp kunde inte läsas (kräver ofta HTTPS/behörighet). Prova klistra in med Ctrl/Cmd+V eller kopiera från webben först.');
   }
 }
 
@@ -2543,104 +2565,104 @@ async function _bitmapFromDataURL(dataURL) {
 }
 
 // Aktivera som flyttbar markering (ingen direkt målning på ritytan)
-function _activatePastedBitmap(imgBitmap) {
-  // 1) Bygg en canvas av den inklistrade bilden
-  const w = imgBitmap.width | 0, h = imgBitmap.height | 0;
+// Ny: kan ta Canvas ELLER ImageBitmap
+function _activatePastedCanvasOrBitmap(source) {
+  let w=0, h=0, c=null;
+
+  if (source instanceof HTMLCanvasElement) {
+    c = source; w = c.width|0; h = c.height|0;
+  } else {
+    // anta ImageBitmap
+    w = source.width|0; h = source.height|0;
+    c = document.createElement('canvas'); c.width = w; c.height = h;
+    const cctx = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(cctx);
+    cctx.drawImage(source, 0, 0);
+  }
   if (!w || !h) return;
-  const c = document.createElement('canvas');
-  c.width = w; c.height = h;
-  const cctx = c.getContext('2d');
-  if (typeof disableSmoothing === 'function') disableSmoothing(cctx);
-  cctx.drawImage(imgBitmap, 0, 0);
 
-    // 2) Placera i mitten av vyn (bildkoordinater)
-    const z = (typeof _effectiveZoom === 'function') ? _effectiveZoom() : (window.zoom || 1);
+  // Centrera korrekt (canvas→bildkoordinater)
+  const centerImg = (typeof _canvasXYtoImageXY === 'function')
+    ? _canvasXYtoImageXY(drawareax/2, drawareay/2)
+    : { x: ((drawareax/2) - drawstartx) / ((window.zoom>10?window.zoom/100:window.zoom||1)),
+        y: ((drawareay/2) - drawstarty) / ((window.zoom>10?window.zoom/100:window.zoom||1)) };
 
-    // Rätt sätt: konvertera canvas-mitten → bildkoordinater
-    let centerImg;
-    if (typeof _canvasXYtoImageXY === 'function') {
-      centerImg = _canvasXYtoImageXY(drawareax/2, drawareay/2);
-    } else {
-      // Fallback om helper saknas: (canvasX - drawstart) / zoom
-      centerImg = {
-        x: ((drawareax/2) - drawstartx) / z,
-        y: ((drawareay/2) - drawstarty) / z
-      };
-    }
+  const cx = Math.max(0, (centerImg.x - w/2) | 0);
+  const cy = Math.max(0, (centerImg.y - h/2) | 0);
 
-    // Centera bilden kring vymitten
-    const cx = Math.max(0, (centerImg.x - w/2) | 0);
-    const cy = Math.max(0, (centerImg.y - h/2) | 0);
-
-  // 3) Mata in i selection-systemet
   selectionImageCanvas = c;
   selectionBBox = { x: cx, y: cy, w, h };
 
 
 
-  // Bygg mask från bilden (används av transform/erase)
   if (typeof _rebuildMaskFromImageCanvas === 'function') _rebuildMaskFromImageCanvas();
 
-  // 4) Flagga markering + “pågående session” så commit ritar in bilden
   hasSelection = true;
   isDraggingSelection = false;
-  selSessionActive = true;   // ← viktigt
-  selErasedOnce    = true;   // ← gör att commitSelectionSession() ritar in bilden
-
-  // 5) Byt till select så användaren kan dra direkt
+  selSessionActive = true;   // så commit skriver in den
+  selErasedOnce    = true;   // (vi har inget att radera från originalet)
   if (typeof currentTool !== 'undefined') currentTool = 'select';
 
-  // 6) Be om en redraw
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(()=>{});
 }
+
+// Använd i paste-eventet:
 window.addEventListener('paste', async (e) => {
-  // Försök hitta bild
-  const cd = e.clipboardData;
-  if (!cd) return;
-  // 1) Filer (png/jpg/webp) direkt
-  if (cd.files && cd.files.length) {
-    const file = Array.from(cd.files).find(f => f.type.startsWith('image/'));
-    if (file) {
-      e.preventDefault();
-      const bmp = await createImageBitmap(file);
-      _activatePastedBitmap(bmp);
-      return;
-    }
-  }
-  // 2) Items (t.ex. från Photoshop etc.)
-  if (cd.items && cd.items.length) {
-    const it = Array.from(cd.items).find(i => i.type && i.type.startsWith('image/'));
-    if (it) {
-      e.preventDefault();
-      const blob = it.getAsFile();
-      const bmp = await createImageBitmap(blob);
-      _activatePastedBitmap(bmp);
-      return;
-    }
-  }
-  // 3) Text-dataURL
+  const cd = e.clipboardData; if (!cd) return;
+  // 1) Fil (image/*)
+  const file = Array.from(cd.files||[]).find(f => f.type.startsWith('image/'));
+  if (file) { e.preventDefault(); const bmp = await createImageBitmap(file); _activatePastedCanvasOrBitmap(bmp); return; }
+  // 2) Item (image/*)
+  const it = Array.from(cd.items||[]).find(i => i.type && i.type.startsWith('image/'));
+  if (it) { e.preventDefault(); const blob = it.getAsFile(); const bmp = await createImageBitmap(blob); _activatePastedCanvasOrBitmap(bmp); return; }
+  // 3) Text dataURL
   const txt = cd.getData('text/plain');
-  if (txt && txt.startsWith('data:image/')) {
-    e.preventDefault();
-    const bmp = await _bitmapFromDataURL(txt);
-    _activatePastedBitmap(bmp);
-  }
+  if (txt && txt.startsWith('data:image/')) { e.preventDefault(); const resp = await fetch(txt); const blob = await resp.blob(); const bmp = await createImageBitmap(blob); _activatePastedCanvasOrBitmap(bmp); return; }
+
+  // 4) Fallback: in-app-urklipp
+  if (appClipboard.canvas) { e.preventDefault(); _activatePastedCanvasOrBitmap(appClipboard.canvas); return; }
+});
+
+// Använd i paste-knappen:
+document.getElementById('pasteBtn')?.addEventListener('click', async () => {
+  // Försök systemurklipp först…
+  try {
+    if (navigator.clipboard && navigator.clipboard.read) {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const type = item.types.find(t => t.startsWith('image/'));
+        if (type) { const blob = await item.getType(type); const bmp = await createImageBitmap(blob); _activatePastedCanvasOrBitmap(bmp); return; }
+      }
+      const txt = await navigator.clipboard.readText();
+      if (txt && txt.startsWith('data:image/')) { const resp = await fetch(txt); const blob = await resp.blob(); const bmp = await createImageBitmap(blob); _activatePastedCanvasOrBitmap(bmp); return; }
+    }
+  } catch (_) { /* iOS/HTTPS kan blocka */ }
+
+  // …annars in-app-urklipp
+  if (appClipboard.canvas) { _activatePastedCanvasOrBitmap(appClipboard.canvas); return; }
+
+  alert('Urklipp tomt eller blockerat.');
 });
 // === COPY: skriv data-URL till urklipp via copy-event (funkar utan HTTPS) ===
 function _buildCopyDataURL() {
+  // prioritet: selectionImageCanvas
   if (window.hasSelection && window.selectionImageCanvas) {
-    return window.selectionImageCanvas.toDataURL('image/png');
+    const w = window.selectionImageCanvas.width|0, h = window.selectionImageCanvas.height|0;
+    if (w>0 && h>0) return window.selectionImageCanvas.toDataURL('image/png');
   }
+  // bbox-slice
   if (window.hasSelection && window.selectionBBox) {
     const { x, y, w, h } = window.selectionBBox;
-    const c = document.createElement('canvas'); c.width = w; c.height = h;
-    const cctx = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(cctx);
-    cctx.drawImage(drawingCanvas, x, y, w, h, 0, 0, w, h);
-    return c.toDataURL('image/png');
+    if ((w|0)>0 && (h|0)>0) {
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      const cctx = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(cctx);
+      cctx.drawImage(drawingCanvas, x, y, w, h, 0, 0, w, h);
+      return c.toDataURL('image/png');
+    }
   }
-  const z = (window.zoom > 10 ? window.zoom/100 : window.zoom || 1);
-  const w = Math.floor(window.drawareax / z);
-  const h = Math.floor(window.drawareay / z);
+  // hela ytan
+  const z = (window.zoom > 10 ? window.zoom/100 : (window.zoom || 1));
+  const w = Math.max(1, Math.floor(window.drawareax / z));
+  const h = Math.max(1, Math.floor(window.drawareay / z));
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const cctx = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(cctx);
   cctx.drawImage(drawingCanvas, 0, 0, w, h, 0, 0, w, h);
@@ -2705,7 +2727,36 @@ async function copySelectionMobileFriendly() {
     window.prompt('Tryck Kopiera:', url);
   } catch (_) {}
 }
+// Globalt (i din init-del):
+const appClipboard = { canvas: null, w: 0, h: 0 };
 
+// Spara markeringen (eller hela ritytan) i appens urklipp
+function setAppClipboardFromSelection() {
+  let srcC = null, w = 0, h = 0;
+
+  if (window.hasSelection && window.selectionImageCanvas && window.selectionImageCanvas.width && window.selectionImageCanvas.height) {
+    srcC = window.selectionImageCanvas;
+    w = srcC.width; h = srcC.height;
+  } else if (window.hasSelection && window.selectionBBox && window.selectionBBox.w > 0 && window.selectionBBox.h > 0) {
+    const { x, y, w: bw, h: bh } = window.selectionBBox;
+    const c = document.createElement('canvas'); c.width = bw; c.height = bh;
+    const cctx = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(cctx);
+    cctx.drawImage(drawingCanvas, x, y, bw, bh, 0, 0, bw, bh);
+    srcC = c; w = bw; h = bh;
+  } else {
+    // hela dokumentytan
+    const z = (window.zoom > 10 ? window.zoom/100 : (window.zoom || 1));
+    w = Math.max(1, Math.floor(window.drawareax / z));
+    h = Math.max(1, Math.floor(window.drawareay / z));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const cctx = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(cctx);
+    cctx.drawImage(drawingCanvas, 0, 0, w, h, 0, 0, w, h);
+    srcC = c;
+  }
+
+  appClipboard.canvas = srcC;
+  appClipboard.w = w; appClipboard.h = h;
+}
 
             //check---------------------------------------------------------------------------------------
             var check = function() {
@@ -2995,7 +3046,7 @@ async function copySelectionMobileFriendly() {
                             // ======== RITA LOOPEN/SELECTION-OVERLAY I DIN huvud-loop ========
                // i din render/overlay-del
                
-               if(currentTool!=="lasso"&&currentTool !== 'select'){isDraggingSelection = false;if (selSessionActive) commitSelectionSession();clearSelection();}
+             //  if(currentTool!=="lasso"&&currentTool !== 'select'){isDraggingSelection = false;if (selSessionActive) commitSelectionSession();clearSelection();}
                
                
                   // visa urklippet i overlay på nuvarande (ev. drag) position
