@@ -1800,11 +1800,13 @@ document.getElementById('rotateLeftBtn')?.addEventListener('click', ()=> rotateS
 document.getElementById('flipHBtn')?.addEventListener('click', ()=> flipSelection('h'));
 document.getElementById('flipVBtn')?.addEventListener('click', ()=> flipSelection('v'));
 document.getElementById('rotateFreeBtn')?.addEventListener('click', ()=> rotateSelectionFree());
-document.getElementById('copyBtn')?.addEventListener('click', () => {
-  // Trigga copy-event => vår listener lägger dataURL i urklipp
-  copySelectionMobileFriendly();
-});
-document.getElementById('pasteBtn')?.addEventListener('click', pasteFromClipboard);
+const _byId = (id) => document.getElementById(id);
+
+const _copyEl  = _byId('copyBtn');
+if (_copyEl) _copyEl.addEventListener('click', () => { copySelectionMobileFriendly(); });
+
+const _pasteEl = _byId('pasteBtn');
+if (_pasteEl) _pasteEl.addEventListener('click', () => { pasteFromClipboard(); });
 
 // tangentbordsgenvägar: R=+90, Shift+R=-90, H=flipH, V=flipV, L=lasso, Ctrl+R=free
 document.addEventListener('keydown', (e)=>{
@@ -2670,7 +2672,27 @@ function _fallbackTextareaCopy(text) {
   return ok;
 }
 
-function _toast(msg){ try{console.log(msg);}catch(_){ /* no-op */ } }
+function _toast(msg) {
+  let box = document.getElementById('toast-box');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'toast-box';
+    box.style.cssText = `
+      position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
+      background:#111; color:#fff; padding:8px 12px; border-radius:10px;
+      font: 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      box-shadow:0 6px 24px rgba(0,0,0,.25); z-index:999999; opacity:0; transition:opacity .2s;
+      pointer-events:none;
+    `;
+    document.body.appendChild(box);
+  }
+  box.textContent = msg;
+  requestAnimationFrame(() => {
+    box.style.opacity = '1';
+    clearTimeout(box._t);
+    box._t = setTimeout(() => { box.style.opacity = '0'; }, 1400);
+  });
+}
 
 // Huvudfunktionen du anropar från knappen (måste köras i user gesture)
 function _buildCopyCanvas() {
@@ -2754,31 +2776,35 @@ function _copyViaEditableIMG(dataURL) {
   return ok;
 }
 
+function _copyViaEditableIMG(dataURL) {
+  const host = document.createElement('div');
+  host.contentEditable = 'true';
+  host.style.cssText = 'position:fixed;left:-99999px;top:0;opacity:0;';
+  host.innerHTML = `<img src="${dataURL}" alt="copy">`;
+  document.body.appendChild(host);
+
+  const sel = window.getSelection();
+  const range = document.createRange();
+  range.selectNode(host.firstChild);
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch {}
+  sel.removeAllRanges();
+  document.body.removeChild(host);
+  return ok;
+}
+
 async function copySelectionMobileFriendly() {
-  const src = _buildCopyCanvas();
-  if (!src) { _toast('Inget att kopiera.'); return; }
+  const url = _buildCopyDataURL();
+  if (!url || url === 'data:,') { _toast('Inget att kopiera.'); return; }
 
-  // 0) Taint-check (CORS)
-  if (_isCanvasTainted(src)) {
-    // Vi kan inte skapa en riktig PNG p.g.a. CORS. Försök text-dataURL så du åtminstone kan past:a i appen.
-    const url = src.toDataURL('image/png'); // denna kastar inte, men kan bli tom i vissa webkit-byggen
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
-        _toast('Canvas är CORS-låst – kopierade som text-dataURL.');
-        return;
-      }
-    } catch {}
-    // prompt sista utvägen
-    try { window.prompt('Canvas är CORS-låst. Kopiera manuellt:', url); } catch {}
-    return;
-  }
-
-  // 1) Modern väg: inline-promise i ClipboardItem (Safari kräver detta)
+  // 1) Riktig bild till urklipp — iOS/Safari vill ha PROMISE direkt i ClipboardItem
   try {
     if (navigator.clipboard && window.ClipboardItem) {
-      const pngPromise = new Promise(res => src.toBlob(res, 'image/png'));
-      const item = new ClipboardItem({ 'image/png': pngPromise });
+      const blobPromise = (async () => (await fetch(url)).blob())(); // <- Promise, inte färdig blob
+      const item = new ClipboardItem({ 'image/png': blobPromise });
       await navigator.clipboard.write([item]);
       _toast('Kopierat (bild).');
       return;
@@ -2787,10 +2813,9 @@ async function copySelectionMobileFriendly() {
     console.warn('clipboard.write image failed:', e);
   }
 
-  // 2) iOS-trick: contenteditable + IMG + execCommand
+  // 2) iOS-fallback: contenteditable + IMG + execCommand('copy')
   try {
-    const dataURL = src.toDataURL('image/png');
-    if (_copyViaEditableIMG(dataURL)) {
+    if (_copyViaEditableIMG(url)) {
       _toast('Kopierat (iOS-fallback).');
       return;
     }
@@ -2798,20 +2823,8 @@ async function copySelectionMobileFriendly() {
     console.warn('editable IMG copy failed:', e2);
   }
 
-  // 3) Share-sheet (användaren kan välja ”Kopiera”)
+  // 3) writeText(dataURL)
   try {
-    if (navigator.canShare && navigator.share) {
-      const file = await new Promise(res => src.toBlob(b => res(new File([b], 'maxpaint.png', { type: 'image/png' })), 'image/png'));
-      if (file && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'MaxPaint' });
-        return; // brukar inte ge feedback
-      }
-    }
-  } catch {}
-
-  // 4) Text-dataURL fallback
-  try {
-    const url = src.toDataURL('image/png');
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(url);
       _toast('Kopierat (text-dataURL).');
@@ -2819,8 +2832,11 @@ async function copySelectionMobileFriendly() {
     }
   } catch {}
 
-  // 5) Sista utvägen
-  try { window.prompt('Tryck Kopiera:', src.toDataURL('image/png')); } catch {}
+  // 4) execCommand (textarea)
+  if (_fallbackTextareaCopy(url)) { _toast('Kopierat.'); return; }
+
+  // 5) prompt (sista utvägen)
+  try { window.prompt('Tryck Kopiera:', url); } catch {}
 }
 
 
