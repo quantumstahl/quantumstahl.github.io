@@ -2631,73 +2631,74 @@ window.addEventListener('paste', async (e) => {
     _activatePastedBitmap(bmp);
   }
 });
-function _backingScale(cvs){
-  const r = cvs.getBoundingClientRect();
-  return {
-    x: cvs.width  / Math.max(1, r.width),
-    y: cvs.height / Math.max(1, r.height),
-  };
-}
-
 // === COPY: skriv data-URL till urklipp via copy-event (funkar utan HTTPS) ===
 function _buildCopyDataURL() {
-     const { x:scaleX, y:scaleY } = _backingScale(drawingCanvas);
-  // 1) Direkt från en redan beskuren canvas
+  const { x: scaleX, y: scaleY } = _backingScale(drawingCanvas);
+
+  // 1) Redan beskuren selection-canvas → normalisera om den råkar vara i device-pixlar
   if (window.hasSelection && window.selectionImageCanvas) {
-    const c = window.selectionImageCanvas;
-    if (!c || !c.width || !c.height) return ''; // undvik 'data:,'
-    return c.toDataURL('image/png');
+    const sC = window.selectionImageCanvas;
+    if (!sC || !sC.width || !sC.height) return '';
+    // Om någon tidigare råkade spara i device-pixlar: skala ner till bild-pixlar
+    const expectRetina = (window.selectionBBox && (
+      sC.width  > Math.round(window.selectionBBox.w * 1.5) ||
+      sC.height > Math.round(window.selectionBBox.h * 1.5)
+    ));
+    if (expectRetina) {
+      const c = document.createElement('canvas');
+      c.width  = Math.max(1, Math.round(sC.width  / scaleX));
+      c.height = Math.max(1, Math.round(sC.height / scaleY));
+      const g = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(g);
+      g.drawImage(sC, 0, 0, sC.width, sC.height, 0, 0, c.width, c.height);
+      return c.toDataURL('image/png');
+    }
+    return sC.toDataURL('image/png');
   }
 
-  // 2) Från en markeringsruta på huvud-canvas
+  // 2) Markeringsruta på huvud-canvas → läs från device-pixlar, skriv i bild-pixlar
   if (window.hasSelection && window.selectionBBox) {
-    const { x, y, w, h } = window.selectionBBox;
+    let { x, y, w, h } = window.selectionBBox;
 
-    // Klipp till giltigt område inom drawingCanvas
+    // Bild-pixlar (logiska)
+    w = Math.max(1, Math.round(w));
+    h = Math.max(1, Math.round(h));
+
+    // Källrektangel i device-pixlar
+    let sx = Math.max(0, Math.round(x * scaleX));
+    let sy = Math.max(0, Math.round(y * scaleY));
+    let sw = Math.max(0, Math.round(w * scaleX));
+    let sh = Math.max(0, Math.round(h * scaleY));
+
+    // Klipp inom drawingCanvas
     const srcW = drawingCanvas.width  | 0;
     const srcH = drawingCanvas.height | 0;
-    let sx = Math.max(0, Math.round(x* scaleX));
-    let sy = Math.max(0, Math.round(y* scaleY));
-    let sw = Math.max(0, Math.round(w* scaleX));
-    let sh = Math.max(0, Math.round(h* scaleY));
     if (sx + sw > srcW) sw = Math.max(0, srcW - sx);
     if (sy + sh > srcH) sh = Math.max(0, srcH - sy);
-    // Se till att målet inte blir 0×0
-    const outW = Math.max(1, sw);
-    const outH = Math.max(1, sh);
 
     const c = document.createElement('canvas');
-    c.width = outW; c.height = outH;
-    const cctx = c.getContext('2d');
-    if (typeof disableSmoothing === 'function') disableSmoothing(cctx);
-
-    if (sw > 0 && sh > 0) {
-      cctx.drawImage(drawingCanvas, sx, sy, sw, sh, 0, 0, outW, outH);
-    } // annars lämna transparent
-
-    // OBS: om canvas är tainted kan iOS returnera 'data:,'
+    c.width = w; c.height = h; // ← utdata i bild-pixlar
+    const g = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(g);
+    if (sw > 0 && sh > 0) g.drawImage(drawingCanvas, sx, sy, sw, sh, 0, 0, w, h);
     return c.toDataURL('image/png');
   }
 
-  // 3) Hela ritytan (justerat för din zoommodell)
+  // 3) Hela ritytan (ta hänsyn till zoom & backing-scale)
   const z = (!Number.isFinite(window.zoom) || window.zoom <= 0)
     ? 1
     : (window.zoom > 10 ? window.zoom / 100 : window.zoom);
 
-  // Använd round + min 1
-  const outW = Math.max(1, Math.round((window.drawareax || drawingCanvas.width)  / z));
-  const outH = Math.max(1, Math.round((window.drawareay || drawingCanvas.height) / z));
+  // Utdata i bild-pixlar
+  const outW = Math.max(1, Math.round(((window.drawareax || (drawingCanvas.width  / scaleX)) / z)));
+  const outH = Math.max(1, Math.round(((window.drawareay || (drawingCanvas.height / scaleY)) / z)));
 
-  // Klipp källrektangel inom drawingCanvas
-  const srcW = Math.min(outW, drawingCanvas.width);
-  const srcH = Math.min(outH, drawingCanvas.height);
+  // Källrektangel i device-pixlar
+  const srcW = Math.min(Math.round(outW * scaleX), drawingCanvas.width);
+  const srcH = Math.min(Math.round(outH * scaleY), drawingCanvas.height);
 
   const c = document.createElement('canvas');
   c.width = outW; c.height = outH;
-  const cctx = c.getContext('2d');
-  if (typeof disableSmoothing === 'function') disableSmoothing(cctx);
-
-  cctx.drawImage(drawingCanvas, 0, 0, srcW* scaleX, srcH* scaleY, 0, 0, outW, outH);
+  const g = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(g);
+  g.drawImage(drawingCanvas, 0, 0, srcW, srcH, 0, 0, outW, outH);
   return c.toDataURL('image/png');
 }
 
