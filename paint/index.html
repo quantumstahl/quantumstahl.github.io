@@ -2546,53 +2546,51 @@ async function _bitmapFromDataURL(dataURL) {
 
 // Aktivera som flyttbar markering (ingen direkt målning på ritytan)
 function _activatePastedBitmap(imgBitmap) {
-  // 1) Bygg en canvas av den inklistrade bilden
-  const w = imgBitmap.width | 0, h = imgBitmap.height | 0;
+  // 1) Naturstorlek från urklipp
+  let w = imgBitmap.width | 0, h = imgBitmap.height | 0;
   if (!w || !h) return;
+
+  // 1.5) Beräkna dokumentytans pixelstorlek (icke-zoomad)
+  const z = (typeof _effectiveZoom === 'function')
+    ? _effectiveZoom()
+    : (window.zoom > 10 ? window.zoom/100 : window.zoom || 1);
+  const docW = Math.max(1, Math.floor((window.drawareax || drawingCanvas.width)  / z));
+  const docH = Math.max(1, Math.floor((window.drawareay || drawingCanvas.height) / z));
+
+  // 2) Skala ned om bilden är större än dokumentytan (hindrar "enorm" iOS-paste)
+  let outW = w, outH = h;
+  const s = Math.min(1, docW / w, docH / h);
+  if (s < 1) {
+    outW = Math.max(1, Math.round(w * s));
+    outH = Math.max(1, Math.round(h * s));
+  }
+
+  // 3) Bygg en canvas i rätt storlek + rita in bilden (ev. nedskalad)
   const c = document.createElement('canvas');
-  c.width = w; c.height = h;
+  c.width = outW; c.height = outH;
   const cctx = c.getContext('2d');
   if (typeof disableSmoothing === 'function') disableSmoothing(cctx);
-  cctx.drawImage(imgBitmap, 0, 0);
+  cctx.drawImage(imgBitmap, 0, 0, w, h, 0, 0, outW, outH);
 
-    // 2) Placera i mitten av vyn (bildkoordinater)
-    const z = (typeof _effectiveZoom === 'function') ? _effectiveZoom() : (window.zoom || 1);
+  // 4) Placera centrerat i vyn (bildkoordinater)
+  let centerImg;
+  if (typeof _canvasXYtoImageXY === 'function') {
+    centerImg = _canvasXYtoImageXY(drawareax/2, drawareay/2);
+  } else {
+    centerImg = { x: ((drawareax/2) - drawstartx) / z, y: ((drawareay/2) - drawstarty) / z };
+  }
+  const cx = Math.max(0, (centerImg.x - outW/2) | 0);
+  const cy = Math.max(0, (centerImg.y - outH/2) | 0);
 
-    // Rätt sätt: konvertera canvas-mitten → bildkoordinater
-    let centerImg;
-    if (typeof _canvasXYtoImageXY === 'function') {
-      centerImg = _canvasXYtoImageXY(drawareax/2, drawareay/2);
-    } else {
-      // Fallback om helper saknas: (canvasX - drawstart) / zoom
-      centerImg = {
-        x: ((drawareax/2) - drawstartx) / z,
-        y: ((drawareay/2) - drawstarty) / z
-      };
-    }
-
-    // Centera bilden kring vymitten
-    const cx = Math.max(0, (centerImg.x - w/2) | 0);
-    const cy = Math.max(0, (centerImg.y - h/2) | 0);
-
-  // 3) Mata in i selection-systemet
+  // 5) Aktivera som selection
   selectionImageCanvas = c;
-  selectionBBox = { x: cx, y: cy, w, h };
-
-
-
-  // Bygg mask från bilden (används av transform/erase)
+  selectionBBox = { x: cx, y: cy, w: outW, h: outH };
   if (typeof _rebuildMaskFromImageCanvas === 'function') _rebuildMaskFromImageCanvas();
-
-  // 4) Flagga markering + “pågående session” så commit ritar in bilden
   hasSelection = true;
   isDraggingSelection = false;
-  selSessionActive = true;   // ← viktigt
-  selErasedOnce    = true;   // ← gör att commitSelectionSession() ritar in bilden
-
-  // 5) Byt till select så användaren kan dra direkt
+  selSessionActive = true;
+  selErasedOnce = true;
   if (typeof currentTool !== 'undefined') currentTool = 'select';
-
-  // 6) Be om en redraw
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(()=>{});
 }
 window.addEventListener('paste', async (e) => {
@@ -2630,62 +2628,48 @@ window.addEventListener('paste', async (e) => {
 });
 // === COPY: skriv data-URL till urklipp via copy-event (funkar utan HTTPS) ===
 function _buildCopyDataURL() {
-  // 1) Direkt från en redan beskuren canvas
-  if (window.hasSelection && window.selectionImageCanvas) {
-    const c = window.selectionImageCanvas;
-    if (!c || !c.width || !c.height) return ''; // undvik 'data:,'
-    return c.toDataURL('image/png');
+  // Hämta “riktig” zoom (din kod använder ibland % > 10)
+  const z = (typeof _effectiveZoom === 'function')
+    ? _effectiveZoom()
+    : (!Number.isFinite(window.zoom) || window.zoom <= 0)
+      ? 1
+      : (window.zoom > 10 ? window.zoom/100 : window.zoom);
+
+  // 1) Flytande urklipps-canvas (redan beskuren)
+  if (window.hasSelection && window.selectionImageCanvas &&
+      window.selectionImageCanvas.width && window.selectionImageCanvas.height) {
+    return window.selectionImageCanvas.toDataURL('image/png');
   }
 
-  // 2) Från en markeringsruta på huvud-canvas
+  // 2) Beskär utifrån selectionBBox från backing-canvasen
   if (window.hasSelection && window.selectionBBox) {
     const { x, y, w, h } = window.selectionBBox;
-
-    // Klipp till giltigt område inom drawingCanvas
     const srcW = drawingCanvas.width  | 0;
     const srcH = drawingCanvas.height | 0;
-    let sx = Math.max(0, Math.round(x));
-    let sy = Math.max(0, Math.round(y));
-    let sw = Math.max(0, Math.round(w));
-    let sh = Math.max(0, Math.round(h));
-    if (sx + sw > srcW) sw = Math.max(0, srcW - sx);
-    if (sy + sh > srcH) sh = Math.max(0, srcH - sy);
-    // Se till att målet inte blir 0×0
-    const outW = Math.max(1, sw);
-    const outH = Math.max(1, sh);
 
-    const c = document.createElement('canvas');
-    c.width = outW; c.height = outH;
-    const cctx = c.getContext('2d');
-    if (typeof disableSmoothing === 'function') disableSmoothing(cctx);
+    const sx = Math.max(0, Math.round(x));
+    const sy = Math.max(0, Math.round(y));
+    const sw = Math.max(0, Math.min(Math.round(w), srcW - sx));
+    const sh = Math.max(0, Math.min(Math.round(h), srcH - sy));
 
-    if (sw > 0 && sh > 0) {
-      cctx.drawImage(drawingCanvas, sx, sy, sw, sh, 0, 0, outW, outH);
-    } // annars lämna transparent
-
-    // OBS: om canvas är tainted kan iOS returnera 'data:,'
+    const outW = Math.max(1, sw), outH = Math.max(1, sh);
+    const c = document.createElement('canvas'); c.width = outW; c.height = outH;
+    const g = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(g);
+    if (sw && sh) g.drawImage(drawingCanvas, sx, sy, sw, sh, 0, 0, outW, outH);
     return c.toDataURL('image/png');
   }
 
-  // 3) Hela ritytan (justerat för din zoommodell)
-  const z = (!Number.isFinite(window.zoom) || window.zoom <= 0)
-    ? 1
-    : (window.zoom > 10 ? window.zoom / 100 : window.zoom);
+  // 3) Fallback: kopiera ENDAST synlig dokumentyta (inte hela backing-canvasen)
+  const docW = Math.max(1, Math.round((window.drawareax || drawingCanvas.width)  / z));
+  const docH = Math.max(1, Math.round((window.drawareay || drawingCanvas.height) / z));
 
-  // Använd round + min 1
-  const outW = Math.max(1, Math.round((window.drawareax || drawingCanvas.width)  / z));
-  const outH = Math.max(1, Math.round((window.drawareay || drawingCanvas.height) / z));
+  const c = document.createElement('canvas'); c.width = docW; c.height = docH;
+  const g = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(g);
 
-  // Klipp källrektangel inom drawingCanvas
-  const srcW = Math.min(outW, drawingCanvas.width);
-  const srcH = Math.min(outH, drawingCanvas.height);
-
-  const c = document.createElement('canvas');
-  c.width = outW; c.height = outH;
-  const cctx = c.getContext('2d');
-  if (typeof disableSmoothing === 'function') disableSmoothing(cctx);
-
-  cctx.drawImage(drawingCanvas, 0, 0, srcW, srcH, 0, 0, outW, outH);
+  // Klipp källan till docW×docH ifall backing-canvasen är större
+  const srcW = Math.min(docW, drawingCanvas.width);
+  const srcH = Math.min(docH, drawingCanvas.height);
+  g.drawImage(drawingCanvas, 0, 0, srcW, srcH, 0, 0, docW, docH);
   return c.toDataURL('image/png');
 }
 
