@@ -2444,11 +2444,8 @@ async function copySelection() {
   }
 }
 function _drawSelectOverlay() {
-  const selectingNow =
-    (typeof isRectSelecting !== 'undefined' && isRectSelecting) ||
-    (typeof isSelecting     !== 'undefined' && isSelecting);
-
-  if (!selectingNow || (currentTool !== 'select' && currentTool !== 'copy')) return;
+  // Visa bara medan man drar en rektangel i select/copy-läge
+  if (!isSelecting || (currentTool !== 'select' && currentTool !== 'copy')) return;
 
   const z = (typeof _effectiveZoom === 'function') ? _effectiveZoom() : zoom;
 
@@ -2633,7 +2630,6 @@ window.addEventListener('paste', async (e) => {
 });
 // === COPY: skriv data-URL till urklipp via copy-event (funkar utan HTTPS) ===
 function _buildCopyDataURL() {
-     const { x:scaleX, y:scaleY } = _backingScale(drawingCanvas);
   // 1) Direkt från en redan beskuren canvas
   if (window.hasSelection && window.selectionImageCanvas) {
     const c = window.selectionImageCanvas;
@@ -2773,26 +2769,7 @@ function _isCanvasTainted(c) {
   }
 }
 
-// Bygger en käll-canvas av din nuvarande markering / vy
-function _buildCopyCanvas() {
-  if (window.hasSelection && window.selectionImageCanvas) return window.selectionImageCanvas;
 
-  if (window.hasSelection && window.selectionBBox) {
-    const { x, y, w, h } = window.selectionBBox;
-    const c = document.createElement('canvas'); c.width = w; c.height = h;
-    const g = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(g);
-    g.drawImage(drawingCanvas, x, y, w, h, 0, 0, w, h);
-    return c;
-  }
-
-  const z = (window.zoom > 10 ? window.zoom/100 : (window.zoom||1));
-  const w = Math.max(1, (window.drawareax / z) | 0);
-  const h = Math.max(1, (window.drawareay / z) | 0);
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  const g = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(g);
-  g.drawImage(drawingCanvas, 0, 0, w, h, 0, 0, w, h);
-  return c;
-}
 
 // iOS-fallback: kopiera genom att välja ett IMG i en contenteditable
 function _copyViaEditableIMG(dataURL) {
