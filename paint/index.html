@@ -2697,43 +2697,130 @@ function _buildCopyCanvas() {
 }
 
 // Replace this function with the version below
+function _isCanvasTainted(c) {
+  try {
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.getImageData(0, 0, 1, 1); // kastar SecurityError vid taint
+    return false;
+  } catch (e) {
+    return true;
+  }
+}
+
+// Bygger en käll-canvas av din nuvarande markering / vy
+function _buildCopyCanvas() {
+  if (window.hasSelection && window.selectionImageCanvas) return window.selectionImageCanvas;
+
+  if (window.hasSelection && window.selectionBBox) {
+    const { x, y, w, h } = window.selectionBBox;
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(g);
+    g.drawImage(drawingCanvas, x, y, w, h, 0, 0, w, h);
+    return c;
+  }
+
+  const z = (window.zoom > 10 ? window.zoom/100 : (window.zoom||1));
+  const w = Math.max(1, (window.drawareax / z) | 0);
+  const h = Math.max(1, (window.drawareay / z) | 0);
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(g);
+  g.drawImage(drawingCanvas, 0, 0, w, h, 0, 0, w, h);
+  return c;
+}
+
+// iOS-fallback: kopiera genom att välja ett IMG i en contenteditable
+function _copyViaEditableIMG(dataURL) {
+  const host = document.createElement('div');
+  host.contentEditable = 'true';
+  host.style.position = 'fixed';
+  host.style.left = '-99999px';
+  host.style.top = '0';
+  host.style.opacity = '0';
+  // Viktigt: IMG som faktiskt renderas
+  host.innerHTML = `<img src="${dataURL}" alt="copy">`;
+  document.body.appendChild(host);
+
+  const img = host.firstChild;
+  const sel = window.getSelection();
+  const range = document.createRange();
+  range.selectNode(img);
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch(_) {}
+  sel.removeAllRanges();
+  document.body.removeChild(host);
+  return ok;
+}
+
 async function copySelectionMobileFriendly() {
   const src = _buildCopyCanvas();
   if (!src) { _toast('Inget att kopiera.'); return; }
 
-  // 1) Modern path: write real PNG to clipboard.
-  // IMPORTANT for Safari/iOS: pass a PROMISE inside ClipboardItem, don't pre-await a blob.
+  // 0) Taint-check (CORS)
+  if (_isCanvasTainted(src)) {
+    // Vi kan inte skapa en riktig PNG p.g.a. CORS. Försök text-dataURL så du åtminstone kan past:a i appen.
+    const url = src.toDataURL('image/png'); // denna kastar inte, men kan bli tom i vissa webkit-byggen
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        _toast('Canvas är CORS-låst – kopierade som text-dataURL.');
+        return;
+      }
+    } catch {}
+    // prompt sista utvägen
+    try { window.prompt('Canvas är CORS-låst. Kopiera manuellt:', url); } catch {}
+    return;
+  }
+
+  // 1) Modern väg: inline-promise i ClipboardItem (Safari kräver detta)
   try {
     if (navigator.clipboard && window.ClipboardItem) {
-      const pngPromise = new Promise(res => src.toBlob(res, 'image/png')); // <- promise, not awaited
+      const pngPromise = new Promise(res => src.toBlob(res, 'image/png'));
       const item = new ClipboardItem({ 'image/png': pngPromise });
       await navigator.clipboard.write([item]);
       _toast('Kopierat (bild).');
       return;
     }
-  } catch (err) {
-    console.warn('clipboard.write image failed:', err);
-    // fall through
+  } catch (e) {
+    console.warn('clipboard.write image failed:', e);
   }
 
-  // 2) Fallback: writeText with dataURL (works with your paste handler, but won’t replace a system image)
+  // 2) iOS-trick: contenteditable + IMG + execCommand
   try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      const url = src.toDataURL('image/png');
+    const dataURL = src.toDataURL('image/png');
+    if (_copyViaEditableIMG(dataURL)) {
+      _toast('Kopierat (iOS-fallback).');
+      return;
+    }
+  } catch (e2) {
+    console.warn('editable IMG copy failed:', e2);
+  }
+
+  // 3) Share-sheet (användaren kan välja ”Kopiera”)
+  try {
+    if (navigator.canShare && navigator.share) {
+      const file = await new Promise(res => src.toBlob(b => res(new File([b], 'maxpaint.png', { type: 'image/png' })), 'image/png'));
+      if (file && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'MaxPaint' });
+        return; // brukar inte ge feedback
+      }
+    }
+  } catch {}
+
+  // 4) Text-dataURL fallback
+  try {
+    const url = src.toDataURL('image/png');
+    if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(url);
       _toast('Kopierat (text-dataURL).');
       return;
     }
-  } catch (err2) {
-    console.warn('clipboard.writeText failed:', err2);
-  }
+  } catch {}
 
-  // 3) Classic fallback: hidden textarea + execCommand
-  const ok = _fallbackTextareaCopy(src.toDataURL('image/png'));
-  if (ok) { _toast('Kopierat.'); return; }
-
-  // 4) Last-resort (mobile): show a prompt so the user can long-press/copy manually
-  try { window.prompt('Tryck Kopiera:', src.toDataURL('image/png')); } catch (_) {}
+  // 5) Sista utvägen
+  try { window.prompt('Tryck Kopiera:', src.toDataURL('image/png')); } catch {}
 }
 
 
