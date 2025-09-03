@@ -2703,6 +2703,18 @@ async function copySelectionMobileFriendly() {
 
   // 1) Modern path: write real PNG to clipboard.
   // IMPORTANT for Safari/iOS: pass a PROMISE inside ClipboardItem, don't pre-await a blob.
+  
+  if (navigator.canShare && navigator.share) {
+  try {
+    const file = await new Promise(res => src.toBlob(b => res(new File([b], 'maxpaint.png', { type: 'image/png' })), 'image/png'));
+    if (navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'MaxPaint' });
+      return;
+    }
+  } catch (e) { /* ignore */ }
+}
+  
+  
   try {
     if (navigator.clipboard && window.ClipboardItem) {
       const pngPromise = new Promise(res => src.toBlob(res, 'image/png')); // <- promise, not awaited
@@ -2715,6 +2727,17 @@ async function copySelectionMobileFriendly() {
     console.warn('clipboard.write image failed:', err);
     // fall through
   }
+
+if (navigator.canShare && navigator.share) {
+  try {
+    const file = await new Promise(res => src.toBlob(b => res(new File([b], 'maxpaint.png', { type: 'image/png' })), 'image/png'));
+    if (navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'MaxPaint' });
+      return;
+    }
+  } catch (e) { /* ignore */ }
+}
+
 
   // 2) Fallback: writeText with dataURL (works with your paste handler, but won’t replace a system image)
   try {
