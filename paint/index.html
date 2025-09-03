@@ -1802,7 +1802,7 @@ document.getElementById('flipVBtn')?.addEventListener('click', ()=> flipSelectio
 document.getElementById('rotateFreeBtn')?.addEventListener('click', ()=> rotateSelectionFree());
 document.getElementById('copyBtn')?.addEventListener('click', () => {
   // Trigga copy-event => vår listener lägger dataURL i urklipp
-  document.execCommand('copy');
+  copySelectionMobileFriendly();
 });
 document.getElementById('pasteBtn')?.addEventListener('click', pasteFromClipboard);
 
@@ -2628,11 +2628,9 @@ window.addEventListener('paste', async (e) => {
 });
 // === COPY: skriv data-URL till urklipp via copy-event (funkar utan HTTPS) ===
 function _buildCopyDataURL() {
-  // 1) Om vi har ett urklipp från markering (lasso/rect)
   if (window.hasSelection && window.selectionImageCanvas) {
     return window.selectionImageCanvas.toDataURL('image/png');
   }
-  // 2) Om bbox finns men inte ett färdigt canvas
   if (window.hasSelection && window.selectionBBox) {
     const { x, y, w, h } = window.selectionBBox;
     const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -2640,8 +2638,7 @@ function _buildCopyDataURL() {
     cctx.drawImage(drawingCanvas, x, y, w, h, 0, 0, w, h);
     return c.toDataURL('image/png');
   }
-  // 3) Annars: kopiera hela dokumentytan (inte hela offscreen)
-  const z = (window.zoom > 10 ? window.zoom/100 : window.zoom);
+  const z = (window.zoom > 10 ? window.zoom/100 : window.zoom || 1);
   const w = Math.floor(window.drawareax / z);
   const h = Math.floor(window.drawareay / z);
   const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -2650,13 +2647,64 @@ function _buildCopyDataURL() {
   return c.toDataURL('image/png');
 }
 
-document.addEventListener('copy', (e) => {
+async function _dataURLToBlob(dataURL) {
+  const res = await fetch(dataURL);
+  return await res.blob();
+}
+
+function _fallbackTextareaCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.top = '0';
+  ta.style.left = '0';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  ta.setSelectionRange(0, ta.value.length);
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (_) {}
+  document.body.removeChild(ta);
+  return ok;
+}
+
+function _toast(msg){ try{console.log(msg);}catch(_){ /* no-op */ } }
+
+// Huvudfunktionen du anropar från knappen (måste köras i user gesture)
+async function copySelectionMobileFriendly() {
   const url = _buildCopyDataURL();
-  if (!url) return;
-  e.clipboardData.setData('text/plain', url);
-  e.clipboardData.setData('text/uri-list', url);
-  e.preventDefault(); // vi tar över copy helt
-});
+  if (!url) { _toast('Inget att kopiera.'); return; }
+
+  // 1) Försök skriva som riktig bild till urklipp (kräver HTTPS & stöd)
+  try {
+    if (navigator.clipboard && window.ClipboardItem) {
+      const blob = await _dataURLToBlob(url); // PNG
+      await navigator.clipboard.write([ new ClipboardItem({ [blob.type]: blob }) ]);
+      _toast('Kopierat (bild).');
+      return;
+    }
+  } catch (_) { /* fall vidare */ }
+
+  // 2) Försök med writeText(dataURL) (vänligt för din paste-handler)
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(url);
+      _toast('Kopierat (text-dataURL).');
+      return;
+    }
+  } catch (_) { /* fall vidare */ }
+
+  // 3) Fallback: dold textarea + execCommand (brukar funka i iOS/Android)
+  const ok = _fallbackTextareaCopy(url);
+  if (ok) { _toast('Kopierat.'); return; }
+
+  // 4) Sista nödlösningen: låt användaren kopiera manuellt
+  try {
+    window.prompt('Tryck Kopiera:', url);
+  } catch (_) {}
+}
 
 
             //check---------------------------------------------------------------------------------------
