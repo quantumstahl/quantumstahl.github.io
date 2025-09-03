@@ -1801,28 +1801,52 @@ document.getElementById('flipHBtn')?.addEventListener('click', ()=> flipSelectio
 document.getElementById('flipVBtn')?.addEventListener('click', ()=> flipSelection('v'));
 document.getElementById('rotateFreeBtn')?.addEventListener('click', ()=> rotateSelectionFree());
 document.getElementById('copyBtn')?.addEventListener('click', async () => {
-  // a) In-app-urklipp (allt du behöver för att Ctrl/Cmd+V funkar i appen)
   setAppClipboardFromSelection();
-
-  // b) Systemurklipp (bästa möjliga)
+  // (valfritt) försök systemkopiera i bakgrunden, men inga alerts om det blockas
   try {
-    const url = _buildCopyDataURL(); // se fix nedan
-    if (!url) throw new Error('empty');
+    const url = _buildCopyDataURL();
     if (navigator.clipboard && window.ClipboardItem) {
       const blob = await (await fetch(url)).blob();
       await navigator.clipboard.write([ new ClipboardItem({ [blob.type]: blob }) ]);
-      // ok
-    } else if (navigator.clipboard && navigator.clipboard.writeText) {
+    } else if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(url);
-      // ok
-    } else {
-      // på iOS funkar det ofta inte — men appClipboard räcker
     }
-  } catch (_) {
-    // Ignorera tyst – in-app paste kommer funka ändå
-  }
+  } catch (_) {}
 });
-document.getElementById('pasteBtn')?.addEventListener('click', pasteFromClipboard);
+document.getElementById('pasteBtn')?.addEventListener('click', async (ev) => {
+  const forceSystem = ev.shiftKey === true;
+
+  if (!forceSystem && appClipboard.canvas && appClipboard.w > 0 && appClipboard.h > 0) {
+    _activatePastedCanvasOrBitmap(appClipboard.canvas);
+    return;
+  }
+
+  // Systemurklipp (best effort, tyst om blockat)
+  try {
+    if (navigator.clipboard?.read) {
+      const items = await navigator.clipboard.read();
+      for (const it of items) {
+        const type = it.types.find(t => t.startsWith('image/'));
+        if (type) {
+          const blob = await it.getType(type);
+          const bmp  = await createImageBitmap(blob);
+          _activatePastedCanvasOrBitmap(bmp);
+          return;
+        }
+      }
+      const txt = await navigator.clipboard.readText();
+      if (txt && txt.startsWith('data:image/')) {
+        const resp = await fetch(txt); const blob = await resp.blob();
+        const bmp  = await createImageBitmap(blob);
+        _activatePastedCanvasOrBitmap(bmp);
+        return;
+      }
+    }
+  } catch (_) { /* ignoreras */ }
+
+  // Om systemet blockas och inget appClipboard → säg till
+  if (!appClipboard.canvas) alert('Urklipp tomt (system blockerat och inget in-app-urklipp).');
+});
 
 // tangentbordsgenvägar: R=+90, Shift+R=-90, H=flipH, V=flipV, L=lasso, Ctrl+R=free
 document.addEventListener('keydown', (e)=>{
@@ -2728,23 +2752,25 @@ async function copySelectionMobileFriendly() {
   } catch (_) {}
 }
 // Globalt (i din init-del):
-const appClipboard = { canvas: null, w: 0, h: 0 };
+const appClipboard = { canvas: null, w: 0, h: 0, ts: 0 };
 
 // Spara markeringen (eller hela ritytan) i appens urklipp
 function setAppClipboardFromSelection() {
   let srcC = null, w = 0, h = 0;
 
-  if (window.hasSelection && window.selectionImageCanvas && window.selectionImageCanvas.width && window.selectionImageCanvas.height) {
+  if (window.hasSelection && window.selectionImageCanvas &&
+      window.selectionImageCanvas.width && window.selectionImageCanvas.height) {
     srcC = window.selectionImageCanvas;
     w = srcC.width; h = srcC.height;
-  } else if (window.hasSelection && window.selectionBBox && window.selectionBBox.w > 0 && window.selectionBBox.h > 0) {
+  } else if (window.hasSelection && window.selectionBBox &&
+             window.selectionBBox.w > 0 && window.selectionBBox.h > 0) {
     const { x, y, w: bw, h: bh } = window.selectionBBox;
     const c = document.createElement('canvas'); c.width = bw; c.height = bh;
     const cctx = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(cctx);
     cctx.drawImage(drawingCanvas, x, y, bw, bh, 0, 0, bw, bh);
     srcC = c; w = bw; h = bh;
   } else {
-    // hela dokumentytan
+    // hela dokumentytan (bildkoordinater)
     const z = (window.zoom > 10 ? window.zoom/100 : (window.zoom || 1));
     w = Math.max(1, Math.floor(window.drawareax / z));
     h = Math.max(1, Math.floor(window.drawareay / z));
@@ -2756,7 +2782,53 @@ function setAppClipboardFromSelection() {
 
   appClipboard.canvas = srcC;
   appClipboard.w = w; appClipboard.h = h;
+  appClipboard.ts = Date.now();
 }
+document.addEventListener('copy', (e) => {
+  // Bygg in-app urklipp alltid
+  setAppClipboardFromSelection();
+
+  // (valfritt) lägg även dataURL till systemurklipp
+  try {
+    const url = _buildCopyDataURL();
+    if (url && e.clipboardData) {
+      e.clipboardData.setData('text/plain', url);
+      e.clipboardData.setData('text/uri-list', url);
+      e.preventDefault();
+    }
+  } catch (_) {}
+});
+window.addEventListener('paste', async (e) => {
+  // Om vi har appClipboard → använd det och ignorera systemets data
+  if (appClipboard.canvas && appClipboard.w > 0 && appClipboard.h > 0) {
+    e.preventDefault();
+    _activatePastedCanvasOrBitmap(appClipboard.canvas);
+    return;
+  }
+
+  // Annars systemklistra som tidigare
+  const cd = e.clipboardData;
+  if (!cd) return;
+
+  // 1) Filer
+  const file = Array.from(cd.files || []).find(f => f.type.startsWith('image/'));
+  if (file) { e.preventDefault(); const bmp = await createImageBitmap(file); _activatePastedCanvasOrBitmap(bmp); return; }
+
+  // 2) Items
+  const it = Array.from(cd.items || []).find(i => i.type && i.type.startsWith('image/'));
+  if (it) { e.preventDefault(); const blob = it.getAsFile(); const bmp = await createImageBitmap(blob); _activatePastedCanvasOrBitmap(bmp); return; }
+
+  // 3) Text dataURL
+  const txt = cd.getData('text/plain');
+  if (txt && txt.startsWith('data:image/')) {
+    e.preventDefault();
+    const resp = await fetch(txt); const blob = await resp.blob();
+    const bmp  = await createImageBitmap(blob);
+    _activatePastedCanvasOrBitmap(bmp);
+  }
+});
+
+
 
             //check---------------------------------------------------------------------------------------
             var check = function() {
