@@ -2444,8 +2444,11 @@ async function copySelection() {
   }
 }
 function _drawSelectOverlay() {
-  // Visa bara medan man drar en rektangel i select/copy-läge
-  if (!isSelecting || (currentTool !== 'select' && currentTool !== 'copy')) return;
+  const selectingNow =
+    (typeof isRectSelecting !== 'undefined' && isRectSelecting) ||
+    (typeof isSelecting     !== 'undefined' && isSelecting);
+
+  if (!selectingNow || (currentTool !== 'select' && currentTool !== 'copy')) return;
 
   const z = (typeof _effectiveZoom === 'function') ? _effectiveZoom() : zoom;
 
