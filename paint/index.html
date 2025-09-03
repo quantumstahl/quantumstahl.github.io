@@ -191,6 +191,29 @@
             font-weight: bold;
             
           }
+          body .zoom-container {
+            left: auto !important;
+            right: 12px !important;
+            width: auto !important;
+            max-width: 60vw;
+            padding: 0 6px !important;
+            text-align: right;
+            transform: translateY(-50%) !important; /* behåll vertikal centrering */
+          }
+
+          /* Gör reglagen smalare och låt dem bryta mindre */
+          body #zoomSlider,
+          body #brushSizeSlider {
+            width: 60vw !important;
+            max-width: 320px !important;
+          }
+
+          /* Flytta paletten lite mer åt höger (CSS-fallback ifall JS ej hinner) */
+          body .color-palette {
+            right: 12px !important;
+          }
+          
+          
         }
           .color-palette {
             border: 1px solid transparent;  
