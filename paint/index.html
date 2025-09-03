@@ -2673,37 +2673,67 @@ function _fallbackTextareaCopy(text) {
 function _toast(msg){ try{console.log(msg);}catch(_){ /* no-op */ } }
 
 // Huvudfunktionen du anropar från knappen (måste köras i user gesture)
-async function copySelectionMobileFriendly() {
-  const url = _buildCopyDataURL();
-  if (!url) { _toast('Inget att kopiera.'); return; }
+function _buildCopyCanvas() {
+  // 1) If a floating selection image exists, use that
+  if (window.hasSelection && window.selectionImageCanvas) {
+    return window.selectionImageCanvas;
+  }
+  // 2) If we only have a selection bbox, extract that region
+  if (window.hasSelection && window.selectionBBox) {
+    const { x, y, w, h } = window.selectionBBox;
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const cctx = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(cctx);
+    cctx.drawImage(drawingCanvas, x, y, w, h, 0, 0, w, h);
+    return c;
+  }
+  // 3) Fallback: copy the whole visible document area
+  const z = (window.zoom > 10 ? window.zoom/100 : window.zoom || 1);
+  const w = Math.floor(window.drawareax / z);
+  const h = Math.floor(window.drawareay / z);
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const cctx = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(cctx);
+  cctx.drawImage(drawingCanvas, 0, 0, w, h, 0, 0, w, h);
+  return c;
+}
 
-  // 1) Försök skriva som riktig bild till urklipp (kräver HTTPS & stöd)
+// Replace this function with the version below
+async function copySelectionMobileFriendly() {
+  const src = _buildCopyCanvas();
+  if (!src) { _toast('Inget att kopiera.'); return; }
+
+  // 1) Modern path: write real PNG to clipboard.
+  // IMPORTANT for Safari/iOS: pass a PROMISE inside ClipboardItem, don't pre-await a blob.
   try {
     if (navigator.clipboard && window.ClipboardItem) {
-      const blob = await _dataURLToBlob(url); // PNG
-      await navigator.clipboard.write([ new ClipboardItem({ [blob.type]: blob }) ]);
+      const pngPromise = new Promise(res => src.toBlob(res, 'image/png')); // <- promise, not awaited
+      const item = new ClipboardItem({ 'image/png': pngPromise });
+      await navigator.clipboard.write([item]);
       _toast('Kopierat (bild).');
       return;
     }
-  } catch (_) { /* fall vidare */ }
+  } catch (err) {
+    console.warn('clipboard.write image failed:', err);
+    // fall through
+  }
 
-  // 2) Försök med writeText(dataURL) (vänligt för din paste-handler)
+  // 2) Fallback: writeText with dataURL (works with your paste handler, but won’t replace a system image)
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
+      const url = src.toDataURL('image/png');
       await navigator.clipboard.writeText(url);
       _toast('Kopierat (text-dataURL).');
       return;
     }
-  } catch (_) { /* fall vidare */ }
+  } catch (err2) {
+    console.warn('clipboard.writeText failed:', err2);
+  }
 
-  // 3) Fallback: dold textarea + execCommand (brukar funka i iOS/Android)
-  const ok = _fallbackTextareaCopy(url);
+  // 3) Classic fallback: hidden textarea + execCommand
+  const ok = _fallbackTextareaCopy(src.toDataURL('image/png'));
   if (ok) { _toast('Kopierat.'); return; }
 
-  // 4) Sista nödlösningen: låt användaren kopiera manuellt
-  try {
-    window.prompt('Tryck Kopiera:', url);
-  } catch (_) {}
+  // 4) Last-resort (mobile): show a prompt so the user can long-press/copy manually
+  try { window.prompt('Tryck Kopiera:', src.toDataURL('image/png')); } catch (_) {}
 }
 
 
