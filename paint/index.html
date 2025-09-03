@@ -2633,22 +2633,62 @@ window.addEventListener('paste', async (e) => {
 });
 // === COPY: skriv data-URL till urklipp via copy-event (funkar utan HTTPS) ===
 function _buildCopyDataURL() {
+  // 1) Direkt från en redan beskuren canvas
   if (window.hasSelection && window.selectionImageCanvas) {
-    return window.selectionImageCanvas.toDataURL('image/png');
-  }
-  if (window.hasSelection && window.selectionBBox) {
-    const { x, y, w, h } = window.selectionBBox;
-    const c = document.createElement('canvas'); c.width = w; c.height = h;
-    const cctx = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(cctx);
-    cctx.drawImage(drawingCanvas, x, y, w, h, 0, 0, w, h);
+    const c = window.selectionImageCanvas;
+    if (!c || !c.width || !c.height) return ''; // undvik 'data:,'
     return c.toDataURL('image/png');
   }
-  const z = (window.zoom > 10 ? window.zoom/100 : window.zoom || 1);
-  const w = Math.floor(window.drawareax / z);
-  const h = Math.floor(window.drawareay / z);
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  const cctx = c.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(cctx);
-  cctx.drawImage(drawingCanvas, 0, 0, w, h, 0, 0, w, h);
+
+  // 2) Från en markeringsruta på huvud-canvas
+  if (window.hasSelection && window.selectionBBox) {
+    const { x, y, w, h } = window.selectionBBox;
+
+    // Klipp till giltigt område inom drawingCanvas
+    const srcW = drawingCanvas.width  | 0;
+    const srcH = drawingCanvas.height | 0;
+    let sx = Math.max(0, Math.round(x));
+    let sy = Math.max(0, Math.round(y));
+    let sw = Math.max(0, Math.round(w));
+    let sh = Math.max(0, Math.round(h));
+    if (sx + sw > srcW) sw = Math.max(0, srcW - sx);
+    if (sy + sh > srcH) sh = Math.max(0, srcH - sy);
+    // Se till att målet inte blir 0×0
+    const outW = Math.max(1, sw);
+    const outH = Math.max(1, sh);
+
+    const c = document.createElement('canvas');
+    c.width = outW; c.height = outH;
+    const cctx = c.getContext('2d');
+    if (typeof disableSmoothing === 'function') disableSmoothing(cctx);
+
+    if (sw > 0 && sh > 0) {
+      cctx.drawImage(drawingCanvas, sx, sy, sw, sh, 0, 0, outW, outH);
+    } // annars lämna transparent
+
+    // OBS: om canvas är tainted kan iOS returnera 'data:,'
+    return c.toDataURL('image/png');
+  }
+
+  // 3) Hela ritytan (justerat för din zoommodell)
+  const z = (!Number.isFinite(window.zoom) || window.zoom <= 0)
+    ? 1
+    : (window.zoom > 10 ? window.zoom / 100 : window.zoom);
+
+  // Använd round + min 1
+  const outW = Math.max(1, Math.round((window.drawareax || drawingCanvas.width)  / z));
+  const outH = Math.max(1, Math.round((window.drawareay || drawingCanvas.height) / z));
+
+  // Klipp källrektangel inom drawingCanvas
+  const srcW = Math.min(outW, drawingCanvas.width);
+  const srcH = Math.min(outH, drawingCanvas.height);
+
+  const c = document.createElement('canvas');
+  c.width = outW; c.height = outH;
+  const cctx = c.getContext('2d');
+  if (typeof disableSmoothing === 'function') disableSmoothing(cctx);
+
+  cctx.drawImage(drawingCanvas, 0, 0, srcW, srcH, 0, 0, outW, outH);
   return c.toDataURL('image/png');
 }
 
