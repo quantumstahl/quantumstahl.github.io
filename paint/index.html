@@ -817,76 +817,80 @@
        
             let lastPinchDistance = null;
             let canvasPools = new Map();
-            
-            
+            let projectBitmaps = [null, null, null];     // ImageBitmap per projekt (RAM)
+            let projectBlobURLs = [null, null, null];    // Fallback om bitmap inte går
+            let projectDirty = [false, false, false]; 
+            function markDirty(){ projectDirty[currentproject] = true; }
             // Function to save the current drawing to the selected project
-            function saveCurrentProject(index) {
-                
-                projectdrawareax[index]=drawareax;
-                projectdrawareay[index]=drawareay;
-                projectdrawstartx[index]=drawstartx;
-                projectdrawstarty[index]=drawstarty;
-                projectzoom[index]=zoom;
-                
-                
-                
-                const dataURL = drawingCanvas.toDataURL('image/png');
-                projectImages[index] = dataURL; // Save the image data URL to the array
-                console.log(`Project ${index + 1} saved.`);
-            }
+            async function saveCurrentProject(index) {
+                // Spara vy/zoom mm som innan
+                projectdrawareax[index] = drawareax;
+                projectdrawareay[index] = drawareay;
+                projectdrawstartx[index] = drawstartx;
+                projectdrawstarty[index] = drawstarty;
+                projectzoom[index] = zoom;
+
+                if (!projectDirty[index]) return; // ingenting att spara
+
+                // Rensa tidigare cache
+                if (projectBitmaps[index] && projectBitmaps[index].close) {
+                  projectBitmaps[index].close();
+                }
+                if (projectBlobURLs[index]) {
+                  URL.revokeObjectURL(projectBlobURLs[index]);
+                  projectBlobURLs[index] = null;
+                }
+
+                try {
+                  // Snabbaste vägen: ImageBitmap (ingen PNG-encode)
+                  projectBitmaps[index] = await createImageBitmap(drawingCanvas);
+                } catch (e) {
+                  // Fallback: Blob (asynk) + object URL
+                  const blob = await new Promise(res => drawingCanvas.toBlob(res, 'image/png'));
+                  projectBlobURLs[index] = URL.createObjectURL(blob);
+                  projectBitmaps[index] = null;
+                }
+
+                projectDirty[index] = false;
+              }
             
             // Function to load the selected project image into the drawing canvas
-            function loadProject(index) {
-                
-                
-                // Spara stackar för föregående bild
-    undoMap.set(currentproject, undoStack);
-    redoMap.set(currentproject, redoStack);
+            async function loadProject(index) {
+            // Spara undo/redo-mapparna som du redan gör
 
-undoStack = [];
-redoStack = [];
+            // 1) Spara *bara* om nuvarande projekt är dirty
+            await saveCurrentProject(currentproject);
 
+            // 2) Växla aktivt projekt (läge/zoom m.m.)
+            currentproject = index;
+            drawareax   = projectdrawareax[index] ?? drawareax;
+            drawareay   = projectdrawareay[index] ?? drawareay;
+            drawstartx  = projectdrawstartx[index] ?? drawstartx;
+            drawstarty  = projectdrawstarty[index] ?? drawstarty;
+            zoom        = projectzoom[index] ?? zoom;
 
-    // Hämta stackar för nya bilden (eller tomma)
-    undoStack = undoMap.get(index) || [];
-    redoStack = redoMap.get(index) || [];
+            const zoomvalue = Math.round(zoom * 100);
+            document.getElementById("zoomSlider").value = zoomvalue;
+            document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
 
+            // 3) Rita tillbaka från snabb-cache (bitmap) eller blob-URL
+            drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
 
-                
-                
-                
-                
-                
-                
-                
-                
-                saveCurrentProject(currentproject);
-                currentproject=index;
-                
-                drawareax=projectdrawareax[index];
-                drawareay=projectdrawareay[index];
-                drawstartx=projectdrawstartx[index];
-                drawstarty=projectdrawstarty[index];
-                zoom=projectzoom[index];
-                zoomvalue=zoom*100;
-                document.getElementById("zoomSlider").value = zoomvalue;
-                document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
-                
-              
-                
-                if (projectImages[index]) {
-                    const img = new Image();
-                    img.onload = function() {
-                        drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height); // Clear the canvas
-                        drawingCtx.drawImage(img, 0, 0); // Draw the saved image
-                    };
-                    img.src = projectImages[index]; // Set the image source to the saved data URL
-                    console.log(`Project ${index + 1} loaded.`);
-                } else {
-                    console.log(`No project ${index + 1} found.`);
-                }
-                
+            if (projectBitmaps[index]) {
+              drawingCtx.drawImage(projectBitmaps[index], 0, 0);
+            } else if (projectBlobURLs[index]) {
+              const img = new Image();
+              img.onload = () => drawingCtx.drawImage(img, 0, 0);
+              img.src = projectBlobURLs[index];
+            } else {
+              // Nytt tomt projekt: fyll vitt (som du gör vid init)
+              drawingCtx.fillStyle = "white";
+              drawingCtx.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
             }
+
+            // Nytt projekt startar "clean"
+            projectDirty[index] = false;
+          }
             document.getElementById('project1Btn').addEventListener('click', () => loadProject(0));
             document.getElementById('project2Btn').addEventListener('click', () => loadProject(1));
             document.getElementById('project3Btn').addEventListener('click', () => loadProject(2));
@@ -2199,6 +2203,7 @@ let isdragdrag=false;
 
 canvas.addEventListener('pointerdown', (ev)=>{
     isdragdrag=true;
+    markDirty();
   if (currentTool !== 'lasso') return;
   if (ev.pointerType === 'touch') ev.preventDefault(); 
   const rect = canvas.getBoundingClientRect();
@@ -3399,7 +3404,7 @@ canvas.addEventListener('pointerleave', () => {
                     prevDrawAreaY = drawareay;
                     prevDrawStartX = drawstartx;
                     prevDrawStartY = drawstarty;
-                    saveCurrentProject(0);saveCurrentProject(1);saveCurrentProject(2);
+                   // saveCurrentProject(0);saveCurrentProject(1);saveCurrentProject(2);
                     projectdrawareax = [drawareax, drawareax, drawareax];
                     projectdrawareay = [drawareay, drawareay, drawareay];
                     projectdrawstartx = [drawstartx, drawstartx, drawstartx];
