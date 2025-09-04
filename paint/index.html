@@ -307,7 +307,27 @@
         cursor: pointer;
       }
         
-        
+.color-pop.hidden{ display:none }
+.color-pop{
+  position:fixed; inset:auto 1rem 1rem auto; z-index:9999;
+  background:#222; color:#fff; border:1px solid #444; border-radius:12px;
+  box-shadow:0 8px 30px rgba(0,0,0,.35);
+  top:200px;
+}
+.color-pop-inner{ padding:12px; min-width:360px }
+.color-pop .row{ display:flex }
+#rainbowCanvas{ cursor:crosshair; border-radius:8px; outline:1px solid #555 }
+#colorPreview{
+  width:36px; height:36px; border-radius:8px; outline:1px solid #555; background:#fff;
+}
+.btn-primary,.btn-secondary,.tool-btn{
+  font:inherit; padding:.45rem .8rem; border-radius:.6rem; border:0; cursor:pointer;
+}
+.btn-primary{ background:#4f8cff; color:#fff }
+.btn-secondary{ background:#3a3a3a; color:#fff }
+.tool-btn{ background:#2a2a2a; color:#fff; margin-left:.5rem }
+.tool-btn[disabled]{ opacity:.5; cursor:not-allowed }
+@media (max-width:700px){ .color-pop{ inset:auto .5rem .5rem .5rem; min-width:auto } }  
         
         
         </style>
@@ -462,6 +482,31 @@
 <div class="color-swatch" data-color="orange" style="background-color: orange;"></div>
 <div class="color-swatch" data-color="brown" style="background-color: brown;"></div>
 <div class="color-swatch" data-color="cyan" style="background-color: cyan;"></div>
+
+<button id="edit-color-btn" class="tool-btn" type="button" title="Redigera färg 🎨">🎨</button>
+
+<div id="color-editor" class="color-pop hidden" role="dialog" aria-modal="true" aria-label="Redigera färg">
+  <div class="color-pop-inner">
+    <div class="row">
+      <canvas id="rainbowCanvas" width="256" height="128"></canvas>
+    </div>
+
+    <label class="row" style="gap:.5rem;align-items:center">
+      Ljushet
+      <input id="lightnessSlider" type="range" min="0" max="100" value="100" />
+      <span id="lightnessVal">100%</span>
+    </label>
+
+    <div class="row" style="gap:1rem;align-items:center;margin-top:.5rem">
+      <div id="colorPreview" class="preview"></div>
+      <code id="hexOut" style="font-size:.9rem;opacity:.85">#FFFFFF</code>
+      <div style="flex:1"></div>
+      <button id="colorCancel" class="btn-secondary" type="button">Avbryt</button>
+      <button id="colorApply" class="btn-primary"   type="button">Spara</button>
+    </div>
+  </div>
+</div>
+
 </div>
 <!-- NEW: Third row added for checkerboards color swatch -->
 <div class="color-row">
@@ -471,7 +516,20 @@
 <div class="color-swatch" data-color="#9ACD32" style="background-color: #9ACD32;"></div>
 <div class="color-swatch" data-color="gray" style="background-color: gray;"></div>
 </div>
+
+
+
 </div>
+
+
+
+
+
+
+
+
+
+
 <canvas height="10" id="myCanvas" style="border:0px solid black" width="10"></canvas>
 <!-- Resize Modal Dialog -->
 <div class="modal" id="resizeModal">
@@ -491,6 +549,230 @@
 </div>
 </div>
 </div>
+
+<script>
+(function(){
+  // === Hjälpare: färgkonvertering ===
+  function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+  function hsv2rgb(h, s, v){
+    h = ((h%360)+360)%360; s=clamp(s,0,1); v=clamp(v,0,1);
+    const c=v*s, x=c*(1-Math.abs((h/60)%2-1)), m=v-c;
+    let r=0,g=0,b=0;
+    if (h<60){r=c;g=x;} else if (h<120){r=x;g=c;}
+    else if (h<180){g=c;b=x;} else if (h<240){g=x;b=c;}
+    else if (h<300){r=x;b=c;} else {r=c;b=x;}
+    return {r:Math.round((r+m)*255), g:Math.round((g+m)*255), b:Math.round((b+m)*255)};
+  }
+  function rgb2hex(r,g,b){
+    return '#' + [r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase();
+  }
+  function hex2rgb(hex){
+    hex = hex.trim();
+    if (hex.startsWith('#')) hex = hex.slice(1);
+    if (hex.length===3) hex = hex.split('').map(c=>c+c).join('');
+    const num = parseInt(hex,16);
+    if (Number.isNaN(num) || hex.length!==6) return null;
+    return { r:(num>>16)&255, g:(num>>8)&255, b:num&255 };
+  }
+  function cssColorToRGB(str){
+    const ctx = document.createElement('canvas').getContext('2d');
+    ctx.fillStyle = str; // låter browsern parsa
+    const d = ctx.fillStyle;
+    // d blir i formatet #RRGGBB om det är giltigt
+    return hex2rgb(d);
+  }
+
+  // === DOM-hjälpare: hitta aktiv palettknapp ===
+  function getActiveSwatch(){
+    // Anpassa vid behov: byt selektor om du använder andra klassnamn/attribut
+    const btn = document.querySelector('.color-swatch.active');
+    if (!btn) return null;
+    // transparensdetekt
+    const isTrans = btn.dataset.transparent === '1' ||
+                    (btn.dataset.color || '').toLowerCase()==='transparent' ||
+                    (getComputedStyle(btn).backgroundColor.includes('rgba(0, 0, 0, 0)'));
+    return { el: btn, isTransparent: isTrans };
+  }
+  function getButtonColor(btn){
+    // Prioritera data-color (hex), annars beräkna från computed style
+    const data = btn.dataset.color;
+    if (data && data !== 'transparent') {
+      const rgb = hex2rgb(data) || cssColorToRGB(data);
+      if (rgb) return rgb2hex(rgb.r,rgb.g,rgb.b);
+    }
+    const rgb = cssColorToRGB(getComputedStyle(btn).backgroundColor) || {r:255,g:255,b:255};
+    return rgb2hex(rgb.r,rgb.g,rgb.b);
+  }
+  function setButtonColor(btn, hex){
+    btn.dataset.color = hex;
+    btn.style.background = hex;
+    // ping till din app om du har central färg:
+    if (window.setCurrentColor) window.setCurrentColor(hex);
+    document.dispatchEvent(new CustomEvent('palette:colorUpdated', {
+      detail: { button: btn, color: hex }
+    }));
+  }
+
+  // === UI-element ===
+  const editBtn   = document.getElementById('edit-color-btn');
+  const pop       = document.getElementById('color-editor');
+  const canvas    = document.getElementById('rainbowCanvas');
+  const ctx       = canvas.getContext('2d', { willReadFrequently:true });
+  const slider    = document.getElementById('lightnessSlider');
+  const sliderVal = document.getElementById('lightnessVal');
+  const prevEl    = document.getElementById('colorPreview');
+  const hexOut    = document.getElementById('hexOut');
+  const btnCancel = document.getElementById('colorCancel');
+  const btnApply  = document.getElementById('colorApply');
+
+  // State för editorn
+  let H = 0, S = 1, V = 1;      // Hue [0..360), Sat [0..1], Val [0..1]
+  let startHex = '#FFFFFF';
+  let targetBtn = null;
+
+  function drawRainbow(){
+    const w = canvas.width, h = canvas.height;
+    const img = ctx.createImageData(w, h);
+    let i = 0;
+    for (let y=0;y<h;y++){
+      const s = y/(h-1);
+      for (let x=0;x<w;x++){
+        const hdeg = (x/(w-1))*360;
+        const {r,g,b} = hsv2rgb(hdeg, s, V);
+        img.data[i++] = r;
+        img.data[i++] = g;
+        img.data[i++] = b;
+        img.data[i++] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    // rita markör
+    const mx = Math.round((H/360) * (w-1));
+    const my = Math.round(S * (h-1));
+    ctx.beginPath();
+    ctx.arc(mx+0.5, my+0.5, 6, 0, Math.PI*2);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#000';
+    ctx.stroke();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#fff';
+    ctx.stroke();
+  }
+
+  function updatePreview(){
+    const {r,g,b} = hsv2rgb(H, S, V);
+    const hex = rgb2hex(r,g,b);
+    prevEl.style.background = hex;
+    hexOut.textContent = hex;
+  }
+
+  function openEditor(){
+    const active = getActiveSwatch();
+    targetBtn = active ? active.el : null;
+
+    // Hantera transparens: disabla knapp och visa tooltip
+    if (!targetBtn || (active && active.isTransparent)) {
+      editBtn.disabled = true;
+      editBtn.title = "Välj en icke-transparent färg först";
+      return;
+    } else {
+      editBtn.disabled = false;
+      editBtn.title = "Redigera färg 🎨";
+    }
+
+    startHex = getButtonColor(targetBtn);
+
+    // Initiera HSV från startHex (approx: gå via canvas parse)
+    const rgb = hex2rgb(startHex);
+    // snabb rgb->hsv:
+    (function toHSV(r,g,b){
+      r/=255; g/=255; b/=255;
+      const max=Math.max(r,g,b), min=Math.min(r,g,b);
+      const d=max-min;
+      let h=0, s=max===0?0:d/max, v=max;
+      if (d!==0){
+        switch(max){
+          case r: h=((g-b)/d)+(g<b?6:0); break;
+          case g: h=((b-r)/d)+2; break;
+          case b: h=((r-g)/d)+4; break;
+        }
+        h*=60;
+      }
+      H=h; S=s; V=v;
+    })(rgb.r,rgb.g,rgb.b);
+
+    slider.value = Math.round(V*100);
+    sliderVal.textContent = slider.value + '%';
+
+    pop.classList.remove('hidden');
+    drawRainbow();
+    updatePreview();
+  }
+
+  function closeEditor(){
+    pop.classList.add('hidden');
+  }
+
+  // === Events ===
+  editBtn?.addEventListener('click', openEditor);
+  btnCancel?.addEventListener('click', closeEditor);
+
+  btnApply?.addEventListener('click', ()=>{
+    if (!targetBtn) return closeEditor();
+    const {r,g,b} = hsv2rgb(H,S,V);
+    const hex = rgb2hex(r,g,b);
+    setButtonColor(targetBtn, hex);
+    closeEditor();
+  });
+
+  // V (ljushet)
+  slider?.addEventListener('input', ()=>{
+    V = Number(slider.value)/100;
+    sliderVal.textContent = slider.value + '%';
+    drawRainbow();
+    updatePreview();
+  });
+
+  // Pick i regnbågsrutan (H,S)
+  function pickAt(evt){
+    const rect = canvas.getBoundingClientRect();
+    const x = clamp((evt.clientX || (evt.touches?.[0]?.clientX||0)) - rect.left, 0, rect.width-1);
+    const y = clamp((evt.clientY || (evt.touches?.[0]?.clientY||0)) - rect.top, 0, rect.height-1);
+    const rx = x/rect.width, ry = y/rect.height;
+    H = rx * 360;
+    S = ry;
+    updatePreview();
+    drawRainbow();
+  }
+  let dragging=false;
+  canvas?.addEventListener('pointerdown', (e)=>{ dragging=true; canvas.setPointerCapture(e.pointerId); pickAt(e); });
+  canvas?.addEventListener('pointermove', (e)=>{ if (dragging) pickAt(e); });
+  window.addEventListener('pointerup', ()=>{ dragging=false; });
+
+  // Stäng på Escape/klick utanför
+  window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeEditor(); });
+  document.addEventListener('click', (e)=>{
+    if (!pop.classList.contains('hidden') && !pop.contains(e.target) && e.target!==editBtn){
+      closeEditor();
+    }
+  });
+
+  // Håll edit-knappen i sync med aktiv palett
+  document.addEventListener('click', ()=>{
+    const active = getActiveSwatch();
+    if (!active || active.isTransparent){
+      editBtn.disabled = true;
+      editBtn.title = "Välj en icke-transparent färg först";
+    } else {
+      editBtn.disabled = false;
+      editBtn.title = "Redigera färg 🎨";
+    }
+  });
+
+})();
+</script>
+
+
 <script>
             
             const canvas = document.getElementById("myCanvas");
@@ -1473,6 +1755,12 @@ let selectionMaskCanvas = null;   // mask av markerat område
 let selectionImageCanvas = null;  // utdraget pixelinnehåll för transform
 let selectionPathCanvas = null; // overlay-path i skärm-koordinater
 let selectionPathImg = null; 
+let selectionOrigBBox = null;
+let selSessionActive = false;
+let selectionSrcCanvas = null;   // immutabel källa (originalpixlar)
+let selectionHoleBBox = null;    // var originalet satt (rekt eller lasso-bbox)
+let selectionHoleCut  = false;   // har vi skurit hålet i basen än?
+
 
 function clearSelection() {
   hasSelection = false;
@@ -1482,6 +1770,7 @@ function clearSelection() {
   selectionPathImg = null;
   selectionImageCanvas = null;
   selectionMaskCanvas = null;
+  selectionOrigBBox = null;
 }
 
 function _effectiveZoom(){ return (zoom > 10) ? (zoom/100) : zoom; }
@@ -1850,7 +2139,6 @@ let isDraggingSelection = false;
 let dragSelX = 0,  dragSelY  = 0;       // aktuell “overlay”-position i bildpixlar
 let dragOffsetIX = 0, dragOffsetIY = 0; // pekarens offset i bbox
 
-let selSessionActive = false;           // en flytt-session pågår
 let selErasedOnce    = false;           // originalplatsen raderad (en gång)
 
 function startSelectionSession() {
@@ -1861,22 +2149,31 @@ function startSelectionSession() {
   }
 }
 
-function commitSelectionSession() {
-  if (!selSessionActive) return;
-  // om vi redan raderat originalet: skriv in urklippet på nuvarande bbox.position
-  if (selErasedOnce && selectionImageCanvas && selectionBBox) {
-    drawingCtx.drawImage(selectionImageCanvas, selectionBBox.x, selectionBBox.y);
+function commitSelectionSession(){
+  if (!selSessionActive || !selectionSrcCanvas || !selectionBBox) return;
+
+  // 1) Se till att bara originalhålet finns:
+  if (!selectionHoleCut && selectionHoleBBox){
+    _eraseSelectionAt(selectionHoleBBox.x, selectionHoleBBox.y); // lasso-masken styr redan vad som suddas
+    selectionHoleCut = true;
   }
-  if (typeof endAction === 'function') endAction(); // redo-steg klart
-  // stäng session + markering
-  selSessionActive = false;
-  selErasedOnce = false;
-  isDraggingSelection = false;
-  // val: behåll markeringen eller avsluta helt. Här avslutar vi:
-  hasSelection = false;
-  selectionBBox = null;
-  selectionImageCanvas = null;
-  selectionMaskCanvas = null;
+
+  // 2) Baka in *originalpixlarna* i slutläget (ingen kvalitetstapp)
+  drawingCtx.save();
+  if (typeof disableSmoothing==='function') disableSmoothing(drawingCtx);
+  drawingCtx.drawImage(
+    selectionSrcCanvas,
+    0,0, selectionSrcCanvas.width, selectionSrcCanvas.height,
+    selectionBBox.x, selectionBBox.y, selectionBBox.w, selectionBBox.h
+  );
+  drawingCtx.restore();
+
+  // 3) Städa
+  selSessionActive   = false;
+  selectionSrcCanvas = null;
+  selectionHoleBBox  = null;
+  selectionHoleCut   = false;
+  // (Behåll selectionBBox/selectionImageCanvas om du vill fortsätta flytta direkt efter – annars clearSelection().)
 }
 
 function cancelSelectionSession() {
@@ -1925,6 +2222,18 @@ canvas.addEventListener('pointerdown', (ev)=>{
     dragOffsetIY = pImg.y - selectionBBox.y;
     return;
   }
+
+if (selectionImageCanvas || selectionBBox){
+
+  const rect = canvas.getBoundingClientRect();
+  const mx = ev.clientX - rect.left;
+  const my = ev.clientY - rect.top;
+
+  // Är vi på ett hörn?
+  const corner = _hitTestResizeHandleScreen(mx, my, selectionBBox);
+  if (corner) return;
+  }
+
 
   // Annars: börja NY lasso-kurva
   
@@ -1987,16 +2296,22 @@ function _finalizeLasso() {
   const ptsImg = lassoPoints.map(p => ({ x: p.ix, y: p.iy }));
   const bbox = _computeBBoxFromImagePts(ptsImg);
   selectionBBox = { x: bbox.x, y: bbox.y, w: bbox.w, h: bbox.h };
-
+  selectionOrigBBox = { ...selectionBBox };
   _extractSelection();
   hasSelection = true;
   isLassoActive = false;
+    selSessionActive   = true;
+    selectionSrcCanvas = selectionImageCanvas;      // spara originalet som *inte* skrivs över
+    selectionHoleBBox  = { ...selectionBBox };
+    selectionHoleCut   = false;
 }
 
 canvas.addEventListener('pointerup', (ev)=>{
     isdragdrag=false;
   if (currentTool !== 'lasso') return;
   if (ev.pointerType === 'touch') ev.preventDefault(); 
+  
+  if (typeof isResizingSelection !== 'undefined' && isResizingSelection) return;
   if (isDraggingSelection && selectionImageCanvas && selectionBBox) {
     // flytten “gäller” visuellt: uppdatera bbox men skriv inte till canvas ännu
     selectionBBox.x = dragSelX;
@@ -2355,6 +2670,28 @@ canvas.addEventListener('pointerdown', (ev)=>{
     return;
   }
 
+
+
+
+
+
+
+if (selectionImageCanvas || selectionBBox){
+
+  const rect = canvas.getBoundingClientRect();
+  const mx = ev.clientX - rect.left;
+  const my = ev.clientY - rect.top;
+
+  // Är vi på ett hörn?
+  const corner = _hitTestResizeHandleScreen(mx, my, selectionBBox);
+  if (corner) return;
+  }
+
+
+
+
+
+
   // Ny rektangel
   commitSelectionSession();
   isRectSelecting = true;
@@ -2410,6 +2747,11 @@ function _finalizeRectSelection() {
   selectionBBox = { x: x0, y: y0, w, h };
   _extractSelection(); // bygger selectionImageCanvas + mask från pathen
   hasSelection = true;
+  selSessionActive   = true;
+  selectionSrcCanvas = selectionImageCanvas;      // spara originalet som *inte* skrivs över
+  selectionHoleBBox  = { ...selectionBBox };
+  selectionHoleCut   = false;
+  
 }
 
 canvas.addEventListener('pointerup', (ev)=>{
@@ -2882,7 +3224,147 @@ async function copySelectionMobileFriendly() {
   // 5) prompt (sista utvägen)
   try { window.prompt('Tryck Kopiera:', url); } catch {}
 }
+//-----NYTT
+// ===== BEGIN PATCH: resize-corners state =====
+let isResizingSelection = false;
+let activeResizeCorner = null;   // 'tl','tr','bl','br'
+let resizeAnchorImg = null;      // {x,y} i bild-koordinater (motsatt hörn)
+let resizeStartBBox = null;      // snapshot av bbox vid pointerdown
+const HANDLE_SIZE_SCR = 12;      // storlek på hörn-handtag i skärm-px
 
+// Träffa hörn i SKÄRM-koordinater (mx,my i canvas.getBoundingClientRect()-space)
+function _hitTestResizeHandleScreen(mx, my, bbox){
+  if (!bbox) return null;
+  const tl = _imageXYtoCanvasXY(bbox.x,             bbox.y);
+  const tr = _imageXYtoCanvasXY(bbox.x + bbox.w,    bbox.y);
+  const bl = _imageXYtoCanvasXY(bbox.x,             bbox.y + bbox.h);
+  const br = _imageXYtoCanvasXY(bbox.x + bbox.w,    bbox.y + bbox.h);
+  const S  = HANDLE_SIZE_SCR;
+
+  const hits = (p) => (mx >= p.x - S && mx <= p.x + S && my >= p.y - S && my <= p.y + S);
+  if (hits(tl)) return 'tl';
+  if (hits(tr)) return 'tr';
+  if (hits(bl)) return 'bl';
+  if (hits(br)) return 'br';
+  return null;
+}
+
+// Beräkna ny bbox från muspunkt (bild-koordinater) + låst ankare
+function _bboxFromDragAnchor(currImg, anchorImg){
+  const x = Math.min(currImg.x, anchorImg.x);
+  const y = Math.min(currImg.y, anchorImg.y);
+  const w = Math.max(1, Math.abs(currImg.x - anchorImg.x));
+  const h = Math.max(1, Math.abs(currImg.y - anchorImg.y));
+  return { x, y, w, h };
+}
+
+// Hjälp: hål i gamla området och inritning av skalad bild i nya
+function _commitSelectionResize(oldBBox, newBBox){
+  if (!selSessionActive || !selectionSrcCanvas || !newBBox) return;
+
+  // 1) Uppdatera aktuell bbox
+  selectionBBox = { ...newBBox };
+
+  // 2) (valfritt) Bygg om en förhandsbuffer från *originalkällan*, inte från basen
+  const c = document.createElement('canvas');
+  c.width  = Math.max(1, Math.round(newBBox.w));
+  c.height = Math.max(1, Math.round(newBBox.h));
+  const cctx = c.getContext('2d');
+  if (typeof disableSmoothing==='function') disableSmoothing(cctx);
+  cctx.drawImage(
+    selectionSrcCanvas,
+    0,0, selectionSrcCanvas.width, selectionSrcCanvas.height,
+    0,0, c.width, c.height
+  );
+  selectionImageCanvas = c; // förhandsvisning / overlay
+}
+// ===== END PATCH: resize-corners state =====
+// ===== BEGIN PATCH: pointer listeners for corner resize =====
+canvas.addEventListener('pointerdown', (ev) => {
+  if (!selectionImageCanvas || !selectionBBox) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const mx = ev.clientX - rect.left;
+  const my = ev.clientY - rect.top;
+
+  // Är vi på ett hörn?
+  const corner = _hitTestResizeHandleScreen(mx, my, selectionBBox);
+  if (!corner) return;
+
+  ev.preventDefault();
+  ev.stopPropagation();
+
+  // Om du har drag-läge för selection, stäng av så de inte krockar:
+  if (typeof isDraggingSelection !== 'undefined') isDraggingSelection = false;
+
+  activeResizeCorner = corner;
+  isResizingSelection = true;
+  resizeStartBBox = { ...selectionBBox };
+
+  // Motsatt hörn = ankare (i bild-koordinater)
+  let ax, ay;
+  if (corner === 'tl') { ax = resizeStartBBox.x + resizeStartBBox.w; ay = resizeStartBBox.y + resizeStartBBox.h; }
+  if (corner === 'tr') { ax = resizeStartBBox.x;                       ay = resizeStartBBox.y + resizeStartBBox.h; }
+  if (corner === 'bl') { ax = resizeStartBBox.x + resizeStartBBox.w; ay = resizeStartBBox.y;                       }
+  if (corner === 'br') { ax = resizeStartBBox.x;                       ay = resizeStartBBox.y;                       }
+  resizeAnchorImg = { x: ax, y: ay };
+});
+
+canvas.addEventListener('pointermove', (ev) => {
+  // Hover-cursor när inte resizing
+  if (!isResizingSelection) {
+    if (selectionBBox) {
+      const rect = canvas.getBoundingClientRect();
+      const mx = ev.clientX - rect.left;
+      const my = ev.clientY - rect.top;
+      const corner = _hitTestResizeHandleScreen(mx, my, selectionBBox);
+      let cur = 'default';
+      if (corner === 'tl' || corner === 'br') cur = 'nwse-resize';
+      if (corner === 'tr' || corner === 'bl') cur = 'nesw-resize';
+      canvas.style.cursor = cur;
+    }
+    return;
+  }
+
+  // När resizing: uppdatera selectionBBox live (preview)
+  if (!resizeAnchorImg) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = ev.clientX - rect.left;
+  const my = ev.clientY - rect.top;
+  const mImg = _canvasXYtoImageXY(mx, my); // mus i bild-koordinater
+
+  // (valfritt) behåll aspektförhållande om Shift hålls:
+  // if (ev.shiftKey) { ...justera mImg.x/mImg.y för ratio... }
+
+  let newBBox = _bboxFromDragAnchor(mImg, resizeAnchorImg);
+
+  // Kläm inom canvas-gränser
+  newBBox.x = Math.max(0, Math.min(newBBox.x, drawingCanvas.width  - 1));
+  newBBox.y = Math.max(0, Math.min(newBBox.y, drawingCanvas.height - 1));
+  newBBox.w = Math.max(1, Math.min(newBBox.w, drawingCanvas.width  - newBBox.x));
+  newBBox.h = Math.max(1, Math.min(newBBox.h, drawingCanvas.height - newBBox.y));
+
+  selectionBBox = newBBox; // detta räcker för live-preview eftersom din overlay ritar selectionImageCanvas skalad
+  ev.preventDefault();
+});
+
+function _endResizeCommit(){
+  if (!isResizingSelection) return;
+  _commitSelectionResize(resizeStartBBox, selectionBBox);
+
+  isResizingSelection = false;
+  activeResizeCorner = null;
+  resizeAnchorImg = null;
+  resizeStartBBox = null;
+}
+
+canvas.addEventListener('pointerup',    _endResizeCommit);
+canvas.addEventListener('pointercancel',_endResizeCommit);
+canvas.addEventListener('pointerleave', () => {
+  // valfritt: commit även när man drar utanför canvas
+  if (isResizingSelection) _endResizeCommit();
+});
+// ===== END PATCH: pointer listeners for corner resize =====
 
             //check---------------------------------------------------------------------------------------
             var check = function() {
@@ -3192,8 +3674,53 @@ async function copySelectionMobileFriendly() {
                   ctx.setLineDash([4,3]);
                   ctx.strokeStyle = 'rgba(0,0,0,0.9)';
                   ctx.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
-                  if (selectionPathCanvas) ctx.stroke(selectionPathCanvas);
+                    const curX = (isDraggingSelection && typeof dragSelX === 'number') ? dragSelX : selectionBBox.x;
+                    const curY = (isDraggingSelection && typeof dragSelY === 'number') ? dragSelY : selectionBBox.y;
+
+                    // Om du har “previews” för resize, använd dem – annars fall tillbaka till selectionBBox
+                    const curW = (isResizingSelection && typeof rc_prevW === 'number') ? rc_prevW : selectionBBox.w;
+                    const curH = (isResizingSelection && typeof rc_prevH === 'number') ? rc_prevH : selectionBBox.h;
+
+                    if (selectionPathImg && selectionOrigBBox && currentTool === 'lasso') {
+                      const z = _effectiveZoom();
+                      ctx.save();
+
+                      // bild→skärm
+                      ctx.translate(drawstartx, drawstarty);
+                      ctx.scale(z, z);
+
+                      // Mappa originalkonturen (selectionPathImg i bildkoordinater)
+                      // från selectionOrigBBox → till nuvarande bbox (curX/curY/curW/curH)
+                      ctx.translate(curX, curY);
+                      ctx.scale(curW / selectionOrigBBox.w, curH / selectionOrigBBox.h);
+                      ctx.translate(-selectionOrigBBox.x, -selectionOrigBBox.y);
+
+                      ctx.setLineDash([4,3]);
+                      // (valfritt: animera "marching" om du vill)
+                      // ctx.lineDashOffset = -(performance.now() / 50) % 7;
+
+                      ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+                      ctx.stroke(selectionPathImg);
+                      ctx.restore();
+                    }
                   ctx.restore();
+                  //corners ---NYTT
+                    ctx.save();
+                    ctx.strokeStyle = 'black';
+                    ctx.fillStyle = 'white';
+                    ctx.lineWidth = 1;
+                    const size = 8; // storlek på handtaget
+                    const corners = [
+                      {x: p0.x, y: p0.y}, // top-left
+                      {x: p1.x, y: p0.y}, // top-right
+                      {x: p0.x, y: p1.y}, // bottom-left
+                      {x: p1.x, y: p1.y} // bottom-right
+                    ];
+                    for (const c of corners) {
+                      ctx.fillRect(c.x - size/2, c.y - size/2, size, size);
+                      ctx.strokeRect(c.x - size/2, c.y - size/2, size, size);
+                    }
+                    ctx.restore();
                 }
 
                 if(isdragdrag&&currentTool === 'lasso')_drawLassoOverlay();
