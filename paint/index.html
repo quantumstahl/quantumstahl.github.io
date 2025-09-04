@@ -593,6 +593,9 @@
                     (getComputedStyle(btn).backgroundColor.includes('rgba(0, 0, 0, 0)'));
     return { el: btn, isTransparent: isTrans };
   }
+  
+  
+  
   function getButtonColor(btn){
     // Prioritera data-color (hex), annars beräkna från computed style
     const data = btn.dataset.color;
@@ -3368,6 +3371,9 @@ canvas.addEventListener('pointerleave', () => {
 
             //check---------------------------------------------------------------------------------------
             var check = function() {
+                
+                if(document.querySelector('.color-swatch.active')&&document.querySelector('.color-swatch.active').dataset.color!== brushColor)brushColor=document.querySelector('.color-swatch.active').dataset.color;
+                
                 // Update canvas size
                 if (canvas.width !== window.innerWidth * (window.devicePixelRatio || 1) ||
                     canvas.height !== window.innerHeight * (window.devicePixelRatio || 1)) {
