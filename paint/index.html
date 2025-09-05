@@ -2971,39 +2971,88 @@ function _activatePastedBitmap(imgBitmap) {
   // 6) Be om en redraw
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(()=>{});
 }
-window.addEventListener('paste', async (e) => {
-  // Försök hitta bild
+window.addEventListener('paste', onPasteSmart, { passive:false });
+
+async function onPasteSmart(e){
+  e.preventDefault();
   const cd = e.clipboardData;
-  if (!cd) return;
-  // 1) Filer (png/jpg/webp) direkt
-  if (cd.files && cd.files.length) {
-    const file = Array.from(cd.files).find(f => f.type.startsWith('image/'));
-    if (file) {
-      e.preventDefault();
-      const bmp = await createImageBitmap(file);
-      _activatePastedBitmap(bmp);
-      return;
-    }
+  if (!cd) { alert('Safari blockerade urklipp.'); return; }
+
+  // 1) Filer direkt
+  for (const f of cd.files || []) {
+    if (f && /^image\//.test(f.type)) return useBlob(f);
   }
-  // 2) Items (t.ex. från Photoshop etc.)
-  if (cd.items && cd.items.length) {
-    const it = Array.from(cd.items).find(i => i.type && i.type.startsWith('image/'));
-    if (it) {
-      e.preventDefault();
+
+  // 2) Items → blob
+  for (const it of cd.items || []) {
+    if (it.kind === 'file' && /^image\//.test(it.type)) {
       const blob = it.getAsFile();
-      const bmp = await createImageBitmap(blob);
-      _activatePastedBitmap(bmp);
-      return;
+      if (blob) return useBlob(blob);
     }
   }
-  // 3) Text-dataURL
-  const txt = cd.getData('text/plain');
-  if (txt && txt.startsWith('data:image/')) {
-    e.preventDefault();
-    const bmp = await _bitmapFromDataURL(txt);
-    _activatePastedBitmap(bmp);
+
+  // 3) HTML med <img src="...">
+  const html = cd.getData('text/html');
+  if (html) {
+    const src = extractImgSrc(html);
+    if (src) return handleSrc(src);
   }
-});
+
+  // 4) URL i text
+  const url = cd.getData('text/uri-list') || cd.getData('text/plain');
+  if (isLikelyImageURL(url)) return handleSrc(url);
+
+  alert('Urklipp innehåller ingen bild. Tips: använd “Kopiera bild” (inte “Kopiera bildadress”).');
+}
+
+function extractImgSrc(html){
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const img = doc.querySelector('img');
+    return img ? img.src : null;
+  } catch { return null; }
+}
+
+function isLikelyImageURL(u){
+  if (!u) return false;
+  if (u.startsWith('data:image/')) return true;
+  try {
+    const ext = new URL(u).pathname.split('.').pop().toLowerCase();
+    return ['png','jpg','jpeg','gif','webp','bmp','tif','tiff'].includes(ext);
+  } catch { return false; }
+}
+
+async function handleSrc(src){
+  try {
+    if (src.startsWith('data:image/')) {
+      const blob = await (await fetch(src)).blob();
+      return useBlob(blob);
+    }
+    // Försök hämta bilden (kräver CORS för att kunna läsa pixlarna)
+    const res = await fetch(src, { mode:'cors' });
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    const ct = (res.headers.get('content-type')||'').toLowerCase();
+    if (!ct.startsWith('image/')) throw new Error('not image');
+    const blob = await res.blob();
+    return useBlob(blob);
+  } catch (err){
+    alert('Kunde inte hämta bilden (troligen CORS). Kopiera med “Kopiera bild”, inte länk — eller spara bilden och öppna filen.');
+  }
+}
+
+async function useBlob(blob){
+  try {
+    // Snabb väg
+    const bmp = await createImageBitmap(blob);
+    _activatePastedBitmap(bmp);    // din befintliga funktion
+  } catch {
+    // Safari-fallback utan createImageBitmap för vissa format (t.ex. TIFF)
+    const img = new Image();
+    img.onload = () => { _activatePastedBitmap(img); };
+    img.src = URL.createObjectURL(blob);
+  }
+  if (typeof markDirty === 'function') markDirty();
+}
 // === COPY: skriv data-URL till urklipp via copy-event (funkar utan HTTPS) ===
 function _buildCopyDataURL() {
   // 1) Direkt från en redan beskuren canvas
