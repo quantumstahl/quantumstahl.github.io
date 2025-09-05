@@ -1832,12 +1832,14 @@ function _canvasXYtoImageXY(cx, cy){
 }
 function _eraseSelectionAt(ix, iy){
   if (!selectionMaskCanvas) return;
+  beginAction();
   drawingCtx.save();
   drawingCtx.translate(ix, iy);
   drawingCtx.globalCompositeOperation = 'destination-out';
   drawingCtx.drawImage(selectionMaskCanvas, 0, 0);
   drawingCtx.restore();
   drawingCtx.globalCompositeOperation = 'source-over';
+
 }
 
 // Bygg en mask (svart) från alphat i selectionImageCanvas
@@ -2090,23 +2092,29 @@ function rotateSelectionFree() {
     const outH = Math.ceil(h*cos + w*sin);
 
     const out = document.createElement('canvas'); out.width = outW; out.height = outH;
-    const octx = out.getContext('2d'); disableSmoothing(octx);
+    const octx = out.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(octx);
     octx.translate(outW/2, outH/2);
     octx.rotate(rad);
     octx.drawImage(selectionImageCanvas, -w/2, -h/2);
 
+    // Uppdatera förhandsbild + mask
     selectionImageCanvas = out;
-    _rebuildMaskFromImageCanvas();
+    if (typeof _rebuildMaskFromImageCanvas === 'function') _rebuildMaskFromImageCanvas();
 
+    // VIKTIGT: Låt commit använda den roterade bufferten
+    selectionSrcCanvas = selectionImageCanvas;
+
+    // Centrera nya bbox runt gamla centrum (som i rotateSelection)
     const cx = x + w/2, cy = y + h/2;
     const nx = Math.round(cx - outW/2);
     const ny = Math.round(cy - outH/2);
     selectionBBox = { x: nx, y: ny, w: outW, h: outH };
-    return;
+    
+    return; // commit sker när sessionen avslutas
   }
 
-  // --- HELA BILDEN ---
-  beginAction(); // <-- SAKNADES
+  // --- HELA BILDEN (fri vinkel) ---
+  beginAction();
   const z = (zoom > 10 ? zoom/100 : zoom);
   const w = Math.floor(drawareax / z), h = Math.floor(drawareay / z);
 
@@ -2116,17 +2124,14 @@ function rotateSelectionFree() {
   const outH = Math.ceil(h*cos + w*sin);
 
   const tmp = document.createElement('canvas'); tmp.width = outW; tmp.height = outH;
-  const tctx = tmp.getContext('2d'); disableSmoothing(tctx);
+  const tctx = tmp.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(tctx);
   tctx.translate(outW/2, outH/2);
   tctx.rotate(rad);
-  // rita endast dokumentytan
   tctx.drawImage(drawingCanvas, 0, 0, w, h, -w/2, -h/2, w, h);
 
-  // rensa gamla dokumentytan och skriv in roterade
   drawingCtx.clearRect(0, 0, w, h);
   drawingCtx.drawImage(tmp, 0, 0);
 
-  // uppdatera dokumentmått + centrera vy (viktigt för fri vinkel)
   if (outW !== w || outH !== h) {
     drawareax = outW * z;
     drawareay = outH * z;
@@ -2134,7 +2139,6 @@ function rotateSelectionFree() {
     drawstartx = Math.floor((canvas.width / dpr - drawareax) / 2);
     drawstarty = Math.floor((canvas.height / dpr - drawareay) / 2);
   }
-
   endAction();
 }
 
@@ -2254,7 +2258,9 @@ function commitSelectionSession(){
     selectionBBox.x, selectionBBox.y, selectionBBox.w, selectionBBox.h
   );
   drawingCtx.restore();
+  endAction();
 
+  
   // 3) Städa
   selSessionActive   = false;
   selectionSrcCanvas = null;
@@ -2405,7 +2411,7 @@ canvas.addEventListener('pointermove', (ev)=>{
     lassoPoints.push({ cx, cy, ix:pImg.x, iy:pImg.y });
   }
 });
-
+//NUWUWUWUWW
 function _finalizeLasso() {
   if (lassoPoints.length < 3) { isLassoActive = false; return; }
 
@@ -2884,6 +2890,7 @@ function _finalizeRectSelection() {
   selSessionActive   = true;
   selectionSrcCanvas = selectionImageCanvas;      // spara originalet som *inte* skrivs över
   selectionHoleBBox  = { ...selectionBBox };
+  
   _eraseSelectionAt(selectionBBox.x, selectionBBox.y);
     selErasedOnce   = true;
     selectionHoleCut= true; 
