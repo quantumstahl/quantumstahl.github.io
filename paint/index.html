@@ -3330,7 +3330,8 @@ let isResizingSelection = false;
 let activeResizeCorner = null;   // 'tl','tr','bl','br'
 let resizeAnchorImg = null;      // {x,y} i bild-koordinater (motsatt hörn)
 let resizeStartBBox = null;      // snapshot av bbox vid pointerdown
-const HANDLE_SIZE_SCR = 12;      // storlek på hörn-handtag i skärm-px
+let HANDLE_SIZE_SCR = 12;      // storlek på hörn-handtag i skärm-px
+
 
 // Träffa hörn i SKÄRM-koordinater (mx,my i canvas.getBoundingClientRect()-space)
 function _hitTestResizeHandleScreen(mx, my, bbox){
@@ -3646,6 +3647,7 @@ async function _activateLoadedBitmap(imgBitmap) {
                     projectdrawstartx = [drawstartx, drawstartx, drawstartx];
                     projectdrawstarty = [drawstarty, drawstarty, drawstarty];
                     projectzoom = [zoom, zoom, zoom];
+                    if(mobileAndTabletCheck())HANDLE_SIZE_SCR = 24;
                     
                 }
                 
@@ -3959,7 +3961,7 @@ async function _activateLoadedBitmap(imgBitmap) {
                     ctx.strokeStyle = 'black';
                     ctx.fillStyle = 'white';
                     ctx.lineWidth = 1;
-                    const size = 8; // storlek på handtaget
+                    const size = HANDLE_SIZE_SCR; // storlek på handtaget
                     const corners = [
                       {x: p0.x, y: p0.y}, // top-left
                       {x: p1.x, y: p0.y}, // top-right
