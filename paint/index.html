@@ -2873,42 +2873,43 @@ canvas.addEventListener('dblclick', (ev) => {
 
 async function pasteFromClipboard() {
   try {
-    // A) Försök moderna Clipboard API (ibland tomt i Safari)
+    // 1) Försök modern Clipboard API (bilder)
     if (navigator.clipboard && navigator.clipboard.read) {
-      try {
-        const items = await navigator.clipboard.read();
-        for (const item of items) {
-          for (const t of item.types) {
-            if (t.startsWith('image/')) {
-              const blob = await item.getType(t);
-              return useBlobOrBitmap(blob);
-            }
-          }
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const type = item.types.find(t => t.startsWith('image/'));
+        if (type) {
+          const blob = await item.getType(type);
+          const bmp  = await createImageBitmap(blob);
+          _activatePastedBitmap(bmp);
+          return;
         }
-      } catch { /* Safari kastar ofta här – vi faller tillbaka */ }
+      }
+      // Ingen bild? prova text-dataURL
+      const txt = await navigator.clipboard.readText();
+      if (txt && txt.startsWith('data:image/')) {
+        const bmp = await _bitmapFromDataURL(txt);
+        _activatePastedBitmap(bmp);
+        return;
+      }
+      alert('Urklipp innehåller ingen bild.');
+      return;
     }
 
-    // B) Försök textvägen (data-URL, HTML med <img>, eller ren URL)
+    // 2) Fallback: endast text (data-URL) tillåts
     if (navigator.clipboard && navigator.clipboard.readText) {
-      const txt = (await navigator.clipboard.readText())?.trim();
-      if (txt) {
-        if (txt.startsWith('data:image/')) {
-          const blob = await (await fetch(txt)).blob();
-          return useBlobOrBitmap(blob);
-        }
-        if (/<[a-z][\s\S]*>/i.test(txt)) {
-          const src = extractImgSrc(txt);
-          if (src) return handleSrc(src);
-        }
-        if (isProbablyURL(txt)) return handleSrc(txt);
+      const txt = await navigator.clipboard.readText();
+      if (txt && txt.startsWith('data:image/')) {
+        const bmp = await _bitmapFromDataURL(txt);
+        _activatePastedBitmap(bmp);
+        return;
       }
     }
 
-    // C) SAFARI-FALLBACK: använd contenteditable och fånga vad som faktiskt klistras in
-    await pasteViaCatcher();
+    alert('Kunde inte läsa urklipp (webbläsarbegränsning). Prova klistra in via Ctrl/Cmd+V direkt i appen.');
   } catch (err) {
     console.warn('pasteFromClipboard failed:', err);
-    alert('Kunde inte läsa urklipp. Safari kan kräva “Tillåt Klistra in”.');
+    alert('Kunde inte läsa urklipp. Webbläsaren kan kräva HTTPS/behörighet.');
   }
 }
 
@@ -2970,177 +2971,39 @@ function _activatePastedBitmap(imgBitmap) {
   // 6) Be om en redraw
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(()=>{});
 }
-function extractImgSrc(html){
-  try {
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    const img = doc.querySelector('img');
-    return img ? img.src : null;
-  } catch { return null; }
-}
-function isProbablyURL(u){ try { new URL(u); return true; } catch { return false; } }
-
-async function handleSrc(src){
-  try {
-    if (src.startsWith('data:image/')) {
-      const blob = await (await fetch(src)).blob();
-      return useBlobOrBitmap(blob);
-    }
-    const res = await fetch(src, { mode:'cors' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const ct = (res.headers.get('content-type')||'').toLowerCase();
-    if (!ct.startsWith('image/')) throw new Error('not image');
-    return useBlobOrBitmap(await res.blob());
-  } catch (e) {
-    alert('Kunde inte hämta bilden (troligen CORS). Prova “Kopiera bild” eller spara filen.');
-  }
-}
-
-async function useBlobOrBitmap(blob){
-  try {
-    const bmp = await createImageBitmap(blob);
-    _activatePastedBitmap(bmp);
-  } catch {
-    const img = new Image();
-    img.onload = () => _activatePastedBitmap(img);
-    img.src = URL.createObjectURL(blob);
-  }
-  if (typeof markDirty === 'function') markDirty();
-}
-
-// === Contenteditable-fallback ===
-function pasteViaCatcher(){
-  return new Promise((resolve, reject) => {
-    let done = false;
-
-    function finish(ok){ if (!done){ done = true; resolve(ok); } }
-    function cleanup(){
-      pasteCatcher.removeEventListener('paste', onPaste, true);
-      // städa upp ev. infogat innehåll
-      pasteCatcher.innerHTML = '';
-    }
-
-    async function onPaste(e){
-      // 1) Försök läsa direkt via DataTransfer
-      try {
-        const cd = e.clipboardData;
-        if (cd) {
-          for (const f of cd.files || []) {
-            if (f && /^image\//.test(f.type)) { e.preventDefault(); cleanup(); await useBlobOrBitmap(f); return finish(true); }
-          }
-          for (const it of cd.items || []) {
-            if (it.kind==='file' && /^image\//.test(it.type)) {
-              const blob = it.getAsFile(); if (blob){ e.preventDefault(); cleanup(); await useBlobOrBitmap(blob); return finish(true); }
-            }
-          }
-          // HTML/URL → försök via handleSrc
-          const html = cd.getData('text/html');
-          const url  = cd.getData('text/uri-list') || cd.getData('text/plain');
-          if (html) { e.preventDefault(); cleanup(); const src = extractImgSrc(html); if (src){ await handleSrc(src); return finish(true); } }
-          if (url && isProbablyURL(url)) { e.preventDefault(); cleanup(); await handleSrc(url); return finish(true); }
-        }
-      } catch {}
-
-      // 2) DOM-fallback: Safari kan *infoga* <img> i contenteditable utan DataTransfer
-      setTimeout(async () => {
-        try {
-          const img = pasteCatcher.querySelector('img');
-          if (img) {
-            // Använd <img>-elementet direkt
-            cleanup();
-            _activatePastedBitmap(img);
-            if (typeof markDirty === 'function') markDirty();
-            return finish(true);
-          }
-        } catch {}
-        cleanup();
-        alert('Urklipp innehåller ingen bild.');
-        finish(false);
-      }, 50);
-    }
-
-    pasteCatcher.addEventListener('paste', onPaste, true);
-
-    // Fokusera och markera så iOS verkligen klistrar i den här noden
-    pasteCatcher.focus();
-    const sel = window.getSelection && window.getSelection();
-    if (sel) {
-      const r = document.createRange();
-      r.selectNodeContents(pasteCatcher);
-      sel.removeAllRanges(); sel.addRange(r);
-    }
-  });
-}
 window.addEventListener('paste', async (e) => {
-  // Om du redan hanterar paste på annat sätt, slå ihop logiken
+  // Försök hitta bild
   const cd = e.clipboardData;
   if (!cd) return;
-  // 1) Direkt image-filer
-  for (const f of cd.files || []) {
-    if (f && /^image\//.test(f.type)) { e.preventDefault(); return useBlobOrBitmap(f); }
+  // 1) Filer (png/jpg/webp) direkt
+  if (cd.files && cd.files.length) {
+    const file = Array.from(cd.files).find(f => f.type.startsWith('image/'));
+    if (file) {
+      e.preventDefault();
+      const bmp = await createImageBitmap(file);
+      _activatePastedBitmap(bmp);
+      return;
+    }
   }
-  // 2) Items → image blob
-  for (const it of cd.items || []) {
-    if (it.kind === 'file' && /^image\//.test(it.type)) {
+  // 2) Items (t.ex. från Photoshop etc.)
+  if (cd.items && cd.items.length) {
+    const it = Array.from(cd.items).find(i => i.type && i.type.startsWith('image/'));
+    if (it) {
+      e.preventDefault();
       const blob = it.getAsFile();
-      if (blob) { e.preventDefault(); return useBlobOrBitmap(blob); }
+      const bmp = await createImageBitmap(blob);
+      _activatePastedBitmap(bmp);
+      return;
     }
   }
-  // 3) HTML med <img>
-  const html = cd.getData('text/html');
-  if (html) {
-    const src = extractImgSrc(html);
-    if (src) { e.preventDefault(); return handleSrc(src); }
+  // 3) Text-dataURL
+  const txt = cd.getData('text/plain');
+  if (txt && txt.startsWith('data:image/')) {
+    e.preventDefault();
+    const bmp = await _bitmapFromDataURL(txt);
+    _activatePastedBitmap(bmp);
   }
-  // 4) URL i text
-  const url = cd.getData('text/uri-list') || cd.getData('text/plain');
-  if (url && isProbablyURL(url)) { e.preventDefault(); return handleSrc(url); }
-}, { passive:false });
-
-// ==== Hjälpare ====
-
-function extractImgSrc(html){
-  try {
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    const img = doc.querySelector('img');
-    return img ? img.src : null;
-  } catch { return null; }
-}
-
-function isProbablyURL(u){
-  try { new URL(u); return true; } catch { return false; }
-}
-
-async function handleSrc(src){
-  try {
-    if (src.startsWith('data:image/')) {
-      const blob = await (await fetch(src)).blob();
-      return useBlobOrBitmap(blob);
-    }
-    // Försök hämta – kräver CORS för att kunna ritas på canvas
-    const res = await fetch(src, { mode:'cors' });
-    if (!res.ok) throw new Error('HTTP '+res.status);
-    const ct = (res.headers.get('content-type')||'').toLowerCase();
-    if (!ct.startsWith('image/')) throw new Error('not image');
-    const blob = await res.blob();
-    return useBlobOrBitmap(blob);
-  } catch (err){
-    console.warn('fetch image failed', err);
-    alert('Kunde inte hämta bilden (troligen CORS). Kopiera med “Kopiera bild”, inte länk — eller spara filen lokalt.');
-  }
-}
-
-async function useBlobOrBitmap(blob){
-  try {
-    const bmp = await createImageBitmap(blob);
-    _activatePastedBitmap(bmp);  // din befintliga
-  } catch {
-    // Safari fallback (t.ex. TIFF)
-    const img = new Image();
-    img.onload = () => _activatePastedBitmap(img);
-    img.src = URL.createObjectURL(blob);
-  }
-  if (typeof markDirty === 'function') markDirty();
-}
+});
 // === COPY: skriv data-URL till urklipp via copy-event (funkar utan HTTPS) ===
 function _buildCopyDataURL() {
   // 1) Direkt från en redan beskuren canvas
@@ -3547,15 +3410,6 @@ canvas.addEventListener('pointerleave', () => {
                     projectdrawstartx = [drawstartx, drawstartx, drawstartx];
                     projectdrawstarty = [drawstarty, drawstarty, drawstarty];
                     projectzoom = [zoom, zoom, zoom];
-					
-					const pasteCatcher = document.createElement('div');
-					pasteCatcher.id = 'pasteCatcher';
-					pasteCatcher.contentEditable = 'true';
-					Object.assign(pasteCatcher.style, {
-					  position:'fixed', left:'-9999px', top:'0', width:'1px', height:'1px',
-					  opacity:'0', pointerEvents:'none'
-					});
-					document.body.appendChild(pasteCatcher);
                     
                 }
                 
