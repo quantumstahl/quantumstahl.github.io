@@ -113,7 +113,13 @@
             position: absolute;
             z-index: 99;
           }
-         
+          .zoom-container {
+            top: 68px;
+            left: 390px;
+            transform: translateY(-50%);
+            padding: 0 80px;
+            box-sizing: border-box;
+          }
 
           #zoomSlider {
             width: 100%;
@@ -464,7 +470,7 @@
 <label for="brushSizeSlider" id="brushSizeLabel">Brush Size: 1px</label><br/>
 <input id="brushSizeSlider" max="10" min="1" step="1" style="width: 200px;" type="range" value="1"/>
 </div>
-<div class="color-palette" >
+<div class="color-palette" style="position: absolute; top: 50px; right: 20px; transform: translateY(-50%); z-index: 100; text-align: center;">
 <div class="color-row">
 <div class="color-swatch" data-color="black" style="background-color: black; border: 2px solid #fff;"></div>
 <div class="color-swatch" data-color="red" style="background-color: red;"></div>
@@ -479,24 +485,7 @@
 <div class="color-swatch" data-color="brown" style="background-color: brown;"></div>
 <div class="color-swatch" data-color="cyan" style="background-color: cyan;"></div>
 
-
-
-</div>
-<!-- NEW: Third row added for checkerboards color swatch -->
-<div class="color-row">
-<div class="color-swatch" data-color="checkerboard" style="background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%);"></div>
-<div class="color-swatch" data-color="#c71585" style="background-color: #c71585;"></div>
-<div class="color-swatch" data-color="#FF4433" style="background-color: #FF4433;"></div>
-<div class="color-swatch" data-color="#9ACD32" style="background-color: #9ACD32;"></div>
-<div class="color-swatch" data-color="gray" style="background-color: gray;"></div>
-</div>
-
-
-
-</div>
-
-
-<button id="edit-color-btn" class="tool-btn" type="button" title="Redigera färg 🎨" style="position: absolute; left: 50%; margin-left: 430px;margin-top: 20px">🎨</button>
+<button id="edit-color-btn" class="tool-btn" type="button" title="Redigera färg 🎨" style="">🎨</button>
 
 <div id="color-editor" class="color-pop hidden" role="dialog" aria-modal="true" aria-label="Redigera färg">
   <div class="color-pop-inner">
@@ -519,6 +508,23 @@
     </div>
   </div>
 </div>
+
+</div>
+<!-- NEW: Third row added for checkerboards color swatch -->
+<div class="color-row">
+<div class="color-swatch" data-color="checkerboard" style="background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%);"></div>
+<div class="color-swatch" data-color="#c71585" style="background-color: #c71585;"></div>
+<div class="color-swatch" data-color="#FF4433" style="background-color: #FF4433;"></div>
+<div class="color-swatch" data-color="#9ACD32" style="background-color: #9ACD32;"></div>
+<div class="color-swatch" data-color="gray" style="background-color: gray;"></div>
+</div>
+
+
+
+</div>
+
+
+
 
 
 
