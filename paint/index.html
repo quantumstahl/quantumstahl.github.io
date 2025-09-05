@@ -2192,8 +2192,45 @@ function commitSelectionSession(){
   selectionHoleBBox  = null;
   selectionHoleCut   = false;
   clearSelection();
-}
+    hasSelection = false;
+  selSessionActive = false;
+  isDraggingSelection = false;
+  isResizingSelection = false;
+  isTransformingSelection = false;
 
+  selectionImageCanvas = null;
+  selectionSrcCanvas   = null;
+  selectionPathImg     = null;
+  selectionPathCanvas  = null;
+  selectionMask        = null;
+  selectionOrigBBox    = null;
+  selectionHoleBBox    = null;
+  selectionHoleCut     = false;
+
+  selectionBBox = null;
+  dragSelX = 0; dragSelY = 0;
+  
+  
+}
+function _clearSelectionState(reason = '') {
+  hasSelection = false;
+  selSessionActive = false;
+  isDraggingSelection = false;
+  isResizingSelection = false;
+  isTransformingSelection = false;
+
+  selectionImageCanvas = null;
+  selectionSrcCanvas   = null;
+  selectionPathImg     = null;
+  selectionPathCanvas  = null;
+  selectionMask        = null;
+  selectionOrigBBox    = null;
+  selectionHoleBBox    = null;
+  selectionHoleCut     = false;
+
+  selectionBBox = null;
+  dragSelX = 0; dragSelY = 0;
+}
 function cancelSelectionSession() {
   if (!selSessionActive) return;
   // Återställ canvas om vi raderat original
