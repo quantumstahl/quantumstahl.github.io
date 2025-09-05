@@ -2885,44 +2885,133 @@ canvas.addEventListener('dblclick', (ev) => {
 
 async function pasteFromClipboard() {
   try {
-    // 1) Försök modern Clipboard API (bilder)
+    // Viktigt i Safari: se till att denna funktion körs från en user gesture (klick/tap).
+    // Annars kan navigator.clipboard.read() vara tom eller kasta NotAllowedError.
+
+    // 1) Modern API: försök få ett image-blob direkt
     if (navigator.clipboard && navigator.clipboard.read) {
-      const items = await navigator.clipboard.read();
-      for (const item of items) {
-        const type = item.types.find(t => t.startsWith('image/'));
-        if (type) {
-          const blob = await item.getType(type);
-          const bmp  = await createImageBitmap(blob);
+      try {
+        const items = await navigator.clipboard.read();
+        // samla typer för debug
+        const allTypes = items.map(it => it.types.join(',')).join(' | ');
+
+        for (const item of items) {
+          // prioordning på bildtyper som Safari brukar returnera
+          const imgType = item.types.find(t =>
+            t.startsWith('image/') &&
+            (
+              t === 'image/png'   ||
+              t === 'image/jpeg'  ||
+              t === 'image/webp'  ||
+              t === 'image/gif'   ||
+              t === 'image/tiff'  || // macOS Safari kan ha TIFF
+              t === 'image/heic'  || // iOS kan använda HEIC/HEIF (stöd varierar)
+              t === 'image/heif'
+            )
+          ) || item.types.find(t => t.startsWith('image/')); // sista chans: vilket image/* som helst
+
+          if (imgType) {
+            const blob = await item.getType(imgType);
+            const bmp  = await createImageBitmap(blob);
+            _activatePastedBitmap(bmp);
+            return;
+          }
+        }
+
+        // 2) Ingen image/* i clipboard: prova HTML -> extrahera <img src="...">
+        for (const item of items) {
+          if (item.types.includes('text/html')) {
+            const htmlBlob = await item.getType('text/html');
+            const html = await htmlBlob.text();
+            const src = _parseImgSrcFromHTML(html);
+            if (src) {
+              const bmp = await _loadBitmapFromURL(src);
+              _activatePastedBitmap(bmp);
+              return;
+            }
+          }
+        }
+
+        // 3) Prova text (data-URL eller direkt bild-URL)
+        for (const item of items) {
+          if (item.types.includes('text/plain')) {
+            const txtBlob = await item.getType('text/plain');
+            const txt = (await txtBlob.text()).trim();
+            if (txt.startsWith('data:image/')) {
+              const bmp = await _bitmapFromDataURL(txt);
+              _activatePastedBitmap(bmp);
+              return;
+            }
+            if (_looksLikeImageURL(txt)) {
+              const bmp = await _loadBitmapFromURL(txt);
+              _activatePastedBitmap(bmp);
+              return;
+            }
+          }
+        }
+
+        // Föll igenom alla steg
+        console.warn('Clipboard types (Safari):', allTypes);
+      } catch (e) {
+        // NotAllowedError / SecurityError etc – fall tillbaka till readText()
+        console.warn('clipboard.read() failed:', e);
+      }
+    }
+
+    // 4) Minimal fallback: readText -> data-URL eller URL
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      const txt = (await navigator.clipboard.readText() || '').trim();
+      if (txt) {
+        if (txt.startsWith('data:image/')) {
+          const bmp = await _bitmapFromDataURL(txt);
+          _activatePastedBitmap(bmp);
+          return;
+        }
+        if (_looksLikeImageURL(txt)) {
+          const bmp = await _loadBitmapFromURL(txt);
           _activatePastedBitmap(bmp);
           return;
         }
       }
-      // Ingen bild? prova text-dataURL
-      const txt = await navigator.clipboard.readText();
-      if (txt && txt.startsWith('data:image/')) {
-        const bmp = await _bitmapFromDataURL(txt);
-        _activatePastedBitmap(bmp);
-        return;
-      }
-      alert('Urklipp innehåller ingen bild.');
-      return;
     }
 
-    // 2) Fallback: endast text (data-URL) tillåts
-    if (navigator.clipboard && navigator.clipboard.readText) {
-      const txt = await navigator.clipboard.readText();
-      if (txt && txt.startsWith('data:image/')) {
-        const bmp = await _bitmapFromDataURL(txt);
-        _activatePastedBitmap(bmp);
-        return;
-      }
-    }
-
-    alert('Kunde inte läsa urklipp (webbläsarbegränsning). Prova klistra in via Ctrl/Cmd+V direkt i appen.');
+    alert('Urklipp innehåller ingen bild. Tips: prova “Kopiera bild” på sidan, eller kopiera bildens data-URL/URL.');
   } catch (err) {
-    console.warn('pasteFromClipboard failed:', err);
-    alert('Kunde inte läsa urklipp. Webbläsaren kan kräva HTTPS/behörighet.');
+    console.error(err);
+    alert('Kunde inte läsa urklipp. Safari kräver ofta klick/tillstånd och HTTPS.');
   }
+}
+
+// === Hjälpare ===
+
+function _looksLikeImageURL(s) {
+  try {
+    const u = new URL(s);
+    // Grov check: filändelse eller data via query. WebP/AVIF stöds i moderna Safari
+    return /\.(png|jpe?g|webp|gif|tiff?|avif|bmp)(\?.*)?$/i.test(u.pathname) || /image=/.test(u.search);
+  } catch { return false; }
+}
+
+async function _loadBitmapFromURL(src) {
+  // Försök CORS-vänligt först (så canvas inte blir “tainted”)
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  const done = new Promise((res, rej) => {
+    img.onload = () => res(img);
+    img.onerror = () => rej(new Error('Image load failed: ' + src));
+  });
+  img.src = src;
+  const el = await done;
+  return createImageBitmap(el);
+}
+
+function _parseImgSrcFromHTML(html) {
+  // Plocka första <img src="..."> i klippbordets HTML
+  const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  if (m && m[1]) return m[1];
+  // Som backup: försök hitta background-image:url(...)
+  const m2 = html.match(/background-image\s*:\s*url\(["']?([^"')]+)["']?\)/i);
+  return m2 ? m2[1] : '';
 }
 
 // Hjälpare: dataURL -> ImageBitmap
