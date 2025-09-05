@@ -3043,7 +3043,7 @@ function _activatePastedBitmap(imgBitmap) {
   isDraggingSelection  = false;
   selSessionActive     = true;                   // commit skriver in bilden
   selErasedOnce        = true;                   // så vi försöker inte radera något
-  if (typeof currentTool !== 'undefined') currentTool = 'select';  
+  if (typeof currentTool !== 'undefined') {switchTool('select');currentTool = 'select';  }
 
   // Bygg mask från bilden (används av transform/erase)
   if (typeof _rebuildMaskFromImageCanvas === 'function') _rebuildMaskFromImageCanvas();
@@ -3055,7 +3055,7 @@ function _activatePastedBitmap(imgBitmap) {
   selErasedOnce    = true;   // ← gör att commitSelectionSession() ritar in bilden
 
   // 5) Byt till select så användaren kan dra direkt
-  if (typeof currentTool !== 'undefined') currentTool = 'select';
+  if (typeof currentTool !== 'undefined') {switchTool('select');currentTool = 'select';}
 
   // 6) Be om en redraw
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(()=>{});
