@@ -1770,7 +1770,8 @@ let selSessionActive = false;
 let selectionSrcCanvas = null;   // immutabel källa (originalpixlar)
 let selectionHoleBBox = null;    // var originalet satt (rekt eller lasso-bbox)
 let selectionHoleCut  = false;   // har vi skurit hålet i basen än?
-
+let selectionSrcBitmap = null;   // fullres ImageBitmap vid inklistring/URL
+let selectionDirty = false;      // blir true om vi roterar/flippar osv.
 
 function clearSelection() {
   hasSelection = false;
@@ -1932,6 +1933,8 @@ function rotateSelection(deg) {
     octx.drawImage(selectionImageCanvas, -w/2, -h/2);
 
     selectionImageCanvas = out;
+    selectionSrcBitmap = null;
+    selectionDirty = true;
     _rebuildMaskFromImageCanvas();
     
     selectionSrcCanvas = selectionImageCanvas;
@@ -1999,6 +2002,8 @@ function flipSelection(axis /* 'h'|'v' */) {
     octx.restore();
 
     selectionImageCanvas = out;
+    selectionSrcBitmap = null;
+    selectionDirty = true;
     _rebuildMaskFromImageCanvas();
     
     selectionSrcCanvas = selectionImageCanvas;
@@ -2054,6 +2059,8 @@ function rotateSelectionFree() {
     octx.drawImage(selectionImageCanvas, -w/2, -h/2);
 
     selectionImageCanvas = out;
+    selectionSrcBitmap = null;
+    selectionDirty = true;
     _rebuildMaskFromImageCanvas();
 
     const cx = x + w/2, cy = y + h/2;
@@ -2165,26 +2172,40 @@ function startSelectionSession() {
 }
 
 function commitSelectionSession(){
-  if (!selSessionActive || !selectionBBox) return;
+   if (!selSessionActive || !selectionBBox) return;
 
-  // 1) Se till att bara originalhålet finns (om sådant existerar)
   if (!selectionHoleCut && selectionHoleBBox){
     _eraseSelectionAt(selectionHoleBBox.x, selectionHoleBBox.y);
     selectionHoleCut = true;
   }
 
-  // NEW: tillåt commit även utan selectionSrcCanvas
-  const src = selectionSrcCanvas || selectionImageCanvas;
-  if (!src) return;
+  // NYTT: fullres-commit om vi inte har gjort destruktiva raster-operationer
+  if (selectionSrcBitmap && !selectionDirty) {
+    const src = selectionSrcBitmap;
+    drawingCtx.save();
+    if (typeof disableSmoothing==='function') disableSmoothing(drawingCtx);
+    drawingCtx.drawImage(
+      src, 0,0, src.width, src.height,
+      selectionBBox.x, selectionBBox.y, selectionBBox.w, selectionBBox.h
+    );
+    drawingCtx.restore();
+  } else {
+    // din befintliga väg
+    const src = selectionSrcCanvas || selectionImageCanvas;
+    if (!src) return;
+    drawingCtx.save();
+    if (typeof disableSmoothing==='function') disableSmoothing(drawingCtx);
+    drawingCtx.drawImage(
+      src, 0,0, src.width, src.height,
+      selectionBBox.x, selectionBBox.y, selectionBBox.w, selectionBBox.h
+    );
+    drawingCtx.restore();
+  }
 
-  // 2) Baka in slutläget
-  drawingCtx.save();
-  if (typeof disableSmoothing==='function') disableSmoothing(drawingCtx);
-  drawingCtx.drawImage(
-    src, 0,0, src.width, src.height,
-    selectionBBox.x, selectionBBox.y, selectionBBox.w, selectionBBox.h
-  );
-  drawingCtx.restore();
+  // städ
+  if (selectionSrcBitmap && selectionSrcBitmap.close) { try { selectionSrcBitmap.close(); } catch {} }
+  selectionSrcBitmap = null;
+  selectionDirty = false;
 
   // 3) Städa
   selSessionActive   = false;
@@ -3002,62 +3023,56 @@ async function _bitmapFromDataURL(dataURL) {
 }
 
 // Aktivera som flyttbar markering (ingen direkt målning på ritytan)
-function _activatePastedBitmap(imgBitmap) {
-  // 1) Bygg en canvas av den inklistrade bilden
-  const w = imgBitmap.width | 0, h = imgBitmap.height | 0;
+async function _activatePastedBitmap(imgBitmap) {
+  const w = imgBitmap.width|0, h = imgBitmap.height|0;
   if (!w || !h) return;
-  const c = document.createElement('canvas');
-  c.width = w; c.height = h;
-  const cctx = c.getContext('2d');
-  if (typeof disableSmoothing === 'function') disableSmoothing(cctx);
-  cctx.drawImage(imgBitmap, 0, 0);
 
-    // 2) Placera i mitten av vyn (bildkoordinater)
-    const z = (typeof _effectiveZoom === 'function') ? _effectiveZoom() : (window.zoom || 1);
+  // 0) Spara fullres-källa för commit i slutet
+  selectionSrcBitmap = imgBitmap;
+  selectionDirty = false;
 
-    // Rätt sätt: konvertera canvas-mitten → bildkoordinater
-    let centerImg;
-    if (typeof _canvasXYtoImageXY === 'function') {
-      centerImg = _canvasXYtoImageXY(drawareax/2, drawareay/2);
-    } else {
-      // Fallback om helper saknas: (canvasX - drawstart) / zoom
-      centerImg = {
-        x: ((drawareax/2) - drawstartx) / z,
-        y: ((drawareay/2) - drawstarty) / z
-      };
-    }
+  // 1) Preview-storlek (håll nere arbete på jättar)
+  const MAX_PREVIEW = Math.max(1536, Math.min(4096, Math.max(canvas.width, canvas.height)));
+  const scale = Math.min(1, MAX_PREVIEW / Math.max(w, h));
+  const pw = Math.max(1, Math.round(w * scale));
+  const ph = Math.max(1, Math.round(h * scale));
 
-    // Centera bilden kring vymitten
-    const cx = Math.max(0, (centerImg.x - w/2) | 0);
-    const cy = Math.max(0, (centerImg.y - h/2) | 0);
+  // 2) Bygg en lätt preview-canvas (eller 1:1 om liten bild)
+  const preview = document.createElement('canvas');
+  preview.width = pw; preview.height = ph;
+  const pctx = preview.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(pctx);
+  try {
+    // snabb, högkvalitativ resize om stöds
+    const pbmp = await createImageBitmap(imgBitmap, { resizeWidth: pw, resizeHeight: ph, resizeQuality: 'high' });
+    pctx.drawImage(pbmp, 0, 0);
+    if (pbmp.close) try { pbmp.close(); } catch {}
+  } catch {
+    // fallback: normal drawImage-resize
+    pctx.drawImage(imgBitmap, 0, 0, w, h, 0, 0, pw, ph);
+  }
 
-  // 3) Mata in i selection-systemet
-  selectionImageCanvas = c;
-  selectionBBox = { x: cx, y: cy, w, h };
+  // 3) Placera i mitten (samma centerlogik som tidigare)
+  const z = (typeof _effectiveZoom === 'function') ? _effectiveZoom() : (window.zoom || 1);
+  const centerImg = (typeof _canvasXYtoImageXY === 'function')
+    ? _canvasXYtoImageXY(drawareax/2, drawareay/2)
+    : { x: ((drawareax/2) - drawstartx) / z, y: ((drawareay/2) - drawstarty) / z };
 
-    // NEW: make paste committable
-  selectionSrcCanvas   = selectionImageCanvas;   // ← viktigt för commit
-  selectionHoleBBox    = null;                   // ingen “hål”-yta för paste
-  selectionHoleCut     = true;                   // hoppa över hål-kapitel vid commit
-  hasSelection         = true;
-  isDraggingSelection  = false;
-  selSessionActive     = true;                   // commit skriver in bilden
-  selErasedOnce        = true;                   // så vi försöker inte radera något
-  if (typeof currentTool !== 'undefined') {switchTool('select');currentTool = 'select';  }
+  const cx = Math.max(0, (centerImg.x - w/2) | 0);
+  const cy = Math.max(0, (centerImg.y - h/2) | 0);
 
-  // Bygg mask från bilden (används av transform/erase)
-  if (typeof _rebuildMaskFromImageCanvas === 'function') _rebuildMaskFromImageCanvas();
+  // 4) Använd preview i overlayn (blir knivskarpt först vid commit)
+  selectionImageCanvas = preview;
+  selectionSrcCanvas   = preview;   // för resize-preview mm.
+  selectionBBox        = { x: cx, y: cy, w, h };
 
-  // 4) Flagga markering + “pågående session” så commit ritar in bilden
-  hasSelection = true;
+  // Viktigt: hoppa över mask här — byggs lazily om/ när det behövs
+  // if (typeof _rebuildMaskFromImageCanvas === 'function') _rebuildMaskFromImageCanvas(); // ← TA BORT
+
+  hasSelection        = true;
   isDraggingSelection = false;
-  selSessionActive = true;   // ← viktigt
-  selErasedOnce    = true;   // ← gör att commitSelectionSession() ritar in bilden
-
-  // 5) Byt till select så användaren kan dra direkt
-  if (typeof currentTool !== 'undefined') {switchTool('select');currentTool = 'select';}
-
-  // 6) Be om en redraw
+  selSessionActive    = true;
+  selErasedOnce       = true;
+  if (typeof currentTool !== 'undefined') { switchTool('select'); currentTool = 'select'; }
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(()=>{});
 }
 window.addEventListener('paste', async (e) => {
@@ -3574,6 +3589,45 @@ async function _loadBitmapFromURL(src) {
     cctx.drawImage(el, 0, 0);
     return await createImageBitmap(c);
   }
+}
+//NYTT
+function _fitViewportToImage(newW, newH) {
+  // Behåll beteendet: auto-fit till ~80% av fönstret, men lyft upp till ~50% om det blir för smått
+  let newZoom = zoom;
+  const availW = window.innerWidth;
+  const availH = window.innerHeight - 100; // din toppbar-marginal
+
+  if (newW * newZoom > availW * 0.8 || newH * newZoom > availH * 0.8) {
+    const zx = Math.round(((availW * 0.8) / newW) * 10) / 10;
+    const zy = Math.round(((availH * 0.8) / newH) * 10) / 10;
+    newZoom = Math.min(zx, zy);
+  } else if (newW * newZoom < availW * 0.5 || newH * newZoom < availH * 0.5) {
+    const zx = Math.round(((availW * 0.5) / newW) * 10) / 10;
+    const zy = Math.round(((availH * 0.5) / newH) * 10) / 10;
+    newZoom = Math.min(zx, zy);
+  }
+
+  // Skriv tillbaka zoom + UI
+  zoom = newZoom;
+  zoomvalue = Math.round(newZoom * 100);
+  const zSlider = document.getElementById("zoomSlider");
+  const zLabel  = document.getElementById("zoomLabel");
+  if (zSlider) zSlider.value = zoomvalue;
+  if (zLabel)  zLabel.innerText = "Zoom: " + zoomvalue + "%";
+
+  // Uppdatera drawarea och centrera
+  drawareax = newW * zoom;
+  drawareay = newH * zoom;
+  const dpr = window.devicePixelRatio || 1;
+  drawstartx = (canvas.width / dpr - drawareax) / 2;
+  drawstarty = (canvas.height / dpr - drawareay) / 2;
+}
+async function _activateLoadedBitmap(imgBitmap) {
+  if (!imgBitmap || !imgBitmap.width || !imgBitmap.height) return;
+  ensureCanvasSize(imgBitmap.width, imgBitmap.height); // behåll din säkerhetsmarginal
+  _fitViewportToImage(imgBitmap.width, imgBitmap.height);
+  _activatePastedBitmap(imgBitmap);                     // in i nya selectTool-flödet
+  if (typeof currentTool !== 'undefined') { switchTool('select'); currentTool = 'select'; }
 }
             //check---------------------------------------------------------------------------------------
             var check = function() {
@@ -4551,108 +4605,28 @@ selTop  = Math.min(selectionStartY, selectionEndY);
            
      //==========LOAD IMAGES MOBILE===========
                 
-document.addEventListener('DOMContentLoaded', function() {
-    // Get direct file input
-    const directInput = document.getElementById('directFileInput');
+document.addEventListener('DOMContentLoaded', function () {
+  const directInput = document.getElementById('directFileInput');
+  if (!directInput) return;
 
-    // Add proper event listener
-    directInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = function(evt) {
-            const img = new Image();
-img.onload = function() {
-                    // Make sure the drawing canvas is big enough
-                    ensureCanvasSize(img.width, img.height);
-
-                    // **************** FIXED: Load image into separate overlay layer ****************
-                    currentImage = img;
-                    currentImageOriginalWidth = img.width;
-                    currentImageOriginalHeight = img.height;
-                    currentImagecanvas=currentproject;
-                    
-                    
-                    // Determine appropriate zoom based on image size compared to window
-                    // Always check if we need to adjust zoom for the new image regardless if it's the first
-                    let newZoom = zoom; // Start with current zoom
-                    if (img.width * newZoom > window.innerWidth * 0.8 || 
-                        img.height * newZoom > (window.innerHeight - 100) * 0.8) {
-                        // Image is too large at current zoom, recalculate
-                        const zoomX = Math.round(((window.innerWidth * 0.8) / img.width)*10)/10;
-                        const zoomY = Math.round((((window.innerHeight - 100) * 0.8) / img.height)*10)/10;
-           
-                        newZoom = Math.min(zoomX, zoomY);
-                    }
-                    else if((((firstImageLoaded1===false&&currentproject===0))||(firstImageLoaded2===false&&currentproject===1)||(firstImageLoaded3===false&&currentproject===2) )&&((img.width * newZoom < window.innerWidth * 0.5 ||img.height * newZoom < (window.innerHeight - 100) * 0.5 ))){
-                        
-     
-                        const zoomX = Math.round(((window.innerWidth * 0.5) / img.width)*10)/10;
-                        const zoomY = Math.round((((window.innerHeight - 100) * 0.5) / img.height)*10)/10;
-           
-                        newZoom = Math.min(zoomX, zoomY);
-                        
-                        
-                        
-                    }
-                    
-                    
-                    zoom = newZoom;
-                    zoomvalue = Math.round(newZoom * 100);
-                    document.getElementById("zoomSlider").value = zoomvalue;
-                    document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
-                    
-                    // Update canvas dimensions if this is the first image or if the new image is larger
-                    if (((firstImageLoaded1==false&&currentproject==0)||(firstImageLoaded2==false&&currentproject==1)||(firstImageLoaded3==false&&currentproject==2) ) || (img.width > firstImageWidth || img.height > firstImageHeight)) {
-                        firstImageWidth = Math.max(img.width);
-                        firstImageHeight = Math.max(img.height);
-                    }
-                    
-                    drawareax = Math.floor(firstImageWidth * zoom);
-                    drawareay = Math.floor(firstImageHeight * zoom);
-                    
-                    // Set display dimensions for the overlay image
-                    currentImageWidth = currentImageOriginalWidth * zoom;
-                    currentImageHeight = currentImageOriginalHeight * zoom;
-                    
-                    // Position the image initially centered in the viewport
-                    currentImageX = Math.floor((canvas.width/devicePixelRatio - currentImageWidth) / 2);
-                    currentImageY = Math.max(120, Math.floor((canvas.height/devicePixelRatio - currentImageHeight) / 2));
-                    
-                    // Center drawing area
-                    drawstartx = Math.floor((canvas.width/devicePixelRatio - drawareax) / 2);
-                    drawstarty = Math.max(100, Math.floor((canvas.height/devicePixelRatio - drawareay) / 2));
-
-                    // Update previous dimensions
-                    prevDrawAreaX = drawareax;
-                    prevDrawAreaY = drawareay;
-                    prevDrawStartX = drawstartx;
-                    prevDrawStartY = drawstarty;
-                    prevzoom = zoom;
-                    
-                    
-                    let unzoomedX = Math.round((currentImageX - drawstartx) / zoom);
-                    let unzoomedY = Math.round((currentImageY - drawstarty) / zoom);
-                    if(((firstImageLoaded1==false&&currentproject==0)||(firstImageLoaded2==false&&currentproject==1)||(firstImageLoaded3==false&&currentproject==2) ))drawingCtx.clearRect(unzoomedX, unzoomedY, currentImageOriginalWidth, currentImageOriginalHeight); 
-                    
-                    
-                    
-                    // Mark image as loaded, but NOT moving yet (wait for click)
-                    
-                    if(currentproject==0)firstImageLoaded1=true;
-                    if(currentproject==1)firstImageLoaded2=true;
-                    if(currentproject==2)firstImageLoaded3=true;
-                    canvasPools = new Map();
-                   
-                    isImageWaiting = true;
-                    isMovingImage = false; // Don't move until clicked
-                };
-            img.src = evt.target.result;
-        };
-        reader.readAsDataURL(file);
-        this.value = ''; // Reset input for reuse
-    });
+  directInput.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!file.type || !file.type.startsWith('image/')) {
+      alert('Filen är inte en bild.');
+      return;
+    }
+    try {
+      const bmp = await createImageBitmap(file);
+      await _activateLoadedBitmap(bmp);
+    } catch (err) {
+      console.error(err);
+      alert('Kunde inte läsa bilden.');
+    } finally {
+      // Nollställ inputen så samma fil kan väljas igen
+      directInput.value = '';
+    }
+  });
 });
     document.addEventListener('DOMContentLoaded', function() {
     // Get the save button
