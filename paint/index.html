@@ -1933,7 +1933,9 @@ function rotateSelection(deg) {
 
     selectionImageCanvas = out;
     _rebuildMaskFromImageCanvas();
-
+    
+    selectionSrcCanvas = selectionImageCanvas;
+    
     const cx = x + w/2, cy = y + h/2;
     const nx = Math.round(cx - outW/2);
     const ny = Math.round(cy - outH/2);
@@ -1998,6 +2000,9 @@ function flipSelection(axis /* 'h'|'v' */) {
 
     selectionImageCanvas = out;
     _rebuildMaskFromImageCanvas();
+    
+    selectionSrcCanvas = selectionImageCanvas;
+    
     // bbox oförändrad
     return;
   }
@@ -2160,20 +2165,23 @@ function startSelectionSession() {
 }
 
 function commitSelectionSession(){
-  if (!selSessionActive || !selectionSrcCanvas || !selectionBBox) return;
+  if (!selSessionActive || !selectionBBox) return;
 
-  // 1) Se till att bara originalhålet finns:
+  // 1) Se till att bara originalhålet finns (om sådant existerar)
   if (!selectionHoleCut && selectionHoleBBox){
-    _eraseSelectionAt(selectionHoleBBox.x, selectionHoleBBox.y); // lasso-masken styr redan vad som suddas
+    _eraseSelectionAt(selectionHoleBBox.x, selectionHoleBBox.y);
     selectionHoleCut = true;
   }
 
-  // 2) Baka in *originalpixlarna* i slutläget (ingen kvalitetstapp)
+  // NEW: tillåt commit även utan selectionSrcCanvas
+  const src = selectionSrcCanvas || selectionImageCanvas;
+  if (!src) return;
+
+  // 2) Baka in slutläget
   drawingCtx.save();
   if (typeof disableSmoothing==='function') disableSmoothing(drawingCtx);
   drawingCtx.drawImage(
-    selectionSrcCanvas,
-    0,0, selectionSrcCanvas.width, selectionSrcCanvas.height,
+    src, 0,0, src.width, src.height,
     selectionBBox.x, selectionBBox.y, selectionBBox.w, selectionBBox.h
   );
   drawingCtx.restore();
@@ -2183,7 +2191,6 @@ function commitSelectionSession(){
   selectionSrcCanvas = null;
   selectionHoleBBox  = null;
   selectionHoleCut   = false;
-  // (Behåll selectionBBox/selectionImageCanvas om du vill fortsätta flytta direkt efter – annars clearSelection().)
 }
 
 function cancelSelectionSession() {
@@ -2314,7 +2321,10 @@ function _finalizeLasso() {
     selSessionActive   = true;
     selectionSrcCanvas = selectionImageCanvas;      // spara originalet som *inte* skrivs över
     selectionHoleBBox  = { ...selectionBBox };
-    selectionHoleCut   = false;
+        // NEW: skär hålet direkt så man “ser hålet på en gång”
+    _eraseSelectionAt(selectionBBox.x, selectionBBox.y);
+    selErasedOnce   = true;
+    selectionHoleCut= true; // så commit inte försöker radera igen
 }
 
 canvas.addEventListener('pointerup', (ev)=>{
@@ -2761,7 +2771,9 @@ function _finalizeRectSelection() {
   selSessionActive   = true;
   selectionSrcCanvas = selectionImageCanvas;      // spara originalet som *inte* skrivs över
   selectionHoleBBox  = { ...selectionBBox };
-  selectionHoleCut   = false;
+  _eraseSelectionAt(selectionBBox.x, selectionBBox.y);
+    selErasedOnce   = true;
+    selectionHoleCut= true; 
   
 }
 
@@ -2954,7 +2966,15 @@ function _activatePastedBitmap(imgBitmap) {
   selectionImageCanvas = c;
   selectionBBox = { x: cx, y: cy, w, h };
 
-
+    // NEW: make paste committable
+  selectionSrcCanvas   = selectionImageCanvas;   // ← viktigt för commit
+  selectionHoleBBox    = null;                   // ingen “hål”-yta för paste
+  selectionHoleCut     = true;                   // hoppa över hål-kapitel vid commit
+  hasSelection         = true;
+  isDraggingSelection  = false;
+  selSessionActive     = true;                   // commit skriver in bilden
+  selErasedOnce        = true;                   // så vi försöker inte radera något
+  if (typeof currentTool !== 'undefined') currentTool = 'select';  
 
   // Bygg mask från bilden (används av transform/erase)
   if (typeof _rebuildMaskFromImageCanvas === 'function') _rebuildMaskFromImageCanvas();
@@ -3404,7 +3424,6 @@ canvas.addEventListener('pointerleave', () => {
                     prevDrawAreaY = drawareay;
                     prevDrawStartX = drawstartx;
                     prevDrawStartY = drawstarty;
-                   // saveCurrentProject(0);saveCurrentProject(1);saveCurrentProject(2);
                     projectdrawareax = [drawareax, drawareax, drawareax];
                     projectdrawareay = [drawareay, drawareay, drawareay];
                     projectdrawstartx = [drawstartx, drawstartx, drawstartx];
