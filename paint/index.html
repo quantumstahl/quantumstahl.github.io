@@ -2904,8 +2904,8 @@ async function pasteFromClipboard() {
         _activatePastedBitmap(bmp);
         return;
       }
-      //alert('Urklipp innehåller ingen bild.');
-     // return;
+      alert('Urklipp innehåller ingen bild.');
+      return;
     }
 
     // 2) Fallback: endast text (data-URL) tillåts
