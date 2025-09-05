@@ -2872,44 +2872,71 @@ canvas.addEventListener('dblclick', (ev) => {
 
 
 async function pasteFromClipboard() {
+  const SUPPORTED = ['image/png','image/jpeg','image/webp','image/gif','image/bmp','image/svg+xml'];
+
   try {
-    // 1) Försök modern Clipboard API (bilder)
     if (navigator.clipboard && navigator.clipboard.read) {
       const items = await navigator.clipboard.read();
+
       for (const item of items) {
-        const type = item.types.find(t => t.startsWith('image/'));
+        // Välj första typ vi VET att browsern kan avkoda
+        const type = SUPPORTED.find(t => item.types?.includes(t));
         if (type) {
-          const blob = await item.getType(type);
-          const bmp  = await createImageBitmap(blob);
+          try {
+            const blob = await item.getType(type);
+            const drawable = await _blobToDrawable(blob);
+            if (drawable) { _activatePastedBitmap(drawable); return; }
+          } catch (e) {
+            console.warn('decode failed for', type, e);
+          }
+        }
+
+        // Vanliga ”fällor” i Safari (HEIC/TIFF) – förklara för användaren
+        if (item.types?.some(t => /heic|heif|tiff/i.test(t))) {
+          alert('Bilden är i ett format (HEIC/TIFF) som Safari inte kan klistra in i webbläsaren. '
+              + 'Välj “Kopiera bild” på webben eller exportera som PNG/JPEG först.');
+        }
+      }
+
+      // Fallback: vissa källor ger bara en data-URL som text
+      if (navigator.clipboard.readText) {
+        const txt = await navigator.clipboard.readText();
+        if (txt && txt.startsWith('data:image/')) {
+          const bmp = await _bitmapFromDataURL(txt);
           _activatePastedBitmap(bmp);
           return;
         }
       }
-      // Ingen bild? prova text-dataURL
-      const txt = await navigator.clipboard.readText();
-      if (txt && txt.startsWith('data:image/')) {
-        const bmp = await _bitmapFromDataURL(txt);
-        _activatePastedBitmap(bmp);
-        return;
-      }
-      alert('Urklipp innehåller ingen bild.');
+
+      alert('Urklipp innehåller ingen bild som Safari kan klistra in.');
       return;
     }
 
-    // 2) Fallback: endast text (data-URL) tillåts
-    if (navigator.clipboard && navigator.clipboard.readText) {
-      const txt = await navigator.clipboard.readText();
-      if (txt && txt.startsWith('data:image/')) {
-        const bmp = await _bitmapFromDataURL(txt);
-        _activatePastedBitmap(bmp);
-        return;
-      }
-    }
-
-    alert('Kunde inte läsa urklipp (webbläsarbegränsning). Prova klistra in via Ctrl/Cmd+V direkt i appen.');
+    // Äldre Safari: luta dig mot paste-eventet (Ctrl/Cmd+V i delfönstret)
+    alert('Den här webbläsaren stöder inte direkt läsning av urklipp. '
+        + 'Prova Ctrl/Cmd+V inne i ritytan.');
   } catch (err) {
     console.warn('pasteFromClipboard failed:', err);
-    alert('Kunde inte läsa urklipp. Webbläsaren kan kräva HTTPS/behörighet.');
+    alert('Kunde inte läsa urklipp. Safari kräver oftast HTTPS och ett klick/gest.');
+  }
+}
+async function _blobToDrawable(blob) {
+  // Försök snabbvägen
+  try { return await createImageBitmap(blob); }
+  catch {}
+
+  // Fallback via HTMLImageElement
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = reject;
+      el.src = url;
+    });
+    return img; // _activatePastedBitmap kan drawImage(img,...)
+  } finally {
+    URL.revokeObjectURL(url);
   }
 }
 
@@ -2972,31 +2999,49 @@ function _activatePastedBitmap(imgBitmap) {
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(()=>{});
 }
 window.addEventListener('paste', async (e) => {
-  // Försök hitta bild
   const cd = e.clipboardData;
   if (!cd) return;
-  // 1) Filer (png/jpg/webp) direkt
+
+  // 1) Filer
   if (cd.files && cd.files.length) {
-    const file = Array.from(cd.files).find(f => f.type.startsWith('image/'));
+    const file = Array.from(cd.files).find(f => /^image\//.test(f.type));
     if (file) {
       e.preventDefault();
-      const bmp = await createImageBitmap(file);
-      _activatePastedBitmap(bmp);
+      const drawable = await _blobToDrawable(file); // funkar för PNG/JPEG/WEBP/GIF/BMP
+      _activatePastedBitmap(drawable);
       return;
     }
   }
-  // 2) Items (t.ex. från Photoshop etc.)
+
+  // 2) Items (t.ex. Photoshop)
   if (cd.items && cd.items.length) {
-    const it = Array.from(cd.items).find(i => i.type && i.type.startsWith('image/'));
+    const it = Array.from(cd.items).find(i => i.type && /^image\//.test(i.type));
     if (it) {
       e.preventDefault();
       const blob = it.getAsFile();
-      const bmp = await createImageBitmap(blob);
-      _activatePastedBitmap(bmp);
+      const drawable = await _blobToDrawable(blob);
+      _activatePastedBitmap(drawable);
       return;
     }
   }
-  // 3) Text-dataURL
+
+  // 3a) HTML → plocka ev. data:image/... ur <img>
+  const html = cd.getData('text/html');
+  if (html) {
+    try {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const img = doc.querySelector('img');
+      const src = img?.getAttribute('src') || '';
+      if (src.startsWith('data:image/')) {
+        e.preventDefault();
+        const bmp = await _bitmapFromDataURL(src);
+        _activatePastedBitmap(bmp);
+        return;
+      }
+    } catch {}
+  }
+
+  // 3b) Ren text med data-URL
   const txt = cd.getData('text/plain');
   if (txt && txt.startsWith('data:image/')) {
     e.preventDefault();
