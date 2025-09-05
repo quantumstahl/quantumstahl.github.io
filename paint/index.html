@@ -2184,7 +2184,34 @@ document.addEventListener('keydown', (e)=>{
     }
   }
 });
+document.addEventListener('keydown', (e)=>{
+  if (e.key === 'Delete') {
 
+      // ingen session: stäng bara ev. lasso-skiss/markering
+        selSessionActive   = false;
+        selectionSrcCanvas = null;
+        selectionHoleBBox  = null;
+        selectionHoleCut   = false;
+        clearSelection();
+          hasSelection = false;
+        selSessionActive = false;
+        isDraggingSelection = false;
+        isResizingSelection = false;
+        isTransformingSelection = false;
+
+        selectionImageCanvas = null;
+        selectionSrcCanvas   = null;
+        selectionPathImg     = null;
+        selectionPathCanvas  = null;
+        selectionMask        = null;
+        selectionOrigBBox    = null;
+        selectionHoleBBox    = null;
+        selectionHoleCut     = false;
+
+        selectionBBox = null;
+        dragSelX = 0; dragSelY = 0;
+  }
+});
 
 // Gör switchTool medveten om lasso/selection
 const _origSwitchTool = switchTool;
