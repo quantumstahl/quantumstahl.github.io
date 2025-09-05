@@ -195,7 +195,6 @@
             border: 1px solid transparent;  
             position: absolute;
             will-change: transform;
-            background-color: #f1f1f1;
             padding: 9px;
             border-radius: 4px;
             left: 50%; margin-left: 120px; margin-top: 0;
@@ -486,7 +485,24 @@
 <div class="color-swatch" data-color="brown" style="background-color: brown;"></div>
 <div class="color-swatch" data-color="cyan" style="background-color: cyan;"></div>
 
-<button id="edit-color-btn" class="tool-btn" type="button" title="Redigera färg 🎨">🎨</button>
+
+
+</div>
+<!-- NEW: Third row added for checkerboards color swatch -->
+<div class="color-row">
+<div class="color-swatch" data-color="checkerboard" style="background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%);"></div>
+<div class="color-swatch" data-color="#c71585" style="background-color: #c71585;"></div>
+<div class="color-swatch" data-color="#FF4433" style="background-color: #FF4433;"></div>
+<div class="color-swatch" data-color="#9ACD32" style="background-color: #9ACD32;"></div>
+<div class="color-swatch" data-color="gray" style="background-color: gray;"></div>
+</div>
+
+
+
+</div>
+
+
+<button id="edit-color-btn" class="tool-btn" type="button" title="Redigera färg 🎨" style="position: absolute; left: 50%; margin-left: 350px;">🎨</button>
 
 <div id="color-editor" class="color-pop hidden" role="dialog" aria-modal="true" aria-label="Redigera färg">
   <div class="color-pop-inner">
@@ -509,23 +525,6 @@
     </div>
   </div>
 </div>
-
-</div>
-<!-- NEW: Third row added for checkerboards color swatch -->
-<div class="color-row">
-<div class="color-swatch" data-color="checkerboard" style="background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%);"></div>
-<div class="color-swatch" data-color="#c71585" style="background-color: #c71585;"></div>
-<div class="color-swatch" data-color="#FF4433" style="background-color: #FF4433;"></div>
-<div class="color-swatch" data-color="#9ACD32" style="background-color: #9ACD32;"></div>
-<div class="color-swatch" data-color="gray" style="background-color: gray;"></div>
-</div>
-
-
-
-</div>
-
-
-
 
 
 
