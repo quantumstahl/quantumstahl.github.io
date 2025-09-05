@@ -1415,14 +1415,59 @@ function getPixelColor(x, y) {
     return `rgba(${data[0]},${data[1]},${data[2]},${data[3]/255})`;
 }
 function drawText(x, y, text) {
-    
-    const relativeX = Math.floor((x - drawstartx) / zoom );
-    const relativeY = Math.floor((y - drawstarty) / zoom );
-    
-    const fontSize = brushSize*5 + 10; // Brush size + 10 for font size
-    drawingCtx.font = `${fontSize}px Arial`;
-    drawingCtx.fillStyle = brushColor; // Use the current brush color
-    drawingCtx.fillText(text, relativeX, relativeY); // Draw the text at the specified coordinates
+  // x,y kommer i SKÄRM-koordinater (canvas CSS px). Konvertera till bild-koordinater.
+  const z = (typeof _effectiveZoom === 'function') ? _effectiveZoom() : (window.zoom || 1);
+  const relativeX = Math.floor((x - drawstartx) / z);
+  const relativeY = Math.floor((y - drawstarty) / z);
+
+  // Använd brushSize som fontstorlek (ingen +10, ingen multiplikator)
+  const fontSize = Math.max(1, Math.round(brushSize*4));
+
+  // Bygg en transparent text-canvas
+  const c = document.createElement('canvas');
+  let tctx = c.getContext('2d');
+  if (typeof disableSmoothing === 'function') disableSmoothing(tctx);
+  tctx.font = `${fontSize}px Arial`;
+  tctx.textBaseline = 'top';
+  tctx.textAlign = 'left';
+
+  // Mät textbredd/höjd
+  const m = tctx.measureText(text);
+  const w = Math.max(1, Math.ceil(m.width));
+  let h = Math.ceil(((m.actualBoundingBoxAscent||fontSize) + (m.actualBoundingBoxDescent||0)) || (fontSize*1.2));
+  if (!isFinite(h) || h <= 0) h = Math.max(1, Math.ceil(fontSize*1.2));
+
+  // Storlekssätt och rita om med samma font
+  c.width = w; c.height = h;
+  tctx = c.getContext('2d');
+  if (typeof disableSmoothing === 'function') disableSmoothing(tctx);
+  tctx.font = `${fontSize}px Arial`;
+  tctx.textBaseline = 'top';
+  tctx.textAlign = 'left';
+  tctx.fillStyle = brushColor;
+  tctx.fillText(text, 0, 0);
+
+  // Koppla in i nya select-flödet (ingen direkt målning på ritytan)
+  if (typeof clearSelection === 'function') clearSelection();
+  selectionImageCanvas = c;
+  selectionBBox = { x: relativeX, y: relativeY, w, h };
+
+  // Bygg mask från alfakanalen så lasso/transform funkar bra
+  if (typeof _rebuildMaskFromImageCanvas === 'function') _rebuildMaskFromImageCanvas();
+
+  // Sätt upp en commitbar session utan "hål" i originalet
+  hasSelection        = true;
+  selSessionActive    = true;
+  selectionSrcCanvas  = selectionImageCanvas; // immutabel källa
+  selectionHoleBBox   = null;
+  selectionHoleCut    = true;                 // hoppa över hål-kapitel
+  if (typeof startSelectionSession === 'function') startSelectionSession();
+  selErasedOnce = true;
+
+  // Växla till select-verktyget så användaren kan flytta/skala/rotera
+  if (typeof switchTool === 'function') switchTool('select');
+  if (typeof currentTool !== 'undefined') currentTool = 'select';
+  if (typeof updateToolButtons === 'function') { try { updateToolButtons(); } catch(e){} }
 }
 
 
@@ -3615,6 +3660,8 @@ async function _activateLoadedBitmap(imgBitmap) {
   _activatePastedBitmap(imgBitmap);                     // in i nya selectTool-flödet
   if (typeof currentTool !== 'undefined') { switchTool('select'); currentTool = 'select'; }
 }
+//NYTT
+
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
