@@ -2261,6 +2261,12 @@ canvas.addEventListener('pointerdown', (ev)=>{
       pImg.x >= selectionBBox.x && pImg.x < selectionBBox.x + selectionBBox.w &&
       pImg.y >= selectionBBox.y && pImg.y < selectionBBox.y + selectionBBox.h) {
 
+
+
+
+
+
+
     startSelectionSession();
 
     // Radera originalområdet bara första gången
@@ -2923,43 +2929,68 @@ canvas.addEventListener('dblclick', (ev) => {
 
 async function pasteFromClipboard() {
   try {
-    // 1) Försök modern Clipboard API (bilder)
-    if (navigator.clipboard && navigator.clipboard.read) {
-      const items = await navigator.clipboard.read();
-      for (const item of items) {
-        const type = item.types.find(t => t.startsWith('image/'));
-        if (type) {
-          const blob = await item.getType(type);
-          const bmp  = await createImageBitmap(blob);
-          _activatePastedBitmap(bmp);
-          return;
+    // 1) image/* direkt
+    if (navigator.clipboard?.read) {
+      try {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const t = item.types.find(x => x.startsWith('image/'));
+          if (t) {
+            const blob = await item.getType(t);
+            const bmp  = await createImageBitmap(blob);
+            _activatePastedBitmap(bmp);
+            return;
+          }
         }
+        // 2) HTML -> <img> / og:image
+        for (const item of items) {
+          if (item.types.includes('text/html')) {
+            const html = await (await item.getType('text/html')).text();
+            const src = _parseImgSrcFromHTML(html);
+            if (src && _looksLikeImageURL(src)) {
+              const bmp = await _loadBitmapFromURL(src);
+              _activatePastedBitmap(bmp);
+              return;
+            }
+          }
+        }
+        // 3) URI-list / plain text
+        for (const mime of ['text/uri-list','text/plain']) {
+          const item = items.find(it => it.types.includes(mime));
+          if (item) {
+            const txt = (await (await item.getType(mime)).text()).trim();
+            const norm = _normalizeImageURL(txt);
+            if (norm && _looksLikeImageURL(norm)) {
+              const bmp = norm.startsWith('data:image/')
+                ? await _bitmapFromDataURL(norm)
+                : await _loadBitmapFromURL(norm);
+              _activatePastedBitmap(bmp);
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('clipboard.read failed', e);
       }
-      // Ingen bild? prova text-dataURL
-      const txt = await navigator.clipboard.readText();
-      if (txt && txt.startsWith('data:image/')) {
-        const bmp = await _bitmapFromDataURL(txt);
+    }
+
+    // 4) Fallback: readText
+    if (navigator.clipboard?.readText) {
+      const txt = (await navigator.clipboard.readText()).trim();
+      const norm = _normalizeImageURL(txt);
+      if (norm && _looksLikeImageURL(norm)) {
+        const bmp = norm.startsWith('data:image/')
+          ? await _bitmapFromDataURL(norm)
+          : await _loadBitmapFromURL(norm);
         _activatePastedBitmap(bmp);
         return;
       }
-      alert('Urklipp innehåller ingen bild.');
-      return;
     }
 
-    // 2) Fallback: endast text (data-URL) tillåts
-    if (navigator.clipboard && navigator.clipboard.readText) {
-      const txt = await navigator.clipboard.readText();
-      if (txt && txt.startsWith('data:image/')) {
-        const bmp = await _bitmapFromDataURL(txt);
-        _activatePastedBitmap(bmp);
-        return;
-      }
-    }
-
-    alert('Kunde inte läsa urklipp (webbläsarbegränsning). Prova klistra in via Ctrl/Cmd+V direkt i appen.');
+    alert('Urklipp innehåller ingen bild. Tips: använd “Kopiera bild”, eller öppna bilden i ny flik och kopiera där.');
   } catch (err) {
-    console.warn('pasteFromClipboard failed:', err);
-    alert('Kunde inte läsa urklipp. Webbläsaren kan kräva HTTPS/behörighet.');
+    console.error(err);
+    alert('Kunde inte läsa urklipp. Safari kräver ofta klick och HTTPS.');
   }
 }
 
@@ -3434,7 +3465,116 @@ canvas.addEventListener('pointerleave', () => {
   if (isResizingSelection) _endResizeCommit();
 });
 // ===== END PATCH: pointer listeners for corner resize =====
+function _parseImgSrcFromHTML(html) {
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    if (!doc) return '';
 
+    // 1) Vanlig <img>
+    let img = doc.querySelector('img[src], img[data-src], img[data-original], img[data-iurl]');
+    if (img) {
+      let src = img.getAttribute('src') ||
+                img.getAttribute('data-src') ||
+                img.getAttribute('data-original') ||
+                img.getAttribute('data-iurl') || '';
+      if ((!src || src === '#') && img.getAttribute('srcset')) {
+        src = _pickLargestFromSrcset(img.getAttribute('srcset'));
+      }
+      return _normalizeImageURL(src);
+    }
+
+    // 2) OG/Twitter fallback
+    const og = doc.querySelector('meta[property="og:image"][content],meta[name="twitter:image"][content]');
+    if (og) return _normalizeImageURL(og.getAttribute('content'));
+
+    // 3) Äldre fallback
+    const linkImg = doc.querySelector('link[rel="image_src"][href]');
+    if (linkImg) return _normalizeImageURL(linkImg.getAttribute('href'));
+
+    return '';
+  } catch { return ''; }
+}
+
+function _pickLargestFromSrcset(srcset) {
+  // Välj kandidaten med högst "w" (eller sista om bara "x"-descriptor)
+  try {
+    const parts = srcset.split(',').map(s => s.trim()).filter(Boolean).map(s => {
+      const [u, d = ''] = s.split(/\s+/);
+      const w = d.endsWith('w') ? parseInt(d) : (d.endsWith('x') ? parseFloat(d) * 1000 : 0);
+      return { u, w: isFinite(w) ? w : 0 };
+    });
+    parts.sort((a,b) => b.w - a.w);
+    return parts.length ? parts[0].u : '';
+  } catch { return ''; }
+}
+
+// -------------- Normalisera bilder från sökmotorer ------
+function _normalizeImageURL(u) {
+  try {
+    const url = new URL(u, location.href);
+
+    // Google Image redirect: https://www.google.xx/imgres?imgurl=...
+    if (/\.google\./i.test(url.hostname) && /\/imgres/i.test(url.pathname)) {
+      const real = url.searchParams.get('imgurl') || url.searchParams.get('imgrefurl');
+      if (real) return real;
+    }
+
+    // Google "url" wrapper: https://www.google.xx/url?q=...
+    if (/\.google\./i.test(url.hostname) && /\/url/i.test(url.pathname)) {
+      const q = url.searchParams.get('q');
+      if (q) return q;
+    }
+
+    // Bing Images: mediaurl=
+    if (/\.bing\./i.test(url.hostname)) {
+      const m = url.searchParams.get('mediaurl');
+      if (m) return m;
+    }
+
+    // DuckDuckGo: u=
+    if (/duckduckgo\.com/i.test(url.hostname)) {
+      const m = url.searchParams.get('u');
+      if (m) return m;
+    }
+
+    return url.href;
+  } catch {
+    return u;
+  }
+}
+
+// -------------- URL heuristik: acceptera mer -------------
+function _looksLikeImageURL(s) {
+  // Var inte för strikt – prova att ladda allt http(s) och data:image
+  if (!s) return false;
+  if (/^data:image\//i.test(s)) return true;
+  if (/^blob:/i.test(s)) return true;                 // kan funka om samma origin
+  if (/^https?:/i.test(s)) return true;               // låt loader avgöra
+  return false;
+}
+async function _loadBitmapFromURL(src) {
+  // försök anonymt först (om CORS finns blir canvas *inte* tainted)
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  const done = new Promise((res, rej) => {
+    img.onload = () => res(img);
+    img.onerror = () => rej(new Error('Image load failed: ' + src));
+  });
+  img.src = src;
+  const el = await done;
+  try {
+    return await createImageBitmap(el);
+  } catch {
+    // sista utväg: rita till mellan-canvas (kan tainta)
+    const c = document.createElement('canvas');
+    c.width = el.naturalWidth || el.width;
+    c.height = el.naturalHeight || el.height;
+    const cctx = c.getContext('2d');
+    if (typeof disableSmoothing === 'function') disableSmoothing(cctx);
+    cctx.drawImage(el, 0, 0);
+    return await createImageBitmap(c);
+  }
+}
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
