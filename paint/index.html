@@ -1770,8 +1770,7 @@ let selSessionActive = false;
 let selectionSrcCanvas = null;   // immutabel källa (originalpixlar)
 let selectionHoleBBox = null;    // var originalet satt (rekt eller lasso-bbox)
 let selectionHoleCut  = false;   // har vi skurit hålet i basen än?
-let selectionSrcBitmap = null;   // fullres ImageBitmap vid inklistring/URL
-let selectionDirty = false;      // blir true om vi roterar/flippar osv.
+
 
 function clearSelection() {
   hasSelection = false;
@@ -1933,8 +1932,6 @@ function rotateSelection(deg) {
     octx.drawImage(selectionImageCanvas, -w/2, -h/2);
 
     selectionImageCanvas = out;
-    selectionSrcBitmap = null;
-    selectionDirty = true;
     _rebuildMaskFromImageCanvas();
     
     selectionSrcCanvas = selectionImageCanvas;
@@ -2002,8 +1999,6 @@ function flipSelection(axis /* 'h'|'v' */) {
     octx.restore();
 
     selectionImageCanvas = out;
-    selectionSrcBitmap = null;
-    selectionDirty = true;
     _rebuildMaskFromImageCanvas();
     
     selectionSrcCanvas = selectionImageCanvas;
@@ -2059,8 +2054,6 @@ function rotateSelectionFree() {
     octx.drawImage(selectionImageCanvas, -w/2, -h/2);
 
     selectionImageCanvas = out;
-    selectionSrcBitmap = null;
-    selectionDirty = true;
     _rebuildMaskFromImageCanvas();
 
     const cx = x + w/2, cy = y + h/2;
@@ -2172,40 +2165,26 @@ function startSelectionSession() {
 }
 
 function commitSelectionSession(){
-   if (!selSessionActive || !selectionBBox) return;
+  if (!selSessionActive || !selectionBBox) return;
 
+  // 1) Se till att bara originalhålet finns (om sådant existerar)
   if (!selectionHoleCut && selectionHoleBBox){
     _eraseSelectionAt(selectionHoleBBox.x, selectionHoleBBox.y);
     selectionHoleCut = true;
   }
 
-  // NYTT: fullres-commit om vi inte har gjort destruktiva raster-operationer
-  if (selectionSrcBitmap && !selectionDirty) {
-    const src = selectionSrcBitmap;
-    drawingCtx.save();
-    if (typeof disableSmoothing==='function') disableSmoothing(drawingCtx);
-    drawingCtx.drawImage(
-      src, 0,0, src.width, src.height,
-      selectionBBox.x, selectionBBox.y, selectionBBox.w, selectionBBox.h
-    );
-    drawingCtx.restore();
-  } else {
-    // din befintliga väg
-    const src = selectionSrcCanvas || selectionImageCanvas;
-    if (!src) return;
-    drawingCtx.save();
-    if (typeof disableSmoothing==='function') disableSmoothing(drawingCtx);
-    drawingCtx.drawImage(
-      src, 0,0, src.width, src.height,
-      selectionBBox.x, selectionBBox.y, selectionBBox.w, selectionBBox.h
-    );
-    drawingCtx.restore();
-  }
+  // NEW: tillåt commit även utan selectionSrcCanvas
+  const src = selectionSrcCanvas || selectionImageCanvas;
+  if (!src) return;
 
-  // städ
-  if (selectionSrcBitmap && selectionSrcBitmap.close) { try { selectionSrcBitmap.close(); } catch {} }
-  selectionSrcBitmap = null;
-  selectionDirty = false;
+  // 2) Baka in slutläget
+  drawingCtx.save();
+  if (typeof disableSmoothing==='function') disableSmoothing(drawingCtx);
+  drawingCtx.drawImage(
+    src, 0,0, src.width, src.height,
+    selectionBBox.x, selectionBBox.y, selectionBBox.w, selectionBBox.h
+  );
+  drawingCtx.restore();
 
   // 3) Städa
   selSessionActive   = false;
@@ -3023,56 +3002,62 @@ async function _bitmapFromDataURL(dataURL) {
 }
 
 // Aktivera som flyttbar markering (ingen direkt målning på ritytan)
-async function _activatePastedBitmap(imgBitmap) {
-  const w = imgBitmap.width|0, h = imgBitmap.height|0;
+function _activatePastedBitmap(imgBitmap) {
+  // 1) Bygg en canvas av den inklistrade bilden
+  const w = imgBitmap.width | 0, h = imgBitmap.height | 0;
   if (!w || !h) return;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const cctx = c.getContext('2d');
+  if (typeof disableSmoothing === 'function') disableSmoothing(cctx);
+  cctx.drawImage(imgBitmap, 0, 0);
 
-  // 0) Spara fullres-källa för commit i slutet
-  selectionSrcBitmap = imgBitmap;
-  selectionDirty = false;
+    // 2) Placera i mitten av vyn (bildkoordinater)
+    const z = (typeof _effectiveZoom === 'function') ? _effectiveZoom() : (window.zoom || 1);
 
-  // 1) Preview-storlek (håll nere arbete på jättar)
-  const MAX_PREVIEW = Math.max(1536, Math.min(4096, Math.max(canvas.width, canvas.height)));
-  const scale = Math.min(1, MAX_PREVIEW / Math.max(w, h));
-  const pw = Math.max(1, Math.round(w * scale));
-  const ph = Math.max(1, Math.round(h * scale));
+    // Rätt sätt: konvertera canvas-mitten → bildkoordinater
+    let centerImg;
+    if (typeof _canvasXYtoImageXY === 'function') {
+      centerImg = _canvasXYtoImageXY(drawareax/2, drawareay/2);
+    } else {
+      // Fallback om helper saknas: (canvasX - drawstart) / zoom
+      centerImg = {
+        x: ((drawareax/2) - drawstartx) / z,
+        y: ((drawareay/2) - drawstarty) / z
+      };
+    }
 
-  // 2) Bygg en lätt preview-canvas (eller 1:1 om liten bild)
-  const preview = document.createElement('canvas');
-  preview.width = pw; preview.height = ph;
-  const pctx = preview.getContext('2d'); if (typeof disableSmoothing==='function') disableSmoothing(pctx);
-  try {
-    // snabb, högkvalitativ resize om stöds
-    const pbmp = await createImageBitmap(imgBitmap, { resizeWidth: pw, resizeHeight: ph, resizeQuality: 'high' });
-    pctx.drawImage(pbmp, 0, 0);
-    if (pbmp.close) try { pbmp.close(); } catch {}
-  } catch {
-    // fallback: normal drawImage-resize
-    pctx.drawImage(imgBitmap, 0, 0, w, h, 0, 0, pw, ph);
-  }
+    // Centera bilden kring vymitten
+    const cx = Math.max(0, (centerImg.x - w/2) | 0);
+    const cy = Math.max(0, (centerImg.y - h/2) | 0);
 
-  // 3) Placera i mitten (samma centerlogik som tidigare)
-  const z = (typeof _effectiveZoom === 'function') ? _effectiveZoom() : (window.zoom || 1);
-  const centerImg = (typeof _canvasXYtoImageXY === 'function')
-    ? _canvasXYtoImageXY(drawareax/2, drawareay/2)
-    : { x: ((drawareax/2) - drawstartx) / z, y: ((drawareay/2) - drawstarty) / z };
+  // 3) Mata in i selection-systemet
+  selectionImageCanvas = c;
+  selectionBBox = { x: cx, y: cy, w, h };
 
-  const cx = Math.max(0, (centerImg.x - w/2) | 0);
-  const cy = Math.max(0, (centerImg.y - h/2) | 0);
+    // NEW: make paste committable
+  selectionSrcCanvas   = selectionImageCanvas;   // ← viktigt för commit
+  selectionHoleBBox    = null;                   // ingen “hål”-yta för paste
+  selectionHoleCut     = true;                   // hoppa över hål-kapitel vid commit
+  hasSelection         = true;
+  isDraggingSelection  = false;
+  selSessionActive     = true;                   // commit skriver in bilden
+  selErasedOnce        = true;                   // så vi försöker inte radera något
+  if (typeof currentTool !== 'undefined') {switchTool('select');currentTool = 'select';  }
 
-  // 4) Använd preview i overlayn (blir knivskarpt först vid commit)
-  selectionImageCanvas = preview;
-  selectionSrcCanvas   = preview;   // för resize-preview mm.
-  selectionBBox        = { x: cx, y: cy, w, h };
+  // Bygg mask från bilden (används av transform/erase)
+  if (typeof _rebuildMaskFromImageCanvas === 'function') _rebuildMaskFromImageCanvas();
 
-  // Viktigt: hoppa över mask här — byggs lazily om/ när det behövs
-  // if (typeof _rebuildMaskFromImageCanvas === 'function') _rebuildMaskFromImageCanvas(); // ← TA BORT
-
-  hasSelection        = true;
+  // 4) Flagga markering + “pågående session” så commit ritar in bilden
+  hasSelection = true;
   isDraggingSelection = false;
-  selSessionActive    = true;
-  selErasedOnce       = true;
-  if (typeof currentTool !== 'undefined') { switchTool('select'); currentTool = 'select'; }
+  selSessionActive = true;   // ← viktigt
+  selErasedOnce    = true;   // ← gör att commitSelectionSession() ritar in bilden
+
+  // 5) Byt till select så användaren kan dra direkt
+  if (typeof currentTool !== 'undefined') {switchTool('select');currentTool = 'select';}
+
+  // 6) Be om en redraw
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(()=>{});
 }
 window.addEventListener('paste', async (e) => {
