@@ -508,14 +508,6 @@
   background: #555;
 }
 
-/* Små skärmar: lite mindre och nära botten */
-@media (max-width: 700px){
-  #mainToolBar{
-    left: 8px; bottom: 12px; top: auto; transform: none;
-    grid-auto-rows: 48px; gap: 8px; padding: 8px;
-  }
-  #mainToolBar .tool-btn{ width: 48px; height: 48px; font-size: 22px; }
-}
 
 
 
@@ -531,7 +523,7 @@
 <button id="project2Btn" style="position:absolute; top:150px; left:100px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:60px; text-align:center; font-size:16px; ">Canvas 2</button>
 <button id="project3Btn" style="position:absolute; top:150px; left:202px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:60px; text-align:center; font-size:16px; ">Canvas 3</button>
 <button id="ResizeBtn" style="position: absolute;right: 0%; top:150px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; min-width:60px; text-align:center; font-size:16px; ">Resize</button>
-<div class="tool-buttons" style="position: absolute; top: 120px; z-index: 110; display: grid; grid-template-columns: repeat(6, 40px); grid-gap: 5px; transform: translateY(-50%);">
+<div class="tool-buttons" style="position: absolute; left:500px; top: 100px; z-index: 110; display: grid; grid-template-columns: repeat(6, 40px); grid-gap: 5px; transform: translateY(-50%);">
 
 
 
@@ -1640,9 +1632,8 @@ function drawText(x, y, text) {
   if (typeof startSelectionSession === 'function') startSelectionSession();
   selErasedOnce = true;
 
-  if (typeof switchTool === 'function') switchTool('select');
-  if (typeof currentTool !== 'undefined') currentTool = 'select';
-  if (typeof updateToolButtons === 'function') { try { updateToolButtons(); } catch(e){} }
+  switchTool('select');
+
 }
 
 
@@ -1726,9 +1717,8 @@ function setPixelInImageData(imageData, x, y, color) {
 }
 function switchTool(newTool, opts = {}) {
   // 1) Sätt aktivt verktyg
-  const prevTool = window.currentTool;
-  window.currentTool = newTool;
-
+  const prevTool = currentTool;
+  currentTool = newTool;
   // 2) UI-knappar (lägg till lasso här!)
   const toolButtons = {
     pen:        document.getElementById('penTool'),
@@ -1742,7 +1732,7 @@ function switchTool(newTool, opts = {}) {
   Object.keys(toolButtons).forEach(tool => {
     const btn = toolButtons[tool];
     if (!btn) return;
-    if (tool === window.currentTool) {
+    if (tool === currentTool) {
       btn.style.backgroundColor = '#d4ffd4';
       btn.style.borderColor = '#4CAF50';
     } else {
@@ -4953,100 +4943,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Also adjust when window is resized
     window.addEventListener('resize', adjustButtonsForMobile);
 });
-    document.addEventListener('DOMContentLoaded', function() {
-    // Tool button setup
-    const toolButtons = {
-        pen: document.getElementById('penTool'),
-        fill: document.getElementById('fillTool'),
-        select: document.getElementById('selectTool'),
-        eyedropper: document.getElementById('eyedropperTool'),
-        text: document.getElementById('textTool'),
-        lasso: document.getElementById('lassoTool')
-        
-    };
-    
-    // Function to update tool button appearance
-    function updateToolButtons() {
-        Object.keys(toolButtons).forEach(tool => {
-            if (toolButtons[tool]) {
-                if (tool === currentTool) {
-                    toolButtons[tool].style.backgroundColor = '#d4ffd4';
-                    toolButtons[tool].style.borderColor = '#4CAF50';
-                } else {
-                    toolButtons[tool].style.backgroundColor = '#f1f1f1';
-                    toolButtons[tool].style.borderColor = '#ccc';
-                }
-            }
-        });
-    }
-    
-    // Add click handlers for tool buttons
-    Object.keys(toolButtons).forEach(tool => {
-        if (toolButtons[tool]) {
-            toolButtons[tool].addEventListener('click', function() {
-                currentTool = tool;
-                console.log("Selected tool:", tool);
-                updateToolButtons();
-            });
-        }
-    });
-    
-    // Keyboard shortcuts for tools
-    window.addEventListener('keydown', function(e) {
-        if (document.activeElement.tagName !== 'INPUT') {
-            switch(e.key.toLowerCase()) {
-                case 'p': currentTool = 'pen'; break;
-                case 'f': currentTool = 'fill'; break;
-                case 's': currentTool = 'select'; break;
-                case 'e': currentTool = 'eyedropper'; break;
-                case 't': currentTool = 'text'; break; 
-                case 'l': currentTool = 'lasso'; break;
-                
-            }
-            updateToolButtons();
-        }
-    });
-    
-    // Initialize tool buttons appearance
-    updateToolButtons();
-    
-   const toolsContainer = document.querySelector('.tool-buttons');
-    
-    function adjustToolsForDeviceType() {
-        if (mobileAndTabletCheck() ) {
-            // Mobile layout - position under other controls
-            toolsContainer.style.top = '70px';
-          
-            toolsContainer.style.left = '180px';
-            toolsContainer.style.transform = 'translateY(-50%)';
-            
-            // Make buttons bigger on mobile
-            document.querySelectorAll('.tool-btn').forEach(btn => {
-                btn.style.width = '45px';
-                btn.style.height = '45px';
-            });
-        } else {
-            
-            
-            // Desktop layout - use right positioning to stay next to zoom
-            toolsContainer.style.top = '70px';
-             toolsContainer.style.left = '600px';
-            toolsContainer.style.transform = 'translateY(-50%)';
-         
-            
-            document.querySelectorAll('.tool-btn').forEach(btn => {
-                btn.style.width = '40px';
-                btn.style.height = '40px';
-            });
-        }
-    }
-    
-    // Call initially and on window resize
-    adjustToolsForDeviceType();
-    window.addEventListener('resize', adjustToolsForDeviceType);
-    // Call initially and on resize
 
-});
 
 
     
@@ -5295,23 +5192,7 @@ updateGridButton();</script>
   const bar = document.getElementById('mainToolBar');
   if (!bar) return;
 
-  // Klick på knappar → byt verktyg
-  bar.addEventListener('click', (e)=>{
-    const btn = e.target.closest('[data-tool]');
-    if (!btn) return;
-    const tool = btn.dataset.tool;
-    if (typeof switchTool === 'function') {
-      switchTool(tool);
-      currentTool = tool;
-    }
-    setActive(tool);
-  });
-
-  // Hindra att canvas lyssnare får pek-events från sidomenyn
-  ['pointerdown','mousedown','touchstart'].forEach(ev=>{
-    bar.addEventListener(ev, (e)=> e.stopPropagation(), {passive:false});
-  });
-
+  // --- UI helper
   function setActive(tool){
     bar.querySelectorAll('[data-tool]').forEach(b=>{
       const on = b.dataset.tool === tool;
@@ -5319,21 +5200,83 @@ updateGridButton();</script>
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
   }
+  // gör åtkomlig för andra hooks
+  window.__setSidebarActive = setActive;
 
-  // Synka när verktyget byts av annan logik (paste → select, etc)
-  if (typeof switchTool === 'function' && !__patchedSwitchToolSidebar){
-    const _orig = switchTool;
-    switchTool = function(tool){
-      const out = _orig.apply(this, arguments);
-      setActive(tool);
-      return out;
-    };
-    __patchedSwitchToolSidebar = true;
+  // --- Klick på knappar
+  bar.addEventListener('click', (e)=>{
+    const btn = e.target.closest('[data-tool]');
+    if (!btn) return;
+    const tool = btn.dataset.tool;
+
+    // använd din befintliga switchTool om den finns
+    if (typeof window.switchTool === 'function') {
+      window.switchTool(tool);
+    } else {
+      window.currentTool = tool;
+    }
+    // trigga global sync
+    window.dispatchEvent(new CustomEvent('toolchange', { detail:{ tool } }));
+  });
+
+  ['pointerdown','mousedown','touchstart'].forEach(ev=>{
+    bar.addEventListener(ev, e=>e.stopPropagation(), {passive:false});
+  });
+
+  // --- Globalt event → uppdatera sidomenyn
+  window.addEventListener('toolchange', (e)=>{
+    const t = (e && e.detail && e.detail.tool) || window.currentTool || 'pen';
+    setActive(t);
+  });
+
+  // --- Hooka nuvarande switchTool om den redan finns
+  function wrapExistingSwitch(){
+    if (typeof window.switchTool === 'function' && !window.__wrappedSwitchTool){
+      const orig = window.switchTool;
+      window.switchTool = function(tool){
+        const out = orig.apply(this, arguments);
+        window.dispatchEvent(new CustomEvent('toolchange', { detail:{ tool } }));
+        return out;
+      };
+      window.__wrappedSwitchTool = true;
+    }
+  }
+  wrapExistingSwitch();
+
+  // --- Fånga FRAMTIDA assignment till window.switchTool
+  if (!window.__switchToolSetterInstalled){
+    let _st = window.switchTool; // kan vara undefined nu
+    Object.defineProperty(window, 'switchTool', {
+      configurable: true,
+      get(){ return _st; },
+      set(fn){
+        // wrap varje gång någon sätter en ny funktion
+        _st = function(){
+          const tool = arguments[0];
+          const r = fn && fn.apply(this, arguments);
+          window.dispatchEvent(new CustomEvent('toolchange', { detail:{ tool } }));
+          return r;
+        };
+        window.__wrappedSwitchTool = true;
+      }
+    });
+    window.__switchToolSetterInstalled = true;
   }
 
-  // Init: markera nuvarande verktyg om vi vet det
-  const initial = (typeof currentTool === 'string' && currentTool) ? window.currentTool : 'pen';
-  setActive(initial);
+  // --- Fallback: om kod byter currentTool direkt utan switchTool
+  (function pollCurrentTool(){
+    let last = window.currentTool || null;
+    setInterval(()=>{
+      const now = window.currentTool || null;
+      if (now !== last){
+        last = now;
+        window.dispatchEvent(new CustomEvent('toolchange', { detail:{ tool: now } }));
+      }
+    }, 200);
+  })();
+
+  // Initiera aktiv knapp
+  setActive(window.currentTool || 'pen');
 })();
 
 
