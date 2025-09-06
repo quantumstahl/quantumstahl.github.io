@@ -71,6 +71,10 @@
             -ms-user-select: none;      /* IE/Edge */
             user-select: none;          /* Standard syntax */
             cursor: default;            /* Change cursor to default instead of text */
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            
           }
 
           /* Make all labels and text in the control area non-selectable */
@@ -185,6 +189,7 @@
           #zoomLabel, #brushSizeLabel {
             font-size: 18px;
             font-weight: bold;
+            
             
           }
         }
@@ -303,27 +308,97 @@
         cursor: pointer;
       }
         
-.color-pop.hidden{ display:none }
-.color-pop{
-  position:fixed; inset:auto auto auto auto; z-index:9999;
-  background:#222; color:#fff; border:1px solid #444; border-radius:12px;
-  box-shadow:0 8px 30px rgba(0,0,0,.35);
+.color-pop.hidden{ display:none;}
+/* === COLOR EDITOR — XL SIZE === */
 
+
+
+#color-editor .color-pop-inner{
+  width: 500px;
+  max-height: min(88vh, 840px);
+  padding: 18px;
+  display: grid; 
+  gap: 16px;
+  background: #aaa;
+  /* om din pop har max-width/min-height någon annanstans, denna vinner */
 }
-.color-pop-inner{ padding:12px; min-width:360px }
-.color-pop .row{ display:flex }
-#rainbowCanvas{ cursor:crosshair; border-radius:8px; outline:1px solid #555 }
+
+/* Större palett-yta (regnbåge) */
+#rainbowCanvas{
+  width: 100%;
+  height: clamp(260px, 50vh, 420px); /* rejäl på mobil/desktop */
+  display: block;
+  border: 0;
+  outline: 0;
+}
+
+/* Större rader/typografi */
+#color-editor .row{ gap: 16px; align-items: center; flex-wrap: wrap; }
+#color-editor label{ font-size: 16px; }
+#hexOut{ font-size: 16px; }
 #colorPreview{
-  width:36px; height:36px; border-radius:8px; outline:1px solid #555; background:#fff;
+  width: 56px; height: 56px;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.12) inset;
 }
-.btn-primary,.btn-secondary,.tool-btn{
-  font:inherit; padding:.45rem .8rem; border-radius:.6rem; border:0; cursor:pointer;
+
+/* === Rejäla sliders (cross-browser) === */
+#color-editor input[type="range"]{
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 44px;            /* klick/finger-yta */
+  background: transparent; /* vi ritar bara tracken/knoppen */
+  touch-action: none;      /* undvik scroll-juck på mobil */
 }
-.btn-primary{ background:#4f8cff; color:#fff }
-.btn-secondary{ background:#3a3a3a; color:#fff }
-.tool-btn{ background:#2a2a2a; color:#fff; margin-left:.5rem }
-.tool-btn[disabled]{ opacity:.5; cursor:not-allowed }
-@media (max-width:700px){ .color-pop{ inset:auto .5rem .5rem .5rem; min-width:auto } }  
+/* WebKit track */
+#color-editor input[type="range"]::-webkit-slider-runnable-track{
+  height: 12px;
+  background: rgba(0,0,0,.1);
+  border-radius: 999px;
+}
+/* WebKit thumb */
+#color-editor input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance: none;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.25), 0 2px 6px rgba(0,0,0,.15);
+  margin-top: calc((12px - 28px) / 2); /* centrera mot track */
+}
+/* Firefox track */
+#color-editor input[type="range"]::-moz-range-track{
+  height: 12px;
+  background: rgba(0,0,0,.1);
+  border-radius: 999px;
+}
+/* Firefox thumb */
+#color-editor input[type="range"]::-moz-range-thumb{
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.25), 0 2px 6px rgba(0,0,0,.15);
+}
+
+/* === Knappar: större & lättklickade === */
+#color-editor .btn-primary,
+#color-editor .btn-secondary{
+  min-height: 52px;
+  padding: 12px 18px;
+  font-size: 16px;
+  border-radius: 12px;
+  line-height: 1.1;
+}
+
+/* Lite extra luft på riktigt små skärmar */
+@media (max-width: 700px){
+  #color-editor .color-pop-inner{ width: min(96vw, 1040px); }
+}
+
+
+
+
 
 /* ===== Bottom Dock (kompakt) ===== */
 /* === Centered Bottom Dock (compact) === */
@@ -350,6 +425,13 @@
   pointer-events: auto;
 }
 
+.edit-btn{width:69px;height:69px;border-radius: 7px;
+  box-shadow: none !important; outline: none !important;  }
+.edit-btn:hover {transform: scale(1.1);}
+    
+    
+
+
 /* Vänsterkolumn */
 .dock-left{ display: grid; gap: 10px; }
 
@@ -357,14 +439,14 @@
 .palette-grid{
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 36px;
-  grid-template-rows: repeat(2, 36px);
+  grid-auto-columns: 70px;
+  grid-template-rows: repeat(2, 70px);
   gap: 6px;
 }
 
 /* Swatches enhetliga */
 .palette-grid .color-swatch{
-  width: 36px !important; height: 36px !important;
+  width: 69px !important; height: 69px !important;
   border-radius: 7px;
   box-shadow: none !important; outline: none !important;
 }
@@ -372,7 +454,6 @@
 /* Brush under paletten */
 .brush-row{ display: grid; grid-template-columns: 1fr; align-items: center; gap: 6px; }
 #brushSizeSlider{ width: 320px; max-width: 56vw; }
-
 /* Högerkolumn: 🎨-knappen */
 .dock-right{ display: flex; align-items: center; }
 .dock-right .tool-btn{ width: 44px; height: 44px; border-radius: 10px; }
@@ -390,13 +471,7 @@
 .color-pop-inner{ padding:12px; }
 #rainbowCanvas{ cursor:crosshair; border-radius:8px; outline:0 !important; }
 
-/* Lite tajtare på mobil */
-@media (max-width: 640px), (pointer:coarse){
-  #bottomDock{ padding: 10px; gap: 10px; }
-  .palette-grid{ grid-auto-columns: 32px; grid-template-rows: repeat(2, 32px); gap: 5px; }
-  #brushSizeSlider{ max-width: 64vw; }
-  .dock-right .tool-btn{ width: 42px; height: 42px; }
-}
+
 
         
         </style>
@@ -530,65 +605,72 @@
 
 
 </div>
-<!-- Zoom centered in toolbar -->
-<div class="zoom-container">
-<label for="zoomSlider" id="zoomLabel">Zoom: 100%</label><br/>
-<input id="zoomSlider" max="5000" min="10" style="width: 200px;" type="range" value="100"/><br/>
-<label for="brushSizeSlider" id="brushSizeLabel">Brush Size: 1px</label><br/>
-<input id="brushSizeSlider" max="10" min="1" step="1" style="width: 200px;" type="range" value="1"/>
-</div>
-<div class="color-palette" style="position: absolute; top: 50px; right: 20px; transform: translateY(-50%); z-index: 100; text-align: center;">
-<div class="color-row">
-<div class="color-swatch" data-color="black" style="background-color: black; border: 2px solid #fff;"></div>
-<div class="color-swatch" data-color="red" style="background-color: red;"></div>
-<div class="color-swatch" data-color="blue" style="background-color: blue;"></div>
-<div class="color-swatch" data-color="green" style="background-color: green;"></div>
-<div class="color-swatch" data-color="yellow" style="background-color: yellow;"></div>
-</div>
-<div class="color-row">
-<div class="color-swatch" data-color="white" style="background-color: white;"></div>
-<div class="color-swatch" data-color="purple" style="background-color: purple;"></div>
-<div class="color-swatch" data-color="orange" style="background-color: orange;"></div>
-<div class="color-swatch" data-color="brown" style="background-color: brown;"></div>
-<div class="color-swatch" data-color="cyan" style="background-color: cyan;"></div>
 
-<button id="edit-color-btn" class="tool-btn" type="button" title="Edit Color 🎨" style="">🎨</button>
 
+
+
+<!-- Bottom Dock -->
+<!-- Centered Bottom Dock -->
+<div id="bottomDock" aria-label="Bottom dock controls">
+  <div class="dock-left">
+    <!-- 2 rader färger -->
+    <div class="palette-grid" id="dockPalette">
+      <!-- Rad 1 -->
+      <div class="color-swatch" data-color="black"  style="background:black; border:2px solid #fff;"></div>
+      <div class="color-swatch" data-color="white"    style="background:white;"></div>
+      <div class="color-swatch" data-color="blue"   style="background:blue;"></div>
+      <div class="color-swatch" data-color="green"  style="background:green;"></div>
+      <div class="color-swatch" data-color="yellow" style="background:yellow;"></div>
+      <!-- Rad 2 -->
+      <div class="color-swatch" data-color="cyan"   style="background:cyan;"></div>
+      <div class="color-swatch" data-color="red"  style="background:red;"></div>
+      <div class="color-swatch" data-color="purple" style="background:purple;"></div>
+      <div class="color-swatch" data-color="orange" style="background:orange;"></div>
+      <div class="color-swatch" data-color="checkerboard"style="background:repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%);"></div>
+    </div>
+
+    <!-- Kontroller under paletten: två kolumner = Brush (vänster), Zoom (höger) -->
+    <div class="brush-row" style="grid-template-columns: 1fr 1fr; gap:10px;">
+      <div class="control-col" style="display:grid; gap:6px; align-items:center;">
+        <label for="brushSizeSlider" id="brushSizeLabel">Brush Size: 1px</label>
+        <input id="brushSizeSlider" type="range" min="1" max="10" step="1" value="1"
+               style="width:100%;"/>
+      </div>
+      <div class="control-col" style="display:grid; gap:6px; align-items:center;">
+        <label for="zoomSlider" id="zoomLabel">Zoom: 100%</label>
+        <input id="zoomSlider" type="range" min="10" max="5000" value="100"
+               style="width:100%;"/>
+      </div>
+    </div>
+  </div>
+  <!-- 🎨-knapp till höger -->
+  <div class="dock-right">
+    <button id="edit-color-btn" class="edit-btn" type="button" title="Edit Color 🎨"
+            style="font-size:22px; width:56px; height:56px;">🎨</button>
+  </div>
+</div>
+
+<!-- Flyttad/behållen färg-editor (popup) -->
 <div id="color-editor" class="color-pop hidden" role="dialog" aria-modal="true" aria-label="Edit Color">
   <div class="color-pop-inner">
     <div class="row">
-      <canvas id="rainbowCanvas" width="256" height="128"></canvas>
+      <canvas id="rainbowCanvas" width="512" height="300"></canvas>
     </div>
-
     <label class="row" style="gap:.5rem;align-items:center">
       Ljushet
-      <input id="lightnessSlider" type="range" min="0" max="100" value="100" />
+      <input id="lightnessSlider" type="range" min="0" max="100" value="100"/>
       <span id="lightnessVal">100%</span>
     </label>
-
     <div class="row" style="gap:1rem;align-items:center;margin-top:.5rem">
-      <div id="colorPreview" class="preview"></div>
+      <div id="colorPreview"></div>
       <code id="hexOut" style="font-size:.9rem;opacity:.85">#FFFFFF</code>
       <div style="flex:1"></div>
       <button id="colorCancel" class="btn-secondary" type="button">Avbryt</button>
-      <button id="colorApply" class="btn-primary"   type="button">Spara</button>
+      <button id="colorApply"  class="btn-primary"   type="button">Spara</button>
     </div>
   </div>
 </div>
 
-</div>
-<!-- NEW: Third row added for checkerboards color swatch -->
-<div class="color-row">
-<div class="color-swatch" data-color="checkerboard" style="background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%);"></div>
-<div class="color-swatch" data-color="#c71585" style="background-color: #c71585;"></div>
-<div class="color-swatch" data-color="#FF4433" style="background-color: #FF4433;"></div>
-<div class="color-swatch" data-color="#9ACD32" style="background-color: #9ACD32;"></div>
-<div class="color-swatch" data-color="gray" style="background-color: gray;"></div>
-</div>
-
-
-
-</div>
 
 
 
@@ -696,7 +778,9 @@
   const hexOut    = document.getElementById('hexOut');
   const btnCancel = document.getElementById('colorCancel');
   const btnApply  = document.getElementById('colorApply');
-
+  
+  let coloerpickeractive=false;
+  
   // State för editorn
   let H = 0, S = 1, V = 1;      // Hue [0..360), Sat [0..1], Val [0..1]
   let startHex = '#FFFFFF';
@@ -739,6 +823,9 @@
   }
 
   function openEditor(){
+      
+      if(coloerpickeractive===true){pop.classList.add('hidden');coloerpickeractive=false;return;}
+      
     const active = getActiveSwatch();
     targetBtn = active ? active.el : null;
 
@@ -775,18 +862,20 @@
 
     slider.value = Math.round(V*100);
     sliderVal.textContent = slider.value + '%';
-
+    
+    coloerpickeractive=true;
     pop.classList.remove('hidden');
     drawRainbow();
     updatePreview();
   }
 
   function closeEditor(){
+    coloerpickeractive=false;  
     pop.classList.add('hidden');
   }
 
   // === Events ===
-  editBtn?.addEventListener('click', openEditor);
+  editBtn?.addEventListener('click', openEditor   );
   btnCancel?.addEventListener('click', closeEditor);
 
   btnApply?.addEventListener('click', ()=>{
@@ -5132,17 +5221,6 @@ window.addEventListener('keydown', function(e) {
 });
 updateGridButton();</script>
 
-<!-- Bottom Dock -->
-<!-- Centered Bottom Dock -->
-<div id="bottomDock" aria-label="Paint controls">
-  <div class="dock-left">
-    <div id="paletteGrid" class="palette-grid"><!-- swatches flyttas hit --></div>
-    <div class="brush-row">
-      <input id="dockBrushPlaceholder" type="range" min="1" max="10" step="1"/>
-    </div>
-  </div>
-  <div class="dock-right"><!-- 🎨 flyttas hit --></div>
-</div>
 
 
 <script>
