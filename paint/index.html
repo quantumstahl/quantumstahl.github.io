@@ -311,8 +311,7 @@
   position:fixed; inset:auto auto auto auto; z-index:9999;
   background:#222; color:#fff; border:1px solid #444; border-radius:12px;
   box-shadow:0 8px 30px rgba(0,0,0,.35);
-  top:200px;
-  right:10px;
+
 }
 .color-pop-inner{ padding:12px; min-width:360px }
 .color-pop .row{ display:flex }
@@ -329,7 +328,78 @@
 .tool-btn[disabled]{ opacity:.5; cursor:not-allowed }
 @media (max-width:700px){ .color-pop{ inset:auto .5rem .5rem .5rem; min-width:auto } }  
 
+/* ===== Bottom Dock (kompakt) ===== */
+/* === Centered Bottom Dock (compact) === */
+#bottomDock{
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: clamp(8px, 1.8vh, 16px);
+  z-index: 1200;
 
+  /* storlek och stil */
+  max-width: min(760px, 96vw);
+  width: max-content;
+  background: rgba(30,30,30,.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 14px;
+  padding: 10px 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+
+  display: grid;
+  grid-template-columns: 1fr auto; /* vänster: palett+brush, höger: 🎨 */
+  gap: 12px;
+  pointer-events: auto;
+}
+
+/* Vänsterkolumn */
+.dock-left{ display: grid; gap: 10px; }
+
+/* Två rader färger, ingen scroll behövs */
+.palette-grid{
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 36px;
+  grid-template-rows: repeat(2, 36px);
+  gap: 6px;
+}
+
+/* Swatches enhetliga */
+.palette-grid .color-swatch{
+  width: 36px !important; height: 36px !important;
+  border-radius: 7px;
+  box-shadow: none !important; outline: none !important;
+}
+
+/* Brush under paletten */
+.brush-row{ display: grid; grid-template-columns: 1fr; align-items: center; gap: 6px; }
+#brushSizeSlider{ width: 320px; max-width: 56vw; }
+
+/* Högerkolumn: 🎨-knappen */
+.dock-right{ display: flex; align-items: center; }
+.dock-right .tool-btn{ width: 44px; height: 44px; border-radius: 10px; }
+
+/* Popover – ta bort fixed top/right defaulten och kläm inom skärmen */
+.color-pop.hidden{ display:none }
+.color-pop{
+  position: fixed !important;
+  inset: auto auto auto auto;       /* nollställs – vi sätter left/top via JS */
+  z-index: 3000;
+  background:#222; color:#fff; border:1px solid #444; border-radius:12px;
+  box-shadow:0 8px 30px rgba(0,0,0,.35);
+  max-width:min(420px, calc(100vw - 16px));
+}
+.color-pop-inner{ padding:12px; }
+#rainbowCanvas{ cursor:crosshair; border-radius:8px; outline:0 !important; }
+
+/* Lite tajtare på mobil */
+@media (max-width: 640px), (pointer:coarse){
+  #bottomDock{ padding: 10px; gap: 10px; }
+  .palette-grid{ grid-auto-columns: 32px; grid-template-rows: repeat(2, 32px); gap: 5px; }
+  #brushSizeSlider{ max-width: 64vw; }
+  .dock-right .tool-btn{ width: 42px; height: 42px; }
+}
 
         
         </style>
@@ -485,9 +555,9 @@
 <div class="color-swatch" data-color="brown" style="background-color: brown;"></div>
 <div class="color-swatch" data-color="cyan" style="background-color: cyan;"></div>
 
-<button id="edit-color-btn" class="tool-btn" type="button" title="Redigera färg 🎨" style="">🎨</button>
+<button id="edit-color-btn" class="tool-btn" type="button" title="Edit Color 🎨" style="">🎨</button>
 
-<div id="color-editor" class="color-pop hidden" role="dialog" aria-modal="true" aria-label="Redigera färg">
+<div id="color-editor" class="color-pop hidden" role="dialog" aria-modal="true" aria-label="Edit Color">
   <div class="color-pop-inner">
     <div class="row">
       <canvas id="rainbowCanvas" width="256" height="128"></canvas>
@@ -5064,5 +5134,147 @@ window.addEventListener('keydown', function(e) {
   if (e.key.toLowerCase() === 'g') { showGrid = !showGrid; updateGridButton(); }
 });
 updateGridButton();</script>
+
+<!-- Bottom Dock -->
+<!-- Centered Bottom Dock -->
+<div id="bottomDock" aria-label="Paint controls">
+  <div class="dock-left">
+    <div id="paletteGrid" class="palette-grid"><!-- swatches flyttas hit --></div>
+    <div class="brush-row">
+      <input id="dockBrushPlaceholder" type="range" min="1" max="10" step="1"/>
+    </div>
+  </div>
+  <div class="dock-right"><!-- 🎨 flyttas hit --></div>
+</div>
+
+
+<script>
+(function(){
+  // Befintliga element i din app:
+  const oldPalette = document.querySelector('.color-palette');     // befintlig palettcontainer uppe till höger
+  const editBtn    = document.getElementById('edit-color-btn');    // 🎨
+  const oldBrush   = document.getElementById('brushSizeSlider');   // riktiga brush-slidern
+  const pop        = document.getElementById('color-editor');      // färg-editor-popover
+
+  // Nya mål i docken:
+  const grid       = document.getElementById('paletteGrid');
+  const rightCol   = document.querySelector('#bottomDock .dock-right');
+  const placeholder= document.getElementById('dockBrushPlaceholder');
+
+  /* 1) Flytta alla swatches till två-raders-griden */
+  if (oldPalette && grid) {
+    oldPalette.querySelectorAll('.color-swatch').forEach(sw => grid.appendChild(sw));
+    oldPalette.style.display = 'none'; // ta bort gamla containern från vyn
+  }
+
+  /* 2) Flytta 🎨 till högerkolumnen */
+  if (editBtn && rightCol && !rightCol.contains(editBtn)) {
+    rightCol.appendChild(editBtn);
+    editBtn.style.margin = '0';
+  }
+
+  /* 3) Använd din existerande brush-slider i docken (så din logik lever kvar) */
+  if (oldBrush && placeholder) placeholder.replaceWith(oldBrush);
+
+  /* 4) Popover-placering – nära 🎨, alltid inom viewport */
+  function placeEditor(){
+    if (!editBtn || !pop || pop.classList.contains('hidden')) return;
+
+    // neutralisera ev. gamla top/right
+    pop.style.right = ''; pop.style.bottom = '';
+
+    // mäta (även om den var hidden)
+    const prevD = pop.style.display, prevV = pop.style.visibility;
+    if (getComputedStyle(pop).display === 'none'){ pop.style.visibility='hidden'; pop.style.display='block'; }
+    const rPop = pop.getBoundingClientRect(); const ew = rPop.width||360, eh = rPop.height||220;
+    pop.style.display = prevD || ''; pop.style.visibility = prevV || '';
+
+    const rBtn = editBtn.getBoundingClientRect();
+    const margin = 8;
+
+    let left = Math.round(rBtn.left + rBtn.width/2 - ew/2);
+    left = Math.max(margin, Math.min(left, window.innerWidth - ew - margin));
+
+    let top  = Math.round(rBtn.top - eh - margin);            // helst ovanför knappen
+    if (top < margin) top = Math.min(window.innerHeight - eh - margin, rBtn.bottom + margin);
+    top  = Math.max(margin, Math.min(top, window.innerHeight - eh - margin));
+
+    pop.style.left = left + 'px';
+    pop.style.top  = top  + 'px';
+    pop.style.position = 'fixed';
+  }
+
+  // Trigga vid klick/öppning/resize
+  editBtn?.addEventListener('click', ()=> requestAnimationFrame(placeEditor));
+  new MutationObserver(()=> requestAnimationFrame(placeEditor))
+    .observe(pop, { attributes:true, attributeFilter:['class','style'] });
+  window.addEventListener('resize', placeEditor);
+
+  /* 5) (valfritt) liten brush-preview uppdatering om du vill – läs din globala brushColor/brushSize */
+  function updateBrushPreviewDot(){
+    // du har redan brushColor/brushSize i din kod; här behövs inget om du inte visar en dot
+  }
+  oldBrush?.addEventListener('input', updateBrushPreviewDot);
+  document.addEventListener('palette:colorUpdated', updateBrushPreviewDot);
+})();
+</script>
+<script>
+(function(){
+  const editBtn = document.getElementById('edit-color-btn');
+  const pop     = document.getElementById('color-editor');
+
+  // Flytta editorn direkt under <body> (undviker att någon container klipper den)
+  if (pop && pop.parentElement !== document.body) {
+    document.body.appendChild(pop);
+  }
+
+  function measureShown(el){
+    const wasHidden = getComputedStyle(el).display === 'none';
+    const prevD = el.style.display, prevV = el.style.visibility;
+    if (wasHidden){ el.style.visibility='hidden'; el.style.display='block'; }
+    const r = el.getBoundingClientRect();
+    if (wasHidden){ el.style.display=prevD||''; el.style.visibility=prevV||''; }
+    return { w: r.width || 360, h: r.height || 220 };
+  }
+
+  function safeAreaBottom(){
+    // enkel läsning av env(safe-area-inset-bottom)
+    const d = document.createElement('div');
+    d.style.cssText='position:fixed;left:0;bottom:0;padding-bottom:env(safe-area-inset-bottom);visibility:hidden';
+    document.body.appendChild(d);
+    const h = d.getBoundingClientRect().height|0;
+    document.body.removeChild(d);
+    return h;
+  }
+
+  function placeEditor(){
+    if (!editBtn || !pop || pop.classList.contains('hidden')) return;
+
+    const { w: ew, h: eh } = measureShown(pop);
+    const br = editBtn.getBoundingClientRect();
+    const M  = 8;
+    const SB = safeAreaBottom();
+
+    // centrera över knappen
+    let left = Math.round(br.left + br.width/2 - ew/2);
+    left = Math.max(M, Math.min(left, window.innerWidth - ew - M));
+
+    // helst ovanför; annars under
+    let top = Math.round(br.top - eh - M);
+    if (top < M) top = Math.min(window.innerHeight - eh - (M+SB), br.bottom + M);
+    top = Math.max(M, Math.min(top, window.innerHeight - eh - (M+SB)));
+
+    pop.style.left = left + 'px';
+    pop.style.top  = top  + 'px';
+    pop.style.position = 'fixed';
+  }
+
+  // Knyt till din befintliga 🎨-knapp + mutationer + resize
+  editBtn?.addEventListener('click', ()=> requestAnimationFrame(placeEditor));
+  new MutationObserver(()=> requestAnimationFrame(placeEditor))
+    .observe(pop, { attributes:true, attributeFilter:['class','style'] });
+  window.addEventListener('resize', placeEditor);
+})();
+</script>
 </body>
 </html>
