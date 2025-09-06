@@ -4609,10 +4609,10 @@ const btnProjects = document.getElementById('projectsBtn');
                 
                 if(!movecorners1&&!movecorners2&&!movecorners3&&!movecorners4){
                     ctx.fillStyle = "black";
-                    ctx.fillRect(drawstartx-10, drawstarty-10, 10, 10);
-                    ctx.fillRect(drawstartx+drawareax, drawstarty-10, 10, 10);
-                    ctx.fillRect(drawstartx-10, drawstarty+drawareay, 10, 10);
-                    ctx.fillRect(drawstartx+drawareax, drawstarty+drawareay, 10, 10);
+                    ctx.fillRect(drawstartx-20, drawstarty-20, 20, 20);
+                    ctx.fillRect(drawstartx+drawareax, drawstarty-20, 20, 20);
+                    ctx.fillRect(drawstartx-20, drawstarty+drawareay, 20, 20);
+                    ctx.fillRect(drawstartx+drawareax, drawstarty+drawareay, 20, 20);
                 }
                 // Draw scrollbars
                 ctx.fillStyle = "rgb(100, 100, 100)";
@@ -4834,28 +4834,28 @@ const btnProjects = document.getElementById('projectsBtn');
     
     
     // Handle UI interaction with corners and scrollbars
-    if (x >= drawstartx-15 && x < drawstartx && y >= drawstarty-15 && y < drawstarty+5) {
+    if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty-30 && y < drawstarty+10) {
         movecorners1 = true;
         dragStartX = x;
         dragStartY = y;
         resizeStart('NW'); 
         return;
     }
-    if (x >= drawstartx+drawareax-5 && x < drawstartx+drawareax+15 && y >= drawstarty-15 && y < drawstarty+5) {
+    if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty-30 && y < drawstarty+10) {
         movecorners2 = true;
         dragStartX = x;
         dragStartY = y;
         resizeStart('NE');   
         return;
     }
-    if (x >= drawstartx-15 && x < drawstartx && y >= drawstarty+drawareay && y < drawstarty-5+drawareay+15) {
+    if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty+drawareay && y < drawstarty-10+drawareay+30) {
         movecorners3 = true;
         dragStartX = x;
         dragStartY = y;
         resizeStart('SW');    
         return;
     }
-    if (x >= drawstartx+drawareax-5 && x < drawstartx+drawareax+15 && y >= drawstarty+drawareay-5 && y < drawstarty+drawareay+15) {
+    if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty+drawareay-10 && y < drawstarty+drawareay+30) {
         movecorners4 = true;
         dragStartX = x;
         dragStartY = y;
@@ -5070,7 +5070,7 @@ selTop  = Math.min(selectionStartY, selectionEndY);
 
         let cornerTouched = 0;
         // Check each corner with a slightly larger touch area for mobile
-        const cornerSize = 30; // Larger touch target for corners on mobile
+        const cornerSize = 60; // Larger touch target for corners on mobile
 
         // Top-left corner
         if (touchX >= drawstartx-cornerSize && touchX < drawstartx+cornerSize && 
