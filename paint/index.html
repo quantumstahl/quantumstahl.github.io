@@ -702,8 +702,49 @@
   background: #555;
 }
 
+/* === Center Top Bar === */
+#centerTopBar {
+  position: fixed;
+  top: 12px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; gap: 12px;
+  background: rgba(30,30,30,.92);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 20px;
+  padding: 8px 14px;
+  box-shadow: 0 10px 26px rgba(0,0,0,.35);
+  z-index: 2300;
+  pointer-events: auto;
+}
 
+#centerTopBar .barbtn {
+  min-width: 48px; height: 48px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; color: #fff;
+  border: none; border-radius: 14px;
+  font-size: 16px; cursor: pointer;
+  transition: background .15s ease, box-shadow .15s ease, transform .06s ease;
+}
+#centerTopBar .barbtn:hover,
+#centerTopBar .barbtn:focus-visible {
+  background: rgba(255,255,255,.08);
+  box-shadow: 0 6px 16px rgba(0,0,0,.25);
+}
+#centerTopBar .barbtn:active { transform: translateY(1px); }
 
+/* Mobil / touch: dubbelt så stor */
+@media (pointer:coarse), (max-width:768px){
+  #centerTopBar { padding: 12px 18px; border-radius: 26px; gap: 16px; }
+  #centerTopBar .barbtn {
+    min-width: 64px; height: 64px; font-size: 18px; border-radius: 18px;
+  }
+}
+#copyBtn,
+#pasteBtn,
+#undoBtn,
+#redoBtn {
+  display: none !important;
+}
 
         
         </style>
@@ -928,7 +969,12 @@
   </div>
 </div>
 
-
+<div id="centerTopBar" aria-label="Clipboard & history">
+  <button id="barCopy"  class="barbtn" title="Copy" style="font-size:38px;">⧉</button>
+  <button id="barPaste" class="barbtn" title="Paste" style="font-size:38px;">📋</button>
+  <button id="barUndo"  class="barbtn" title="Undo" style="font-size:38px;">⟲</button>
+  <button id="barRedo"  class="barbtn" title="Redo" style="font-size:38px;">⟳</button>
+</div>
 
 <canvas height="10" id="myCanvas" style="border:0px solid black" width="10"></canvas>
 <!-- Resize Modal Dialog -->
@@ -4242,6 +4288,20 @@ function proxy(btn){
   document.getElementById('trRotL')   ?.addEventListener('click', ()=>{ closeTransform(); proxy(rotateLeftBtn); });
   document.getElementById('trRotFree')?.addEventListener('click', ()=>{ closeTransform(); proxy(rotateFreeBtn); });
 
+  const copyBtn = document.getElementById('copyBtn');
+  const pasteBtn = document.getElementById('pasteBtn');
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+
+  function proxyClick(target){
+    if (!target) return;
+    Promise.resolve().then(()=> target.click());
+  }
+
+  document.getElementById('barCopy') ?.addEventListener('click', ()=> proxyClick(copyBtn));
+  document.getElementById('barPaste')?.addEventListener('click', ()=> proxyClick(pasteBtn));
+  document.getElementById('barUndo') ?.addEventListener('click', ()=> proxyClick(undoBtn));
+  document.getElementById('barRedo') ?.addEventListener('click', ()=> proxyClick(redoBtn));
 
 
 
