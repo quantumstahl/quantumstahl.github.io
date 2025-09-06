@@ -5309,15 +5309,7 @@ updateGridButton();</script>
     return { w: r.width || 360, h: r.height || 220 };
   }
 
-  function safeAreaBottom(){
-    // enkel läsning av env(safe-area-inset-bottom)
-    const d = document.createElement('div');
-    d.style.cssText='position:fixed;left:0;bottom:0;padding-bottom:env(safe-area-inset-bottom);visibility:hidden';
-    document.body.appendChild(d);
-    const h = d.getBoundingClientRect().height|0;
-    document.body.removeChild(d);
-    return h;
-  }
+
 
   function placeEditor(){
     if (!editBtn || !pop || pop.classList.contains('hidden')) return;
@@ -5328,15 +5320,15 @@ updateGridButton();</script>
     const SB = safeAreaBottom();
 
     // centrera över knappen
-    let left = Math.round(br.left + br.width/2 - ew/2)-100;
+    let left = Math.round(br.left + br.width/2 - ew/2);
     left = Math.max(M, Math.min(left, window.innerWidth - ew - M));
 
     // helst ovanför; annars under
     let top = Math.round(br.top - eh - M);
-    if (top < M) top = Math.min(window.innerHeight - eh - (M+SB), br.bottom + M);
-    top = Math.max(M, Math.min(top, window.innerHeight - eh - (M+SB)));
+    if (top < M) top = Math.min(window.innerHeight - eh - (M), br.bottom + M);
+    top = Math.max(M, Math.min(top, window.innerHeight - eh - (M)));
 
-    pop.style.left = left + 'px';
+    pop.style.left = left-100 + 'px';
     pop.style.top  = top  + 'px';
     pop.style.position = 'fixed';
   }
