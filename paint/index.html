@@ -52,7 +52,43 @@
   .topbtn{ height: 56px; min-width: 56px; padding: 0 16px; border-radius: 14px; }
   .menu, .dropdown{ min-width: 260px; }
 }
-    
+/* === Meny-backdrop som fångar tryck utanför menyn === */
+#menuBackdrop{
+  position: fixed; inset: 0;
+  background: transparent; /* inget mörkt lager – bara en “click catcher” */
+  display: none; z-index: 2100; /* mellan topbtn (2000) och dropdown (2200) */
+}
+#menuBackdrop.show{ display:block; }
+
+/* Se till att dropdowns sitter under knappen (vänsterkanten) */
+.dropdown, .menu{
+  position: absolute; top: 56px; left: 0;   /* <-- viktigt för placering */
+  background: rgba(30,30,30,.97); color:#fff;
+  border:1px solid rgba(255,255,255,.12); border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  min-width: 220px; padding: 6px; display:none; z-index: 2200;
+}
+
+/* === Mobil / touch: dubbla storlekar === */
+@media (pointer:coarse), (max-width: 768px){
+  #topBar{ gap: 12px; }
+  .topbtn{
+    height: 72px; min-width: 72px; padding: 0 22px; border-radius: 18px;
+    font-size: 18px; gap: 10px;
+  }
+  .hamburger{ font-size: 26px; }
+
+  .menu, .dropdown{
+    top: 80px;                /* längre ned under större knapp */
+    min-width: 300px;         /* lite bredare */
+    padding: 10px; border-radius: 16px;
+  }
+  .menu .item, .dropdown .item{
+    padding: 16px 18px;       /* större träffyta */
+    font-size: 18px;
+    border-radius: 14px;
+  }
+}    
     
     
     
@@ -784,7 +820,7 @@
   </div>
 </div>
 
-
+<div id="menuBackdrop" aria-hidden="true"></div>
 
 
 
