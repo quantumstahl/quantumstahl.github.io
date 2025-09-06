@@ -2448,6 +2448,7 @@ function _finalizeLasso() {
 
 canvas.addEventListener('pointerup', (ev)=>{
     isdragdrag=false;
+    if(tapedTwice)return;
   if (currentTool !== 'lasso') return;
   if (ev.pointerType === 'touch') ev.preventDefault(); 
   
