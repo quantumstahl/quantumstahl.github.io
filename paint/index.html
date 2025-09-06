@@ -2325,6 +2325,7 @@ canvas.addEventListener('pointerdown', (ev)=>{
     isdragdrag=true;
     markDirty();
   if (currentTool !== 'lasso') return;
+  if(tapedTwice)return;
   if (ev.pointerType === 'touch') ev.preventDefault(); 
   const rect = canvas.getBoundingClientRect();
   const cx = ev.clientX - rect.left;
