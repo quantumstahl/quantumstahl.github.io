@@ -746,6 +746,12 @@
   display: none !important;
 }
 
+.dropdown .item.active{
+  background: rgba(255,255,255,.18);
+  font-weight: 600;
+}
+
+
         
         </style>
 </head>
@@ -943,7 +949,7 @@
   <!-- Projects direkt till vänster (bredvid hamburgern) -->
   <div class="topbar-group" style="position:relative">
     <button id="projectsBtn" class="topbtn" aria-haspopup="true" aria-expanded="false" title="Projects">
-      Projects ▾
+      Canvas 1 ▾
     </button>
     <div id="projectsDrop" class="dropdown" role="menu" aria-label="Projects">
       <button class="item" id="mnuProj1" role="menuitem">Canvas 1</button>
@@ -4304,7 +4310,57 @@ function proxy(btn){
   document.getElementById('barRedo') ?.addEventListener('click', ()=> proxyClick(redoBtn));
 
 
+const btnProjects = document.getElementById('projectsBtn');
+  const item1 = document.getElementById('mnuProj1');
+  const item2 = document.getElementById('mnuProj2');
+  const item3 = document.getElementById('mnuProj3');
 
+  const projItems = { 1:item1, 2:item2, 3:item3 };
+
+  const origP1 = document.getElementById('project1Btn');
+  const origP2 = document.getElementById('project2Btn');
+  const origP3 = document.getElementById('project3Btn');
+
+  // 1) Säkerställ att knappen har en separat label-span
+  function ensureLabelSpan(){
+    if (!btnProjects) return null;
+    let label = document.getElementById('projectsLabel');
+    if (!label){
+      // Plocka nuvarande text (utan pilen) och bygg om knappen
+      const raw = (btnProjects.textContent || '').replace('▾','').trim();
+      const txt = raw || 'Canvas 1';
+      btnProjects.innerHTML = `<span id="projectsLabel">${txt}</span> ▾`;
+      label = document.getElementById('projectsLabel');
+    }
+    return label;
+  }
+  const labelSpan = ensureLabelSpan();
+
+  // 2) Sätt aktiv canvas (uppdatera knapp + highlight)
+  function setActiveProject(n){
+    if (labelSpan) labelSpan.textContent = `Canvas ${n}`;
+    Object.values(projItems).forEach(el => el?.classList.remove('active'));
+    projItems[n]?.classList.add('active');
+  }
+
+  // 3) Initiera från knappens befintliga text (t.ex. "Canvas 1 ▾")
+  function initialIndex(){
+    const base = (labelSpan?.textContent || btnProjects?.textContent || '').replace('▾','').trim();
+    const m = base.match(/(\d+)/);
+    return m ? parseInt(m[1],10) : 1;
+  }
+  setActiveProject(initialIndex());
+
+  // 4) Koppla klick i dropdownen → proxya originalknappar + uppdatera label/highlight
+  item1?.addEventListener('click', ()=>{ origP1?.click(); setActiveProject(1); });
+  item2?.addEventListener('click', ()=>{ origP2?.click(); setActiveProject(2); });
+  item3?.addEventListener('click', ()=>{ origP3?.click(); setActiveProject(3); });
+
+  // 5) Om du byter canvas på annat sätt (t.ex. programatiskt),
+  //    lyssna även på originalknapparna:
+  origP1?.addEventListener('click', ()=> setActiveProject(1));
+  origP2?.addEventListener('click', ()=> setActiveProject(2));
+  origP3?.addEventListener('click', ()=> setActiveProject(3));
 
 
             //check---------------------------------------------------------------------------------------
@@ -4382,7 +4438,7 @@ function proxy(btn){
                 }
                 
                 // Draw the document background
-                ctx.fillStyle = "lightgray";
+                ctx.fillStyle = "#1e1f22";
                 ctx.fillRect(0, 0, canvas.width/devicePixelRatio, canvas.height/devicePixelRatio);
                 
  
