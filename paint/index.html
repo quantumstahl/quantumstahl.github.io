@@ -89,7 +89,33 @@
     border-radius: 14px;
   }
 }    
-    
+/* TOP BAR över backdropen */
+#topBar{
+  position: fixed; top: 10px; left: 10px; right: 10px; height: 48px;
+  display: flex; align-items: center; gap: 10px;
+  z-index: 2300;          /* <-- HÖGRE än backdrop */
+  pointer-events: none;
+}
+
+/* Backdrop fångar utanför-klick men ligger UNDER dropdown */
+#menuBackdrop{
+  position: fixed; inset: 0;
+  background: transparent;
+  display: none;
+  z-index: 2200;          /* <-- UNDER topBar och dropdown */
+}
+#menuBackdrop.show{ display:block; }
+
+/* Menyer direkt under sina knappar (vänsterjusterade) */
+.dropdown, .menu{
+  position: absolute; top: 56px; left: 0;
+  background: rgba(30,30,30,.97); color:#fff;
+  border:1px solid rgba(255,255,255,.12); border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  min-width: 220px; padding: 6px; display:none;
+  z-index: 2400;          /* <-- ÖVER backdrop (2200) och topBar (2300’s barn) */
+}
+.menu.open, .dropdown.open{ display:block; }  /* <-- viktigt */    
     
     
     
