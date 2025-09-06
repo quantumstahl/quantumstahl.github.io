@@ -4023,7 +4023,7 @@ window.addEventListener('load', ()=>{
   window.dispatchEvent(new CustomEvent('toolchange', { detail:{ tool: startTool } })); // för alla andra lyssnare
 });
 
-  // Hitta originalkontroller (de finns redan i din DOM)
+// Originalknappar
   const inputOpen   = document.getElementById('directFileInput');
   const lblOpen     = document.querySelector('label[for="directFileInput"]');
   const btnSave     = document.getElementById('saveImageBtn');
@@ -4033,13 +4033,11 @@ window.addEventListener('load', ()=>{
   const btnP2       = document.getElementById('project2Btn');
   const btnP3       = document.getElementById('project3Btn');
 
-  // Göm original UI (de fortsätter att fungera när vi "proxy-klickar")
+  // Dölj original (vi proxy-klickar dem)
   if (lblOpen)   lblOpen.style.display = 'none';
   if (btnSave)   btnSave.style.display = 'none';
   if (btnResize) btnResize.style.display = 'none';
-  // gridBtn sitter i verktygsraden — göm om du vill att den bara nås via menyn:
   if (btnGrid)   btnGrid.style.display = 'none';
-  // projektswitchar kan döljas, vi exponerar dem via dropdown
   if (btnP1) btnP1.style.display = 'none';
   if (btnP2) btnP2.style.display = 'none';
   if (btnP3) btnP3.style.display = 'none';
@@ -4049,6 +4047,7 @@ window.addEventListener('load', ()=>{
   const mainMenu     = document.getElementById('mainMenu');
   const projectsBtn  = document.getElementById('projectsBtn');
   const projectsDrop = document.getElementById('projectsDrop');
+  const backdrop     = document.getElementById('menuBackdrop');
 
   // Hjälpare
   function closeAll(){
@@ -4056,53 +4055,50 @@ window.addEventListener('load', ()=>{
     projectsDrop.classList.remove('open');
     hamburgerBtn.setAttribute('aria-expanded','false');
     projectsBtn.setAttribute('aria-expanded','false');
+    backdrop.classList.remove('show');
   }
-  function toggle(el, btn){
-  const willOpen = !el.classList.contains('open');
-  closeAll();
-  if (willOpen){
-    el.classList.add('open');
-    btn.setAttribute('aria-expanded','true');
-    // Vi låter CSS sköta positioneringen (left:0; top:56px;)
-  }
-}
 
-  // Öppna/stäng
+  function toggle(el, btn){
+    const willOpen = !el.classList.contains('open');
+    closeAll();
+    if (willOpen){
+      el.classList.add('open');
+      btn.setAttribute('aria-expanded','true');
+      // CSS sköter position (left:0; top:…)
+      backdrop.classList.add('show');
+    }
+  }
+
+  // Öppna/stäng via knappar
   hamburgerBtn?.addEventListener('click', (e)=>{ e.stopPropagation(); toggle(mainMenu, hamburgerBtn); });
   projectsBtn ?.addEventListener('click', (e)=>{ e.stopPropagation(); toggle(projectsDrop, projectsBtn); });
 
-  // Utanför-klick och Escape
-  document.addEventListener('click', ()=> closeAll());
+  // Fånga interaktioner INUTI menyerna så de inte bubbler upp till backdrop
+  [hamburgerBtn, projectsBtn, mainMenu, projectsDrop].forEach(el=>{
+    el?.addEventListener('pointerdown', e=> e.stopPropagation());
+    el?.addEventListener('touchstart',  e=> e.stopPropagation(), {passive:true});
+    el?.addEventListener('mousedown',   e=> e.stopPropagation());
+  });
+
+  // Klick/touch utanför -> stäng (fungerar på iOS)
+  function closeOnOutside(){ closeAll(); }
+  backdrop.addEventListener('pointerdown', closeOnOutside);
+  backdrop.addEventListener('mousedown',   closeOnOutside);
+  backdrop.addEventListener('touchstart',  closeOnOutside, {passive:true});
+
+  // Som extra säkerhet – ESC stänger
   window.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') closeAll(); });
 
   // Proxy-actions
-  document.getElementById('mnuOpen') ?.addEventListener('click', ()=>{
-    closeAll();
-    // Trigga filväljaren direkt
-    inputOpen?.click();
-  });
-  document.getElementById('mnuSave') ?.addEventListener('click', ()=>{
-    closeAll();
-    btnSave?.click();
-  });
-  document.getElementById('mnuResize')?.addEventListener('click', ()=>{
-    closeAll();
-    btnResize?.click();
-  });
-  document.getElementById('mnuGrid')  ?.addEventListener('click', ()=>{
-    closeAll();
-    btnGrid?.click();
-  });
+  document.getElementById('mnuOpen') ?.addEventListener('click', ()=>{ closeAll(); inputOpen?.click(); });
+  document.getElementById('mnuSave') ?.addEventListener('click', ()=>{ closeAll(); btnSave?.click(); });
+  document.getElementById('mnuResize')?.addEventListener('click', ()=>{ closeAll(); btnResize?.click(); });
+  document.getElementById('mnuGrid')  ?.addEventListener('click', ()=>{ closeAll(); btnGrid?.click(); });
 
-  // Projects dropdown -> proxy till dina knappar
   document.getElementById('mnuProj1')?.addEventListener('click', ()=>{ closeAll(); btnP1?.click(); });
   document.getElementById('mnuProj2')?.addEventListener('click', ()=>{ closeAll(); btnP2?.click(); });
   document.getElementById('mnuProj3')?.addEventListener('click', ()=>{ closeAll(); btnP3?.click(); });
 
-  // Förhindra att canvas-gestures stjäl tryck på knapparna (mobil)
-  [hamburgerBtn, projectsBtn, mainMenu, projectsDrop].forEach(el=>{
-    el?.addEventListener('pointerdown', e=>{ e.stopPropagation(); });
-  });
 
 
 
