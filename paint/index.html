@@ -9,6 +9,72 @@
 <link href="loggo.png" rel="icon" type="image/vnd.microsoft.icon"/>
 <style>
             
+    
+    
+    /* === Top Bar / Menyer === */
+#topBar{
+  position: fixed; top: 10px; left: 10px; right: 10px; height: 48px;
+  display: flex; align-items: center; gap: 10px;
+  z-index: 2000; pointer-events: none; /* bara knappar får events */
+}
+.topbar-group{ display:flex; gap:10px; pointer-events:auto; }
+
+.topbtn{
+  height: 48px; min-width: 48px; padding: 0 12px;
+  display:flex; align-items:center; gap:8px; justify-content:center;
+  background: rgba(30,30,30,.92); color:#fff; border:1px solid rgba(255,255,255,.12);
+  border-radius: 12px; cursor: pointer; user-select: none;
+  box-shadow: 0 6px 18px rgba(0,0,0,.25);
+}
+.topbtn:active{ transform: translateY(1px); }
+
+/* Dropdown paneler */
+.dropdown, .menu{
+  position: absolute; top: 56px;left: 0;
+  background: rgba(30,30,30,.97); color:#fff;
+  border:1px solid rgba(255,255,255,.12); border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  min-width: 220px; padding: 6px; display:none; z-index: 2200;
+}
+.menu.open, .dropdown.open{ display:block; }
+
+.menu .item, .dropdown .item{
+  width:100%; text-align:left; padding:10px 12px; border-radius: 10px;
+  background: transparent; color:#fff; border:none; cursor:pointer;
+}
+.menu .item:hover, .dropdown .item:hover{ background: rgba(255,255,255,.08); }
+
+/* Ikon för hamburgern */
+.hamburger { font-size: 20px; line-height: 1; }
+
+/* Mobil: lite större ytor */
+@media (pointer:coarse), (max-width:768px){
+  .topbtn{ height: 56px; min-width: 56px; padding: 0 16px; border-radius: 14px; }
+  .menu, .dropdown{ min-width: 260px; }
+}
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
               body {
     overscroll-behavior: none;
     touch-action: none;
@@ -689,7 +755,34 @@
 </nav>
 
 
+<!-- === TOP BAR === -->
+<div id="topBar" aria-label="Top toolbar">
+  <!-- Hamburger (vänster) -->
+  <div class="topbar-group" style="position:relative">
+    <button id="hamburgerBtn" class="topbtn" aria-haspopup="true" aria-expanded="false" title="Menu">
+      <span class="hamburger">☰</span> <span style="font-weight:600">Menu</span>
+    </button>
+    <div id="mainMenu" class="menu" role="menu" aria-label="Main menu">
+      <button class="item" id="mnuOpen"  role="menuitem">Open image…</button>
+      <button class="item" id="mnuSave"  role="menuitem">Save image</button>
+      <hr style="border:0;height:1px;background:rgba(255,255,255,.12);margin:6px 2px;">
+      <button class="item" id="mnuResize" role="menuitem">Resize canvas…</button>
+      <button class="item" id="mnuGrid"   role="menuitem">Toggle grid</button>
+    </div>
+  </div>
 
+  <!-- Projects direkt till vänster (bredvid hamburgern) -->
+  <div class="topbar-group" style="position:relative">
+    <button id="projectsBtn" class="topbtn" aria-haspopup="true" aria-expanded="false" title="Projects">
+      Projects ▾
+    </button>
+    <div id="projectsDrop" class="dropdown" role="menu" aria-label="Projects">
+      <button class="item" id="mnuProj1" role="menuitem">Canvas 1</button>
+      <button class="item" id="mnuProj2" role="menuitem">Canvas 2</button>
+      <button class="item" id="mnuProj3" role="menuitem">Canvas 3</button>
+    </div>
+  </div>
+</div>
 
 
 
@@ -3862,6 +3955,94 @@ async function _activateLoadedBitmap(imgBitmap) {
   if (typeof currentTool !== 'undefined') { switchTool('select'); currentTool = 'select'; }
 }
 //NYTT
+window.addEventListener('load', ()=>{
+  const startTool = (window.currentTool || 'pen'); // du har default 'pen' redan
+  if (window.__setSidebarActive) window.__setSidebarActive(startTool); // direkt uppdatering
+  window.dispatchEvent(new CustomEvent('toolchange', { detail:{ tool: startTool } })); // för alla andra lyssnare
+});
+
+  // Hitta originalkontroller (de finns redan i din DOM)
+  const inputOpen   = document.getElementById('directFileInput');
+  const lblOpen     = document.querySelector('label[for="directFileInput"]');
+  const btnSave     = document.getElementById('saveImageBtn');
+  const btnResize   = document.getElementById('ResizeBtn');
+  const btnGrid     = document.getElementById('gridBtn');
+  const btnP1       = document.getElementById('project1Btn');
+  const btnP2       = document.getElementById('project2Btn');
+  const btnP3       = document.getElementById('project3Btn');
+
+  // Göm original UI (de fortsätter att fungera när vi "proxy-klickar")
+  if (lblOpen)   lblOpen.style.display = 'none';
+  if (btnSave)   btnSave.style.display = 'none';
+  if (btnResize) btnResize.style.display = 'none';
+  // gridBtn sitter i verktygsraden — göm om du vill att den bara nås via menyn:
+  if (btnGrid)   btnGrid.style.display = 'none';
+  // projektswitchar kan döljas, vi exponerar dem via dropdown
+  if (btnP1) btnP1.style.display = 'none';
+  if (btnP2) btnP2.style.display = 'none';
+  if (btnP3) btnP3.style.display = 'none';
+
+  // Top-meny element
+  const hamburgerBtn = document.getElementById('hamburgerBtn');
+  const mainMenu     = document.getElementById('mainMenu');
+  const projectsBtn  = document.getElementById('projectsBtn');
+  const projectsDrop = document.getElementById('projectsDrop');
+
+  // Hjälpare
+  function closeAll(){
+    mainMenu.classList.remove('open');
+    projectsDrop.classList.remove('open');
+    hamburgerBtn.setAttribute('aria-expanded','false');
+    projectsBtn.setAttribute('aria-expanded','false');
+  }
+  function toggle(el, btn){
+  const willOpen = !el.classList.contains('open');
+  closeAll();
+  if (willOpen){
+    el.classList.add('open');
+    btn.setAttribute('aria-expanded','true');
+    // Vi låter CSS sköta positioneringen (left:0; top:56px;)
+  }
+}
+
+  // Öppna/stäng
+  hamburgerBtn?.addEventListener('click', (e)=>{ e.stopPropagation(); toggle(mainMenu, hamburgerBtn); });
+  projectsBtn ?.addEventListener('click', (e)=>{ e.stopPropagation(); toggle(projectsDrop, projectsBtn); });
+
+  // Utanför-klick och Escape
+  document.addEventListener('click', ()=> closeAll());
+  window.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') closeAll(); });
+
+  // Proxy-actions
+  document.getElementById('mnuOpen') ?.addEventListener('click', ()=>{
+    closeAll();
+    // Trigga filväljaren direkt
+    inputOpen?.click();
+  });
+  document.getElementById('mnuSave') ?.addEventListener('click', ()=>{
+    closeAll();
+    btnSave?.click();
+  });
+  document.getElementById('mnuResize')?.addEventListener('click', ()=>{
+    closeAll();
+    btnResize?.click();
+  });
+  document.getElementById('mnuGrid')  ?.addEventListener('click', ()=>{
+    closeAll();
+    btnGrid?.click();
+  });
+
+  // Projects dropdown -> proxy till dina knappar
+  document.getElementById('mnuProj1')?.addEventListener('click', ()=>{ closeAll(); btnP1?.click(); });
+  document.getElementById('mnuProj2')?.addEventListener('click', ()=>{ closeAll(); btnP2?.click(); });
+  document.getElementById('mnuProj3')?.addEventListener('click', ()=>{ closeAll(); btnP3?.click(); });
+
+  // Förhindra att canvas-gestures stjäl tryck på knapparna (mobil)
+  [hamburgerBtn, projectsBtn, mainMenu, projectsDrop].forEach(el=>{
+    el?.addEventListener('pointerdown', e=>{ e.stopPropagation(); });
+  });
+
+
 
             //check---------------------------------------------------------------------------------------
             var check = function() {
@@ -5277,6 +5458,10 @@ updateGridButton();</script>
 
   // Initiera aktiv knapp
   setActive(window.currentTool || 'pen');
+  
+  
+  
+  
 })();
 
 
