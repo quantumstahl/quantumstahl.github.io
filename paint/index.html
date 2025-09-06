@@ -350,14 +350,14 @@
 }
 /* WebKit track */
 #color-editor input[type="range"]::-webkit-slider-runnable-track{
-  height: 30px;
+  height: 50px;
   background: rgba(0,0,0,.1);
   border-radius: 999px;
 }
 /* WebKit thumb */
 #color-editor input[type="range"]::-webkit-slider-thumb{
   -webkit-appearance: none;
-  width: 50px; height:50px;
+  width: 70px; height:70px;
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 0 0 1px rgba(0,0,0,.25), 0 2px 6px rgba(0,0,0,.15);
@@ -403,7 +403,7 @@
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: clamp(8px, 1.8vh, 16px);
+  bottom: clamp(40px, 1.8vh, 80px);
   z-index: 1200;
 
   /* storlek och stil */
@@ -613,7 +613,7 @@
     <!-- 2 rader färger -->
     <div class="palette-grid" id="dockPalette">
       <!-- Rad 1 -->
-      <div class="color-swatch" data-color="black"  style="background:black; border:2px solid #fff;"></div>
+      <div class="color-swatch" data-color="black"  style="background:black;"></div>
       <div class="color-swatch" data-color="white"    style="background:white;"></div>
       <div class="color-swatch" data-color="blue"   style="background:blue;"></div>
       <div class="color-swatch" data-color="green"  style="background:green;"></div>
@@ -623,7 +623,7 @@
       <div class="color-swatch" data-color="red"  style="background:red;"></div>
       <div class="color-swatch" data-color="purple" style="background:purple;"></div>
       <div class="color-swatch" data-color="orange" style="background:orange;"></div>
-      <div class="color-swatch" data-color="checkerboard"style="background:repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%);"></div>
+      <div class="color-swatch" data-color="checkerboard" style="background:repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%);"></div>
     </div>
 
     <!-- Kontroller under paletten: två kolumner = Brush (vänster), Zoom (höger) -->
