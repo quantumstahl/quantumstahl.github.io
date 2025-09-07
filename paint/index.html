@@ -4550,7 +4550,7 @@ const btnProjects = document.getElementById('projectsBtn');
                 drawareay = (drawareay / (zoom * (zoomvalue / 100)));
                 drawstartx = centerX - drawareax / 2;
                 drawstarty = centerY - drawareay / 2;
-                zoom = zoomvalue/zomzomzom / 100;
+                zoom = zoomvalue / 100;
                 
                 if((document.body.clientWidth > 100 && startan == false)) {
                     startan = true;  
@@ -4650,9 +4650,9 @@ const btnProjects = document.getElementById('projectsBtn');
                 
                     ctx.save(); // Save the current state
                     ctx.translate(drawstartx, drawstarty); // Move to the top-left corner
-                    ctx.scale(zoom, zoom); // Apply zoom scaling
-                    const displayWidth = ensureIntDimension(drawareax / zoom);
-                    const displayHeight = ensureIntDimension(drawareay / zoom);
+                    ctx.scale(zoom/zomzomzom, zoom/zomzomzom); // Apply zoom scaling
+                    const displayWidth = ensureIntDimension(drawareax / zoom/zomzomzom);
+                    const displayHeight = ensureIntDimension(drawareay / zoom/zomzomzom);
                     ctx.drawImage(drawingCanvas, 0, 0, displayWidth, displayHeight, 0,0,displayWidth, displayHeight);
                     ctx.restore();
             
@@ -4663,18 +4663,18 @@ const btnProjects = document.getElementById('projectsBtn');
                     ctx.strokeStyle = 'rgba(0,0,0,0.2)';
 
                     for (let gx = 0; gx <= displayWidth; gx++) {
-                        const xPix = drawstartx-0.5 + gx * zoom;
+                        const xPix = drawstartx-0.5 + gx * zoom/zomzomzom;
                         ctx.beginPath();
                         ctx.moveTo(xPix + 0.5, drawstarty-0.5);
-                        ctx.lineTo(xPix + 0.5, drawstarty-0.5 + displayHeight * zoom);
+                        ctx.lineTo(xPix + 0.5, drawstarty-0.5 + displayHeight * zoom/zomzomzom);
                         ctx.stroke();
                     }
 
                     for (let gy = 0; gy <= displayHeight; gy++) {
-                        const yPix = drawstarty-0.5 + gy * zoom;
+                        const yPix = drawstarty-0.5 + gy * zoom/zomzomzom;
                         ctx.beginPath();
                         ctx.moveTo(drawstartx-0.5, yPix + 0.5);
-                        ctx.lineTo(drawstartx-0.5 + displayWidth * zoom, yPix + 0.5);
+                        ctx.lineTo(drawstartx-0.5 + displayWidth * zoom/zomzomzom, yPix + 0.5);
                         ctx.stroke();
                     }
 
@@ -4692,16 +4692,16 @@ const btnProjects = document.getElementById('projectsBtn');
                 if(currentImage){
                     // Draw the image
                     
-                    currentImageWidth = currentImageOriginalWidth*zoom;;
-                    currentImageHeight = currentImageOriginalHeight*zoom;
+                    currentImageWidth = currentImageOriginalWidth*zoom/zomzomzom;;
+                    currentImageHeight = currentImageOriginalHeight*zoom/zomzomzom;
                     
                     
                     if(prevzoom!=zoom){
                     
                       
                         prevzoom=zoom;
-                        currentImageX = (drawstartx + selLeft * zoom);
-                        currentImageY = (drawstarty + selTop * zoom);
+                        currentImageX = (drawstartx + selLeft * zoom/zomzomzom);
+                        currentImageY = (drawstarty + selTop * zoom/zomzomzom);
                          
                     }
                     if(currentImagecanvas!=currentproject){
@@ -4834,7 +4834,7 @@ const btnProjects = document.getElementById('projectsBtn');
 
                   const { w, h } = selectionBBox;
                   const p = _imageXYtoCanvasXY(showX, showY);
-                  const z = _effectiveZoom();
+                  const z = _effectiveZoom()/zomzomzom;
                   ctx.drawImage(selectionImageCanvas, p.x, p.y, w*z, h*z);
 
                   // “marching ants”
@@ -4852,7 +4852,7 @@ const btnProjects = document.getElementById('projectsBtn');
                     const curH = (isResizingSelection && typeof rc_prevH === 'number') ? rc_prevH : selectionBBox.h;
 
                     if (selectionPathImg && selectionOrigBBox && currentTool === 'lasso') {
-                      const z = _effectiveZoom();
+                      const z = _effectiveZoom()/zomzomzom;
                       ctx.save();
 
                       // bild→skärm
