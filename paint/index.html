@@ -871,7 +871,7 @@
 
 /* Extra fallback för iOS som ibland rapporterar pointer:fine i Safari */
 @media (orientation: landscape) and (max-device-width: 1024px) {
-  :root { --ls-scale: 0.5; }
+  :root { --ls-scale: 0.45; }
   #appWrapper{
     transform: scale(var(--ls-scale));
     transform-origin: top left;
@@ -886,8 +886,8 @@
   }
 #bottomDock{
   position: absolute;
-  left: 95%;
-  transform: translateX(-95%);
+  left: 98%;
+  transform: translateX(-98%);
   top: 25%;
 
   display: grid;
