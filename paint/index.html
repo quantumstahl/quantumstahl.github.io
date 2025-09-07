@@ -732,7 +732,13 @@
 }
 #centerTopBar .barbtn:active { transform: translateY(1px); }
 
-
+/* Mobil / touch: dubbelt så stor */
+@media (pointer:coarse), (max-width:768px){
+  #centerTopBar { padding: 12px 18px; border-radius: 26px; gap: 16px; }
+  #centerTopBar .barbtn {
+    min-width: 64px; height: 64px; font-size: 68px; border-radius: 18px;
+  }
+}
 #copyBtn,
 #pasteBtn,
 #undoBtn,
