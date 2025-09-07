@@ -5406,7 +5406,7 @@ function handleTouchMove(e) {
         const delta = newDistance - lastPinchDistance;
 
         // 🔍 Zooma in/ut beroende på distansändring
-        let newzoom =zoom*zomzomzom;
+        let newzoom =zoom/zomzomzom;
         
         if (Math.abs(delta) > 5) {
             if (delta > 0) newzoom *= 1.05;
