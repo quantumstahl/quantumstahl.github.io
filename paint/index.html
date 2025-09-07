@@ -940,7 +940,7 @@
   
   
 #color-editor .color-pop-inner{
-    width: min(320px, 92vw);
+    width: min(520px, 92vw);
     max-height: min(70dvh, 320px);
     padding: 12px;
     
@@ -948,7 +948,7 @@
 
   /* regnbågsytan kompakt */
   #rainbowCanvas{
-    height: clamp(160px, 36vh, 260px);
+    height: clamp(160px, 36vh, 160px);
   }
 
   /* reglage kompakt */
@@ -5921,7 +5921,14 @@ updateGridButton();</script>
 
     // helst ovanför; annars under
     let top = Math.round(br.top - eh - M);
-
+    
+    if(window.innerHeight  < window.innerWidth&&mobileAndTabletCheck()){
+                    top=top+100;
+    }
+    
+    
+    
+    
 
     pop.style.left = (canvas.width/2/ devicePixelRatio)-250 + 'px';
     pop.style.top  = top  + 'px';
