@@ -885,7 +885,7 @@
     height: calc(100dvh * var(--ls-scale));
   }
    #bottomDock{
-    position: fixed;
+    position: absolute;
     right: 10px;
     top:   25%;
 
@@ -898,7 +898,7 @@
   /* paletten: två kolumner, många rader */
   #bottomDock .palette-grid{
     display: grid;
-    grid-template-columns: repeat(5, 60px);
+    grid-template-columns: repeat(1, 60px);
     grid-auto-rows: 60px;
     gap: 6px;
     justify-content: center;
