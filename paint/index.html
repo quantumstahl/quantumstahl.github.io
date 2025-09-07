@@ -597,7 +597,7 @@
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: clamp(80px, 1.8vh, 80px);
+  
   z-index: 1200;
 
   /* storlek och stil */
@@ -1032,6 +1032,27 @@ html, body{
   height: 100dvh;           /* inte 100vh */
 
 }
+@media (pointer: fine) and (min-width: 1100px){
+    
+  #bottomDock{
+    top: 88%;
+   }  
+    
+  .palette-grid{
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 29px;
+        grid-template-rows: repeat(2, 29px);
+        gap: 6px;
+      }
+  .palette-grid .color-swatch{
+  width: 29px !important; height: 29px !important;
+  border-radius: 7px;
+  box-shadow: none !important; outline: none !important;
+}    
+}
+
+
         </style>
 </head>
 <body>
