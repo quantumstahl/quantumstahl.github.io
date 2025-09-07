@@ -889,7 +889,9 @@
     left: 100%;
     transform: translateX(-100%);
     top:   25%;
-    grid-template-columns: 0fr auto;
+    display: grid;
+    grid-template-rows: auto 1fr auto; /* palett | sliders | 🎨 */
+    grid-template-columns: 1fr;
     max-width: min(260px, 96vw);
 
   }
@@ -899,11 +901,21 @@
   grid-auto-columns: 70px;
   grid-template-rows: repeat(5, 70px);
   gap: 6px;
+  grid-row: 1;
 }
+#edit-color-btn{
+    grid-row: 2;
+  }
 
-
-
-
+#bottomDock .brush-row{
+    grid-row: 3;
+    
+  }
+#brushSizeSlider, #zoomSlider{
+    width: 200px;                     /* längd före rotation */
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+  }
 
   
 }
