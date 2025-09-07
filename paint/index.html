@@ -854,35 +854,46 @@
     box-shadow: none !important;
   }
   
-}        
+}
+
+:root { --ls-scale: 1; }
+
+#appWrapper{
+  position: fixed; inset: 0;
+  width: 100vw; height: 100vh;
+}
+
 
 @media (orientation: landscape) and (pointer: coarse) {
-  :root { --ls-scale: 0.3; }          /* finjustera 0.70–0.95 efter behov */
+  :root { --ls-scale: 0.3; } /* justera 0.70–0.95 efter smak */
 
-  /* Skala hela UI:t */
   #appWrapper{
     transform: scale(var(--ls-scale));
     transform-origin: top left;
-    /* Kompensera så att ytan fortfarande fyller skärmen efter skalning */
-    width: calc(100% / var(--ls-scale));
-    height: calc(100% / var(--ls-scale));
+    /* Kompensera så wrappern fortfarande täcker viewporten */
+    width: calc(100vw / var(--ls-scale));
+    height: calc(100vh / var(--ls-scale));
   }
 }
+
+/* Canvas fyller wrappern i CSS-px (före transform) */
+#myCanvas{ display:block; width:100%; height:100%; }
 
 /* Extra fallback för iOS som ibland rapporterar pointer:fine i Safari */
 @media (orientation: landscape) and (max-device-width: 1024px) {
-  :root { --ls-scale: 0.3; }
+  :root { --ls-scale: 0.3; } /* justera 0.70–0.95 efter smak */
+
   #appWrapper{
     transform: scale(var(--ls-scale));
     transform-origin: top left;
-    width: calc(100% / var(--ls-scale));
-    height: calc(100% / var(--ls-scale));
-  }
-  #myCanvas{
-      width:20000px;
-      
+    /* Kompensera så wrappern fortfarande täcker viewporten */
+    width: calc(100vw / var(--ls-scale));
+    height: calc(100vh / var(--ls-scale));
   }
 }
+
+/* Canvas fyller wrappern i CSS-px (före transform) */
+#myCanvas{ display:block; width:100%; height:100%; }
 
         </style>
 </head>
@@ -4523,7 +4534,49 @@ const btnProjects = document.getElementById('projectsBtn');
   origP2?.addEventListener('click', ()=> setActiveProject(2));
   origP3?.addEventListener('click', ()=> setActiveProject(3));
 
+function vvSize(){
+  const vv = window.visualViewport;
+  return { w: Math.round(vv?.width ?? innerWidth),
+           h: Math.round(vv?.height ?? innerHeight) };
+}
 
+// Läs aktuell skalfaktor från CSS-variabeln
+function currentScale(){
+  const v = getComputedStyle(document.documentElement).getPropertyValue('--ls-scale').trim();
+  const s = parseFloat(v) || 1;
+  return s > 0 ? s : 1;
+}
+
+// Sätt canvasens backing-storlek så att den blir skarp efter wrapper-skalning
+function resizeCanvasForScale(){
+  const { w, h } = vvSize();        // viewport i CSS-px (efter adressfält mm)
+  const dpr = Math.max(1, devicePixelRatio || 1);
+  const s   = currentScale();        // 1 i portrait, <1 i landscape (t.ex. 0.82)
+
+  // Canvas CSS-storlek = wrapperns storlek (före transform): 100% av wrappern
+  // Backing = viewport * dpr / s  (eftersom wrappern skalas ner med s)
+  canvas.width  = Math.max(1, Math.round(w * dpr / s));
+  canvas.height = Math.max(1, Math.round(h * dpr / s));
+
+  // 1 CSS-px (före transform) -> rätt ritpx i backing
+  ctx.setTransform(dpr / s, 0, 0, dpr / s, 0, 0);
+
+  // (valfritt) fyll vit bakgrund första gången
+  // ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h);
+
+  // TODO: här kan du återrita din bild/scene om du har en buffert
+  // redrawEverything();
+}
+
+let t;
+function scheduleResize(){ clearTimeout(t); t = setTimeout(resizeCanvasForScale, 120); }
+
+window.addEventListener('resize', scheduleResize);
+window.addEventListener('orientationchange', scheduleResize);
+if (window.visualViewport){
+  visualViewport.addEventListener('resize', scheduleResize);
+  visualViewport.addEventListener('scroll', scheduleResize);
+}
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
@@ -4532,6 +4585,7 @@ const btnProjects = document.getElementById('projectsBtn');
                 // Update canvas size
                 if (canvas.width !== window.innerWidth * (window.devicePixelRatio || 1) ||
                     canvas.height !== window.innerHeight * (window.devicePixelRatio || 1)) {
+                    resizeCanvasForScale();
                     resizeCanvas();
                 }
                 
@@ -4557,7 +4611,7 @@ const btnProjects = document.getElementById('projectsBtn');
                     projectdrawstarty = [drawstarty, drawstarty, drawstarty];
                     projectzoom = [zoom, zoom, zoom];
                     if(mobileAndTabletCheck())HANDLE_SIZE_SCR = 24;
-                    
+                    resizeCanvasForScale();
                 }
                 
                 
