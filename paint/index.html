@@ -2952,8 +2952,18 @@ function tapHandler(event) {
         return false;
     }
     event.preventDefault();
-    commitSelectionSession();      
-    clearSelection();
+    if (selSessionActive) {
+      commitSelectionSession();  // skriver in urklippet och avslutar
+    } else {
+      // ingen session: stäng bara ev. lasso-skiss/markering
+      isLassoActive = false;
+      hasSelection = false;
+      selectionBBox = null;
+      selectionPathCanvas = null;
+      selectionPathImg = null;
+      selectionImageCanvas = null;
+      selectionMaskCanvas = null;
+    }
  }
 
 
