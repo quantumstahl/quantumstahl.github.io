@@ -9,7 +9,30 @@
 <link href="loggo.png" rel="icon" type="image/vnd.microsoft.icon"/>
 <style>
             
-    
+ .container{
+ display:grid;
+ grid-template-columns: repeat(3, 1fr);
+ grid-template-rows: auto;    
+ }
+
+@media screen and (orientation: portrait){
+.container{
+ grid-template-areas:
+   "left left left"  
+   "center center center"
+   "center center center"
+   "bottom bottom bottom" ;
+} 
+} 
+
+@media screen and (orientation: landscape){
+.container{
+ grid-template-areas:
+   "left center center"
+   "left center center"
+   "left bottom bottom"
+} 
+}    
     
     /* === Top Bar / Menyer === */
 #topBar{
