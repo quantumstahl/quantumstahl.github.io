@@ -643,7 +643,7 @@
 }
 
 /* Brush under paletten */
-.brush-row{ display: grid; grid-template-columns: 1fr; align-items: center; gap: 6px; }
+.brush-row{ display: grid; grid-template-columns: 1fr; align-items: center; gap: 6px;grid-template-columns: 1fr 1fr; gap:10px; }
 #brushSizeSlider{ width: 320px; max-width: 56vw; }
 /* Högerkolumn: 🎨-knappen */
 .dock-right{ display: flex; align-items: center; }
@@ -1063,7 +1063,7 @@
     </div>
 
     <!-- Kontroller under paletten: två kolumner = Brush (vänster), Zoom (höger) -->
-    <div class="brush-row" style="grid-template-columns: 1fr 1fr; gap:10px;">
+    <div class="brush-row">
       <div class="control-col" style="display:grid; gap:6px; align-items:center;">
         <label for="brushSizeSlider" id="brushSizeLabel">Brush Size: 1px</label>
         <input id="brushSizeSlider" type="range" min="1" max="10" step="1" value="1"
