@@ -4521,7 +4521,56 @@ const btnProjects = document.getElementById('projectsBtn');
   origP2?.addEventListener('click', ()=> setActiveProject(2));
   origP3?.addEventListener('click', ()=> setActiveProject(3));
 
+function viewportSize(){
+  const vv = window.visualViewport;
+  // visualViewport är mest korrekt på mobiler när adressfältet hoppar
+  return {
+    w: Math.round((vv?.width  ?? window.innerWidth)),
+    h: Math.round((vv?.height ?? window.innerHeight))
+  };
+}
 
+function resizeCanvasToViewport(fillWhite=true){
+  const { w, h } = viewportSize();
+  const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
+
+  // CSS-storlek (synlig)
+  canvas.style.width  = w + 'px';
+  canvas.style.height = h + 'px';
+
+  // Backing-buffert (måste skalas med DPR)
+  canvas.width  = Math.max(1, w * dpr);
+  canvas.height = Math.max(1, h * dpr);
+
+  // Gör 1 CSS-px == 1 “rit-px” genom att skala context
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // Vit bakgrund (annars transparent svart på vissa mobiler)
+  if (fillWhite){
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  // TODO: uppdatera din egen layout/zoom/center här om du behöver
+  // t.ex. räkna om drawareax/drawareay/drawstartx/drawstarty baserat på dina regler
+  // och trigga en omritning av hela bilden från din buffer:
+  // redrawEverything();
+}
+
+// iOS/Android: vänta tills viewporten stabiliserats efter rotation
+let _rszTimer;
+function scheduleResize(){
+  clearTimeout(_rszTimer);
+  _rszTimer = setTimeout(()=>resizeCanvasToViewport(true), 120);
+}
+
+// Lyssnare som täcker flest scenarier
+window.addEventListener('resize', scheduleResize);
+window.addEventListener('orientationchange', scheduleResize);
+if (window.visualViewport){
+  visualViewport.addEventListener('resize', scheduleResize);
+  visualViewport.addEventListener('scroll', scheduleResize); // adressfältet
+}
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
@@ -4555,7 +4604,7 @@ const btnProjects = document.getElementById('projectsBtn');
                     projectdrawstarty = [drawstarty, drawstarty, drawstarty];
                     projectzoom = [zoom, zoom, zoom];
                     if(mobileAndTabletCheck())HANDLE_SIZE_SCR = 24;
-                    
+                    resizeCanvasToViewport(true);
                 }
                 
                 
