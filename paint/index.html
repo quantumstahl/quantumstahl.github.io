@@ -884,91 +884,39 @@
     width: calc(100vw * var(--ls-scale));
     height: calc(100dvh * var(--ls-scale));
   }
-   /* Själva panelen */
-  #bottomDock{
+   #bottomDock{
     position: fixed;
-    right: calc(env(safe-area-inset-right) + 10px);
-    top:   calc(env(safe-area-inset-top)  + 12px);
-    bottom: calc(env(safe-area-inset-bottom) + 12px);
-    left: auto;
-    transform: none;
-    width: 150px;                       /* luftigt */
-    padding: 12px;
-    border-radius: 16px;
-    display: grid;
-    grid-template-rows: auto 1fr auto;  /* palett | sliders | 🎨 */
-    gap: 12px;
-    overflow: hidden;
-    z-index: 2400;
-    backdrop-filter: blur(8px);
+    right: calc(env(safe-area-inset-right));
+    top:   25%;
+
   }
 
-  /* Innehållsblock */
-  #bottomDock .dock-left{ display: contents; } /* låt barnen hoppa upp en nivå */
-  #bottomDock .dock-right{ align-self: end; }
+  /* innehållet i sidobaren staplas vertikalt */
+  #bottomDock .dock-left{ display:flex; flex-direction:column; gap:10px; }
+  #bottomDock .dock-right{ margin-top:auto; }  /* 🎨-knappen längst ned */
 
-  /* Paletten: 3 kolumner, kvadratiska rutor */
+  /* paletten: två kolumner, många rader */
   #bottomDock .palette-grid{
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-auto-rows: 44px;
-    gap: 8px;
-    justify-items: stretch;
-    align-items: stretch;
-  }
-  #bottomDock .palette-grid .color-swatch{
-    width: 100% !important; height: 44px !important; border-radius: 8px;
+    grid-template-columns: repeat(2, 60px);
+    grid-auto-rows: 60px;
+    gap: 6px;
+    justify-content: center;
   }
 
-  /* Sliders-område i mitten */
+  /* sliders i sidled tar plats — rotera dem lodrätt */
   #bottomDock .brush-row{
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-auto-rows: min-content;
-    align-content: start;
-    gap: 10px;
-    padding: 6px 0;
+    display:flex; flex-direction:column; align-items:center; gap:10px;
   }
-
-  /* Gör reglagen vertikala och greppvänliga */
   #brushSizeSlider, #zoomSlider{
-    width: 220px;              /* längd före rotation */
-    height: 32px;
+    width: 200px;                     /* längd före rotation */
     transform: rotate(-90deg);
     transform-origin: 50% 50%;
-    margin: 30px auto;         /* centrera efter rotation */
-    -webkit-appearance: none;
-    appearance: none;
-    background: rgba(255,255,255,.12);
-    border-radius: 999px;
   }
-  #brushSizeSlider::-webkit-slider-thumb,
-  #zoomSlider::-webkit-slider-thumb{
-    -webkit-appearance: none;
-    appearance: none;
-    width: 36px; height: 36px; border-radius: 50%; background: #4CAF50;
-    box-shadow: 0 2px 8px rgba(0,0,0,.25);
-  }
-  #brushSizeSlider::-moz-range-thumb,
-  #zoomSlider::-moz-range-thumb{
-    width: 28px; height: 28px; border: none; border-radius: 50%; background: #4CAF50;
-  }
+  #brushSizeLabel, #zoomLabel{ font-size:14px; }
 
-  /* Kompakta etiketter */
-  #brushSizeLabel, #zoomLabel{
-    text-align: center;
-    font-size: 14px;
-    margin-top: -6px;
-    color: #fff;
-  }
-
-  /* 🎨-knapp längst ned, större tapp-yta */
-  #edit-color-btn.edit-btn{
-    width: 100%; height: 56px; font-size: 28px; border-radius: 12px;
-  }
-
-  /* Flytta Transform-docken så den inte krockar med sidobaren */
-  #transformDock{ right: calc(env(safe-area-inset-right) + 170px); }
+  /* flytta Transform-knappen lite så den inte krockar med sidobaren */
+  #transformDock{ right: calc(env(safe-area-inset-right) + 130px); }
 
 
 
