@@ -4949,8 +4949,7 @@ let zomzomzom=1;
     }
     
     // Handle drawing when mousemove with pen tool
-    const heightCheck = 155;
-    if (isDrawing && y > heightCheck && currentTool === 'pen'&&!movescrolly&&!movescrollx) {
+    if (isDrawing  && currentTool === 'pen'&&!movescrolly&&!movescrollx) {
         drawPixel(x, y);
     }
     
