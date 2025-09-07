@@ -841,10 +841,18 @@
     font-size: 102px;             /* större emoji/ikon */
     border-radius: 22px;
   }
-    #centerTopBar .barbtn:hover,
-    #centerTopBar .barbtn:focus-visible {
-    }
-    #centerTopBar .barbtn:active { }
+    #centerTopBar .barbtn{
+    -webkit-tap-highlight-color: transparent; /* iOS/Android tap-glow */
+    outline: none;
+    touch-action: manipulation;               /* snabbare tap, ingen dbl-tap zoom */
+  }
+  /* Överstyr tidigare hover/focus-stilar på mobil */
+  #centerTopBar .barbtn:hover,
+  #centerTopBar .barbtn:focus,
+  #centerTopBar .barbtn:focus-visible{
+    background: transparent !important;
+    box-shadow: none !important;
+  }
   
 }        
         </style>
