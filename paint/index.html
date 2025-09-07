@@ -4526,49 +4526,97 @@ const btnProjects = document.getElementById('projectsBtn');
   origP2?.addEventListener('click', ()=> setActiveProject(2));
   origP3?.addEventListener('click', ()=> setActiveProject(3));
 
+// ---- Viewport & skalor
+function VV() {
+  const vv = window.visualViewport;
+  return {
+    w: (vv ? vv.width  : window.innerWidth)  | 0,
+    h: (vv ? vv.height : window.innerHeight) | 0,
+  };
+}
+function DPR() { return Math.max(1, window.devicePixelRatio || 1); }
+function UI_SCALE() {
+  return (window.innerHeight < window.innerWidth && typeof mobileAndTabletCheck==='function' && mobileAndTabletCheck())
+    ? 0.30   // din landscape-nedskalning
+    : 1;
+}
+function USER_ZOOM() {                // från slider (0.05x .. 32x)
+  const z = (typeof zoomvalue !== 'undefined' ? zoomvalue : 100) / 100;
+  return Math.min(32, Math.max(0.05, z));
+}
+function EFF_ZOOM() {                  // vad ritningen faktiskt skalas med på skärm
+  return UI_SCALE() * USER_ZOOM();
+}
 
+// ---- Canvas-backing (kalla vid start/resize)
+function ensureCanvasBacking() {
+  const { w, h } = VV();
+  const dpr = DPR();
+  // CSS-storlek sätts i CSS/med din layout; här just backbuffer
+  const needW = Math.round(w * dpr), needH = Math.round(h * dpr);
+  if (canvas.width !== needW)  canvas.width  = needW;
+  if (canvas.height!== needH)  canvas.height = needH;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(1,0,0,1,0,0);
+}
             //check---------------------------------------------------------------------------------------
-            var check = function() {
-                
-                if(document.querySelector('.color-swatch.active')&&document.querySelector('.color-swatch.active').dataset.color!== brushColor)brushColor=document.querySelector('.color-swatch.active').dataset.color;
-                
-                let zomzomzom=1;
-                if(window.innerHeight  < window.innerWidth&&mobileAndTabletCheck()){
-                    zomzomzom=0.3;
-                }
-                if (canvas.width !== window.innerWidth * (window.devicePixelRatio || 1) ||
-                    canvas.height !== window.innerHeight * (window.devicePixelRatio || 1)) {
-                    resizeCanvas();
-                }
-                
-                
-                
-                zoom=zoom/zomzomzom;
-                let centerX = drawstartx + drawareax / 2;
-                let centerY = drawstarty + drawareay / 2;
-                drawareax = (drawareax / (zoom * (zoomvalue / 100)));
-                drawareay = (drawareay / (zoom * (zoomvalue / 100)));
-                drawstartx = centerX - drawareax / 2;
-                drawstarty = centerY - drawareay / 2;
-				
-                zoom = zoomvalue / 100;
-                zoom=zoom*zomzomzom;
-                if((document.body.clientWidth > 100 && startan == false)) {
-                    startan = true;  
-                    drawstartx = (canvas.width/devicePixelRatio)/2 - drawareax/2;
-                    drawstarty = (canvas.height/devicePixelRatio)/2 - drawareay/2;
-                    prevDrawAreaX = drawareax;
-                    prevDrawAreaY = drawareay;
-                    prevDrawStartX = drawstartx;
-                    prevDrawStartY = drawstarty;
-                    projectdrawareax = [drawareax, drawareax, drawareax];
-                    projectdrawareay = [drawareay, drawareay, drawareay];
-                    projectdrawstartx = [drawstartx, drawstartx, drawstartx];
-                    projectdrawstarty = [drawstarty, drawstarty, drawstarty];
-                    projectzoom = [zoom, zoom, zoom];
-                    if(mobileAndTabletCheck())HANDLE_SIZE_SCR = 24;
-                    zoom=zoom*zomzomzom;
-                }
+            var check = function () {
+  // 0) färg-UI (låt vara som du hade)
+  const swatch = document.querySelector('.color-swatch.active');
+  if (swatch && swatch.dataset.color !== brushColor) brushColor = swatch.dataset.color;
+
+  // 1) Backbuffer storlek – INGEN zoom här
+  ensureCanvasBacking();
+
+  // 2) Beräkna effektiv skala
+  const eff = EFF_ZOOM();                    // UI*user
+  const { w: VW, h: VH } = VV();
+
+  // 3) Räkna om drawarea FRÅN viewporten (inte från gamla värden)
+  //    Bevara centrum så zoom känns “på plats”
+  const cx = (typeof drawstartx==='number' && typeof drawareax==='number') ? drawstartx + drawareax/2 : 0;
+  const cy = (typeof drawstarty==='number' && typeof drawareay==='number') ? drawstarty + drawareay/2 : 0;
+
+  // Nya bildmått som visas på skärmen
+  const newW = Math.max(1, Math.round(VW / eff));
+  const newH = Math.max(1, Math.round(VH / eff));
+
+  // Om första gången: centrera i bilden
+  if (!window.startan) {
+    window.startan = true;
+    drawareax = newW;
+    drawareay = newH;
+    // centra i skärmen
+    drawstartx = Math.round((VW/eff)/2 - newW/2);
+    drawstarty = Math.round((VH/eff)/2 - newH/2);
+  } else {
+    // zooma kring tidigare centrum
+    drawareax = newW;
+    drawareay = newH;
+    drawstartx = Math.round(cx - newW/2);
+    drawstarty = Math.round(cy - newH/2);
+  }
+
+  // 4) Din “gamla” zoom-variabel ska spegla USER_ZOOM (inte eff)
+  zoom = USER_ZOOM();
+
+  // 5) (valfritt) clampa start så den inte blir NaN/±Inf
+  if (!isFinite(drawstartx)) drawstartx = 0;
+  if (!isFinite(drawstarty)) drawstarty = 0;
+
+  // 6) Uppdatera projektcacher en gång vid init (om du använder dem)
+  if (!window.__projInitDone) {
+    window.__projInitDone = true;
+    prevDrawAreaX = drawareax; prevDrawAreaY = drawareay;
+    prevDrawStartX = drawstartx; prevDrawStartY = drawstarty;
+    projectdrawareax = [drawareax, drawareax, drawareax];
+    projectdrawareay = [drawareay, drawareay, drawareay];
+    projectdrawstartx = [drawstartx, drawstartx, drawstartx];
+    projectdrawstarty = [drawstarty, drawstarty, drawstarty];
+    projectzoom = [zoom, zoom, zoom];
+    if (typeof mobileAndTabletCheck==='function' && mobileAndTabletCheck()) HANDLE_SIZE_SCR = 24;
+  }
+};
                 
                 
    
