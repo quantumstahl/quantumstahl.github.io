@@ -4578,11 +4578,11 @@ function ensureCanvasBacking() {
                 zoom=zoom/zomzomzom;
                 let centerX = drawstartx + drawareax / 2;
                 let centerY = drawstarty + drawareay / 2;
-                drawareax = (drawareax / (zoom * (zoomvalue/zomzomzom / 100)));
-                drawareay = (drawareay / (zoom * (zoomvalue/zomzomzom / 100)));
+                drawareax = (drawareax / (zoom * (zoomvalue*zomzomzom / 100)));
+                drawareay = (drawareay / (zoom * (zoomvalue*zomzomzom / 100)));
                 drawstartx = centerX - drawareax / 2;
                 drawstarty = centerY - drawareay / 2;
-                zoom = zoomvalue/zomzomzom / 100;
+                zoom = zoomvalue*zomzomzom / 100;
                 zoom=zoom*zomzomzom;
                 if((document.body.clientWidth > 100 && startan == false)) {
                     startan = true;  
