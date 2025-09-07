@@ -4527,7 +4527,7 @@ const btnProjects = document.getElementById('projectsBtn');
                 if(document.querySelector('.color-swatch.active')&&document.querySelector('.color-swatch.active').dataset.color!== brushColor)brushColor=document.querySelector('.color-swatch.active').dataset.color;
                 
                 let zomzomzom=1;
-                if(screen.availHeight < screen.availWidth&&mobileAndTabletCheck()){
+                if(window.innerHeight  < window.innerWidth&&mobileAndTabletCheck()){
                     zomzomzom=0.3;
                     alert("JAAA");
                     resizeCanvas();
