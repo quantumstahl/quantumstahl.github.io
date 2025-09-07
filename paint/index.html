@@ -2576,10 +2576,12 @@ function switchTool(newTool, opts = {}) {
                 }
 
                 // Restore drawing content
+                // EFTER (bevarar alfa)
                 drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-                drawingCtx.fillStyle = "white";
-                drawingCtx.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                // Extra säkert sätt:
+                drawingCtx.globalCompositeOperation = 'copy';
                 drawingCtx.drawImage(tempCanvas, 0, 0);
+                drawingCtx.globalCompositeOperation = 'source-over';
 
                 // Reset background
                 ctx.fillStyle = "lightgray";
