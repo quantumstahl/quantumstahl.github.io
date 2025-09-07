@@ -906,9 +906,13 @@
 #edit-color-btn{
     grid-row: 2;
   }
-
-#brushSizeSlider, #zoomSlider{
+#bottomDock .brush-row{
     grid-row: 3;
+    grid-auto-flow: column;
+    grid-auto-columns: 200px;
+    grid-template-rows: repeat(1, 200px);
+  }
+#brushSizeSlider, #zoomSlider{
     width: 200px;                     /* längd före rotation */
   }
 
