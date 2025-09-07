@@ -4528,10 +4528,17 @@ const btnProjects = document.getElementById('projectsBtn');
 
 
             //check---------------------------------------------------------------------------------------
-            var check = function(){
-  // ... din color-swatch-kod och resizeCanvas-koll kan vara kvar
-
-  // 1) UI-”nedskalning” i landscape på mobil
+            var check = function() {
+                
+                if(document.querySelector('.color-swatch.active')&&document.querySelector('.color-swatch.active').dataset.color!== brushColor)brushColor=document.querySelector('.color-swatch.active').dataset.color;
+                
+				if (canvas.width !== window.innerWidth * (window.devicePixelRatio || 1) ||
+                    canvas.height !== window.innerHeight * (window.devicePixelRatio || 1)) {
+                    resizeCanvas();
+                }
+				
+				
+                 // 1) UI-”nedskalning” i landscape på mobil
   const uiScale = (window.innerHeight < window.innerWidth && mobileAndTabletCheck()) ? 0.3 : 1;
 
   // 2) Användarzoom från slider (clampa lite för säkerhets skull)
