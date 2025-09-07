@@ -855,11 +855,35 @@
   }
   
 }        
-html { -ms-text-size-adjust:100%; -webkit-text-size-adjust:100% } /* prevent adjustments of font size after orientation changes in IE and iOS */
+
+@media (orientation: landscape) and (pointer: coarse) {
+  :root { --ls-scale: 0.82; }          /* finjustera 0.70–0.95 efter behov */
+
+  /* Skala hela UI:t */
+  #appWrapper{
+    transform: scale(var(--ls-scale));
+    transform-origin: top left;
+    /* Kompensera så att ytan fortfarande fyller skärmen efter skalning */
+    width: calc(100% / var(--ls-scale));
+    height: calc(100% / var(--ls-scale));
+  }
+}
+
+/* Extra fallback för iOS som ibland rapporterar pointer:fine i Safari */
+@media (orientation: landscape) and (max-device-width: 1024px) {
+  :root { --ls-scale: 0.82; }
+  #appWrapper{
+    transform: scale(var(--ls-scale));
+    transform-origin: top left;
+    width: calc(100% / var(--ls-scale));
+    height: calc(100% / var(--ls-scale));
+  }
+}
+
         </style>
 </head>
 <body>
-    
+<div id="appWrapper">    
     
 <label for="directFileInput" style="position:absolute; top:10px; left:0px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; min-width:90px; text-align:center; font-size:16px;">Open Image</label>
 <input accept="image/*" id="directFileInput" style="position:absolute; left:-200px;" type="file"/>
@@ -1110,7 +1134,7 @@ html { -ms-text-size-adjust:100%; -webkit-text-size-adjust:100% } /* prevent adj
 </div>
 </div>
 </div>
-
+ </div>
 <script>
 (function(){
   // === Hjälpare: färgkonvertering ===
