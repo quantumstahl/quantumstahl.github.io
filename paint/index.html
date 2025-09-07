@@ -1816,10 +1816,8 @@ confirmResizeBtn.addEventListener('click', async function() {
             // Event listener for zoom slider
             document.getElementById("zoomSlider").addEventListener("input", (e) => {
                 e.preventDefault();
-				zoom=zoom/zomzomzom;
                 zoomvalue = Number(e.target.value);
                 document.getElementById("zoomLabel").innerText = "Zoom: " + e.target.value + "%";
-				zoom=zoom*zomzomzom;
             });
             
             // Event listener for brush size slider
@@ -4552,8 +4550,9 @@ const btnProjects = document.getElementById('projectsBtn');
                 drawareay = (drawareay / (zoom * (zoomvalue / 100)));
                 drawstartx = centerX - drawareax / 2;
                 drawstarty = centerY - drawareay / 2;
+				zoom=zoom*zomzomzom;
                 zoom = zoomvalue / 100;
-                zoom=zoom*zomzomzom;
+                
                 if((document.body.clientWidth > 100 && startan == false)) {
                     startan = true;  
                     drawstartx = (canvas.width/devicePixelRatio)/2 - drawareax/2;
