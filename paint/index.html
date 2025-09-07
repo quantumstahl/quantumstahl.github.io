@@ -2037,23 +2037,39 @@ colorSwatches.forEach(swatch => {
             }
 // ========= Konfig =========
 // ---- Tunables ----
+// ====== Tunables ======
 const FF_CHUNK = 1024;
-const TOLER    = 10;   // färgtolerans (RGB)
+const TOLER    = 10;   // RGB-tolerans
 const TOL_A    = 10;   // alfa-tolerans
 
-// ---- Zoomhjälpare (respektera ev. din egna _effectiveZoom) ----
+// ====== Helpers ======
 function __effZoom(){
   if (typeof _effectiveZoom === 'function') return _effectiveZoom();
   const z = (window.zoom > 10 ? window.zoom/100 : (window.zoom || 1));
-  const cssScale = (mobileAndTabletCheck() && window.innerHeight < window.innerWidth && typeof window.zomzomzom === 'number') ? window.zomzomzom : 1;
-  return z * cssScale;
+  const css = (mobileAndTabletCheck() && window.innerHeight < window.innerWidth && typeof window.zomzomzom === 'number') ? window.zomzomzom : 1;
+  return z * css;
 }
 function __screenToImage(sx, sy){
   const z = __effZoom();
   return { x: ((sx - drawstartx)/z)|0, y: ((sy - drawstarty)/z)|0 };
 }
+function __clamp(v, lo, hi){ return v < lo ? lo : (v > hi ? hi : v); }
 
-// ---- Färgcache (slipper skapa 1x1-canvas varje gång) ----
+// Aktiv vy i BILD-koordinater (klipper mot hela canvasen)
+function __activeRect(){
+  const W = drawingCanvas.width|0, H = drawingCanvas.height|0;
+  const z = __effZoom();
+  // var i bilden som visas på skärmen:
+  const x0 = Math.max(0, Math.floor((0 - drawstartx)/z));
+  const y0 = Math.max(0, Math.floor((0 - drawstarty)/z));
+  const vw = Math.max(1, Math.floor(drawareax / z));
+  const vh = Math.max(1, Math.floor(drawareay / z));
+  const x1 = Math.min(W, x0 + vw);
+  const y1 = Math.min(H, y0 + vh);
+  return {x0, y0, x1, y1, w: (x1-x0)|0, h: (y1-y0)|0};
+}
+
+// Färgcache (oförändrad)
 let __colC=null, __colX=null, __lastBrush=null, __lastRGBA=[0,0,0,255];
 function __getFillRGBA(){
   if (brushColor === __lastBrush) return __lastRGBA;
@@ -2071,36 +2087,36 @@ function __getFillRGBA(){
     const d = __colX.getImageData(0,0,1,1).data;
     r=d[0]; g=d[1]; b=d[2]; a=d[3];
   }
-  __lastBrush = brushColor;
-  __lastRGBA = [r,g,b,a];
+  __lastBrush=brushColor; __lastRGBA=[r,g,b,a];
   return __lastRGBA;
 }
 
-// ---- Pooler (återanvänds, ingen GC-spiral) ----
+// Pooler (som tidigare)
 let __visited  = new Uint32Array(FF_CHUNK*FF_CHUNK);
-let __stack    = new Int32Array(FF_CHUNK*FF_CHUNK*2); // [x,y] par
+let __stack    = new Int32Array(FF_CHUNK*FF_CHUNK*2);
 let __stamp    = 1;
-let __offC     = null, __offX = null;
+let __offC=null, __offX=null;
 function __getOff(w,h){
-  if (!__offC){ __offC = document.createElement('canvas'); __offX = __offC.getContext('2d'); }
-  if (__offC.width !== w || __offC.height !== h){ __offC.width = w; __offC.height = h; }
+  if (!__offC){ __offC=document.createElement('canvas'); __offX=__offC.getContext('2d'); }
+  if (__offC.width !== w || __offC.height !== h){ __offC.width=w; __offC.height=h; }
   return {c:__offC, x:__offX};
 }
 
-// ---- DROP-IN ----
-// Anropas med SKÄRM-koordinater (samma signatur som du har idag)
-function floodFill(startX, startY) {
-  // 0) Skärm -> bild
-  const p = __screenToImage(startX, startY);
+// ====== DROP-IN flood fill (SKÄRM-koordinater in) ======
+function floodFill(startSX, startSY){
+  const p = __screenToImage(startSX, startSY);
   const sX = p.x|0, sY = p.y|0;
 
   const W = drawingCanvas.width|0, H = drawingCanvas.height|0;
-  if (sX < 0 || sY < 0 || sX >= W || sY >= H) return;
+  if (sX<0 || sY<0 || sX>=W || sY>=H) return;
 
-  // 1) Target och fillfärg
-  const targetData = drawingCtx.getImageData(sX, sY, 1, 1).data;
-  const tR=targetData[0], tG=targetData[1], tB=targetData[2], tA=targetData[3];
+  // --- KLIPP TILL AKTIV VY ---
+  const AR = __activeRect();
+  if (sX < AR.x0 || sX >= AR.x1 || sY < AR.y0 || sY >= AR.y1) return;
+
   const [fR,fG,fB,fA] = __getFillRGBA();
+  const tgt = drawingCtx.getImageData(sX, sY, 1, 1).data;
+  const tR=tgt[0], tG=tgt[1], tB=tgt[2], tA=tgt[3];
 
   // tidig exit om ≈ samma färg
   {
@@ -2108,23 +2124,26 @@ function floodFill(startX, startY) {
     if ((dR*dR + dG*dG + dB*dB) <= (TOLER*TOLER) && Math.abs(dA) <= TOL_A) return;
   }
 
-  // 2) Chunk runt startpunkten (ALLTID klippt mot hela canvasen)
-  const half = FF_CHUNK>>1;
-  const chunkX = Math.max(0, Math.min(sX - half, Math.max(0, W - FF_CHUNK)));
-  const chunkY = Math.max(0, Math.min(sY - half, Math.max(0, H - FF_CHUNK)));
-  const cW = Math.min(FF_CHUNK, W - chunkX);
-  const cH = Math.min(FF_CHUNK, H - chunkY);
+  // --- Chunk förankrad, MEN klippt mot aktiva vyn ---
+  const gridX = (sX & ~(FF_CHUNK-1));
+  const gridY = (sY & ~(FF_CHUNK-1));
+  const maxChunkX = Math.max(AR.x0, AR.x1 - FF_CHUNK);
+  const maxChunkY = Math.max(AR.y0, AR.y1 - FF_CHUNK);
+  const chunkX = __clamp(gridX, AR.x0, maxChunkX);
+  const chunkY = __clamp(gridY, AR.y0, maxChunkY);
+  const cW = Math.min(FF_CHUNK, AR.x1 - chunkX);
+  const cH = Math.min(FF_CHUNK, AR.y1 - chunkY);
+  if (cW<=0 || cH<=0) return;
 
   const imageData = drawingCtx.getImageData(chunkX, chunkY, cW, cH);
   const data = imageData.data;
 
   const lx0 = (sX - chunkX)|0;
   const ly0 = (sY - chunkY)|0;
-  if (lx0 < 0 || ly0 < 0 || lx0 >= cW || ly0 >= cH) return;
 
-  // 3) Lokal helpers
   const T2 = TOLER*TOLER;
   function matchesLocal(x, y) {
+    // (chunken är redan inne i AR, så extra AR-koll behövs inte här)
     const idx = ((y * cW + x) << 2) | 0;
     const dR = data[idx]   - tR;
     const dG = data[idx+1] - tG;
@@ -2134,39 +2153,46 @@ function floodFill(startX, startY) {
   }
   function setLocal(x, y) {
     const idx = ((y * cW + x) << 2) | 0;
-    data[idx]   = fR;
-    data[idx+1] = fG;
-    data[idx+2] = fB;
-    data[idx+3] = fA;
+    data[idx]=fR; data[idx+1]=fG; data[idx+2]=fB; data[idx+3]=fA;
     __visited[y*FF_CHUNK + x] = __stamp;
   }
 
-  // 4) Flood (som din – 4-grannar, men med poolad stack/visited)
-  __stamp = (__stamp === 0x7ffffffe) ? (__visited.fill(0), 1) : (__stamp + 1);
-  let stackLen = 0;
-  __stack[stackLen++] = lx0;
-  __stack[stackLen++] = ly0;
+  __stamp = (__stamp === 0x7ffffffe) ? (__visited.fill(0), 1) : (__stamp+1);
+  let sp = 0;
+  __stack[sp++] = lx0; __stack[sp++] = ly0;
 
-  while (stackLen > 0) {
-    const y = __stack[--stackLen] | 0;
-    const x = __stack[--stackLen] | 0;
+  while (sp > 0) {
+    const y = __stack[--sp]|0;
+    const x = __stack[--sp]|0;
 
     if (x < 0 || y < 0 || x >= cW || y >= cH) continue;
     if (__visited[y*FF_CHUNK + x] === __stamp) continue;
     if (!matchesLocal(x, y)) continue;
 
-    setLocal(x, y);
+    // expandera horisontellt (snabbt/tätt)
+    let xl=x, xr=x;
+    while (xl-1>=0 && __visited[y*FF_CHUNK + (xl-1)]!==__stamp && matchesLocal(xl-1,y)) xl--;
+    while (xr+1<cW && __visited[y*FF_CHUNK + (xr+1)]!==__stamp && matchesLocal(xr+1,y)) xr++;
 
-    __stack[stackLen++] = x-1; __stack[stackLen++] = y;
-    __stack[stackLen++] = x+1; __stack[stackLen++] = y;
-    __stack[stackLen++] = x;   __stack[stackLen++] = y-1;
-    __stack[stackLen++] = x;   __stack[stackLen++] = y+1;
+    for (let xx=xl; xx<=xr; xx++) setLocal(xx,y);
+
+    // ovan/under
+    for (let ny of [y-1, y+1]){
+      if (ny<0 || ny>=cH) continue;
+      let xx = xl;
+      while (xx <= xr){
+        while (xx<=xr && (__visited[ny*FF_CHUNK + xx]===__stamp || !matchesLocal(xx,ny))) xx++;
+        if (xx>xr) break;
+        __stack[sp++]=xx; __stack[sp++]=ny;
+        xx++;
+        while (xx<=xr && (__visited[ny*FF_CHUNK + xx]!==__stamp && matchesLocal(xx,ny))) xx++;
+      }
+    }
   }
 
-  // 5) Skriv tillbaka – återanvänd offscreen som du gjorde (snabb i praktiken)
+  // Skriv tillbaka (återanvänd offscreen för snabbhet)
   const os = __getOff(cW, cH);
   os.x.putImageData(imageData, 0, 0);
-
   drawingCtx.clearRect(chunkX, chunkY, cW, cH);
   drawingCtx.drawImage(os.c, chunkX, chunkY);
 }
