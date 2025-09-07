@@ -938,6 +938,56 @@
 
   }
   
+  
+#color-editor .color-pop-inner{
+    width: min(320px, 92vw);
+    max-height: min(70dvh, 520px);
+    padding: 12px;
+  }
+
+  /* regnbågsytan kompakt */
+  #rainbowCanvas{
+    height: clamp(160px, 36vh, 260px);
+  }
+
+  /* reglage kompakt */
+  #color-editor input[type="range"]{
+    height: 32px;
+  }
+  #color-editor input[type="range"]::-webkit-slider-runnable-track{ height: 32px; }
+  #color-editor input[type="range"]::-webkit-slider-thumb{
+    width: 28px; height: 28px; margin-top: 2px;
+  }
+  #color-editor input[type="range"]::-moz-range-track{ height: 10px; }
+  #color-editor input[type="range"]::-moz-range-thumb{ width: 22px; height: 22px; }
+
+  /* förhandsvisning + text mindre */
+  #colorPreview{ width: 64px; height: 64px; }
+  #hexOut{ font-size: 18px; }
+
+  /* knappar mindre */
+  #color-editor .btn-primary, #color-editor .btn-secondary{
+    min-height: 44px; font-size: 16px; border-radius: 10px; padding: 8px 12px;
+  }
+
+  /* fallback-placering (om JS inte sätter position) – nära högersidobaren */
+  #color-editor{
+    right: calc(env(safe-area-inset-right) + 12px);
+    left: auto;
+    top:  calc(env(safe-area-inset-top) + 12px);
+    bottom: auto;
+  }  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
 }
 
         </style>
