@@ -2038,9 +2038,18 @@ colorSwatches.forEach(swatch => {
 function floodFill(startX, startY) {
     console.log("Filling at", startX, startY);
 
+    let xan=drawareax;
+    let yan=drawareay;
+    
+    if(window.innerHeight  < window.innerWidth&&mobileAndTabletCheck()){
+        xan=drawareax/zomzomzom/zoom;
+        yan=drawareay/zomzomzom/zoom;
+    }
+
+
     if (startX < 0 || startY < 0 ||
-        startX >= drawareax/zomzomzom/zoom ||
-        startY >= drawareay/zomzomzom/zoom) {
+        startX >= xan ||
+        startY >= yan) {
         return;
     }
 
@@ -2084,8 +2093,8 @@ function floodFill(startX, startY) {
     const chunkSize = 1024;
     const chunkX = Math.max(0, startX - chunkSize / 2);
     const chunkY = Math.max(0, startY - chunkSize / 2);
-    const chunkWidth = Math.min(chunkSize, drawareax/zomzomzom/zoom - chunkX);
-    const chunkHeight = Math.min(chunkSize, drawareay/zomzomzom/zoom - chunkY);
+    const chunkWidth = Math.min(chunkSize, xan - chunkX);
+    const chunkHeight = Math.min(chunkSize, yan - chunkY);
 
     const imageData = drawingCtx.getImageData(chunkX, chunkY, chunkWidth, chunkHeight);
     const data = imageData.data;
