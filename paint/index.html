@@ -2038,8 +2038,8 @@ colorSwatches.forEach(swatch => {
 function floodFill(startX, startY) {
     console.log("Filling at", startX, startY);
 
-    let xan=drawareax;
-    let yan=drawareay;
+    let xan=drawareax/zoom;
+    let yan=drawareay/zoom;
     
     if(window.innerHeight  < window.innerWidth&&mobileAndTabletCheck()){
         xan=drawareax/zomzomzom/zoom;
