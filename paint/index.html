@@ -884,6 +884,24 @@
     width: calc(100vw * var(--ls-scale));
     height: calc(100dvh * var(--ls-scale));
   }
+  #myCanvas{
+    position: fixed;
+    left: 0; top: 0;
+    /* flytta till visualViewport-offset för iOS landscape */
+    transform: translate(var(--vv-left), var(--vv-top));
+    /* mot-skala om du kör skalen på #appWrapper, annars ta bort scale(...) */
+    transform-origin: top left;
+    /* behåll bara ETT scale – kombinera så här om du skalar UI:t */
+    /* translate först, sedan scale */
+    /* OBS: Om du INTE mot-skalas: ta bort scale(...) här */
+    transform: translate(var(--vv-left), var(--vv-top)) scale(calc(1 / var(--ls-scale)));
+
+    width:  calc(var(--vv-w) * var(--ls-scale));
+    height: calc(var(--vv-h) * var(--ls-scale));
+    max-width:none; max-height:none;
+    display:block; image-rendering: pixelated;
+    z-index: 0; /* UI ovanför */
+  }
 }
 
         </style>
