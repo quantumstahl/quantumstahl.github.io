@@ -857,7 +857,7 @@
 }        
 
 @media (orientation: landscape) and (pointer: coarse) {
-  :root { --ls-scale: 0.5; }          /* finjustera 0.70–0.95 efter behov */
+  :root { --ls-scale: 0.3; }          /* finjustera 0.70–0.95 efter behov */
 
   /* Skala hela UI:t */
   #appWrapper{
@@ -871,7 +871,7 @@
 
 /* Extra fallback för iOS som ibland rapporterar pointer:fine i Safari */
 @media (orientation: landscape) and (max-device-width: 1024px) {
-  :root { --ls-scale: 0.5; }
+  :root { --ls-scale: 0.3; }
   #appWrapper{
     transform: scale(var(--ls-scale));
     transform-origin: top left;
@@ -1115,7 +1115,6 @@
   <button id="barRedo"  class="barbtn" title="Redo" style="font-size:48px;">⟳</button>
 </div>
 
-<canvas height="10" id="myCanvas" style="border:0px solid black" width="10"></canvas>
 <!-- Resize Modal Dialog -->
 <div class="modal" id="resizeModal">
 <div class="modal-content">
@@ -1134,7 +1133,11 @@
 </div>
 </div>
 </div>
- </div>
+
+</div>
+<canvas height="10" id="myCanvas" style="border:0px solid black" width="10"></canvas>
+
+ 
 <script>
 (function(){
   // === Hjälpare: färgkonvertering ===
