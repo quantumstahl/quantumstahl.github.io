@@ -884,37 +884,55 @@
     width: calc(100vw * var(--ls-scale));
     height: calc(100dvh * var(--ls-scale));
   }
-   #bottomDock{
-    position: absolute;
-    left: 100%;
-    transform: translateX(-100%);
-    top:   25%;
-    display: grid;
-    grid-template-rows: auto 1fr auto; /* palett | sliders | 🎨 */
-    grid-template-columns: 1fr;
-    max-width: min(260px, 96vw);
+#bottomDock{
+  position: absolute;
+  left: 100%;
+  transform: translateX(-100%);
+  top: 25%;
 
-  }
-.palette-grid{
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 70px;
-  grid-template-rows: repeat(5, 70px);
-  gap: 6px;
-  grid-row: 1;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto auto;   /* 1: palette, 2: edit-btn, 3: sliders */
+  row-gap: 10px;
+
+  max-width: min(260px, 96vw);
 }
+
+/* Viktigt: gör barnen till DIREKTA grid-items */
+#bottomDock .dock-left,
+#bottomDock .dock-right{
+  display: contents;
+}
+
+/* 1) Paletten överst */
+#dockPalette{            /* eller .palette-grid om du vill */
+  grid-row: 1;
+  /* valfritt: gör paletten kompakt i sidled */
+  grid-auto-flow: row;                 /* överstyr ev. column */
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 52px;
+}
+
+/* 2) Edit-color-knappen direkt under paletten */
 #edit-color-btn{
-    grid-row: 2;
-  }
+  grid-row: 2;
+  justify-self: stretch;
+  height: 48px;
+  border-radius: 10px;
+}
+
+/* 3) Sliders längst ned – STAPLADE */
 #bottomDock .brush-row{
-    grid-auto-flow: column;
-    grid-auto-columns: 200px;
-    grid-template-rows: repeat(1, 200px);
-    grid-row: 1;
-  }
+  grid-row: 3;
+  display: grid;
+  grid-template-columns: 1fr;          /* en kolumn -> under varandra */
+  gap: 8px;
+}
+
+/* Sliders fyller bredden */
 #brushSizeSlider, #zoomSlider{
-    width: 200px;                     /* längd före rotation */
-  }
+  width: 100%;
+}
 
   
 }
