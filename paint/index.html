@@ -884,6 +884,35 @@
     width: calc(100vw * var(--ls-scale));
     height: calc(100dvh * var(--ls-scale));
   }
+  #bottomDock{
+    bottom: auto;                                /* sluta fästa i botten */
+    top: calc(env(safe-area-inset-top) + 56px);  /* lägg den upptill, under iOS-bar */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2400;                               /* över canvastoppen */
+  }
+
+  /* Flytta ner centerTopBar lite så de inte krockar */
+  #centerTopBar{
+    top: calc(env(safe-area-inset-top) + 8px);
+  }
+
+  /* Gör docken lite bredare/lägre så den “känns som en topbar” */
+  #bottomDock{
+    padding: 8px 12px;
+    border-radius: 12px;
+    gap: 8px;
+  }
+
+  /* Platta till layouten: en rad färger och kompakta sliders */
+  #bottomDock .palette-grid{
+    grid-template-rows: 70px;         /* 1 rad */
+    grid-auto-columns: 56px;          /* mindre rutor i landscape */
+  }
+  #bottomDock .palette-grid .color-swatch{
+    width: 56px !important; height: 56px !important; border-radius: 6px;
+  }
+  #brushSizeSlider, #zoomSlider{ max-width: 38vw; height: 24px; }
   
 }
 
