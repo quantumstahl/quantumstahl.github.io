@@ -751,7 +751,76 @@
   font-weight: 600;
 }
 
+/* === Mobile XL sizing overrides (sidebar, menyer, center-topbar) === */
+@media (pointer:coarse), (max-width: 768px){
+  /* Sidebar */
+  #mainToolBar{
+    gap: 14px;
+    padding: 14px;
+    border-radius: 20px;
+  }
+  #mainToolBar .tool-btn{
+    width: 84px;
+    height: 84px;
+    font-size: 36px;         /* större ikon/emoji */
+    border-radius: 18px;
+  }
 
+  /* Top-knappar (hamburger / projects) */
+  .topbtn{
+    height: 84px;
+    min-width: 84px;
+    padding: 0 26px;
+    border-radius: 20px;
+    font-size: 18px;
+  }
+  .hamburger{ font-size: 34px; }
+
+  /* Menyer / dropdowns (läggs längre ner pga större knappar) */
+  .menu, .dropdown{
+    top: 104px;             /* var 80px i din mobil-stil – flytta ned lite extra */
+    min-width: 340px;
+    padding: 14px;
+    border-radius: 18px;
+  }
+  .menu .item, .dropdown .item{
+    padding: 20px 22px;
+    font-size: 20px;
+    border-radius: 16px;
+  }
+
+  /* Transform-dock (höger flytknapp + meny) */
+  #transformBtn{
+    width: 88px;
+    height: 88px;
+    font-size: 24px;
+    border-radius: 9999px;
+  }
+  #transformMenu{
+    top: 112px;             /* matcha större knapp ovan */
+    min-width: 340px;
+    padding: 14px;
+    border-radius: 20px;
+  }
+  #transformMenu .item{
+    padding: 20px 22px;
+    font-size: 20px;
+    border-radius: 16px;
+  }
+
+  /* Center-Topbar (Copy/Paste/Undo/Redo) */
+  #centerTopBar{
+    padding: 14px 20px;
+    border-radius: 28px;
+    gap: 18px;
+  }
+  #centerTopBar .barbtn{
+    min-width: 80px;
+    height: 80px;
+    font-size: 56px;
+    border-radius: 20px;
+  }
+}
         
         </style>
 </head>
