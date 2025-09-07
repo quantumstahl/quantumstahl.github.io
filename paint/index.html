@@ -1816,8 +1816,10 @@ confirmResizeBtn.addEventListener('click', async function() {
             // Event listener for zoom slider
             document.getElementById("zoomSlider").addEventListener("input", (e) => {
                 e.preventDefault();
+				zoom=zoom/zomzomzom;
                 zoomvalue = Number(e.target.value);
                 document.getElementById("zoomLabel").innerText = "Zoom: " + e.target.value + "%";
+				zoom=zoom*zomzomzom;
             });
             
             // Event listener for brush size slider
