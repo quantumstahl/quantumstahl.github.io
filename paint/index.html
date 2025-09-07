@@ -4530,8 +4530,8 @@ const btnProjects = document.getElementById('projectsBtn');
                 if(window.innerHeight  < window.innerWidth&&mobileAndTabletCheck()){
                     zomzomzom=0.3;
                     resizeCanvas();
-                    canvas.width=canvas.width/0.3;
-                    canvas.height=canvas.height/0.3;
+                    canvas.width=canvas.width*0.3;
+                    canvas.height=canvas.height*0.3;
                 }
                 else{
                     if (canvas.width !== window.innerWidth * (window.devicePixelRatio || 1) ||
