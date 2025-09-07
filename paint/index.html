@@ -2039,8 +2039,8 @@ function floodFill(startX, startY) {
     console.log("Filling at", startX, startY);
 
     if (startX < 0 || startY < 0 ||
-        startX >= drawareax ||
-        startY >= drawareay) {
+        startX >= drawareax*zomzomzom ||
+        startY >= drawareay*zomzomzom) {
         return;
     }
 
@@ -2084,8 +2084,8 @@ function floodFill(startX, startY) {
     const chunkSize = 1024;
     const chunkX = Math.max(0, startX - chunkSize / 2);
     const chunkY = Math.max(0, startY - chunkSize / 2);
-    const chunkWidth = Math.min(chunkSize, drawareax - chunkX);
-    const chunkHeight = Math.min(chunkSize, drawareay - chunkY);
+    const chunkWidth = Math.min(chunkSize, drawareax*zomzomzom - chunkX);
+    const chunkHeight = Math.min(chunkSize, drawareay*zomzomzom - chunkY);
 
     const imageData = drawingCtx.getImageData(chunkX, chunkY, chunkWidth, chunkHeight);
     const data = imageData.data;
