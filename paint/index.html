@@ -4525,16 +4525,16 @@ const btnProjects = document.getElementById('projectsBtn');
   origP1?.addEventListener('click', ()=> setActiveProject(1));
   origP2?.addEventListener('click', ()=> setActiveProject(2));
   origP3?.addEventListener('click', ()=> setActiveProject(3));
-let zomzomzom=0.3;
+let zomzomzom=1;
 
             //check---------------------------------------------------------------------------------------
             var check = function() {
             if(document.querySelector('.color-swatch.active')&&document.querySelector('.color-swatch.active').dataset.color!== brushColor)brushColor=document.querySelector('.color-swatch.active').dataset.color;
                 
                 
-                
+                zomzomzom=1;
                 if(window.innerHeight  < window.innerWidth&&mobileAndTabletCheck()){
-                    zomzomzom=0.3;
+                    zomzomzom=0.5;
                 }
                 
                 // Update canvas size
