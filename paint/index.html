@@ -2037,7 +2037,7 @@ colorSwatches.forEach(swatch => {
             }
 function floodFill(startX, startY) {
     console.log("Filling at", startX, startY);
-    const z = (zoomvalue / 100);
+    const z = (zoom > 10 ? zoom/100 : zoom);
     let xan=drawareax/z;
     let yan=drawareay/z;
     
@@ -2047,11 +2047,7 @@ function floodFill(startX, startY) {
     }
 
 
-    if (startX < 0 || startY < 0 ||
-        startX >= xan ||
-        startY >= yan) {
-        return;
-    }
+  
 
     const targetData = drawingCtx.getImageData(startX, startY, 1, 1).data;
     const targetR = targetData[0];
