@@ -940,35 +940,50 @@
   
   
 #color-editor .color-pop-inner{
-    width: min(520px, 92vw);
-    max-height: min(70dvh, 480px);
-    padding: 12px;
-    height:480px;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    padding: 10px !important;
   }
 
-  /* regnbågsytan kompakt */
-  #rainbowCanvas{
-    height: clamp(160px, 36vh, 160px);
+  /* 1) Rainbow längst upp */
+  #color-editor .color-pop-inner > .row:nth-of-type(1){
+    order: 1 !important;
   }
 
-  /* reglage kompakt */
+  /* 2) Knappar + preview-raden DIREKT under rainbow (överstyr inline-style) */
+  #color-editor .color-pop-inner > .row:last-of-type{
+    order: 2 !important;
+    margin-top: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  /* 3) Ljushets-label+slider nederst */
+  #color-editor .color-pop-inner > label.row{
+    order: 3 !important;
+    margin: 2px 0 0 0 !important;
+  }
+
+  /* Mindre kontroller/preview så allt kommer högre upp */
+  #rainbowCanvas{ height: clamp(160px, 36vh, 260px) !important; }
+  #colorPreview{ width: 56px !important; height: 56px !important; }
+  #hexOut{ font-size: 16px !important; }
+
   #color-editor input[type="range"]{
-    height: 32px;
+    height: 32px !important;
   }
-  #color-editor input[type="range"]::-webkit-slider-runnable-track{ height: 32px; }
+  #color-editor input[type="range"]::-webkit-slider-runnable-track{ height: 32px !important; }
   #color-editor input[type="range"]::-webkit-slider-thumb{
-    width: 28px; height: 28px; margin-top: 2px;
+    width: 28px !important; height: 28px !important; margin-top: 2px !important;
   }
-  #color-editor input[type="range"]::-moz-range-track{ height: 10px; }
-  #color-editor input[type="range"]::-moz-range-thumb{ width: 22px; height: 22px; }
 
-  /* förhandsvisning + text mindre */
-  #colorPreview{ width: 64px; height: 64px; }
-  #hexOut{ font-size: 18px; }
-
-  /* knappar mindre */
   #color-editor .btn-primary, #color-editor .btn-secondary{
-    min-height: 44px; font-size: 16px; border-radius: 10px; padding: 8px 12px;
+    min-height: 40px !important;
+    font-size: 14px !important;
+    padding: 6px 10px !important;
+    border-radius: 10px !important;
   }
 
   
