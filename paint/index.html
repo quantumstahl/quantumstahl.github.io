@@ -5771,7 +5771,7 @@ document.addEventListener('DOMContentLoaded', function () {
 // ===== History (synkron, region-baserad) =====
 const HIST_MAX = 100;
 
-let savelabel,savebmp,savew,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom;
+let savelabel,savebmp,savew,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty;
 
 
 
@@ -5809,7 +5809,6 @@ function beginAction(label = ''){
     savedrawareay=drawareay;
     savedrawstartx=drawstartx;
     savedrawstarty=drawstarty;
-    savezoom=zoom;
   
   
 }
@@ -5823,7 +5822,6 @@ function destroyAction(){
     savedrawareay=0;
     savedrawstartx=0;
     savedrawstarty=0;
-    savezoom=0;
     
     
 }
@@ -5840,7 +5838,7 @@ function endAction(){
         savelabel,
         bmp: savebmp,         // snapshot canvas av bildytan
         w: savew, h: saveh,  // "logiska" bildmått i px (utan zoom)
-        drawareax:savedrawareax, drawareay:savedrawareay, drawstartx:savedrawstartx, drawstarty:savedrawstarty, zoom:savezoom
+        drawareax:savedrawareax, drawareay:savedrawareay, drawstartx:savedrawstartx, drawstarty:savedrawstarty
       });
       pruneStack(undoStack);
 
@@ -5867,18 +5865,12 @@ function restoreState(state){
   drawingCtx.drawImage(state.bmp, 0, 0);
 
   // 3) Återställ vy – baserat på sparad zoom + bildmått
-  zoom       = state.zoom;
   drawareax  = state.w * zoom;
   drawareay  = state.h * zoom;
   drawstartx = state.drawstartx;
   drawstarty = state.drawstarty;
 
-  // 4) UI sync
-  const zval = Math.round(zoom * 100);
-  const zsl  = document.getElementById('zoomSlider');
-  const zlbl = document.getElementById('zoomLabel');
-  if (zsl)  zsl.value = zval;
-  if (zlbl) zlbl.innerText = "Zoom: " + zval + "%";
+
 
   if (typeof markDirty === 'function') markDirty();
 }
@@ -5890,7 +5882,7 @@ function undo(){
   const cur = captureRegionSnapshot();
   redoStack.push({
     bmp: cur.snap, w: cur.imgW, h: cur.imgH,
-    drawareax:drawareax, drawareay:drawareay, drawstartx:drawstartx, drawstarty:drawstarty, zoom:zoom
+    drawareax:drawareax, drawareay:drawareay, drawstartx:drawstartx, drawstarty:drawstarty
   });
   pruneStack(redoStack);
 
@@ -5906,7 +5898,7 @@ function redo(){
   const cur = captureRegionSnapshot();
   undoStack.push({
     bmp: cur.snap, w: cur.imgW, h: cur.imgH,
-    drawareax:drawareax, drawareay:drawareay, drawstartx:drawstartx, drawstarty:drawstarty, zoom:zoom
+    drawareax:drawareax, drawareay:drawareay, drawstartx:drawstartx, drawstarty:drawstarty
   });
   pruneStack(undoStack);
 
