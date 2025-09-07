@@ -732,13 +732,7 @@
 }
 #centerTopBar .barbtn:active { transform: translateY(1px); }
 
-/* Mobil / touch: dubbelt så stor */
-@media (pointer:coarse), (max-width:768px){
-  #centerTopBar { padding: 12px 18px; border-radius: 26px; gap: 16px; }
-  #centerTopBar .barbtn {
-    min-width: 64px; height: 64px; font-size: 48px; border-radius: 18px;
-  }
-}
+
 #copyBtn,
 #pasteBtn,
 #undoBtn,
@@ -2271,7 +2265,9 @@ let selSessionActive = false;
 let selectionSrcCanvas = null;   // immutabel källa (originalpixlar)
 let selectionHoleBBox = null;    // var originalet satt (rekt eller lasso-bbox)
 let selectionHoleCut  = false;   // har vi skurit hålet i basen än?
-
+// --- Selection history arming ---
+let startdragstuffx=0;
+let startdragstuffy=0;
 
 function clearSelection() {
   hasSelection = false;
@@ -2536,7 +2532,7 @@ function rotateSelectionFree() {
   const val = prompt('Rotate degrees (e.g. 20 or -30):', '20');
   const deg = Number(val);
   if (!isFinite(deg)) return;
-
+   
   const selectionActive = !!(hasSelection && selectionBBox && selectionImageCanvas);
 
   if (selectionActive) {
@@ -2588,7 +2584,7 @@ function rotateSelectionFree() {
   tctx.rotate(rad);
   tctx.drawImage(drawingCanvas, 0, 0, w, h, -w/2, -h/2, w, h);
 
-  drawingCtx.clearRect(0, 0, w, h);
+  drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
   drawingCtx.drawImage(tmp, 0, 0);
 
   if (outW !== w || outH !== h) {
@@ -2670,6 +2666,7 @@ document.addEventListener('keydown', (e)=>{
 
         selectionBBox = null;
         dragSelX = 0; dragSelY = 0;
+        
   }
 });
 
@@ -2688,11 +2685,16 @@ let dragOffsetIX = 0, dragOffsetIY = 0; // pekarens offset i bbox
 
 let selErasedOnce    = false;           // originalplatsen raderad (en gång)
 
+
+
 function startSelectionSession() {
+    startdragstuffx=selectionStartX;
+    startdragstuffy=selectionStartY;
   if (!selSessionActive) {
     if (typeof beginAction === 'function') beginAction(); // snapshot för undo
     selSessionActive = true;
     selErasedOnce = false;
+    
   }
 }
 
@@ -2717,6 +2719,8 @@ function commitSelectionSession(){
     selectionBBox.x, selectionBBox.y, selectionBBox.w, selectionBBox.h
   );
   drawingCtx.restore();
+  if(startdragstuffx!==selectionStartX||startdragstuffy!==selectionStartY){destroyAction();}
+  
   endAction();
 
   
@@ -3534,10 +3538,10 @@ async function pasteFromClipboard() {
       }
     }
 
-    alert('Urklipp innehåller ingen bild. Tips: använd “Kopiera bild”, eller öppna bilden i ny flik och kopiera där.');
+    
   } catch (err) {
     console.error(err);
-    alert('Kunde inte läsa urklipp. Safari kräver ofta klick och HTTPS.');
+    
   }
 }
 
@@ -4923,7 +4927,6 @@ const btnProjects = document.getElementById('projectsBtn');
         }
         else if ((currentTool === 'select')) {
             // Selection tool
-            beginAction();
             isSelecting = true;
             selectionStartX = canvasX;
             selectionStartY = canvasY;
@@ -5207,7 +5210,6 @@ selTop  = Math.min(selectionStartY, selectionEndY);
             }
              else if ((currentTool === 'select')) {
                 // Selection tool
-                beginAction();
                 isSelecting = true;
                 selectionStartX = canvasX;
                 selectionStartY = canvasY;
@@ -5469,169 +5471,152 @@ document.addEventListener('DOMContentLoaded', function () {
 // Assuming drawingCanvas, drawingCtx, undoStack, redoStack are defined globally or accessible.
 // Also assuming drawareax, drawareay, zoom, showGrid, gridBtn, lastSaveTime, actionInProgress are defined.
 
+// ===== Robust history state (canvas + vy) =====
+// ===== History (synkron, region-baserad) =====
+const HIST_MAX = 100;
+
+let savelabel,savebmp,savew,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom;
 
 
-let actionInProgress = false;
-let lastSaveTime = 0;
 
-
-
-///1
-const MAX_UNDO = 20;
-// The canvasPool holds all pre-allocated canvas elements.
-// These elements are reused to avoid creating/destroying DOM nodes frequently.
-// The memory for these elements themselves (not just pixel data) will persist.
-
-
- // Map<imageIndex, { pool: Canvas[], index: number }>
-// Gets the next available canvas element from the pool.
-// It does NOT clear the canvas's content; the caller is responsible for that.
-function getNextCanvasFromPoolFor(index) {
-    let entry = canvasPools.get(index);
-    if (!entry) {
-        // Skapa ny pool för bilden
-        const pool = Array.from({ length: MAX_UNDO * 2 }, () => {
-            const c = document.createElement('canvas');
-            c.width = Math.floor(drawareax / zoom);
-            c.height = Math.floor(drawareay / zoom);
-            return c;
-        });
-        entry = { pool, index: 0 };
-        canvasPools.set(index, entry);
-    }
-
-    const canvas = entry.pool[entry.index % entry.pool.length];
-    entry.index++;
-    return canvas;
+function pruneStack(stack){
+  while (stack.length > HIST_MAX) {
+    const old = stack.shift();
+    // old.bmp är en <canvas>; låt GC ta den
+  }
 }
 
-// Helper function to explicitly clear a canvas's pixel data.
-// This is the primary mechanism to release GPU/CPU memory associated with the canvas content.
-// This should be called when a canvas is no longer needed for display or history.
-function clearCanvasMemory(canvas) {
-    if (canvas) {
-        // Store current dimensions to restore them after clearing.
-        // This is crucial because the canvas element itself remains in the pool
-        // and needs to be ready for future use with its original dimensions.
-        const currentWidth = Math.floor(drawareax / zoom);
-        const currentHeight = Math.floor(drawareay / zoom);
+function captureRegionSnapshot() {
+  // Snapshot av aktuella bildmått (w,h) – inte hela backing-canvas
+  const z = (zoom > 10 ? zoom/100 : zoom);
+  const imgW = Math.max(1, Math.floor(drawareax / z)) | 0;
+  const imgH = Math.max(1, Math.floor(drawareay / z)) | 0;
 
-        // Setting width/height to 0 then back to original size is a common
-        // trick to force the browser to release the pixel buffer memory.
-        canvas.width = 0;
-        canvas.height = 0;
+  const snap = document.createElement('canvas');
+  snap.width = imgW; snap.height = imgH;
+  const sctx = snap.getContext('2d');
+  if (typeof disableSmoothing === 'function') disableSmoothing(sctx);
+  // kopiera exakt bildytan 0..imgW/0..imgH
+  sctx.drawImage(drawingCanvas, 0, 0, imgW, imgH, 0, 0, imgW, imgH);
 
-        // Restore dimensions for future use in the pool.
-        canvas.width = Math.floor(drawareax / zoom);
-        canvas.height = Math.floor(drawareay / zoom);
-
-        // Optional: Explicitly clear the context as well, though width/height reset usually handles this.
-        // canvas.getContext('2d').clearRect(0, 0, currentWidth, currentHeight);
-    }
+  return { snap, imgW, imgH };
 }
 
-function saveState() {
-    const now = Date.now();
-    if (now - lastSaveTime < 100) return; // Debounce saves
-    lastSaveTime = now;
-
-    // When a new state is saved, the redo stack becomes invalid.
-    // All canvases in the redoStack are no longer needed, so clear their pixel data.
-    while (redoStack.length > 0) {
-        const oldRedoCanvas = redoStack.pop();
-        clearCanvasMemory(oldRedoCanvas); // Release pixel memory
-    }
-
-    // Get a canvas from the pool for the new snapshot.
-   const snapshot = getNextCanvasFromPoolFor(currentproject);
-    // Clear its content before drawing the current state onto it.
-    snapshot.getContext('2d').clearRect(0, 0, snapshot.width, snapshot.height);
-    snapshot.getContext('2d').drawImage(drawingCanvas, 0, 0);
-    undoStack.push(snapshot);
-
-    // If the undoStack exceeds MAX_UNDO, remove the oldest state.
-    // This oldest canvas is no longer needed for undo, so clear its pixel data.
-    if (undoStack.length > MAX_UNDO) {
-        const oldestUndoCanvas = undoStack.shift();
-        clearCanvasMemory(oldestUndoCanvas); // Release pixel memory
-    }
+function beginAction(label = ''){
+  const { snap, imgW, imgH } = captureRegionSnapshot();
+  
+    savelabel=label;
+    savebmp=snap;
+    savew=imgW;
+    saveh=imgH;
+    savedrawareax=drawareax;
+    savedrawareay=drawareay;
+    savedrawstartx=drawstartx;
+    savedrawstarty=drawstarty;
+    savezoom=zoom;
+  
+  
+}
+function destroyAction(){
+    
+    savelabel=null;
+    savebmp=null;
+    savew=0;
+    saveh=0;
+    savedrawareax=0;
+    savedrawareay=0;
+    savedrawstartx=0;
+    savedrawstarty=0;
+    savezoom=0;
+    
+    
 }
 
-function beginActionIfNeeded() { // Original function name
-    if (!actionInProgress) {
-        saveState();
-        actionInProgress = true;
-    }
+
+
+
+function endAction(){
+  if (typeof markDirty === 'function'){
+      
+      if(savedrawareax===0){return;}
+      
+      undoStack.push({
+        savelabel,
+        bmp: savebmp,         // snapshot canvas av bildytan
+        w: savew, h: saveh,  // "logiska" bildmått i px (utan zoom)
+        drawareax:savedrawareax, drawareay:savedrawareay, drawstartx:savedrawstartx, drawstarty:savedrawstarty, zoom:savezoom
+      });
+      pruneStack(undoStack);
+
+      // Ny gren -> töm redo
+      while (redoStack.length) redoStack.pop();
+      
+      
+      
+      
+      
+      
+      markDirty();
+  }
 }
 
-function endAction() {
-    actionInProgress = false;
+function restoreState(state){
+  if (!state || !state.bmp) return;
+
+  // 1) Rensa HELA backing-canvas (undvik gamla rester)
+  drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+  if (typeof disableSmoothing === 'function') disableSmoothing(drawingCtx);
+
+  // 2) Rita tillbaka snapshoten på (0,0) i originalstorlek
+  drawingCtx.drawImage(state.bmp, 0, 0);
+
+  // 3) Återställ vy – baserat på sparad zoom + bildmått
+  zoom       = state.zoom;
+  drawareax  = state.w * zoom;
+  drawareay  = state.h * zoom;
+  drawstartx = state.drawstartx;
+  drawstarty = state.drawstarty;
+
+  // 4) UI sync
+  const zval = Math.round(zoom * 100);
+  const zsl  = document.getElementById('zoomSlider');
+  const zlbl = document.getElementById('zoomLabel');
+  if (zsl)  zsl.value = zval;
+  if (zlbl) zlbl.innerText = "Zoom: " + zval + "%";
+
+  if (typeof markDirty === 'function') markDirty();
 }
 
-function undo() {
-    if (undoStack.length === 0) return;
+function undo(){
+  if (!undoStack.length) return;
 
-    // Save the current state of drawingCanvas to the redoStack
-    // so it can be redone later.
-    const currentCanvasForRedo = getNextCanvasFromPoolFor(currentproject);;
-    currentCanvasForRedo.getContext('2d').clearRect(0, 0, currentCanvasForRedo.width, currentCanvasForRedo.height);
-    currentCanvasForRedo.getContext('2d').drawImage(drawingCanvas, 0, 0);
-    redoStack.push(currentCanvasForRedo);
+  // flytta current → redo
+  const cur = captureRegionSnapshot();
+  redoStack.push({
+    bmp: cur.snap, w: cur.imgW, h: cur.imgH,
+    drawareax:drawareax, drawareay:drawareay, drawstartx:drawstartx, drawstarty:drawstarty, zoom:zoom
+  });
+  pruneStack(redoStack);
 
-    // Get the previous state from undoStack.
-    const prevCanvas = undoStack.pop();
-
-    // Apply the previous state to the drawingCanvas.
-    drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-    drawingCtx.drawImage(prevCanvas, 0, 0);
-
-    // No explicit clearCanvasMemory here for prevCanvas or currentCanvasForRedo
-    // because they are now part of the active undo/redo history (or the current display).
-    // Their memory will be managed when they are shifted off the stack or replaced later.
+  // återställ föregående
+  const prev = undoStack.pop();
+  restoreState(prev);
 }
 
-function redo() {
-    if (redoStack.length === 0) return;
+function redo(){
+  if (!redoStack.length) return;
 
-    // Save the current state of drawingCanvas to the undoStack
-    // so it can be undone later.
-    const currentCanvasForUndo = getNextCanvasFromPoolFor(currentproject);;
-    currentCanvasForUndo.getContext('2d').clearRect(0, 0, currentCanvasForUndo.width, currentCanvasForUndo.height);
-    currentCanvasForUndo.getContext('2d').drawImage(drawingCanvas, 0, 0);
-    undoStack.push(currentCanvasForUndo);
+  // flytta current → undo
+  const cur = captureRegionSnapshot();
+  undoStack.push({
+    bmp: cur.snap, w: cur.imgW, h: cur.imgH,
+    drawareax:drawareax, drawareay:drawareay, drawstartx:drawstartx, drawstarty:drawstarty, zoom:zoom
+  });
+  pruneStack(undoStack);
 
-    // If undoStack exceeds MAX_UNDO after pushing the current state,
-    // the oldest state is no longer needed for undo, so clear its pixel data.
-    if (undoStack.length > MAX_UNDO) {
-        const oldestUndoCanvas = undoStack.shift();
-        clearCanvasMemory(oldestUndoCanvas); // Release pixel memory
-    }
-
-    // Get the next state from redoStack.
-    const nextCanvas = redoStack.pop();
-
-    // Apply the next state to the drawingCanvas.
-    drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-    drawingCtx.drawImage(nextCanvas, 0, 0);
-
-    // No explicit clearCanvasMemory here for nextCanvas or currentCanvasForUndo
-    // because they are now part of the active undo/redo history (or the current display).
-}
-
-// Original beginAction function (duplicate of beginActionIfNeeded, but preserving original structure)
-function beginAction() {
-    if (!actionInProgress) {
-        saveState();
-        actionInProgress = true;
-    }
-}
-
-function cloneCurrentCanvas() {
-    let c = document.createElement('canvas');
-    c.width = drawingCanvas.width;
-    c.height = drawingCanvas.height;
-    c.getContext('2d').drawImage(drawingCanvas, 0, 0);
-    return c;
+  // återställ nästa
+  const next = redoStack.pop();
+  restoreState(next);
 }
 
 const gridBtn = document.getElementById('gridBtn');
