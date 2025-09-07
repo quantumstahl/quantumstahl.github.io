@@ -4672,6 +4672,45 @@ const btnProjects = document.getElementById('projectsBtn');
   origP3?.addEventListener('click', ()=> setActiveProject(3));
 let zomzomzom=1;
 
+function hitCornerPrecise(x, y, { radius = 28, safeInner = 14 } = {}) {
+  // Alla koordinater i CSS-px (clientX/clientY)
+  const left   = drawstartx;
+  const top    = drawstarty;
+  const right  = left + drawareax;
+  const bottom = top  + drawareay;
+
+  const inside = (x >= left && x <= right && y >= top && y <= bottom);
+  const corners = [
+    { id: 1, x: left,  y: top    }, // TL
+    { id: 2, x: right, y: top    }, // TR
+    { id: 3, x: left,  y: bottom }, // BL
+    { id: 4, x: right, y: bottom }  // BR
+  ];
+
+  // 1) Om man startar INNE i dokumentet: prioritera ritning,
+  //    utom om man träffar en pytteliten kvadrat precis i hörnet.
+  if (inside) {
+    for (const c of corners) {
+      const dx = Math.abs(x - c.x);
+      const dy = Math.abs(y - c.y);
+      const d2 = dx*dx + dy*dy;
+      if (dx <= safeInner && dy <= safeInner && d2 <= radius*radius) {
+        return c.id; // tillåt resize om man VERKLIGEN siktat på hörnet
+      }
+    }
+    return 0; // rita
+  }
+
+  // 2) Startade man UTANFÖR dokumentet: tillåt hörnträff om nära nog (cirkulärt)
+  let best = 0, bestD2 = Infinity, r2 = radius * radius;
+  for (const c of corners) {
+    const dx = x - c.x, dy = y - c.y;
+    const d2 = dx*dx + dy*dy;
+    if (d2 <= r2 && d2 < bestD2) { bestD2 = d2; best = c.id; }
+  }
+  return best; // 0 = ingen hörna, annars 1..4
+}
+
             //check---------------------------------------------------------------------------------------
             var check = function() {
             if(document.querySelector('.color-swatch.active')&&document.querySelector('.color-swatch.active').dataset.color!== brushColor)brushColor=document.querySelector('.color-swatch.active').dataset.color;
@@ -5382,33 +5421,13 @@ selTop  = Math.min(selectionStartY, selectionEndY);
 
 
         let cornerTouched = 0;
-        // Check each corner with a slightly larger touch area for mobile
-        const cornerSize = 60; // Larger touch target for corners on mobile
-
-        // Top-left corner
-        if (touchX >= drawstartx-cornerSize && touchX < drawstartx+cornerSize && 
-            touchY >= drawstarty-cornerSize && touchY < drawstarty+cornerSize) {
-            cornerTouched = 1;
-            
-        }
-        // Top-right corner
-        else if (touchX >= drawstartx+drawareax-cornerSize && touchX < drawstartx+drawareax+cornerSize && 
-                 touchY >= drawstarty-cornerSize && touchY < drawstarty+cornerSize) {
-            cornerTouched = 2;
-           
-        }
-        // Bottom-left corner
-        else if (touchX >= drawstartx-cornerSize && touchX < drawstartx+cornerSize && 
-                 touchY >= drawstarty+drawareay-cornerSize && touchY < drawstarty+drawareay+cornerSize) {
-            cornerTouched = 3;
-           
-        }
-        // Bottom-right corner
-        else if (touchX >= drawstartx+drawareax-cornerSize && touchX < drawstartx+drawareax+cornerSize && 
-                 touchY >= drawstarty+drawareay-cornerSize && touchY < drawstarty+drawareay+cornerSize) {
-            cornerTouched = 4;
-            
-        }
+        const corner = hitCornerPrecise(touchX, touchY, {
+            radius: (mobileAndTabletCheck() ? 28 : 18), // tapp-vänligt på mobil
+            safeInner: 12                                // liten innerzon
+          });
+          if (corner) {
+            cornerTouched = corner; // starta resize
+          }
 
         // Check if it's a double tap on a corner
         const currentTime = new Date().getTime();
