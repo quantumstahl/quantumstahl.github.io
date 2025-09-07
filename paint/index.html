@@ -4546,7 +4546,7 @@ const btnProjects = document.getElementById('projectsBtn');
                 
                 
                 
-                zoom=zoom*zomzomzom;
+                //zoom=zoom*zomzomzom;
                 let centerX = drawstartx + drawareax / 2;
                 let centerY = drawstarty + drawareay / 2;
                 drawareax = (drawareax / zoom * (zoomvalue / 100));
@@ -4554,7 +4554,7 @@ const btnProjects = document.getElementById('projectsBtn');
                 drawstartx = centerX - drawareax / 2;
                 drawstarty = centerY - drawareay / 2;
                 zoom = zoomvalue / 100;
-                zoom=zoom/zomzomzom;
+                //zoom=zoom/zomzomzom;
                 if((document.body.clientWidth > 100 && startan == false)) {
                     startan = true;  
                     drawstartx = (canvas.width/devicePixelRatio)/2 - drawareax/2;
@@ -4569,7 +4569,7 @@ const btnProjects = document.getElementById('projectsBtn');
                     projectdrawstarty = [drawstarty, drawstarty, drawstarty];
                     projectzoom = [zoom, zoom, zoom];
                     if(mobileAndTabletCheck())HANDLE_SIZE_SCR = 24;
-                    zoom=zoom*zomzomzom;
+                    //zoom=zoom*zomzomzom;
                 }
                 
                 
