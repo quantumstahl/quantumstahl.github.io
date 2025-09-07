@@ -4532,53 +4532,43 @@ const btnProjects = document.getElementById('projectsBtn');
                 
                 if(document.querySelector('.color-swatch.active')&&document.querySelector('.color-swatch.active').dataset.color!== brushColor)brushColor=document.querySelector('.color-swatch.active').dataset.color;
                 
-				if (canvas.width !== window.innerWidth * (window.devicePixelRatio || 1) ||
+                let zomzomzom=1;
+                if(window.innerHeight  < window.innerWidth&&mobileAndTabletCheck()){
+                    zomzomzom=0.3;
+                }
+                if (canvas.width !== window.innerWidth * (window.devicePixelRatio || 1) ||
                     canvas.height !== window.innerHeight * (window.devicePixelRatio || 1)) {
                     resizeCanvas();
                 }
+                
+                
+                
+                zoom=zoom/zomzomzom;
+                let centerX = drawstartx + drawareax / 2;
+                let centerY = drawstarty + drawareay / 2;
+                drawareax = (drawareax / (zoom * (zoomvalue / 100)));
+                drawareay = (drawareay / (zoom * (zoomvalue / 100)));
+                drawstartx = centerX - drawareax / 2;
+                drawstarty = centerY - drawareay / 2;
 				
-				
-                 // 1) UI-”nedskalning” i landscape på mobil
-  const uiScale = (window.innerHeight < window.innerWidth && mobileAndTabletCheck()) ? 0.3 : 1;
-
-  // 2) Användarzoom från slider (clampa lite för säkerhets skull)
-  const userZoom = Math.min(32, Math.max(0.05, (zoomvalue || 100) / 100));
-
-  // 3) Effektiv zoom för hur mycket bild som syns på skärmen
-  const eff = uiScale * userZoom;
-
-  // 4) Hämta viewportens synliga storlek (hellre visualViewport om finns)
-  const VW = (window.visualViewport ? window.visualViewport.width  : window.innerWidth)  | 0;
-  const VH = (window.visualViewport ? window.visualViewport.height : window.innerHeight) | 0;
-
-  // 5) Bevara centrum och RÄKNA OM från viewporten (inte från gamla drawarea/zoom)
-  const cx = drawstartx + drawareax/2;
-  const cy = drawstarty + drawareay/2;
-
-  drawareax = Math.max(1, Math.round(VW / eff));
-  drawareay = Math.max(1, Math.round(VH / eff));
-  drawstartx = Math.round(cx - drawareax/2);
-  drawstarty = Math.round(cy - drawareay/2);
-
-  // 6) Uppdatera din globala zoom EN gång (om resten av koden förväntar sig user-zoom)
-  zoom = userZoom;
-
-  // --- första init (oförändrad, men basera centrum på nya drawarea)
-  if ((document.body.clientWidth > 100 && startan === false)) {
-    startan = true;
-    drawstartx = ( (canvas.width / (window.devicePixelRatio||1)) / 2 ) - drawareax/2;
-    drawstarty = ( (canvas.height/ (window.devicePixelRatio||1)) / 2 ) - drawareay/2;
-
-    prevDrawAreaX = drawareax; prevDrawAreaY = drawareay;
-    prevDrawStartX = drawstartx; prevDrawStartY = drawstarty;
-    projectdrawareax = [drawareax, drawareax, drawareax];
-    projectdrawareay = [drawareay, drawareay, drawareay];
-    projectdrawstartx = [drawstartx, drawstartx, drawstartx];
-    projectdrawstarty = [drawstarty, drawstarty, drawstarty];
-    projectzoom = [zoom, zoom, zoom];
-    if (mobileAndTabletCheck()) HANDLE_SIZE_SCR = 24;
-  }
-}
+                zoom = zoomvalue / 100;
+                zoom=zoom*zomzomzom;
+                if((document.body.clientWidth > 100 && startan == false)) {
+                    startan = true;  
+                    drawstartx = (canvas.width/devicePixelRatio)/2 - drawareax/2;
+                    drawstarty = (canvas.height/devicePixelRatio)/2 - drawareay/2;
+                    prevDrawAreaX = drawareax;
+                    prevDrawAreaY = drawareay;
+                    prevDrawStartX = drawstartx;
+                    prevDrawStartY = drawstarty;
+                    projectdrawareax = [drawareax, drawareax, drawareax];
+                    projectdrawareay = [drawareay, drawareay, drawareay];
+                    projectdrawstartx = [drawstartx, drawstartx, drawstartx];
+                    projectdrawstarty = [drawstarty, drawstarty, drawstarty];
+                    projectzoom = [zoom, zoom, zoom];
+                    if(mobileAndTabletCheck())HANDLE_SIZE_SCR = 24;
+                    zoom=zoom*zomzomzom;
+                }
                 
                 
    
