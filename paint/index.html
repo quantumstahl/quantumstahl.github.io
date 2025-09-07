@@ -884,13 +884,52 @@
     width: calc(100vw * var(--ls-scale));
     height: calc(100dvh * var(--ls-scale));
   }
-  #bottomDock{
-    bottom: auto;                                /* sluta fästa i botten */
-    top: 0;  /* lägg den upptill, under iOS-bar */
-    left: 40%;
-    transform: translateX(-40%);
-    z-index: 2400;                               /* över canvastoppen */
+   #bottomDock{
+    position: fixed;
+    right: calc(env(safe-area-inset-right) + 10px);
+    top:   calc(env(safe-area-inset-top)  + 12px);
+    bottom: calc(env(safe-area-inset-bottom) + 12px);
+    left: auto;
+    transform: none;                 /* inte centrerad längre */
+    width: 110px;                    /* smal, ren kolumn */
+    padding: 10px;
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: hidden;                /* klipp bort ev. spill */
+    z-index: 2400;
   }
+
+  /* innehållet i sidobaren staplas vertikalt */
+  #bottomDock .dock-left{ display:flex; flex-direction:column; gap:10px; }
+  #bottomDock .dock-right{ margin-top:auto; }  /* 🎨-knappen längst ned */
+
+  /* paletten: två kolumner, många rader */
+  #bottomDock .palette-grid{
+    display: grid;
+    grid-template-columns: repeat(2, 48px);
+    grid-auto-rows: 48px;
+    gap: 6px;
+    justify-content: center;
+  }
+  #bottomDock .palette-grid .color-swatch{
+    width: 48px !important; height: 48px !important; border-radius: 6px;
+  }
+
+  /* sliders i sidled tar plats — rotera dem lodrätt */
+  #bottomDock .brush-row{
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+  }
+  #brushSizeSlider, #zoomSlider{
+    width: 200px;                     /* längd före rotation */
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+  }
+  #brushSizeLabel, #zoomLabel{ font-size:14px; }
+
+  /* flytta Transform-knappen lite så den inte krockar med sidobaren */
+  #transformDock{ right: calc(env(safe-area-inset-right) + 130px); }
 
 
 
