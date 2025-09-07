@@ -4526,39 +4526,7 @@ const btnProjects = document.getElementById('projectsBtn');
   origP2?.addEventListener('click', ()=> setActiveProject(2));
   origP3?.addEventListener('click', ()=> setActiveProject(3));
 
-// ---- Viewport & skalor
-function VV() {
-  const vv = window.visualViewport;
-  return {
-    w: (vv ? vv.width  : window.innerWidth)  | 0,
-    h: (vv ? vv.height : window.innerHeight) | 0,
-  };
-}
-function DPR() { return Math.max(1, window.devicePixelRatio || 1); }
-function UI_SCALE() {
-  return (window.innerHeight < window.innerWidth && typeof mobileAndTabletCheck==='function' && mobileAndTabletCheck())
-    ? 0.30   // din landscape-nedskalning
-    : 1;
-}
-function USER_ZOOM() {                // från slider (0.05x .. 32x)
-  const z = (typeof zoomvalue !== 'undefined' ? zoomvalue : 100) / 100;
-  return Math.min(32, Math.max(0.05, z));
-}
-function EFF_ZOOM() {                  // vad ritningen faktiskt skalas med på skärm
-  return UI_SCALE() * USER_ZOOM();
-}
 
-// ---- Canvas-backing (kalla vid start/resize)
-function ensureCanvasBacking() {
-  const { w, h } = VV();
-  const dpr = DPR();
-  // CSS-storlek sätts i CSS/med din layout; här just backbuffer
-  const needW = Math.round(w * dpr), needH = Math.round(h * dpr);
-  if (canvas.width !== needW)  canvas.width  = needW;
-  if (canvas.height!== needH)  canvas.height = needH;
-  const ctx = canvas.getContext('2d');
-  ctx.setTransform(1,0,0,1,0,0);
-}
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
@@ -4575,14 +4543,13 @@ function ensureCanvasBacking() {
                 
                 
                 
-                zoomvalue=zoomvalue/zomzomzom;
+                
                 let centerX = drawstartx + drawareax / 2;
                 let centerY = drawstarty + drawareay / 2;
                 drawareax = (drawareax / (zoom * (zoomvalue / 100)));
                 drawareay = (drawareay / (zoom * (zoomvalue / 100)));
                 drawstartx = centerX - drawareax / 2;
                 drawstarty = centerY - drawareay / 2;
-				zoomvalue=zoomvalue*zomzomzom;
                 zoom = zoomvalue / 100;
                 
                 if((document.body.clientWidth > 100 && startan == false)) {
@@ -4599,7 +4566,7 @@ function ensureCanvasBacking() {
                     projectdrawstarty = [drawstarty, drawstarty, drawstarty];
                     projectzoom = [zoom, zoom, zoom];
                     if(mobileAndTabletCheck())HANDLE_SIZE_SCR = 24;
-                    zoomvalue=zoomvalue*zomzomzom;
+                    
                 }
                 
                 
