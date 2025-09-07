@@ -987,48 +987,48 @@
   }
 }
 /* Gör resize-canvas menyn större på mobiler */
-@media (pointer: coarse), (max-width: 768px){
-  #resizeMenu{
+
+  #resizeModal{
     padding: 16px;
     border-radius: 14px;
   }
 
-  #resizeMenu h3{
+  #resizeModal h3{
     font-size: 20px;
     margin-bottom: 12px;
   }
 
   /* Inputs för bredd/höjd */
-  #resizeMenu input[type="number"],
-  #resizeMenu input[type="text"]{
-    font-size: 18px;
+  #resizeModal input[type="number"],
+  #resizeModal input[type="text"]{
+    font-size: 28px;
     padding: 10px 12px;
-    min-width: 120px;
+    min-width: 160px;
     border-radius: 8px;
   }
 
-  #resizeMenu label{
-    font-size: 16px;
+  #resizeModal label{
+    font-size: 26px;
     margin-bottom: 6px;
     display: block;
   }
 
   /* Knapparna större */
-  #resizeMenu button{
+  #resizeModal button{
     font-size: 18px;
-    min-height: 48px;
+    min-height: 68px;
     padding: 10px 16px;
     border-radius: 10px;
     margin-top: 12px;
   }
 
   /* Lägg inputs + knappar i kolumn om de annars hamnar för tätt */
-  #resizeMenu .row{
+  #resizeModal .row{
     flex-direction: column;
     gap: 12px;
     align-items: stretch;
   }
-}
+
         </style>
 </head>
 <body>
