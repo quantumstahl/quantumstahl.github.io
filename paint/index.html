@@ -4607,7 +4607,8 @@ let zomzomzom=1;
                     projectdrawstarty = [drawstarty, drawstarty, drawstarty];
                     projectzoom = [zoom, zoom, zoom];
                     if(mobileAndTabletCheck())HANDLE_SIZE_SCR = 24;
-                    zoom=zoom/zomzomzom;
+                    if(window.innerHeight  < window.innerWidth&&mobileAndTabletCheck()){}
+                    else zoom=zoom/zomzomzom;
                 }
                 
                 
