@@ -5337,7 +5337,7 @@ selTop  = Math.min(selectionStartY, selectionEndY);
         }
                     // Check for tool actions inside the drawing area
         if (touchX >= drawstartx && touchX < drawstartx + drawareax &&
-           touchY >= drawstarty && touchY < drawstarty + drawareay && touchY > 155) {
+           touchY >= drawstarty && touchY < drawstarty + drawareay ) {
 
             const canvasX = Math.floor((touchX - drawstartx) / zoom);
             const canvasY = Math.floor((touchY - drawstarty) / zoom);
@@ -5457,7 +5457,7 @@ function handleTouchMove(e) {
     }
 
     // Handle drawing with pen tool
-    if (isDrawing && touchY > 155 && currentTool === 'pen'&&!movescrolly&&!movescrollx) {
+    if (isDrawing && currentTool === 'pen'&&!movescrolly&&!movescrollx) {
         //beginAction();
         drawPixel(touchX, touchY);
      
