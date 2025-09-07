@@ -813,6 +813,7 @@
     padding: 14px 20px;
     border-radius: 28px;
     gap: 18px;
+    
   }
   #centerTopBar .barbtn{
     min-width: 80px;
@@ -821,7 +822,25 @@
     border-radius: 20px;
   }
 }
-        
+@media (pointer:coarse), (max-width: 768px){
+  /* Flytta centerTopBar lite åt höger + ge den mer luft */
+  #centerTopBar{
+    left: 58%;                   /* lite mer åt höger */
+    transform: translateX(-50%); /* behåll "center" kring nya left */
+    padding: 16px 22px;
+    gap: 20px;
+    border-radius: 28px;
+    max-width: 96vw;             /* försäkring mot overflow */
+  }
+
+  /* Större ikoner/knappar i topbar-center */
+  #centerTopBar .barbtn{
+    min-width: 96px;
+    height: 96px;
+    font-size: 72px;             /* större emoji/ikon */
+    border-radius: 22px;
+  }
+}        
         </style>
 </head>
 <body>
