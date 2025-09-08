@@ -1,172 +1,290 @@
 <!doctype html>
 <html lang="sv">
 <head>
-  <meta charset="utf-8" />
-  <!-- Exakt en viewport-rad -->
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-  <title>Stable Canvas Shell</title>
-  <style>
-    :root { color-scheme: dark; }
-    html, body {
-      margin: 0;
-      padding: 0;
-      /* 100dvh undviker iOS adressfälts-hop */
-      height: 100dvh;
-      overflow: hidden;       /* ingen scroll */
-      background: #111;
-      touch-action: auto;     /* låt sidan vara normal */
-    }
-    /* Endast canvasen stänger av gester */
-    #stage {
-      display: block;
-      width: 100%;
-      height: 100%;
-      touch-action: none;            /* kritiskt: inga pinch/scroll på canvas */
-      image-rendering: pixelated;
-      background: #2b2b2b;
-    }
-
-    /* Liten diag-overlay (kan tas bort) */
-    #diag {
-      position: fixed; left: 8px; bottom: 8px;
-      font: 12px/1.2 system-ui, sans-serif;
-      color: #ddd; background: rgba(0,0,0,.6);
-      padding: 6px 8px; border-radius: 8px;
-      pointer-events: none; user-select: none;
-    }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/>
+<title>Failsafe Draw → Camera</title>
+<style>
+  html, body { margin:0; height:100dvh; overflow:hidden; background:#111; }
+  #stage { width:100%; height:100%; display:block; touch-action:none; image-rendering:pixelated; }
+  #diag { position:fixed; left:8px; bottom:8px; background:rgba(0,0,0,.65); color:#fff;
+          font:12px/1.2 system-ui,monospace; padding:6px 8px; border-radius:8px; user-select:none; pointer-events:none; }
+</style>
 </head>
 <body>
-  <canvas id="stage"></canvas>
-  <div id="diag">init…</div>
+<canvas id="stage"></canvas>
+<div id="diag">boot…</div>
 
-  <script>
-  (function(){
-    // ---------- Grund: DPI-säker resize utan jitter ----------
-    const dpr = () => (window.devicePixelRatio || 1);
-    const cv = document.getElementById('stage');
-    const ctx = cv.getContext('2d', { alpha: false, desynchronized: true });
-    let cw = 0, ch = 0;
+<script>
+(() => {
+/*** === VÄXLA HÄR === ***/
+const USE_CAMERA = true;   // börja med false → du MÅSTE se ritning direkt.
 
-    function resizeCanvas() {
-      // Använd visuella viewporten om den finns (iOS säkrare)
-      const vw = (window.visualViewport?.width || window.innerWidth);
-      const vh = (window.visualViewport?.height || window.innerHeight);
-      const ratio = dpr();
+/*** === Grundcanvas === ***/
+const cv  = document.getElementById('stage');
+const ctx = cv.getContext('2d', { alpha:false }); // så bakgrund fyller svart; vi fyller själva
+const diag = document.getElementById('diag');
+const activePointers = new Map();   // id -> {x,y}
+let gesture = null;  
+// 1) Kamera
 
-      const targetW = Math.max(1, Math.floor(vw * ratio));
-      const targetH = Math.max(1, Math.floor(vh * ratio));
-      if (cv.width !== targetW || cv.height !== targetH) {
-        cv.width = targetW; cv.height = targetH;
-        cv.style.width = vw + 'px';
-        cv.style.height = vh + 'px';
-        ctx.setTransform(ratio, 0, 0, ratio, 0, 0); // 1 CSS-px == 1 enhet
-        cw = vw; ch = vh;
-        render(); // rita om
-      }
-    }
+const camera = { x:0, y:0, scale:1 };
+// 2) Backbuffer (bilden)
+const back = document.createElement('canvas');
+back.width = 3000; back.height = 2000;
+const bctx = back.getContext('2d');
 
-    // Debounce på viewport-förändringar (iOS adressfält)
-    let rezId = 0;
-    function scheduleResize() {
-      cancelAnimationFrame(rezId);
-      rezId = requestAnimationFrame(resizeCanvas);
-    }
-    window.addEventListener('resize', scheduleResize);
-    window.visualViewport?.addEventListener('resize', scheduleResize);
-    window.addEventListener('orientationchange', () => {
-      // vänta ett tick efter orientationchange
-      setTimeout(resizeCanvas, 50);
-    });
+// Tydlig bas – ljus bakgrund + checker
+bctx.fillStyle = "#f0f0f0";
+bctx.fillRect(0,0,back.width,back.height);
+for(let y=0;y<back.height;y+=100){
+  for(let x=0;x<back.width;x+=100){
+    bctx.fillStyle = ((x/100 + y/100) % 2) ? "#e0e0e0" : "#ffffff";
+    bctx.fillRect(x,y,100,100);
+  }
+}
+bctx.fillStyle = "#222";
+bctx.font = "28px system-ui";
+bctx.fillText("Camera/backbuffer-läge – rita för att testa", 24, 48);
 
-    // ---------- Stabil pointer-hantering (alla plattformar) ----------
-    let drawing = false;
-    let last = null;
+function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
+function mid(a,b){ return { sx:(a.x+b.x)/2, sy:(a.y+b.y)/2 }; } // i SKÄRM-px
 
-    // Viktigt: passive:false + preventDefault inne i handlers
-    cv.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      cv.setPointerCapture(e.pointerId);
-      drawing = true;
-      last = { x: e.clientX, y: e.clientY };
-      dot(last.x, last.y);
-      updateDiag('down');
-    }, { passive: false });
+function fitCanvas(){
+  const dpr = window.devicePixelRatio || 1;
+  const vw = Math.floor((window.visualViewport?.width  ?? window.innerWidth));
+  const vh = Math.floor((window.visualViewport?.height ?? window.innerHeight));
+  const W  = Math.max(1, Math.floor(vw * dpr));
+  const H  = Math.max(1, Math.floor(vh * dpr));
+  if (cv.width !== W || cv.height !== H){
+    cv.width = W; cv.height = H;
+    cv.style.width = vw+'px';
+    cv.style.height = vh+'px';
+    // Gör 1 canvas-enhet = 1 CSS-px
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    render();
+  }
+}
+window.addEventListener('resize', fitCanvas);
+window.visualViewport?.addEventListener('resize', fitCanvas);
+window.addEventListener('orientationchange', () => setTimeout(fitCanvas, 50));
+fitCanvas();
 
-    cv.addEventListener('pointermove', (e) => {
-      if (!drawing) return;
-      e.preventDefault();
-      const p = { x: e.clientX, y: e.clientY };
-      line(last, p);
-      last = p;
-    }, { passive: false });
+/*** === Hjälp för diag === ***/
+function setDiag(msg){
+  const dpr = (window.devicePixelRatio||1).toFixed(2);
+  const vw = Math.round(window.visualViewport?.width || window.innerWidth);
+  const vh = Math.round(window.visualViewport?.height|| window.innerHeight);
+  diag.textContent = `${msg} | dpr=${dpr} | vw=${vw}×${vh}`;
+}
 
-    function endStroke(e){
-      if (!drawing) return;
-      e?.preventDefault?.();
-      try { e?.pointerId != null && cv.releasePointerCapture(e.pointerId); } catch {}
-      drawing = false;
-      last = null;
-      updateDiag('up/cancel');
-    }
+/*** === Läge A: DIREKT RITA I SKÄRM-SPACE (garanterad synlighet) === ***/
+if (!USE_CAMERA){
+  let drawing = false, last = null;
 
-    cv.addEventListener('pointerup', endStroke, { passive: false });
-    cv.addEventListener('pointercancel', endStroke, { passive: false });
-    // Extra skydd (Safari kan slänga touchcancel/leave)
-    cv.addEventListener('touchcancel', endStroke, { passive: false });
-    cv.addEventListener('pointerleave', (e) => { if (drawing) endStroke(e); }, { passive:false });
+  function render(){
+    // Tydlig bakgrund (inte nästan-svart)
+    const vw = cv.style.width ? parseInt(cv.style.width) : window.innerWidth;
+    const vh = cv.style.height? parseInt(cv.style.height): window.innerHeight;
+    const grd = ctx.createLinearGradient(0,0, vw, vh);
+    grd.addColorStop(0, "#283593"); // blå
+    grd.addColorStop(1, "#26c6da"); // cyan
+    ctx.fillStyle = grd;
+    ctx.fillRect(0,0,vw,vh);
 
-    // På UI-knappar (om du har sådana): använd touch-action: manipulation i CSS
+    // Demo-grafik (vit ruta + text)
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(16,16,140,56);
+    ctx.fillStyle = "#000";
+    ctx.font = "16px system-ui";
+    ctx.fillText("Rita här med fingret", 26, 48);
+    setDiag('screen-mode');
+  }
 
-    // ---------- Ritstubs (ersätt med din logik) ----------
-    function render() {
-      ctx.fillStyle = '#202020';
-      ctx.fillRect(0, 0, cw, ch);
-      ctx.fillStyle = '#3c7';
-      ctx.fillRect(10, 10, 140, 40);
-      ctx.fillStyle = '#fff';
-      ctx.font = '16px system-ui';
-      ctx.fillText('Stable shell – rita för att testa input', 20, 36);
-    }
-    function dot(x, y) {
-      ctx.fillStyle = '#f55';
-      ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI*2);
-      ctx.fill();
-    }
-    function line(a, b) {
-      ctx.strokeStyle = '#6af';
-      ctx.lineWidth = 6;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
-    }
+  function drawSeg(x, y){
+    ctx.strokeStyle = "#ff5252"; // röd
+    ctx.lineWidth = 10;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    if (last) ctx.moveTo(last.x, last.y); else ctx.moveTo(x,y);
+    ctx.lineTo(x,y);
+    ctx.stroke();
+    last = {x,y};
+  }
 
-    // ---------- Diag / watchdog ----------
-    const diag = document.getElementById('diag');
-    let lastEventTs = performance.now();
-    function updateDiag(tag){
-      lastEventTs = performance.now();
-      diag.textContent = [
-        `evt: ${tag}`,
-        `dpr=${dpr().toFixed(2)}`,
-        `vw=${Math.round(window.visualViewport?.width||window.innerWidth)}×${Math.round(window.visualViewport?.height||window.innerHeight)}`,
-        `cv=${cv.width}×${cv.height}`,
-      ].join('  |  ');
-    }
+  cv.addEventListener('pointerdown', e=>{
+    e.preventDefault();
+    cv.setPointerCapture(e.pointerId);
+    drawing = true; last = null;
+    drawSeg(e.clientX, e.clientY);
+  }, {passive:false});
+
+  cv.addEventListener('pointermove', e=>{
+    if(!drawing) return;
+    e.preventDefault();
+    drawSeg(e.clientX, e.clientY);
+  }, {passive:false});
+
+  function end(e){
+    if(!drawing) return;
+    e?.preventDefault?.();
+    try{ e?.pointerId!=null && cv.releasePointerCapture(e.pointerId);}catch{}
+    drawing = false; last = null;
+  }
+  cv.addEventListener('pointerup', end, {passive:false});
+  cv.addEventListener('pointercancel', end, {passive:false});
+  cv.addEventListener('touchcancel', end, {passive:false});
+
+  render();
+  return; // <-- klara här i screen-mode
+}
 
 
-    // ---------- Start ----------
-    resizeCanvas();
-    updateDiag('boot');
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState !== 'visible') { drawing = false; last = null; }
-    });
 
-  })();
-  </script>
+// 3) Hjälpare
+function screenToImage(sx, sy){
+  const r = cv.getBoundingClientRect();
+  const px = sx - r.left, py = sy - r.top;
+  return { ix: px / camera.scale + camera.x, iy: py / camera.scale + camera.y };
+}
+
+// 4) Render
+function render(){
+  // täck hela skärmen med något så svart inte syns
+  const vw = cv.style.width ? parseInt(cv.style.width) : window.innerWidth;
+  const vh = cv.style.height? parseInt(cv.style.height): window.innerHeight;
+  ctx.fillStyle = "#222";
+  ctx.fillRect(0,0,vw,vh);
+
+  ctx.save();
+  ctx.scale(camera.scale, camera.scale);
+  ctx.translate(-camera.x, -camera.y);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(back, 0, 0);
+  ctx.restore();
+
+  setDiag(`camera-mode cam=(${camera.x.toFixed(1)},${camera.y.toFixed(1)}) scale=${camera.scale.toFixed(2)}`);
+}
+
+// 5) Rita på backbuffer (bild-space)
+let drawing = false, lastImg = null;
+const BRUSH = { color:"#e91e63", size: 18 };
+
+function drawSegImg(ix, iy){
+  bctx.strokeStyle = BRUSH.color;
+  bctx.lineWidth   = BRUSH.size;
+  bctx.lineCap     = "round";
+  bctx.lineJoin    = "round";
+  bctx.beginPath();
+  if (lastImg) bctx.moveTo(lastImg.x, lastImg.y); else bctx.moveTo(ix,iy);
+  bctx.lineTo(ix,iy);
+  bctx.stroke();
+  lastImg = {x:ix, y:iy};
+}
+
+cv.addEventListener('pointerdown', (e)=>{
+  e.preventDefault();
+  cv.setPointerCapture(e.pointerId);
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (activePointers.size === 1) {
+    // En-finger => börja rita
+    drawing = true; lastImg = null;
+    const {ix,iy} = screenToImage(e.clientX, e.clientY);
+    drawSegImg(ix,iy);
+    render();
+  } else if (activePointers.size === 2) {
+    // Två fingrar => initiera pinch-pan gesture
+    drawing = false; // avbryt ev. pågående stroke
+    const [p1, p2] = [...activePointers.values()];
+    const m = mid(p1,p2);
+    const d = dist(p1,p2);
+    gesture = {
+      startDist: Math.max(d, 1),
+      startCenter: { sx: m.sx, sy: m.sy },
+      startCam: { x: camera.x, y: camera.y, scale: camera.scale }
+    };
+  }
+}, {passive:false});
+
+cv.addEventListener('pointermove', (e)=>{
+  const p = activePointers.get(e.pointerId);
+  if (!p) return;
+  e.preventDefault();
+  p.x = e.clientX; p.y = e.clientY;
+
+  if (activePointers.size === 1 && drawing) {
+    // Fortsätt rita med en finger
+    const {ix,iy} = screenToImage(e.clientX, e.clientY);
+    drawSegImg(ix,iy);
+    render();
+    return;
+  }
+
+  if (activePointers.size === 2 && gesture) {
+    // Pinch + pan
+    const [a, b] = [...activePointers.values()];
+    const m = mid(a,b);
+    const d = Math.max(dist(a,b), 1);
+    const factor = d / gesture.startDist;
+
+    // 1) Zooma runt mittpunkten
+    //   (temporärt sätt skalan för att få korrekta coord i screenToImage)
+    const prevScale = camera.scale;
+    camera.scale = Math.min(Math.max(gesture.startCam.scale * factor, 0.25), 20);
+
+    // 2) Pan: håll samma bildpunkt under mitten
+    const before = (function(){
+      // bildpunkt under GESTURENS start-center
+      return screenToImage(gesture.startCenter.sx, gesture.startCenter.sy);
+    })();
+    const after = screenToImage(m.sx, m.sy);
+    // nya kameran = startCam justerad med skillnaden
+    camera.x = gesture.startCam.x + (before.ix - after.ix);
+    camera.y = gesture.startCam.y + (before.iy - after.iy);
+
+    render();
+  }
+}, {passive:false});
+
+function endPointer(e){
+  e?.preventDefault?.();
+  try{ e?.pointerId!=null && cv.releasePointerCapture(e.pointerId);}catch{}
+  activePointers.delete(e.pointerId);
+
+  if (activePointers.size < 2) {
+    gesture = null; // sluta med pinch/drag
+  }
+  if (activePointers.size === 0) {
+    drawing = false; lastImg = null;
+  }
+  // Om du vill: när exakt 1 finger finns kvar kan du auto-återgå till ritning.
+}
+cv.addEventListener('pointerup', endPointer, {passive:false});
+cv.addEventListener('pointercancel', endPointer, {passive:false});
+cv.addEventListener('touchcancel', endPointer, {passive:false});
+
+// 6) demo: piltangenter pan, +/- zoom (desktop)
+window.addEventListener('keydown', e=>{
+  if(e.key==='ArrowLeft')  camera.x -= 50;
+  if(e.key==='ArrowRight') camera.x += 50;
+  if(e.key==='ArrowUp')    camera.y -= 50;
+  if(e.key==='ArrowDown')  camera.y += 50;
+  if(e.key==='+' || e.key==='=') zoomAt(window.innerWidth/2, window.innerHeight/2, 1.2);
+  if(e.key==='-')          zoomAt(window.innerWidth/2, window.innerHeight/2, 1/1.2);
+  render();
+});
+function zoomAt(sx, sy, factor){
+  const before = screenToImage(sx, sy);
+  camera.scale = Math.min(Math.max(camera.scale * factor, 0.25), 20);
+  const after  = screenToImage(sx, sy);
+  camera.x += before.ix - after.ix;
+  camera.y += before.iy - after.iy;
+}
+
+render();
+})();
+</script>
 </body>
 </html>
