@@ -4844,7 +4844,17 @@ function _revertToPreStroke() {
   g.drawImage(preStrokeBmp, 0, 0);
   preStrokeBmp = null;
 }
-window.addEventListener('orientationchange', sizesizerezie(), { passive:true });
+window.addEventListener('orientationchange', sizesizerezie2(), { passive:true });
+
+function sizesizerezie2(){
+    
+                    drawstartx = canvas.width/devicePixelRatio/2 - drawareax/2;
+                    drawstarty = canvas.height/devicePixelRatio/2 - drawareay/2;
+    
+    
+}
+
+
             //check---------------------------------------------------------------------------------------
             var check = function() {
             const active = document.querySelector('.color-swatch.active');
@@ -4936,8 +4946,7 @@ window.addEventListener('orientationchange', sizesizerezie(), { passive:true });
                 }
                 
                 // Draw the document background
-               /// ctx.fillStyle = "#4D4D4D";
-               ctx.fillStyle = "red";
+                ctx.fillStyle = "#4D4D4D";
                 ctx.fillRect(0, 0, canvas.width/devicePixelRatio, canvas.height/devicePixelRatio);
                 
  
