@@ -2044,10 +2044,7 @@ confirmResizeBtn.addEventListener('click', async function() {
             let drawstarty = 1000;
             let startan = false;
             
-            let movecorners1 = false;
-            let movecorners2 = false;
-            let movecorners3 = false;
-            let movecorners4 = false;
+            let movecorners = false;
             let movescrollx = false;
             let movescrollxvalue = 0;
             let savescrollxvalue = 0;
@@ -2101,8 +2098,6 @@ confirmResizeBtn.addEventListener('click', async function() {
             
             // **************** NEW VARIABLES FOR IMAGE LAYER ****************
             let currentImage = null;
-            let currentImageX = 0;
-            let currentImageY = 0;
             let currentImageWidth = 0;
             let currentImageHeight = 0;
             let currentImageOriginalWidth = 0;
@@ -2132,10 +2127,6 @@ confirmResizeBtn.addEventListener('click', async function() {
             
             
             let prevzoom=1;
-            let selLeft = 0;
-            let selTop =0;
-            let selWidth = 0;
-            let selHeight =0;
             let isTextToolActive = false;
             let currentImagecanvas=currentproject;
             let showGrid = false;
@@ -2631,35 +2622,6 @@ function switchTool(newTool, opts = {}) {
                 // Add a tiny bias (0.001) to prevent rounding down due to floating point errors
                 return Math.round(value + 0.001);
             }
-            
-            
-            // IMPROVED: Make sure we have accurate mouse coordinates
-            function getCanvasMousePosition(event) {
-                const rect = canvas.getBoundingClientRect();
-               // const devicePixelRatio = window.devicePixelRatio || 1;
-                
-                // Calculate scales including the device pixel ratio
-              //  const scaleX = canvas.width / (rect.width * devicePixelRatio);
-             //   const scaleY = canvas.height / (rect.height * devicePixelRatio);
-                
-                // Get mouse coordinates relative to the canvas
-               // const clientX = event.clientX - rect.left;
-              //  const clientY = event.clientY - rect.top;
-               
-                return {
-                 //   x: clientX * (canvas.width / rect.width),
-                 //   y: clientY * (canvas.height / rect.height)
-                    
-                    x: event.clientX - rect.left,
-                    y: event.clientY - rect.top
-                };
-            }
-            
-            
-         
-    
-            
-            
             // IMPROVED: More accurate pixel drawing
             function drawPixel(x, y) {
                 const relativeX = Math.floor((x - drawstartx) / zoom );
@@ -5026,6 +4988,106 @@ document.getElementById('mnuNew').addEventListener('click', ()=>{
   }
 });
 
+
+
+
+
+
+
+const pointers = new Map(); 
+
+canvas.addEventListener('pointerdown', (ev) => {
+    if (ev.pointerType === 'touch') ev.preventDefault();  
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    
+    if (pointers.size === 2) {clearTimeout(touchTimer);if(delatare==true){delatare=false; _revertToPreStroke();}const dx = e.touches[0].clientX - e.touches[1].clientX;const dy = e.touches[0].clientY - e.touches[1].clientY;lastPinchDistance = Math.hypot(dx, dy);return;}
+    if (pointers.size === 1){touchTimer = setTimeout(() => {delatare=false;  }, 40);}
+    if (ev.target === canvas){ 
+        x = ev.clientX - canvas.getBoundingClientRect().left;
+        y = ev.clientY -canvas.getBoundingClientRect().top;
+        //movecorners
+        if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty-30 && y < drawstarty+10) {movecorners = true;resizeStart('NW'); return;}
+        if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty-30 && y < drawstarty+10) {movecorners = true;resizeStart('NE');   return;}
+        if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty+drawareay && y < drawstarty-10+drawareay+30) {movecorners = true;resizeStart('SW');    return;}
+        if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty+drawareay-10 && y < drawstarty+drawareay+30) {movecorners = true;resizeStart('SE');return;}
+        //scrollbar
+        let sbThickness = getScrollbarThickness();
+        if (drawareax - (canvas.width/devicePixelRatio*2) > -canvas.width/devicePixelRatio-50) {if (x <= canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue + (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01) &&x >= canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue &&y >= canvas.height/devicePixelRatio - sbThickness && y <= canvas.height/devicePixelRatio) {movescrollx = true;savescrollxvalue = x;return;}}
+        if (drawareay - (canvas.height/devicePixelRatio*2) > -canvas.height/devicePixelRatio-50) {if (x <= canvas.width/devicePixelRatio && x >= canvas.width/devicePixelRatio - sbThickness &&y >= 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue &&y <= 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue + (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)) {movescrolly = true;savescrollyvalue = y;return;}}
+        // Process tools
+        if (x >= drawstartx && x < drawstartx + drawareax &&y >= drawstarty && y < drawstarty + drawareay) {
+            const canvasX = Math.floor((x - drawstartx) / zoom);
+            const canvasY = Math.floor((y - drawstarty) / zoom);
+            if (currentTool === 'eyedropper') {updateEyedropperBuffer();const data = eyedropperCtx.getImageData(canvasX, canvasY, 1, 1).data;const hexColor = `#${data[0].toString(16).padStart(2, '0')}${data[1].toString(16).padStart(2, '0')}${data[2].toString(16).padStart(2, '0')}`;brushColor = hexColor;isTransparentBrush = false;switchTool('pen');return;}
+            else if (currentTool === 'fill') {beginAction();floodFill(x, y);endAction();}
+            else if ((currentTool === 'select')) {isSelecting = true;selectionStartX = canvasX;selectionStartY = canvasY;selectionEndX = canvasX;selectionEndY = canvasY;}
+            else if(currentTool === 'text'){const text = prompt("Enter your text:");if (text) {beginAction();drawText(x, y, text);endAction();}}
+            else if (currentTool === 'pen') {beginAction();isDrawing = true;lastX = 0;lastY = 0;drawPixel(x, y);}
+        }
+    }
+});
+
+canvas.addEventListener('pointermove', (ev) => {
+    if (ev.pointerType === 'touch') ev.preventDefault();
+    if (movecorners) {resizePreviewFromCanvasXY(x, y);}
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    if (pointers.size === 2 && lastPinchDistance !== null) {const dx = e.touches[0].clientX - e.touches[1].clientX;const dy = e.touches[0].clientY - e.touches[1].clientY;const newDistance = Math.hypot(dx, dy);const delta = newDistance - lastPinchDistance;let newzoom =zoom/zomzomzom;if (Math.abs(delta) > 5) {if (delta > 0) newzoom *= 1.05;else newzoom *= 0.95;newzoom = Math.max(0.10, Math.min(newzoom, 50)); zoomvalue = Math.round(newzoom * 100);document.getElementById("zoomSlider").value = zoomvalue;document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";lastPinchDistance = newDistance;}return;}
+    if (ev.target === canvas){      
+        x = ev.clientX - canvas.getBoundingClientRect().left;
+        y = ev.clientY -canvas.getBoundingClientRect().top;
+        isposetive = false;if (isdirposetive < x) {isposetive = true;}isdirposetive = x;
+        isposetivey = false;if (isdirposetivey < y) {isposetivey = true;}isdirposetivey = y;
+        if (isDrawing  && currentTool === 'pen'&&!movescrolly&&!movescrollx) {drawPixel(x, y);}
+    }
+});
+canvas.addEventListener('pointerup', (ev)=>{
+    if (ev.pointerType === 'touch') ev.preventDefault();
+        pointers.delete(ev.pointerId);
+        if (movecorners) {resizeCommit();movecorners= false;}
+        movescrollx = false;
+        movescrolly = false;
+        isposetive = false;
+        scrollx = movescrollxvalue;
+        scrolly = movescrollyvalue;
+        if(isDrawing==true)endAction();
+        isDrawing = false;
+        lastX = 0;
+        lastY = 0;
+        isSelecting = false;
+
+});
+canvas.addEventListener('pointercancel', (ev)=>{ 
+    if (ev.pointerType === 'touch') ev.preventDefault();
+    pointers.delete(ev.pointerId);
+    
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             //check---------------------------------------------------------------------------------------
             var check = function() {
             const active = document.querySelector('.color-swatch.active');
@@ -5190,100 +5252,8 @@ document.getElementById('mnuNew').addEventListener('click', ()=>{
 
                     ctx.restore();
                 }
-            
-            
-            
-            
-            
-            
-            
-            
-                // ********** NEW: Draw the image layer overlay if an image is loaded **********
-                if(currentImage){
-                    // Draw the image
-                    
-                    currentImageWidth = currentImageOriginalWidth*zoom;;
-                    currentImageHeight = currentImageOriginalHeight*zoom;
-                    
-                    
-                    if(prevzoom!=zoom){
-                    
-                      
-                        prevzoom=zoom;
-                        currentImageX = (drawstartx + selLeft * zoom);
-                        currentImageY = (drawstarty + selTop * zoom);
-                         
-                    }
-                    if(currentImagecanvas!=currentproject){
-                        
-                        
-                        
-                        if(currentproject==0&&firstImageLoaded1==false){drawareax=currentImageWidth;drawareay=currentImageHeight;}
-                        if(currentproject==1&&firstImageLoaded2==false){drawareax=currentImageWidth;drawareay=currentImageHeight;}
-                        if(currentproject==2&&firstImageLoaded3==false){drawareax=currentImageWidth;drawareay=currentImageHeight;}
-
-                        drawstartx = canvas.width/devicePixelRatio/2 - drawareax/2;
-                        movescrollxvalue = 0;
-                        scrollx = 0;
-                        drawstarty = canvas.height/devicePixelRatio/2 - drawareay/2;
-                        movescrollyvalue = 0;
-                        scrolly = 0;
-                        
-                        
-                        currentImageX = (drawstartx );
-                        currentImageY = (drawstarty );
-                        
-                        currentImagecanvas=currentproject;
-                    }
-                    
-                    
-                        
-                        
-             
-                        
-                        
-                       
-
-                    
-                    
-                    
-                 
-           
-                    
-                    
-                    ctx.drawImage(currentImage, currentImageX, currentImageY, currentImageWidth, currentImageHeight);
-
-
-
-                    
-
-
-
-
-
-                    // Draw a green border around the image to indicate it's movable
-                    ctx.strokeStyle = "#4CAF50"; // Green color matching the UI
-                    ctx.lineWidth = 3;
-                    ctx.setLineDash([5, 5]); // Dashed line for better visibility
-                    ctx.strokeRect(currentImageX, currentImageY, currentImageWidth, currentImageHeight);
-
-                    // Add corner handles for visual clarity
-                    const handleSize = 8;
-                    ctx.fillStyle = "#4CAF50";
-                    // Draw corner handles
-                    ctx.fillRect(currentImageX - handleSize/2, currentImageY - handleSize/2, handleSize, handleSize);
-                    ctx.fillRect(currentImageX + currentImageWidth - handleSize/2, currentImageY - handleSize/2, handleSize, handleSize);
-                    ctx.fillRect(currentImageX - handleSize/2, currentImageY + currentImageHeight - handleSize/2, handleSize, handleSize);
-                    ctx.fillRect(currentImageX + currentImageWidth - handleSize/2, currentImageY + currentImageHeight - handleSize/2, handleSize, handleSize);
-
-                    // Reset dash pattern for other drawings
-                    ctx.setLineDash([]);
-                }
-                // ****************************************************************************
                 
-                
-                
-                if(!movecorners1&&!movecorners2&&!movecorners3&&!movecorners4){
+                if(!movecorners){
                     ctx.fillStyle = "black";
                     ctx.fillRect(drawstartx-20, drawstarty-20, 20, 20);
                     ctx.fillRect(drawstartx+drawareax, drawstarty-20, 20, 20);
@@ -5409,589 +5379,7 @@ document.getElementById('mnuNew').addEventListener('click', ()=>{
             }; 
             
             check();
-            
-            // Process mouse events
-            window.addEventListener("mousemove", (e) => {
-                
-                
-            if (movecorners1 || movecorners2 || movecorners3 || movecorners4) {
-              
-        resizePreviewFromCanvasXY(x, y);  // <<<<<<<<<< NYTT
-        // (rita overlay i din render-loop via drawResizeOverlay())
-        
-      }    
-                
-                
-           if (e.target === canvas){      
-                
-    const mousePos = getCanvasMousePosition(e);
-    x = mousePos.x;
-    y = mousePos.y;
-    
-    isposetive = false;
-    if (isdirposetive < x) {
-        isposetive = true;
-    }
-    isdirposetive = x;
-    
-    isposetivey = false;
-    if (isdirposetivey < y) {
-        isposetivey = true;
-    }
-    isdirposetivey = y;
-    
-    // Handle image dragging
-    if(isMovingImage && currentImage&&!selectionNeedsClick){
-        currentImageX = (x - dragOffsetX);
-        currentImageY = (y - dragOffsetY);
-    }
-    
-    // Handle selection tool
-    if (isSelecting && (currentTool === 'select')) {
-        selectionEndX = Math.floor((x - drawstartx) / zoom);
-        selectionEndY = Math.floor((y - drawstarty) / zoom);
-        
-        
-        
-    }
-    
-    // Handle drawing when mousemove with pen tool
-    if (isDrawing  && currentTool === 'pen'&&!movescrolly&&!movescrollx) {
-        drawPixel(x, y);
-    }
-    
-    
-    
-}});
-            
-            window.addEventListener("mousedown", (e) => {
-                if (e.target === canvas){ 
-    const mousePos = getCanvasMousePosition(e);
-    x = mousePos.x;
-    y = mousePos.y;
-    
 
-    
-    
-    // Check if clicking on the image overlay first
- if(currentImage && x >= currentImageX && x <= currentImageX + currentImageWidth &&
-                   y >= currentImageY && y <= currentImageY + currentImageHeight){
-                    if(!isMovingImage){
-                        // Begin dragging the image
-                        isMovingImage = true;
-                        dragOffsetX = x - (currentImageX);;
-                        dragOffsetY = y - (currentImageY);
-                        selectionNeedsClick=false;
-                    }
-                   
-                    else {
-                        // If already dragging, finalize by drawing the image permanently onto the drawing canvas
-                        let unzoomedX = Math.round((currentImageX - drawstartx) / zoom);
-                        let unzoomedY = Math.round((currentImageY - drawstarty) / zoom);
-                        drawingCtx.drawImage(currentImage, unzoomedX, unzoomedY, currentImageOriginalWidth, currentImageOriginalHeight);
-                        currentImage = null;
-                        isMovingImage = false;
-                    }
-                    
-                    
-                    return;
-                }
-                else if((currentTool === 'select')&&currentImage!=null){
-                        
-                        let unzoomedX = Math.round((currentImageX - drawstartx) / zoom);
-                        let unzoomedY = Math.round((currentImageY - drawstarty) / zoom);
-                        drawingCtx.drawImage(currentImage, unzoomedX, unzoomedY, currentImageOriginalWidth, currentImageOriginalHeight);
-                        currentImage = null;
-                        isMovingImage = false;
-                        
-                        
-                    }
-    
-    
-    // Handle UI interaction with corners and scrollbars
-    if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty-30 && y < drawstarty+10) {
-        movecorners1 = true;
-        dragStartX = x;
-        dragStartY = y;
-        resizeStart('NW'); 
-        return;
-    }
-    if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty-30 && y < drawstarty+10) {
-        movecorners2 = true;
-        dragStartX = x;
-        dragStartY = y;
-        resizeStart('NE');   
-        return;
-    }
-    if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty+drawareay && y < drawstarty-10+drawareay+30) {
-        movecorners3 = true;
-        dragStartX = x;
-        dragStartY = y;
-        resizeStart('SW');    
-        return;
-    }
-    if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty+drawareay-10 && y < drawstarty+drawareay+30) {
-        movecorners4 = true;
-        dragStartX = x;
-        dragStartY = y;
-        resizeStart('SE');
-        return;
-    }
-    
-    // Handle scrollbar interactions
-    let sbThickness = getScrollbarThickness();
-    if (drawareax - (canvas.width/devicePixelRatio*2) > -canvas.width/devicePixelRatio-50) {
-        if (x <= canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue + (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01) &&
-           x >= canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue &&
-           y >= canvas.height/devicePixelRatio - sbThickness && y <= canvas.height/devicePixelRatio) {
-            movescrollx = true;
-            savescrollxvalue = x;
-            return;
-        }
-    }
-    if (drawareay - (canvas.height/devicePixelRatio*2) > -canvas.height/devicePixelRatio-50) {
-        if (x <= canvas.width/devicePixelRatio && x >= canvas.width/devicePixelRatio - sbThickness &&
-           y >= 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue &&
-           y <= 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue + (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)) {
-            movescrolly = true;
-            savescrollyvalue = y;
-            return;
-        }
-    }
-    // Process tool actions if inside the drawing area and below the toolbar
-    if (x >= drawstartx && x < drawstartx + drawareax &&
-        y >= drawstarty && y < drawstarty + drawareay && y > 100) {
-        
-        const canvasX = Math.floor((x - drawstartx) / zoom);
-        const canvasY = Math.floor((y - drawstarty) / zoom);
-        
-    if (currentTool === 'eyedropper') {
-        updateEyedropperBuffer();
-        const data = eyedropperCtx.getImageData(canvasX, canvasY, 1, 1).data;
-        const hexColor = `#${data[0].toString(16).padStart(2, '0')}${data[1].toString(16).padStart(2, '0')}${data[2].toString(16).padStart(2, '0')}`;
-
-        brushColor = hexColor;
-        isTransparentBrush = false;
-        switchTool('pen');
-        return;
-    }
-        else if (currentTool === 'fill') {
-            // Fill tool
-            beginAction();
-            floodFill(x, y);
-            endAction();
-            
-        }
-        else if ((currentTool === 'select')) {
-            // Selection tool
-            isSelecting = true;
-            selectionStartX = canvasX;
-            selectionStartY = canvasY;
-            selectionEndX = canvasX;
-            selectionEndY = canvasY;
-            
-            
-        }
-        else if(currentTool === 'text'){
-             
-            const text = prompt("Enter your text:"); // Prompt user for text input
-            if (text) {
-                beginAction();
-                drawText(x, y, text); // Draw the text on the canvas
-                endAction();
-            }
-        }
-        
-        
-        
-        else if (currentTool === 'pen') {
-            // Draw with pen
-             beginAction();
-            isDrawing = true;
-            lastX = 0;
-            lastY = 0;
-            drawPixel(x, y);
-            
-           
-        }
-    }
-                } });    
-            
-            window.addEventListener('mouseup', (e) => {
-    if (movecorners1 || movecorners2 || movecorners3 || movecorners4) {
-  resizeCommit();                   // <<<<<<<<<< NYTT
-  movecorners1 = movecorners2 = movecorners3 = movecorners4 = false;
-}
-    movescrollx = false;
-    movescrolly = false;
-    isposetive = false;
-    scrollx = movescrollxvalue;
-    scrolly = movescrollyvalue;
-    
-    if(isDrawing==true)endAction();
-    // Stop drawing
-    isDrawing = false;
-    lastX = 0;
-    lastY = 0;
-
-
-
-
-    
-    
-
-    
-    
-// i mouseup/touchend för select:
-isSelecting = false;
-selLeft = Math.min(selectionStartX, selectionEndX); // om du använder dessa lokalt
-selTop  = Math.min(selectionStartY, selectionEndY);
-// ... men slutligen:
-//if(currentTool === 'select')_finalizeRectSelection();
-});
-            
-            // Stop drawing if the mouse leaves the canvas
-            window.addEventListener('mouseout', () => {
-                isDrawing = false;
-                lastX = 0;
-                lastY = 0;
-            });
-           // ===== MOBILE DEVICE SUPPORT =====
-           
-           
-            canvas.addEventListener('touchstart', handleTouchStart, {passive: false});
-            canvas.addEventListener('touchmove', handleTouchMove, {passive: false});
-            canvas.addEventListener('touchend', handleTouchEnd, {passive: false}); 
-            let touchTimer = null;
-            let delatare=false;
-            function handleTouchStart(e) {
-        e.preventDefault();
-        
-        if (e.touches.length === 2) {
-            clearTimeout(touchTimer);
-            if(delatare==true){delatare=false; _revertToPreStroke();}
-            const dx = e.touches[0].clientX - e.touches[1].clientX;
-            const dy = e.touches[0].clientY - e.touches[1].clientY;
-            lastPinchDistance = Math.hypot(dx, dy);
-            return;
-        }
-        if (e.touches.length === 1){
-            
-            touchTimer = setTimeout(() => {
-                delatare=false;
-            
-        }, 40);}
-        
-        
-        
-        const touch = e.touches[0];
-        const rect = canvas.getBoundingClientRect();
-
-        const touchX = Math.round((touch.clientX - rect.left) * (canvas.width / rect.width / devicePixelRatio));
-        const touchY = Math.round((touch.clientY - rect.top) * (canvas.height / rect.height / devicePixelRatio));
-
-        // Update global position variables
-        x = touchX;
-        y = touchY;
-                // Handle image interaction
-    if (currentImage) {
-    // Check if touch is on the image
-    if (touchX >= currentImageX && touchX <= currentImageX + currentImageWidth &&
-        touchY >= currentImageY && touchY <= currentImageY + currentImageHeight) {
-        
-       if(!isMovingImage){
-                        // Begin dragging the image
-                        isMovingImage = true;
-                        dragOffsetX = x - currentImageX;
-                        dragOffsetY = y - currentImageY;
-                        selectionNeedsClick=false;
-                    } else {
-                        // If already dragging, finalize by drawing the image permanently onto the drawing canvas
-                        let unzoomedX = Math.floor((currentImageX - drawstartx) / zoom);
-                        let unzoomedY = Math.floor((currentImageY - drawstarty) / zoom);
-                        drawingCtx.drawImage(currentImage, unzoomedX, unzoomedY, currentImageOriginalWidth, currentImageOriginalHeight);
-                        currentImage = null;
-                        isMovingImage = false;
-                    }
-                    return;
-    }
-    else if((currentTool === 'select')&&currentImage!=null){
-                        
-                        let unzoomedX = Math.round((currentImageX - drawstartx) / zoom);
-                        let unzoomedY = Math.round((currentImageY - drawstarty) / zoom);
-                        drawingCtx.drawImage(currentImage, unzoomedX, unzoomedY, currentImageOriginalWidth, currentImageOriginalHeight);
-                        currentImage = null;
-                        isMovingImage = false;
-                        
-                        
-                    }
-    
-    
-    
-}
-
-
-
-                    
-                 
-                
-
-
-
-
-
-
-
-        let cornerTouched = 0;
-        const corner = hitCornerPrecise(touchX, touchY, {
-            radius: (mobileAndTabletCheck() ? 28 : 18), // tapp-vänligt på mobil
-            safeInner: 12                                // liten innerzon
-          });
-          if (corner) {
-            cornerTouched = corner; // starta resize
-          }
-
-        // Check if it's a double tap on a corner
-        const currentTime = new Date().getTime();
-        const tapLength = currentTime - lastTapTime;
-
-        if (cornerTouched > 0 && tapLength < doubleTapThreshold && cornerTouched === lastTapCorner) {
-            // Double tap detected on the same corner!
-            console.log("Double tap on corner " + cornerTouched);
-
-            // Enable dragging for the corresponding corner
-            if (cornerTouched === 1) {
-                movecorners1 = true;
-                resizeStart('NW');  
-                return;
-            } else if (cornerTouched === 2) {
-                movecorners2 = true;
-                resizeStart('NE');
-                return;
-            } else if (cornerTouched === 3) {
-                movecorners3 = true;
-                resizeStart('SW');
-                return;
-            } else if (cornerTouched === 4) {
-                movecorners4 = true;
-                resizeStart('SE');  
-                return;
-            }
-
-            dragStartX = touchX;
-            dragStartY = touchY;
-        }
-
-        // Update the last tap info for next time
-        if (cornerTouched > 0) {
-            lastTapTime = currentTime;
-            lastTapCorner = cornerTouched;
-
-            // Return early to prevent other interactions from happening
-            // when touching a corner but not double-tapping yet
-            if (!movecorners1 && !movecorners2 && !movecorners3 && !movecorners4) {
-                return;
-                
-            }
-        }
-        
-        
-        
-        
-        
-        
-        // Check for scrollbar interaction on touch devices
-        let sbThickness = getScrollbarThickness();
-        if (drawareax - (canvas.width/devicePixelRatio*2) > -canvas.width/devicePixelRatio-50) {
-            if(touchX <= canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue + (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01) &&
-               touchX >= canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue &&
-               touchY >= canvas.height/devicePixelRatio - sbThickness && touchY <= canvas.height/devicePixelRatio) {
-                movescrollx = true;
-                savescrollxvalue = touchX - movescrollxvalue ;
-                return;
-                
-            }
-        }
-        if (drawareay - (canvas.height/devicePixelRatio*2) > -canvas.height/devicePixelRatio-50) {
-            if(touchX <= canvas.width/devicePixelRatio && touchX >= canvas.width/devicePixelRatio - sbThickness &&
-               touchY >= 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue &&
-               touchY <= 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue + (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)) {
-                movescrolly = true;
-                savescrollyvalue = touchY- movescrollyvalue ;;
-                return;
-                
-            }
-        }
-                    // Check for tool actions inside the drawing area
-        if (touchX >= drawstartx && touchX < drawstartx + drawareax &&
-           touchY >= drawstarty && touchY < drawstarty + drawareay ) {
-
-            const canvasX = Math.floor((touchX - drawstartx) / zoom);
-            const canvasY = Math.floor((touchY - drawstarty) / zoom);
-
-            if (currentTool === 'eyedropper') {
-                updateEyedropperBuffer();
-                const data = eyedropperCtx.getImageData(canvasX, canvasY, 1, 1).data;
-                const hexColor = `#${data[0].toString(16).padStart(2, '0')}${data[1].toString(16).padStart(2, '0')}${data[2].toString(16).padStart(2, '0')}`;
-
-                brushColor = hexColor;
-                isTransparentBrush = false;
-                switchTool('pen');
-                return;
-            }
-             else if (currentTool === 'fill') {
-                // Fill tool
-                _capturePreStroke();
-                beginAction();
-                floodFill(x, y);
-                endAction();
-            }
-             else if ((currentTool === 'select')) {
-                // Selection tool
-                isSelecting = true;
-                selectionStartX = canvasX;
-                selectionStartY = canvasY;
-                selectionEndX = canvasX;
-                selectionEndY = canvasY;
-
-           }
-           else if(currentTool === 'text'){
-                const text = prompt("Enter your text:"); // Prompt user for text input
-                if (text) {
-                    beginAction();
-                    drawText(touchX, touchY, text); // Draw the text on the canvas
-                    endAction();
-                }
-           }
-           
-             else if (currentTool === 'pen') {
-                // Rest of your existing touch handling code for drawing
-                if(isDrawing==false)_capturePreStroke();
-                isDrawing = true;
-                lastX = 0;
-                lastY = 0;
-                beginAction();
-                delatare=true;
-                drawPixel(touchX, touchY);
-                
-                
-                
-
-           }
-        }
-    }
-
-function handleTouchMove(e) {
-    e.preventDefault();
-    
-    
-    if (e.touches.length === 2 && lastPinchDistance !== null) {
-
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        const newDistance = Math.hypot(dx, dy);
-
-        const delta = newDistance - lastPinchDistance;
-
-        // 🔍 Zooma in/ut beroende på distansändring
-        let newzoom =zoom/zomzomzom;
-        
-        if (Math.abs(delta) > 5) {
-            if (delta > 0) newzoom *= 1.05;
-            else newzoom *= 0.95;
-
-            newzoom = Math.max(0.10, Math.min(newzoom, 50)); // begränsa zoomnivå
-            
-                    zoomvalue = Math.round(newzoom * 100);
-                    document.getElementById("zoomSlider").value = zoomvalue;
-                    document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
-            
-            
-            lastPinchDistance = newDistance;
-        }
-        return;
-    }
-    
-    
-    
-    const touch = e.touches[0];
-    const rect = canvas.getBoundingClientRect();
-
-    // Convert to canvas coordinates
-    const touchX = (touch.clientX - rect.left) * (canvas.width / rect.width / devicePixelRatio);
-    const touchY = (touch.clientY - rect.top) * (canvas.height / rect.height / devicePixelRatio);
-
-    // Update directions
-    isposetive = isdirposetive < touchX;
-    isdirposetive = touchX;
-    
-    isposetivey = isdirposetivey < touchY;
-    isdirposetivey = touchY;
-
-    // Update current position
-    x = touchX;
-    y = touchY;
-
-    // Handle selection tool
-    if (isSelecting && (currentTool === 'select')) {
-        selectionEndX = Math.floor((x - drawstartx) / zoom);
-        selectionEndY = Math.floor((y - drawstarty) / zoom);
-    }
-
-
-   // Move the image if it's in moving state
-    if (isMovingImage && currentImage&&!selectionNeedsClick) {
-        currentImageX = touchX - dragOffsetX;
-        currentImageY = touchY - dragOffsetY;
-    }
-
-    // Handle drawing with pen tool
-    if (isDrawing && currentTool === 'pen'&&!movescrolly&&!movescrollx) {
-        //beginAction();
-        drawPixel(touchX, touchY);
-     
-    }
-    if (movecorners1 || movecorners2 || movecorners3 || movecorners4) {
-        resizePreviewFromCanvasXY(x, y);  // <<<<<<<<<< NYTT
-        // (rita overlay i din render-loop via drawResizeOverlay())
-        return;
-      }
-    
- 
-}
-
-   function handleTouchEnd(e) {
-    e.preventDefault();
-    clearTimeout(touchTimer);
-    if (e.touches.length < 2) {
-        lastPinchDistance = null;
-    }
-    movescrollx = false;
-    movescrolly = false;
-    if(isDrawing==true){endAction();}
-    // Stop drawing
-    isDrawing = false;
-    lastX = 0;
-    lastY = 0;
-    
-    if (movecorners1 || movecorners2 || movecorners3 || movecorners4) {
-        resizeCommit();                   // <<<<<<<<<< NYTT
-        movecorners1 = movecorners2 = movecorners3 = movecorners4 = false;
-        
-      }
-    
-
-    
-    
-    // i mouseup/touchend för select:
-isSelecting = false;
-selLeft = Math.min(selectionStartX, selectionEndX); // om du använder dessa lokalt
-selTop  = Math.min(selectionStartY, selectionEndY);
-// ... men slutligen:
-//if(currentTool === 'select')_finalizeRectSelection();
-    
-
-}
            
      //==========LOAD IMAGES MOBILE===========
                 
