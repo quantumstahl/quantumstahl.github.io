@@ -1153,7 +1153,7 @@ canvas{ touch-action: none !important; }       /* gester bara på canvas */
   }
   .palette-grid{
     grid-auto-columns: 32px !important;
-    grid-template-rows: repeat(2, 32px) !important;
+    grid-template-rows: repeat(5, 32px) !important;
     gap: 4px !important;
   }
   .palette-grid .color-swatch{
@@ -1164,6 +1164,59 @@ canvas{ touch-action: none !important; }       /* gester bara på canvas */
   /* Sliders/labels i docken – kompaktare */
   #brushSizeSlider, #zoomSlider{ max-width: 40vw !important; height: 18px !important; }
   #zoomLabel, #brushSizeLabel{ font-size: 14px !important; }
+  
+   /* Grundmått för båda sliders i bottomDock */
+  #bottomDock #zoomSlider,
+  #bottomDock #brushSizeSlider{
+    height: 18px !important;
+    max-width: 40vw !important;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  /* WebKit: track */
+  #bottomDock #zoomSlider::-webkit-slider-runnable-track,
+  #bottomDock #brushSizeSlider::-webkit-slider-runnable-track{
+    height: 18px !important;
+    border-radius: 999px !important;
+    background: #d3d3d3 !important;
+  }
+
+  /* WebKit: thumb */
+  #bottomDock #zoomSlider::-webkit-slider-thumb,
+  #bottomDock #brushSizeSlider::-webkit-slider-thumb{
+    -webkit-appearance: none;
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 50% !important;
+    background: #4CAF50 !important;
+    box-shadow: none !important;
+    margin-top: calc((18px - 28px)/2) !important; /* centrera på track */
+  }
+
+  /* Firefox: track */
+  #bottomDock #zoomSlider::-moz-range-track,
+  #bottomDock #brushSizeSlider::-moz-range-track{
+    height: 18px !important;
+    border-radius: 999px !important;
+    background: #d3d3d3 !important;
+  }
+
+  /* Firefox: thumb */
+  #bottomDock #zoomSlider::-moz-range-thumb,
+  #bottomDock #brushSizeSlider::-moz-range-thumb{
+    width: 26px !important;
+    height: 26px !important;
+    border-radius: 50% !important;
+    background: #4CAF50 !important;
+    border: none !important;
+  }
+
+  /* Etiketter mindre i landscape */
+  #zoomLabel, #brushSizeLabel{
+    font-size: 14px !important;
+  }
+  
 }
 
         </style>
