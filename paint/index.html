@@ -5101,7 +5101,7 @@ canvas.addEventListener('pointermove', (ev) => {
   
   
   // === 2-finger pinch (ersätter e.touches vid move)
-  if (pointers.size === 2 && lastPinchDistance > 0) {
+  if (pointers.size === 2 ) {
     const [p0, p1] = twoPointers();
     const dx = p0.clientX - p1.clientX;
     const dy = p0.clientY - p1.clientY;
