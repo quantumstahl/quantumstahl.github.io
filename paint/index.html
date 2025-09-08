@@ -1279,6 +1279,7 @@ canvas { touch-action: none; } /* viktiga för iOS gester */
       <span class="hamburger">☰</span> <span style="font-weight:600">Menu</span>
     </button>
     <div id="mainMenu" class="menu" role="menu" aria-label="Main menu">
+      <button class="item" id="mnuNew"   role="menuitem">New</button>  
       <button class="item" id="mnuOpen"  role="menuitem">Open image…</button>
       <button class="item" id="mnuSave"  role="menuitem">Save image</button>
       <hr style="border:0;height:1px;background:rgba(255,255,255,.12);margin:6px 2px;">
@@ -4886,7 +4887,11 @@ if (window.visualViewport) {
   visualViewport.addEventListener('resize', sizesizerezie2, { passive:true });
   visualViewport.addEventListener('scroll', sizesizerezie2, { passive:true }); // adressfält glider
 }
-
+document.getElementById('mnuNew').addEventListener('click', ()=>{
+  if (confirm("Start a new drawing? Unsaved work will be lost.")) {
+    location.reload(); // enklaste variant A
+  }
+});
 
             //check---------------------------------------------------------------------------------------
             var check = function() {
