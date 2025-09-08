@@ -1065,7 +1065,12 @@ html, body{
 
 /* === GLOBALT – säkra klick i iOS PWA (ändrar inte storlek) === */
 #topBar{ pointer-events: auto !important; }
-
+body{
+  position: static !important;
+  height: 100dvh !important;
+  overflow: visible !important;
+  touch-action: auto !important;   /* blocka inte klick globalt */
+}
 canvas{ touch-action: none !important; }       /* gester bara på canvas */
 #appWrapper, #canvasWrap, canvas{ transform: none !important; }
 
