@@ -5,7 +5,7 @@ const ASSETS = [
   '/styles.css', '/app.js',
   '/icons/icon-192.png', '/icons/icon-512.png'
 ];
-
+/*
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
   self.skipWaiting();
@@ -19,7 +19,7 @@ self.addEventListener('activate', (e) => {
   );
   self.clients.claim();
 });
-/*
+
 // Network-first för allt dynamiskt, fallback till cache offline
 self.addEventListener('fetch', (e) => {
   const req = e.request;
@@ -32,4 +32,8 @@ self.addEventListener('fetch', (e) => {
   );
 });
 */
-self.addEventListener('fetch', e => e.respondWith(fetch(e.request)));
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', () => self.clients.claim());
+self.addEventListener('fetch', (e) => {
+  e.respondWith(fetch(e.request, { cache: 'no-store' }));
+});
