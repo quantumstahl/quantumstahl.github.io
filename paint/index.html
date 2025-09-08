@@ -875,17 +875,9 @@
   
 }        
 
-
 /* Extra fallback för iOS som ibland rapporterar pointer:fine i Safari */
 @media (orientation: landscape) and (max-device-width: 1024px) {
-  #centerTopBar{
-    transform: scale(0.45);
-    transform-origin: top left;
-    width: calc(100% / 0.45);
-    height: calc(100% / 0.45);
-  }
 
-  
   
   
   
@@ -1071,7 +1063,120 @@ html, body{
   box-sizing: border-box;
 }
 
+/* 1) Skal-variabler (ingen transform på wrappers/topbar) */
+:root{
+  --ui-scale: 1;
+  --ui-pad: calc(10px * var(--ui-scale));
+  --ui-gap: calc(10px * var(--ui-scale));
+  --ui-br:  calc(12px * var(--ui-scale));
 
+  --btn-h:  calc(48px * var(--ui-scale));
+  --btn-minw: calc(48px * var(--ui-scale));
+  --btn-pad-x: calc(12px * var(--ui-scale));
+  --btn-gap: calc(8px * var(--ui-scale));
+  --btn-fz:  calc(16px * var(--ui-scale));
+
+  --drop-top: calc(56px * var(--ui-scale));
+  --drop-minw: calc(220px * var(--ui-scale));
+  --drop-pad:  calc(6px * var(--ui-scale));
+  --item-pad-y: calc(10px * var(--ui-scale));
+  --item-pad-x: calc(12px * var(--ui-scale));
+  --item-fz:    calc(16px * var(--ui-scale));
+
+  --hamb-fz:  calc(20px * var(--ui-scale));
+
+  --ctb-pad-y: calc(8px * var(--ui-scale));
+  --ctb-pad-x: calc(14px * var(--ui-scale));
+  --ctb-br:    calc(20px * var(--ui-scale));
+  --ctb-gap:   calc(12px * var(--ui-scale));
+  --ctbbtn-size: calc(48px * var(--ui-scale));
+  --ctbbtn-fz:   calc(16px * var(--ui-scale));
+
+  --tf-btn-size: calc(56px * var(--ui-scale));
+}
+
+/* 2) Gör TOPBAR klickbar (inte pointer-events:none på containern) */
+#topBar{
+  pointer-events: auto !important;
+  gap: var(--ui-gap) !important;
+  height: var(--btn-h) !important;
+}
+
+/* topknappar */
+.topbtn{
+  height: var(--btn-h) !important;
+  min-width: var(--btn-minw) !important;
+  padding: 0 var(--btn-pad-x) !important;
+  border-radius: var(--ui-br) !important;
+  gap: var(--btn-gap) !important;
+  font-size: var(--btn-fz) !important;
+}
+
+/* dropdowns/menyer (placering och storlek) */
+.dropdown, .menu{
+  top: var(--drop-top) !important;
+  min-width: var(--drop-minw) !important;
+  padding: var(--drop-pad) !important;
+  border-radius: var(--ui-br) !important;
+}
+.menu .item, .dropdown .item{
+  padding: var(--item-pad-y) var(--item-pad-x) !important;
+  font-size: var(--item-fz) !important;
+  border-radius: calc(var(--ui-br) - 2px) !important;
+}
+
+/* hamburger-ikon */
+.hamburger{ font-size: var(--hamb-fz) !important; }
+
+/* Right floating transform-knapp/meny */
+#transformBtn{
+  width: var(--tf-btn-size) !important;
+  height: var(--tf-btn-size) !important;
+}
+#transformMenu{
+  top: calc(var(--tf-btn-size) + 12px) !important;
+  min-width: var(--drop-minw) !important;
+  padding: var(--drop-pad) !important;
+  border-radius: var(--ui-br) !important;
+}
+#transformMenu .item{
+  padding: var(--item-pad-y) var(--item-pad-x) !important;
+  font-size: var(--item-fz) !important;
+}
+
+/* Center Top Bar */
+#centerTopBar{
+  padding: var(--ctb-pad-y) var(--ctb-pad-x) !important;
+  border-radius: var(--ctb-br) !important;
+  gap: var(--ctb-gap) !important;
+}
+#centerTopBar .barbtn{
+  min-width: var(--ctbbtn-size) !important;
+  height: var(--ctbbtn-size) !important;
+  font-size: var(--ctbbtn-fz) !important;
+  border-radius: calc(var(--ctb-br) - 6px) !important;
+}
+
+/* 3) Landscape på touch: skala hela UI:t till ca 0.45× (utan transform) */
+@media (orientation: landscape) and (pointer: coarse){
+  :root{ --ui-scale: 0.45; }
+}
+
+/* 4) TA BORT global blockering – låt bara CANVAS äga gesterna */
+
+canvas{
+  touch-action: none !important;     /* gester bara på canvas */
+}
+
+/* 5) Förhindra osynliga lager från att täcka UI (z-index sanity) */
+#menuBackdrop{ z-index: 2200 !important; }
+#topBar{ z-index: 2300 !important; }
+.dropdown, .menu, #transformMenu{ z-index: 2400 !important; }
+
+/* 6) Absolut INGEN transform-scale på wrappers/canvas */
+#appWrapper, #canvasWrap, canvas{
+  transform: none !important;
+}
 
         </style>
 </head>
