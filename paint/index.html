@@ -2589,8 +2589,8 @@ function switchTool(newTool, opts = {}) {
                 
                 disableSmoothing(ctx);
             }
-            
-            window.addEventListener('resize', (event) => {
+            function sizesizerezie(){
+                
                 // Store current state before resize
                 prevDrawAreaX = drawareax;
                 prevDrawAreaY = drawareay;
@@ -2644,6 +2644,13 @@ function switchTool(newTool, opts = {}) {
                 ctx.fillRect(0, 0, canvas.width/devicePixelRatio, canvas.height/devicePixelRatio);
 
                 startan = true;
+                
+                
+            }
+            
+            
+            window.addEventListener('resize', (event) => {
+                sizesizerezie();
             });
             //NYTT----------------------------------------------------------------------------------
             // ======== LASSO + TRANSFORM STATE ========
@@ -4837,6 +4844,7 @@ function _revertToPreStroke() {
   g.drawImage(preStrokeBmp, 0, 0);
   preStrokeBmp = null;
 }
+window.addEventListener('orientationchange', sizesizerezie(), { passive:true });
             //check---------------------------------------------------------------------------------------
             var check = function() {
             const active = document.querySelector('.color-swatch.active');
