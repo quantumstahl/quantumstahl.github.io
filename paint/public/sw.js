@@ -3,7 +3,7 @@ const CACHE_NAME = 'maxpaint-v1';
 const ASSETS = [
   '/', '/index.html',
   '/styles.css', '/app.js',
-  '/icons/icon-192.png', '/icons/icon-512.png'
+  '/icons/icon-192.png', '/icons/icon-512.png','/icons/icon-180.png'
 ];
 /*
 self.addEventListener('install', (e) => {
