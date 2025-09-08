@@ -6,7 +6,21 @@
 <meta charset="utf-8"/>
 <meta content="user-scalable=no, shrink-to-fit=yes" name="viewport"/>
 <meta content="maxpaint,paint" name="keywords"/>
-<link href="loggo.png" rel="icon" type="image/vnd.microsoft.icon"/>
+
+
+<!-- PWA -->
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#111111">
+
+<!-- iOS speciellt -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+
+
+
+
+<link href="icons/icon-192.png" rel="icon" type="image/vnd.microsoft.icon"/>
 <style>
             
     
@@ -1069,6 +1083,12 @@ html, body{
   outline: 1px solid rgba(0,0,0,0); /* fix mot tunna linjer */
   box-sizing: border-box;
 }
+
+:root { --safe-top: env(safe-area-inset-top); --safe-bottom: env(safe-area-inset-bottom); }
+html, body { height: 100dvh; margin: 0; background:#111; }
+body { padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); }
+canvas { touch-action: none; } /* viktiga för iOS gester */
+
 
         </style>
 </head>
@@ -6215,5 +6235,44 @@ updateGridButton();</script>
 
 
 </script>
+
+
+<script>
+  // Registrera service worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(console.error);
+    });
+  }
+
+  // Enkel iOS-hint (visas bara i Safari när appen EJ är installerad)
+  (function showIOSInstallHint(){
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isStandalone = window.navigator.standalone === true;
+    if (!isIOS || isStandalone) return;
+
+    const hint = document.createElement('div');
+    hint.style.cssText = `
+      position:fixed;left:50%;bottom:16px;transform:translateX(-50%);
+      background:#000c;border:1px solid #444;color:#fff;padding:10px 14px;
+      border-radius:12px;font:14px/1.3 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      z-index:9999;backdrop-filter: blur(6px);
+    `;
+    hint.textContent = 'Installera appen: Dela-knappen → “Lägg till på hemskärmen”';
+    document.body.appendChild(hint);
+    setTimeout(()=>hint.remove(), 7000);
+  })();
+
+  // Android “BeforeInstallPrompt” (frivillig)
+  let deferredPrompt;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    // Visa egen knapp i din UI om du vill: “Installera”. När användaren klickar:
+    // deferredPrompt.prompt(); deferredPrompt = null;
+  });
+</script>
+
+
 </body>
 </html>
