@@ -4844,14 +4844,42 @@ function _revertToPreStroke() {
   g.drawImage(preStrokeBmp, 0, 0);
   preStrokeBmp = null;
 }
-window.addEventListener('orientationchange', sizesizerezie2(), { passive:true });
+function recalcCanvasSize() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.round(window.innerWidth);
+  const h = Math.round(window.innerHeight);
+  if (canvas.width !== w*dpr || canvas.height !== h*dpr) {
+    canvas.width  = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width  = w + 'px';
+    canvas.style.height = h + 'px';
+  }
+}
 
-function sizesizerezie2(){
-    
-                    drawstartx = canvas.width/devicePixelRatio/2 - drawareax/2;
-                    drawstarty = canvas.height/devicePixelRatio/2 - drawareay/2;
-    
-    
+function sizesizerezie2() {
+  // vänta 1–2 frames efter rotation för att iOS ska bli “klar”
+  requestAnimationFrame(() => {
+    recalcCanvasSize();
+
+    const z   = (typeof _effectiveZoom === 'function') ? _effectiveZoom() : (window.zoom || 1);
+    const wpx = canvas.clientWidth;   // CSS-px
+    const hpx = canvas.clientHeight;  // CSS-px
+    const vvTop = (window.visualViewport && window.visualViewport.offsetTop) || 0;
+
+    // Centrera bilden i skärmen: (skärmens mitt) - (bildens halvbredd i skärmpx)
+    drawstartx = Math.round((wpx - drawareax * z) / 2);
+    drawstarty = Math.round((hpx - drawareay * z) / 2 + vvTop);
+
+    if (typeof render === 'function') render();
+  });
+}
+
+// Lyssnare som täcker iOS
+window.addEventListener('orientationchange', sizesizerezie2, { passive:true });
+window.addEventListener('resize',            sizesizerezie2, { passive:true });
+if (window.visualViewport) {
+  visualViewport.addEventListener('resize', sizesizerezie2, { passive:true });
+  visualViewport.addEventListener('scroll', sizesizerezie2, { passive:true }); // adressfält glider
 }
 
 
@@ -4905,6 +4933,7 @@ function sizesizerezie2(){
                     if(mobileAndTabletCheck())HANDLE_SIZE_SCR = 24;
                     if(window.innerHeight  < window.innerWidth&&mobileAndTabletCheck()){}
                     else zoom=zoom/zomzomzom;
+                    sizesizerezie2();
                 }
                 
                 
