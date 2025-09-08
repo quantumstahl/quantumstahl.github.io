@@ -4995,7 +4995,7 @@ document.getElementById('mnuNew').addEventListener('click', ()=>{
 
 const pointers = new Map();           // pointerId -> { clientX, clientY, offsetX, offsetY }
 let touchTimer = null;
-let lastPinchDistance = 0;            // 0 = ingen pinch-baslinje satt ännu
+let lastPinchDistance = 12;            // 0 = ingen pinch-baslinje satt ännu
 
 function twoPointers() {
   const it = pointers.values();
