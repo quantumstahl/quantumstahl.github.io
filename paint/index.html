@@ -1741,7 +1741,6 @@ html, body{
             let undoStack = [];
             let redoStack = [];
        
-            let lastPinchDistance = null;
             let canvasPools = new Map();
             let projectBitmaps = [null, null, null];     // ImageBitmap per projekt (RAM)
             let projectBlobURLs = [null, null, null];    // Fallback om bitmap inte går
@@ -4994,73 +4993,176 @@ document.getElementById('mnuNew').addEventListener('click', ()=>{
 
 
 
-const pointers = new Map(); 
+const pointers = new Map();           // pointerId -> { clientX, clientY, offsetX, offsetY }
+let touchTimer = null;
+let lastPinchDistance = 0;            // 0 = ingen pinch-baslinje satt ännu
+
+function twoPointers() {
+  const it = pointers.values();
+  const p0 = it.next().value;
+  const p1 = it.next().value;
+  return [p0, p1];
+}
 
 canvas.addEventListener('pointerdown', (ev) => {
-    if (ev.pointerType === 'touch') ev.preventDefault();  
-    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-    
-    if (pointers.size === 2) {clearTimeout(touchTimer);if(delatare==true){delatare=false; _revertToPreStroke();}const dx = e.touches[0].clientX - e.touches[1].clientX;const dy = e.touches[0].clientY - e.touches[1].clientY;lastPinchDistance = Math.hypot(dx, dy);return;}
-    if (pointers.size === 1){touchTimer = setTimeout(() => {delatare=false;  }, 40);}
-    if (ev.target === canvas){ 
-        x = ev.clientX - canvas.getBoundingClientRect().left;
-        y = ev.clientY -canvas.getBoundingClientRect().top;
-        //movecorners
-        if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty-30 && y < drawstarty+10) {movecorners = true;resizeStart('NW'); return;}
-        if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty-30 && y < drawstarty+10) {movecorners = true;resizeStart('NE');   return;}
-        if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty+drawareay && y < drawstarty-10+drawareay+30) {movecorners = true;resizeStart('SW');    return;}
-        if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty+drawareay-10 && y < drawstarty+drawareay+30) {movecorners = true;resizeStart('SE');return;}
-        //scrollbar
-        let sbThickness = getScrollbarThickness();
-        if (drawareax - (canvas.width/devicePixelRatio*2) > -canvas.width/devicePixelRatio-50) {if (x <= canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue + (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01) &&x >= canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue &&y >= canvas.height/devicePixelRatio - sbThickness && y <= canvas.height/devicePixelRatio) {movescrollx = true;savescrollxvalue = x;return;}}
-        if (drawareay - (canvas.height/devicePixelRatio*2) > -canvas.height/devicePixelRatio-50) {if (x <= canvas.width/devicePixelRatio && x >= canvas.width/devicePixelRatio - sbThickness &&y >= 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue &&y <= 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue + (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)) {movescrolly = true;savescrollyvalue = y;return;}}
-        // Process tools
-        if (x >= drawstartx && x < drawstartx + drawareax &&y >= drawstarty && y < drawstarty + drawareay) {
-            const canvasX = Math.floor((x - drawstartx) / zoom);
-            const canvasY = Math.floor((y - drawstarty) / zoom);
-            if (currentTool === 'eyedropper') {updateEyedropperBuffer();const data = eyedropperCtx.getImageData(canvasX, canvasY, 1, 1).data;const hexColor = `#${data[0].toString(16).padStart(2, '0')}${data[1].toString(16).padStart(2, '0')}${data[2].toString(16).padStart(2, '0')}`;brushColor = hexColor;isTransparentBrush = false;switchTool('pen');return;}
-            else if (currentTool === 'fill') {beginAction();floodFill(x, y);endAction();}
-            else if ((currentTool === 'select')) {isSelecting = true;selectionStartX = canvasX;selectionStartY = canvasY;selectionEndX = canvasX;selectionEndY = canvasY;}
-            else if(currentTool === 'text'){const text = prompt("Enter your text:");if (text) {beginAction();drawText(x, y, text);endAction();}}
-            else if (currentTool === 'pen') {beginAction();isDrawing = true;lastX = 0;lastY = 0;drawPixel(x, y);}
-        }
+  if (ev.pointerType === 'touch') ev.preventDefault();
+  canvas.setPointerCapture(ev.pointerId);
+
+  pointers.set(ev.pointerId, {
+    clientX: ev.clientX, clientY: ev.clientY,
+    offsetX: ev.offsetX, offsetY: ev.offsetY
+  });
+
+  // === 2 fingrar -> initiera pinch (ersätter ev.touches.length === 2)
+  if (pointers.size === 2) {
+    clearTimeout(touchTimer);
+    if (delatare === true) { delatare = false; _revertToPreStroke(); }
+
+    const [p0, p1] = twoPointers();
+    const dx = p0.clientX - p1.clientX;
+    const dy = p0.clientY - p1.clientY;
+    lastPinchDistance = Math.hypot(dx, dy);
+    return; // lämna – vi är i pinch-läge
+  }
+
+  // === 1 finger -> din timer (ersätter ev.touches.length === 1)
+  if (pointers.size === 1) {
+    touchTimer = setTimeout(() => { delatare = false; }, 40);
+  }
+
+  // --- Resten av din singel-finger nedtryckningslogik ---
+  if (ev.target === canvas && pointers.size === 1) {
+    const rect = canvas.getBoundingClientRect();
+    x = ev.clientX - rect.left;
+    y = ev.clientY - rect.top;
+
+    // movecorners
+    if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty-30 && y < drawstarty+10) { movecorners = true; resizeStart('NW'); return; }
+    if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty-30 && y < drawstarty+10) { movecorners = true; resizeStart('NE'); return; }
+    if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty+drawareay && y < drawstarty-10+drawareay+30) { movecorners = true; resizeStart('SW'); return; }
+    if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty+drawareay-10 && y < drawstarty+drawareay+30) { movecorners = true; resizeStart('SE'); return; }
+
+    // scrollbar (oförändrad)
+    let sbThickness = getScrollbarThickness();
+    if (drawareax - (canvas.width/devicePixelRatio*2) > -canvas.width/devicePixelRatio-50) {
+      if (x <= canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue + (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01) &&
+          x >= canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue &&
+          y >= canvas.height/devicePixelRatio - sbThickness && y <= canvas.height/devicePixelRatio) {
+        movescrollx = true; savescrollxvalue = x; return;
+      }
     }
-});
+    if (drawareay - (canvas.height/devicePixelRatio*2) > -canvas.height/devicePixelRatio-50) {
+      if (x <= canvas.width/devicePixelRatio && x >= canvas.width/devicePixelRatio - sbThickness &&
+          y >= 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue &&
+          y <= 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue + (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)) {
+        movescrolly = true; savescrollyvalue = y; return;
+      }
+    }
+
+    // Tools
+    if (x >= drawstartx && x < drawstartx + drawareax && y >= drawstarty && y < drawstarty + drawareay) {
+      const canvasX = Math.floor((x - drawstartx) / zoom);
+      const canvasY = Math.floor((y - drawstarty) / zoom);
+      if (currentTool === 'eyedropper') {
+        updateEyedropperBuffer();
+        const data = eyedropperCtx.getImageData(canvasX, canvasY, 1, 1).data;
+        const hexColor = `#${data[0].toString(16).padStart(2,'0')}${data[1].toString(16).padStart(2,'0')}${data[2].toString(16).padStart(2,'0')}`;
+        brushColor = hexColor; isTransparentBrush = false; switchTool('pen'); return;
+      } else if (currentTool === 'fill') {
+        beginAction(); floodFill(x, y); endAction();
+      } else if (currentTool === 'select') {
+        isSelecting = true; selectionStartX = canvasX; selectionStartY = canvasY; selectionEndX = canvasX; selectionEndY = canvasY;
+      } else if (currentTool === 'text') {
+        const text = prompt("Enter your text:"); if (text) { beginAction(); drawText(x, y, text); endAction(); }
+      } else if (currentTool === 'pen') {
+        beginAction(); isDrawing = true; lastX = 0; lastY = 0; drawPixel(x, y);
+      }
+    }
+  }
+}, { passive: false });
 
 canvas.addEventListener('pointermove', (ev) => {
-    if (ev.pointerType === 'touch') ev.preventDefault();
-    if (movecorners) {resizePreviewFromCanvasXY(x, y);}
-    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-    if (pointers.size === 2 && lastPinchDistance !== null) {const dx = e.touches[0].clientX - e.touches[1].clientX;const dy = e.touches[0].clientY - e.touches[1].clientY;const newDistance = Math.hypot(dx, dy);const delta = newDistance - lastPinchDistance;let newzoom =zoom/zomzomzom;if (Math.abs(delta) > 5) {if (delta > 0) newzoom *= 1.05;else newzoom *= 0.95;newzoom = Math.max(0.10, Math.min(newzoom, 50)); zoomvalue = Math.round(newzoom * 100);document.getElementById("zoomSlider").value = zoomvalue;document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";lastPinchDistance = newDistance;}return;}
-    if (ev.target === canvas){      
-        x = ev.clientX - canvas.getBoundingClientRect().left;
-        y = ev.clientY -canvas.getBoundingClientRect().top;
-        isposetive = false;if (isdirposetive < x) {isposetive = true;}isdirposetive = x;
-        isposetivey = false;if (isdirposetivey < y) {isposetivey = true;}isdirposetivey = y;
-        if (isDrawing  && currentTool === 'pen'&&!movescrolly&&!movescrollx) {drawPixel(x, y);}
-    }
-});
-canvas.addEventListener('pointerup', (ev)=>{
-    if (ev.pointerType === 'touch') ev.preventDefault();
-        pointers.delete(ev.pointerId);
-        if (movecorners) {resizeCommit();movecorners= false;}
-        movescrollx = false;
-        movescrolly = false;
-        isposetive = false;
-        scrollx = movescrollxvalue;
-        scrolly = movescrollyvalue;
-        if(isDrawing==true)endAction();
-        isDrawing = false;
-        lastX = 0;
-        lastY = 0;
-        isSelecting = false;
+  if (ev.pointerType === 'touch') ev.preventDefault();
+  if (!pointers.has(ev.pointerId)) return;
 
-});
-canvas.addEventListener('pointercancel', (ev)=>{ 
-    if (ev.pointerType === 'touch') ev.preventDefault();
-    pointers.delete(ev.pointerId);
-    
-});
+  // uppdatera den aktiva pointerns pos
+  const p = pointers.get(ev.pointerId);
+  p.clientX = ev.clientX; p.clientY = ev.clientY;
+  p.offsetX = ev.offsetX; p.offsetY = ev.offsetY;
+  pointers.set(ev.pointerId, p);
+
+  // dragga hörn
+  if (movecorners) {
+    const rect = canvas.getBoundingClientRect();
+    const xNow = ev.clientX - rect.left;
+    const yNow = ev.clientY - rect.top;
+    resizePreviewFromCanvasXY(xNow, yNow);
+  }
+
+  // === 2-finger pinch (ersätter e.touches vid move)
+  if (pointers.size === 2 && lastPinchDistance > 0) {
+    const [p0, p1] = twoPointers();
+    const dx = p0.clientX - p1.clientX;
+    const dy = p0.clientY - p1.clientY;
+    const newDistance = Math.hypot(dx, dy);
+    const delta = newDistance - lastPinchDistance;
+
+    let newzoom = zoom / zomzomzom;  // behåller din befintliga formel
+    if (Math.abs(delta) > 5) {
+      newzoom *= (delta > 0) ? 1.05 : 0.95;
+      newzoom = Math.max(0.10, Math.min(newzoom, 50));
+      zoomvalue = Math.round(newzoom * 100);
+      document.getElementById("zoomSlider").value = String(zoomvalue);
+      document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
+      lastPinchDistance = newDistance;
+    }
+    return; // när två fingrar – rita inte
+  }
+
+  // === 1 finger: rita
+  if (ev.target === canvas && pointers.size === 1) {
+    const rect = canvas.getBoundingClientRect();
+    x = ev.clientX - rect.left;
+    y = ev.clientY - rect.top;
+
+    isposetive = false; if (isdirposetive < x) { isposetive = true; } isdirposetive = x;
+    isposetivey = false; if (isdirposetivey < y) { isposetivey = true; } isdirposetivey = y;
+
+    if (isDrawing && currentTool === 'pen' && !movescrolly && !movescrollx) {
+      drawPixel(x, y);
+    }
+  }
+}, { passive: false });
+
+function endPointer(ev) {
+  if (ev.pointerType === 'touch') ev.preventDefault();
+  pointers.delete(ev.pointerId);
+  try { canvas.releasePointerCapture(ev.pointerId); } catch(_) {}
+
+  if (pointers.size < 2) {
+    // nollställ pinch-baslinjen när vi inte längre har två fingrar
+    lastPinchDistance = 0;
+  }
+
+  if (movecorners) { resizeCommit(); movecorners = false; }
+  movescrollx = false;
+  movescrolly = false;
+  isposetive = false;
+  scrollx = movescrollxvalue;
+  scrolly = movescrollyvalue;
+
+  if (isDrawing === true) endAction();
+  isDrawing = false;
+  lastX = 0; lastY = 0;
+  isSelecting = false;
+
+  if (pointers.size === 0 && touchTimer) {
+    clearTimeout(touchTimer);
+    touchTimer = null;
+  }
+}
+canvas.addEventListener('pointerup', endPointer, { passive: false });
+canvas.addEventListener('pointercancel', endPointer, { passive: false });
 
 
 
