@@ -5664,7 +5664,7 @@ selTop  = Math.min(selectionStartY, selectionEndY);
         
         if (e.touches.length === 2) {
             clearTimeout(touchTimer);
-            if(delatare==true){delatare=false; _revertToPreStroke();}
+           // if(delatare==true){delatare=false; _revertToPreStroke();}
             const dx = e.touches[0].clientX - e.touches[1].clientX;
             const dy = e.touches[0].clientY - e.touches[1].clientY;
             lastPinchDistance = Math.hypot(dx, dy);
@@ -5836,7 +5836,7 @@ selTop  = Math.min(selectionStartY, selectionEndY);
             }
              else if (currentTool === 'fill') {
                 // Fill tool
-                _capturePreStroke();
+                //_capturePreStroke();
                 beginAction();
                 floodFill(x, y);
                 endAction();
@@ -5861,7 +5861,7 @@ selTop  = Math.min(selectionStartY, selectionEndY);
            
              else if (currentTool === 'pen') {
                 // Rest of your existing touch handling code for drawing
-                if(isDrawing==false)_capturePreStroke();
+               // if(isDrawing==false)_capturePreStroke();
                 isDrawing = true;
                 lastX = 0;
                 lastY = 0;
