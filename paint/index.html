@@ -878,12 +878,11 @@
 
 /* Extra fallback för iOS som ibland rapporterar pointer:fine i Safari */
 @media (orientation: landscape) and (max-device-width: 1024px) {
-  :root { --ls-scale: 0.45; }
   #centerTopBar{
-    transform: scale(var(--ls-scale));
+    transform: scale(0.45);
     transform-origin: top left;
-    width: calc(100% / var(--ls-scale));
-    height: calc(100% / var(--ls-scale));
+    width: calc(100% / 0.45);
+    height: calc(100% / 0.45);
   }
 
   
