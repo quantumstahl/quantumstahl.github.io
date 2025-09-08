@@ -5,7 +5,7 @@ const ASSETS = [
   'styles.css', 'app.js',
   'icons/icon-192.png', 'icons/icon-512.png','icons/icon-180.png'
 ];
-/*
+
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
   self.skipWaiting();
@@ -31,9 +31,4 @@ self.addEventListener('fetch', (e) => {
     }).catch(() => caches.match(req).then(m => m || caches.match('/')))
   );
 });
-*/
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', () => self.clients.claim());
-self.addEventListener('fetch', (e) => {
-  e.respondWith(fetch(e.request, { cache: 'no-store' }));
-});
+
