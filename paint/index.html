@@ -157,13 +157,7 @@
         `cv=${cv.width}×${cv.height}`,
       ].join('  |  ');
     }
-    // Liten häng-detektor: om vi ritar och inga event på 1200ms → släpp stroke
-    setInterval(() => {
-      if (drawing && performance.now() - lastEventTs > 1200) {
-        drawing = false; last = null;
-        updateDiag('watchdog-end');
-      }
-    }, 600);
+
 
     // ---------- Start ----------
     resizeCanvas();
