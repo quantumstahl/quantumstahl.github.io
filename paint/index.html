@@ -4862,7 +4862,7 @@ function sizesizerezie2() {
   // vänta 1–2 frames efter rotation för att iOS ska bli “klar”
   requestAnimationFrame(() => {
       
-   // if(window.innerHeight  > window.innerWidth&&mobileAndTabletCheck()){
+    if(window.innerHeight  > window.innerWidth&&mobileAndTabletCheck()){
                  
       
     recalcCanvasSize();
@@ -4877,7 +4877,7 @@ function sizesizerezie2() {
     drawstarty = Math.round((hpx - drawareay * z) / 2 + vvTop);
 
     if (typeof render === 'function') render();
-   // } 
+    } 
   });
 }
 
