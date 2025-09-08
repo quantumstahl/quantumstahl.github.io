@@ -181,57 +181,61 @@ function drawSegImg(ix, iy){
 }
 
 // --- Gesture state (ersätt din gamla) ---
+// --- Gesture state (stabil pan/pinch) ---
 const activePointers = new Map(); // id -> {x,y}
-let gesture = null;               // null | {...}
+let gesture = null;               // null | {mode:'pan'|'pinch', ...}
+
+const PINCH_DEADZONE = 0.03;   // ±3% distans ⇒ fortfarande PAN
+const PINCH_HYST     = 0.06;   // >6% från start ⇒ lås till PINCH (ingen flop)
+const MIN_MOVE_PX    = 0.5;    // ignorera micro-rörelser (skärmpx)
+const SCALE_MIN = 0.25, SCALE_MAX = 20;
 
 function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
-function mid(a,b){ return { sx:(a.x+b.x)/2, sy:(a.y+b.y)/2 }; }
-
-// Liten smoothing så det känns mjukt men responsivt
+function mid(a,b){ return { x:(a.x+b.x)/2, y:(a.y+b.y)/2 }; }
 function smooth(prev, target, alpha=0.35){ return prev + (target - prev)*alpha; }
 
-// Pinch-setup: kalla när andra fingret går ned
-function beginPinch(){
+function beginTwoFingerGesture(){
   const [p1,p2] = [...activePointers.values()];
   const startMid = mid(p1,p2);
   const startDist = Math.max(dist(p1,p2), 1);
 
-  // Viktigt: räkna anchor i bild-koord utifrån START-kameran
   const startScale = camera.scale;
-  const startCam = { x: camera.x, y: camera.y };
+  const startCam   = { x: camera.x, y: camera.y };
+  const rect = cv.getBoundingClientRect(); // frys så adressfältet inte ruckar
 
-  // screenToImage men fryst på startCam/startScale:
-  const rect = cv.getBoundingClientRect();           // frys rect (adressfältet kan flytta!)
+  // Funktion som konverterar skärm→bild med startens kamera/scale (för anchor)
   function s2i_fixed(sx, sy){
     const px = sx - rect.left, py = sy - rect.top;
-    return {
-      ix: px / startScale + startCam.x,
-      iy: py / startScale + startCam.y
-    };
+    return { ix: px / startScale + startCam.x, iy: py / startScale + startCam.y };
   }
-  const anchor = s2i_fixed(startMid.sx, startMid.sy);
 
-  gesture = { startDist, startMid, startScale, startCam, anchor, lastScale: startScale, rect };
+  gesture = {
+    mode: null,               // bestäms vid första move
+    startDist, startMid,
+    prevMid: { ...startMid }, // för pan
+    startScale, startCam, rect,
+    anchor: null,             // sätts om vi går till pinch
+    lastScale: startScale
+  };
 }
 
-// Använd i pointerdown/pointermove/pointerup enligt nedan
 cv.addEventListener('pointerdown', (e)=>{
   e.preventDefault();
   cv.setPointerCapture(e.pointerId);
-  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  activePointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
 
-  if (activePointers.size === 1) {
-    // en-finger: rita
+  if (activePointers.size === 1){
+    // En-finger: rita
     drawing = true; lastImg = null;
     const { ix, iy } = screenToImage(e.clientX, e.clientY);
     drawSegImg(ix, iy);
     render();
-  } else if (activePointers.size === 2) {
-    // två fingrar: börja pinch
+  } else if (activePointers.size === 2){
+    // Två fingrar: börja gesto
     drawing = false;
-    beginPinch();
+    beginTwoFingerGesture();
   }
-}, { passive:false });
+}, {passive:false});
 
 cv.addEventListener('pointermove', (e)=>{
   const p = activePointers.get(e.pointerId);
@@ -239,52 +243,94 @@ cv.addEventListener('pointermove', (e)=>{
   e.preventDefault();
   p.x = e.clientX; p.y = e.clientY;
 
-  if (activePointers.size === 1 && drawing) {
+  // En-finger ritning
+  if (activePointers.size === 1 && drawing){
     const { ix, iy } = screenToImage(e.clientX, e.clientY);
     drawSegImg(ix, iy);
     render();
     return;
   }
 
-  if (activePointers.size === 2 && gesture) {
+  if (activePointers.size === 2 && gesture){
     const [a,b] = [...activePointers.values()];
-    const curMid = mid(a,b);
+    const curMid  = mid(a,b);
     const curDist = Math.max(dist(a,b), 1);
+    const ratio   = curDist / gesture.startDist;     // 1.00 ≈ samma avstånd
+    const deltaMidX = curMid.x - gesture.prevMid.x;
+    const deltaMidY = curMid.y - gesture.prevMid.y;
 
-    // 1) ny skala relativt START-dist/START-scale (ingen feedback)
-    const unclamped = gesture.startScale * (curDist / gesture.startDist);
-    const targetScale = Math.min(Math.max(unclamped, 0.25), 20);
+    // Bestäm läge
+    if (gesture.mode === null){
+      if (Math.abs(ratio - 1) <= PINCH_DEADZONE){
+        gesture.mode = 'pan';
+      } else if (Math.abs(ratio - 1) >= PINCH_HYST){
+        gesture.mode = 'pinch';
+        // Sätt anchor vid övergång till pinch
+        const s2i = (sx,sy)=>{
+          const px = sx - gesture.rect.left, py = sy - gesture.rect.top;
+          return {
+            ix: px / gesture.startScale + gesture.startCam.x,
+            iy: py / gesture.startScale + gesture.startCam.y
+          };
+        };
+        gesture.anchor = s2i(gesture.startMid.x, gesture.startMid.y);
+      } else {
+        // Mellanläge: bete dig som pan tills vi säkert är pinch
+        gesture.mode = 'pan';
+      }
+    } else if (gesture.mode === 'pan') {
+      // Uppgradera till pinch om vi passerar hysteresis
+      if (Math.abs(ratio - 1) >= PINCH_HYST){
+        gesture.mode = 'pinch';
+        const s2i = (sx,sy)=>{
+          const px = sx - gesture.rect.left, py = sy - gesture.rect.top;
+          return {
+            ix: px / gesture.startScale + gesture.startCam.x,
+            iy: py / gesture.startScale + gesture.startCam.y
+          };
+        };
+        gesture.anchor = s2i(gesture.prevMid.x, gesture.prevMid.y);
+      }
+    }
+    // OBS: vi nedgraderar aldrig från pinch → pan i samma gesto (ingen flop)
 
-    // valfri smoothing för att undvika "flimmer"
+    if (gesture.mode === 'pan'){
+      // Ignorera super-små rörelser (eliminera jitter)
+      if (Math.abs(deltaMidX) > MIN_MOVE_PX || Math.abs(deltaMidY) > MIN_MOVE_PX){
+        camera.x -= deltaMidX / camera.scale;
+        camera.y -= deltaMidY / camera.scale;
+        gesture.prevMid = { ...curMid };
+        render();
+      }
+      return;
+    }
+
+    // === PINCH ===
+    const unclamped = gesture.startScale * ratio;
+    const targetScale = Math.min(Math.max(unclamped, SCALE_MIN), SCALE_MAX);
     const newScale = smooth(gesture.lastScale, targetScale, 0.35);
     gesture.lastScale = newScale;
     camera.scale = newScale;
 
-    // 2) placera kameran så att START-ankaret hamnar under NUVARANDE mitt
-    //    anchor (i bildpx) ska mappa till curMid (i skärmpx):
-    //    (anchor.ix - camera.x) * camera.scale = curMid.sx
-    // => camera.x = anchor.ix - curMid.sx / camera.scale   (samma för y)
-    camera.x = gesture.anchor.ix - (curMid.sx - gesture.rect.left) / camera.scale;
-    camera.y = gesture.anchor.iy - (curMid.sy - gesture.rect.top)  / camera.scale;
+    // Håll anchor under nuvarande mittpunkt
+    camera.x = gesture.anchor.ix - (curMid.x - gesture.rect.left) / camera.scale;
+    camera.y = gesture.anchor.iy - (curMid.y - gesture.rect.top)  / camera.scale;
 
-    // (valfritt) klamma kameran till bildens kanter:
-    // clampCamera();
-
+    gesture.prevMid = { ...curMid };
     render();
   }
-}, { passive:false });
+}, {passive:false});
 
 function endPointer(e){
   e?.preventDefault?.();
   try { e?.pointerId!=null && cv.releasePointerCapture(e.pointerId); } catch {}
   activePointers.delete(e.pointerId);
-
   if (activePointers.size < 2) gesture = null;
   if (activePointers.size === 0) { drawing = false; lastImg = null; }
 }
-cv.addEventListener('pointerup', endPointer, { passive:false });
-cv.addEventListener('pointercancel', endPointer, { passive:false });
-cv.addEventListener('touchcancel', endPointer, { passive:false });
+cv.addEventListener('pointerup', endPointer, {passive:false});
+cv.addEventListener('pointercancel', endPointer, {passive:false});
+cv.addEventListener('touchcancel', endPointer, {passive:false});
 
 // 6) demo: piltangenter pan, +/- zoom (desktop)
 window.addEventListener('keydown', e=>{
