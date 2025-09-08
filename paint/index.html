@@ -1058,7 +1058,18 @@ html, body{
   box-shadow: none !important; outline: none !important;
 }    
 }
-
+.topbar, 
+#bottomDock, 
+#mainToolBar, 
+.dropdown, 
+.color-pop, 
+.ui-panel {
+  backface-visibility: hidden;
+  transform: translateZ(0); /* tvingar helpixel render */
+  background-color: #333;   /* samma som din body-bakgrund */
+  outline: 1px solid rgba(0,0,0,0); /* fix mot tunna linjer */
+  box-sizing: border-box;
+}
 
         </style>
 </head>
