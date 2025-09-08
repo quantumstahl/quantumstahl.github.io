@@ -4787,11 +4787,38 @@ function hitCornerPrecise(x, y, { radius = 28, safeInner = 14 } = {}) {
   }
   return best; // 0 = ingen hörna, annars 1..4
 }
+let isPinching = false;
+let preStrokeBmp = null;        // temp-canvas innan stroke (ej history)
+let pinchLastDist = 0;
 
+// anropa innan en stroke börjar
+function _capturePreStroke() {
+  // skapar en liten snapshot av renderade bilden (inte hela 10000x10000 om du har visningsyta separat)
+  preStrokeBmp = document.createElement('canvas');
+  preStrokeBmp.width  = drawingCanvas.width;
+  preStrokeBmp.height = drawingCanvas.height;
+  preStrokeBmp.getContext('2d').drawImage(drawingCanvas, 0, 0);
+}
+
+// anropa om en stroke avbryts (t.ex. pinch startar)
+function _revertToPreStroke() {
+  if (!preStrokeBmp) return;
+  const g = drawingCanvas.getContext('2d');
+  g.setTransform(1,0,0,1,0,0);
+  g.clearRect(0,0,drawingCanvas.width,drawingCanvas.height);
+  g.drawImage(preStrokeBmp, 0, 0);
+  preStrokeBmp = null;
+}
             //check---------------------------------------------------------------------------------------
             var check = function() {
-            if(document.querySelector('.color-swatch.active')&&document.querySelector('.color-swatch.active').dataset.color!== brushColor)brushColor=document.querySelector('.color-swatch.active').dataset.color;
-                
+            const active = document.querySelector('.color-swatch.active');
+                if (active && active.dataset.color !== brushColor) {
+                  // Uppdatera UI så det matchar aktuell penselfärg
+                  active.dataset.color = brushColor;
+                  if (brushColor !== 'checkerboard') {
+                    active.style.background = brushColor;
+                  }
+                }
                 
                 zomzomzom=1;
                 if(window.innerHeight  < window.innerWidth&&mobileAndTabletCheck()){
@@ -5424,7 +5451,7 @@ selTop  = Math.min(selectionStartY, selectionEndY);
         
         if (e.touches.length === 2) {
             clearTimeout(touchTimer);
-            if(delatare==true){delatare=false;undo();}
+            if(delatare==true){delatare=false; _revertToPreStroke();;}
             const dx = e.touches[0].clientX - e.touches[1].clientX;
             const dy = e.touches[0].clientY - e.touches[1].clientY;
             lastPinchDistance = Math.hypot(dx, dy);
@@ -5596,6 +5623,7 @@ selTop  = Math.min(selectionStartY, selectionEndY);
             }
              else if (currentTool === 'fill') {
                 // Fill tool
+                _capturePreStroke();
                 beginAction();
                 floodFill(x, y);
                 endAction();
@@ -5620,6 +5648,7 @@ selTop  = Math.min(selectionStartY, selectionEndY);
            
              else if (currentTool === 'pen') {
                 // Rest of your existing touch handling code for drawing
+                if(isDrawing==false)_capturePreStroke();
                 isDrawing = true;
                 lastX = 0;
                 lastY = 0;
