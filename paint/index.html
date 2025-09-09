@@ -3881,6 +3881,7 @@ canvas.addEventListener('pointerup', (ev)=>{
     selectionBBox.x = dragSelX;
     selectionBBox.y = dragSelY;
     isDraggingSelection = false;
+    commitSelectionSession();
     return;
   }
   if (isRectSelecting) {
