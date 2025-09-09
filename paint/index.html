@@ -89,10 +89,14 @@ html, body { height: 100dvh; }
   top: calc(12px + env(safe-area-inset-top));          /* modern iOS */
   top: calc(12px + constant(safe-area-inset-top));     /* iOS 11.x */
   display:flex; align-items:center; gap:10px;
-  z-index:2300;
-  pointer-events:none;           /* endast knappar fångar klick */
-  -webkit-user-select:none; user-select:none;
-  -webkit-touch-callout:none;
+  z-index:2300;           /* endast knappar fångar klick */
+
+}
+#topBar{
+  overflow: visible !important;
+  background-clip: border-box !important; /* återställ om du vill */
+  -webkit-background-clip: border-box !important;
+  outline: none !important;               /* anti-hairline inte här */
 }
 .topbar-group{ display:flex; gap:10px; pointer-events:auto; }
 
@@ -599,7 +603,6 @@ html, body { height: 100dvh; }
 
 
 
-<div id="dockWrap4">
 <!-- === TOP BAR === -->
 <div id="topBar" aria-label="Top toolbar">
   <!-- Hamburger (vänster) -->
@@ -632,7 +635,7 @@ html, body { height: 100dvh; }
 
 <div id="menuBackdrop" aria-hidden="true"></div>    
 
-</div>
+
 
 <div id="dockWrap5">
 <!-- Right-side Transform menu -->
