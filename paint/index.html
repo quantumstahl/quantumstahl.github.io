@@ -27,7 +27,7 @@
     
     /* === Top Bar / Menyer === */
 #topBar{
-  position: fixed; top: env(safe-area-inset-top, 0);; left: 10px; right: 10px; height: 48px;
+  left:10px;
   display: flex; align-items: center; gap: 10px;
   z-index: 2000; pointer-events: none; /* bara knappar får events */
    -webkit-user-select: none;
@@ -107,17 +107,7 @@
   }
 }    
 /* TOP BAR över backdropen */
-#topBar{
-  position: fixed;
-  left: 10px; right: 10px; height: 48px;
-  top: 20px;                                        /* fallback */
-  top: calc(20px + env(safe-area-inset-top));       /* modern iOS */
-  /* för riktigt gamla iOS: */
-  top: calc(20px + constant(safe-area-inset-top));  /* iOS 11.x */
-  z-index: 2300;
-  display: flex; align-items: center; gap: 10px;
-  /* Viktigt: ta INTE pointer-events:none här om du ska klicka */
-}
+
 
 /* Backdrop fångar utanför-klick men ligger UNDER dropdown */
 #menuBackdrop{
@@ -1077,7 +1067,7 @@ html, body{
 @media (pointer: coarse){
 
   /* Top bar + knappar */
-  #topBar{ gap: 8px !important; height: 42px !important; top: 8px !important; }
+  #topBar{ gap: 8px !important; height: 42px !important;}
   .topbtn{
     height: 42px !important;
     min-width: 42px !important;
@@ -1461,6 +1451,31 @@ html, body{
 </nav>
 </div>
 
+
+
+
+<!-- Right-side Transform menu -->
+<div id="transformDock" aria-label="Transform tools">
+  <button id="transformBtn" title="Transform">✥</button>
+  <div id="transformMenu" role="menu" aria-label="Transform menu">
+    <button class="item" id="trFlipH"  role="menuitem">Flip Horizontal</button>
+    <button class="item" id="trFlipV"  role="menuitem">Flip Vertical</button>
+    <hr style="border:0;height:1px;background:rgba(255,255,255,.12);margin:6px 2px;">
+    <button class="item" id="trRotR"   role="menuitem">Rotate +90°</button>
+    <button class="item" id="trRotL"   role="menuitem">Rotate −90°</button>
+    <button class="item" id="trRotFree" role="menuitem">Rotate (free)…</button>
+  </div>
+</div>
+
+
+<div id="dockWrap3">
+<div id="centerTopBar" aria-label="Clipboard & history">
+  <button id="barCopy"  class="barbtn" title="Copy" style="font-size:48px;">⧉</button>
+  <button id="barPaste" class="barbtn" title="Paste" style="font-size:48px;">📋</button>
+  <button id="barUndo"  class="barbtn" title="Undo" style="font-size:48px;">⟲</button>
+  <button id="barRedo"  class="barbtn" title="Redo" style="font-size:48px;">⟳</button>
+</div>
+    
 <!-- === TOP BAR === -->
 <div id="topBar" aria-label="Top toolbar">
   <!-- Hamburger (vänster) -->
@@ -1491,30 +1506,8 @@ html, body{
   </div>
 </div>
 
-<div id="menuBackdrop" aria-hidden="true"></div>
-
-
-<!-- Right-side Transform menu -->
-<div id="transformDock" aria-label="Transform tools">
-  <button id="transformBtn" title="Transform">✥</button>
-  <div id="transformMenu" role="menu" aria-label="Transform menu">
-    <button class="item" id="trFlipH"  role="menuitem">Flip Horizontal</button>
-    <button class="item" id="trFlipV"  role="menuitem">Flip Vertical</button>
-    <hr style="border:0;height:1px;background:rgba(255,255,255,.12);margin:6px 2px;">
-    <button class="item" id="trRotR"   role="menuitem">Rotate +90°</button>
-    <button class="item" id="trRotL"   role="menuitem">Rotate −90°</button>
-    <button class="item" id="trRotFree" role="menuitem">Rotate (free)…</button>
-  </div>
-</div>
-
-
-<div id="dockWrap3">
-<div id="centerTopBar" aria-label="Clipboard & history">
-  <button id="barCopy"  class="barbtn" title="Copy" style="font-size:48px;">⧉</button>
-  <button id="barPaste" class="barbtn" title="Paste" style="font-size:48px;">📋</button>
-  <button id="barUndo"  class="barbtn" title="Undo" style="font-size:48px;">⟲</button>
-  <button id="barRedo"  class="barbtn" title="Redo" style="font-size:48px;">⟳</button>
-</div>
+<div id="menuBackdrop" aria-hidden="true"></div>    
+    
 </div>
 
 <!-- Resize Modal Dialog -->
