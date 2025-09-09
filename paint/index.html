@@ -144,17 +144,28 @@ html, body { height: 100dvh; }
    ========================= */
 
 #transformBtn{
-  position:fixed;
-  right:12px;top:calc(12px+(env(safe-area-inset-top)));
-  pointer-events:auto;
-  width:56px; height:56px; border-radius:9999px;
-  display:flex; align-items:center; justify-content:center;
-  background:rgba(30,30,30,.92); color:#fff;
-  border:1px solid rgba(255,255,255,.12);
-  box-shadow:0 10px 24px rgba(0,0,0,.35);
-  cursor:pointer; user-select:none;
+  position: fixed;
+
+  /* TOPP: fallback + safe-area */
+  top: 12px; /* fallback */
+  top: calc(12px + env(safe-area-inset-top));
+
+  /* HÖGER: fallback + safe-area (viktigt i landscape) */
+  right: 12px; /* fallback */
+  right: calc(12px + env(safe-area-inset-right));
+
+  pointer-events: auto;
+  width: 56px; height: 56px; border-radius: 9999px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(30,30,30,.92); color: #fff;
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 10px 24px rgba(0,0,0,.35);
+  cursor: pointer; user-select: none;
+
+  /* se till att INGEN ancestor “fixar” layern */
+  transform: none !important;
 }
-#transformBtn:active{ transform:translateY(1px); }
+#transformBtn:active{ transform: translateY(1px) !important; }
 
 #transformMenu{
   position:absolute; right:0; top:68px; display:none;
