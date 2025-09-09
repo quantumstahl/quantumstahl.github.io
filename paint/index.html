@@ -228,6 +228,7 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
+    user-select: none;
   }     
 
             
@@ -731,7 +732,7 @@
   padding: 8px 14px;
   box-shadow: 0 10px 26px rgba(0,0,0,.35);
   z-index: 2300;
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 #centerTopBar .barbtn {
@@ -5074,7 +5075,7 @@ canvas.addEventListener('pointerdown', (ev) => {
         updateEyedropperBuffer();
         const data = eyedropperCtx.getImageData(canvasX, canvasY, 1, 1).data;
         const hexColor = `#${data[0].toString(16).padStart(2,'0')}${data[1].toString(16).padStart(2,'0')}${data[2].toString(16).padStart(2,'0')}`;
-        brushColor = hexColor; isTransparentBrush = false; switchTool('pen'); return;
+        document.querySelector('.color-swatch.active').dataset.color = hexColor;document.querySelector('.color-swatch.active').style.background = hexColor; isTransparentBrush = false; switchTool('pen'); return;
       } else if (currentTool === 'fill') {
         beginAction(); floodFill(x, y); endAction();
       } else if (currentTool === 'select') {
@@ -5174,13 +5175,11 @@ canvas.addEventListener('pointercancel', endPointer, { passive: false });
 
             //check---------------------------------------------------------------------------------------
             var check = function() {
+                
             const active = document.querySelector('.color-swatch.active');
                 if (active && active.dataset.color !== brushColor) {
-                  // Uppdatera UI så det matchar aktuell penselfärg
-                  active.dataset.color = brushColor;
-                  if (brushColor !== 'checkerboard') {
-                    active.style.background = brushColor;
-                  }
+                   brushColor=active.dataset.color;
+                 
                 }
                 
                 zomzomzom=1;
