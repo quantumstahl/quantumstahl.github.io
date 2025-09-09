@@ -5,111 +5,235 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>Button Latency Lab</title>
 <style>
-:root { --bg:#0b0b0e; --fg:#e9eef2; --muted:#9aa6b2; --accent:#5dd4ff; }
-html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif}
-.wrap{max-width:900px;margin:auto;padding:16px;}
-h1{font-size:20px;margin:0 0 8px}
-.desc{color:var(--muted);margin-bottom:12px}
-.row{display:flex;gap:12px;flex-wrap:wrap}
-.col{flex:1 1 260px;min-width:260px}
-.panel{background:#12141a;border:1px solid #1f2430;border-radius:14px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.3)}
-.btn{display:block;width:100%;padding:18px 16px;border-radius:14px;background:#1a2130;border:1px solid #2a3444;color:var(--fg);text-align:center;font-weight:700;letter-spacing:.2px;cursor:pointer;user-select:none;outline:none;transition:transform .06s ease, opacity .06s ease; will-change: transform, opacity; -webkit-tap-highlight-color: transparent;}
-.btn:active{transform:scale(.97);opacity:.95}
-.btn.active{box-shadow:0 0 0 2px var(--accent) inset}
-.btn small{display:block;font-weight:400;color:var(--muted)}
-.k{color:#bcd}
-.controls label{display:flex;align-items:center;gap:8px;margin:6px 0}
-.stat{display:grid;grid-template-columns:1fr auto;gap:6px;margin:6px 0;color:#d5dde6}
-.stat b{color:#fff}
-pre.log{height:220px;overflow:auto;background:#0e1116;border:1px solid #1f2430;padding:10px;border-radius:10px;font:12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
-code{background:#0e1116;padding:2px 6px;border-radius:6px;border:1px solid #1f2430}
-.note{color:#b9c3cf}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.grid .panel{min-height:140px}
-.toggle{accent-color:#5dd4ff}
-.muted{color:var(--muted)}
-.pill{display:inline-flex;gap:8px;align-items:center;background:#0e1116;border:1px solid #1f2430;padding:6px 10px;border-radius:999px}
+  :root { --bg:#0b0b0e; --fg:#e9eef2; --muted:#9aa6b2; --accent:#5dd4ff; }
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif}
+  .wrap{max-width:900px;margin:auto;padding:16px;}
+  h1{font-size:20px;margin:0 0 8px}
+  .desc{color:var(--muted);margin-bottom:12px}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .col{flex:1 1 260px;min-width:260px}
+  .panel{background:#12141a;border:1px solid #1f2430;border-radius:14px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+  .btn{display:block;width:100%;padding:20px 16px;border-radius:14px;background:#1a2130;border:1px solid #2a3444;color:var(--fg);text-align:center;font-weight:800;letter-spacing:.2px;cursor:pointer;user-select:none;outline:none;transition:transform .04s ease, opacity .04s ease, background-color .04s ease; will-change: transform, opacity, background-color; -webkit-tap-highlight-color: transparent;}
+  .btn:active{transform:scale(.97);opacity:.95}
+  .btn.active{box-shadow:0 0 0 2px var(--accent) inset; background:#243149}
+  .btn small{display:block;font-weight:400;color:var(--muted)}
+  .controls label{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .stat{display:grid;grid-template-columns:1fr auto;gap:6px;margin:6px 0;color:#d5dde6}
+  .stat b{color:#fff}
+  pre.log{height:240px;overflow:auto;background:#0e1116;border:1px solid #1f2430;padding:10px;border-radius:10px;font:12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+  code{background:#0e1116;padding:2px 6px;border-radius:6px;border:1px solid #1f2430}
+  .note{color:#b9c3cf}
+  .pill{display:inline-flex;gap:8px;align-items:center;background:#0e1116;border:1px solid #1f2430;padding:6px 10px;border-radius:999px}
+  .bigflash{ position:fixed; inset:auto 16px 16px 16px; height:46px; display:flex; align-items:center; justify-content:center; border-radius:12px; background:#1f2a3f; border:1px solid #2a3444; color:#fff; font-weight:800; opacity:0; transform:translateY(8px); pointer-events:none; transition:opacity .12s ease, transform .12s ease; }
+  .bigflash.on{ opacity:1; transform:translateY(0); }
 </style>
 </head>
 <body>
-<div class="wrap">
-<h1>Button Latency Lab</h1>
-<div class="desc">Mät hur snabbt knappar reagerar på mobil. Testa <span class="pill"><span>Pointer</span><span class="muted">vs</span><span>Click</span></span>, <code>touch-action</code>, och tungt jobb.</div>
+  <div class="wrap">
+    <h1>Button Latency Lab</h1>
+    <div class="desc">Stor, tydlig feedback för mobil. Ser du inget när du trycker? Då missar vi events → detta avslöjar varför.</div>
 
+    <div class="row">
+      <div class="col">
+        <div class="panel controls">
+          <div class="stat"><span>Aktiv variabel</span><b id="varVal">false</b></div>
+          <div class="stat"><span>Senaste latency (ms)</span><b id="latency">–</b></div>
+          <div class="stat"><span>Antal tryck (alla knappar)</span><b id="presses">0</b></div>
+          <div class="stat"><span>Sista event path</span><b id="evpath">–</b></div>
+          <hr style="border-color:#1f2430;border-width:1px 0 0;margin:8px 0">
+          <label><input id="optManip" class="toggle" type="checkbox" checked> <span><code>touch-action: manipulation</code> på knappar</span></label>
+          <label><input id="optAddClick" class="toggle" type="checkbox"> <span>Aktivera <code>onclick</code> också (visa ev. dubbeltrigg)</span></label>
+          <label><input id="optHeavy" class="toggle" type="checkbox"> <span>Simulera tungt jobb (200ms busy)</span></label>
+          <label><input id="optRAF" class="toggle" type="checkbox" checked> <span>Kör handling i <code>requestAnimationFrame</code></span></label>
+          <label><input id="optPrevent" class="toggle" type="checkbox" checked> <span><code>preventDefault()</code> på <code>pointerup</code></span></label>
+        </div>
+      </div>
+      <div class="col">
+        <div class="panel">
+          <button id="btnPointer" class="btn" type="button">
+            PointerButton
+            <small>pointerdown → feedback, pointerup → action</small>
+          </button>
+        </div>
+        <div class="panel">
+          <button id="btnClick" class="btn" type="button">
+            ClickButton
+            <small>endast onclick (jämförelse)</small>
+          </button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="panel">
+          <button id="btnMixed" class="btn" type="button">
+            MixedButton
+            <small>pointer + click (medveten fälla)</small>
+          </button>
+        </div>
+        <div class="panel">
+          <pre class="log" id="log"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
 
-<div class="row">
-<div class="col">
-<div class="panel controls">
-<div class="stat"><span>Aktiv variabel</span><b id="varVal">false</b></div>
-<div class="stat"><span>Senaste latency (ms)</span><b id="latency">–</b></div>
-<div class="stat"><span>Event path</span><b id="evpath">–</b></div>
-<hr style="border-color:#1f2430;border-width:1px 0 0;margin:8px 0">
-<label><input id="optManip" class="toggle" type="checkbox" checked> <span><code>touch-action: manipulation</code> på knappar</span></label>
-<label><input id="optAddClick" class="toggle" type="checkbox"> <span>Aktivera <code>onclick</code> också (visar ev. dubbeltrigg)</span></label>
-<label><input id="optHeavy" class="toggle" type="checkbox"> <span>Simulera tungt jobb på <code>pointerup</code> (200ms)</span></label>
-<label><input id="optRAF" class="toggle" type="checkbox" checked> <span>Utför handling i <code>requestAnimationFrame</code></span></label>
-<label><input id="optPrevent" class="toggle" type="checkbox" checked> <span><code>preventDefault()</code> på <code>pointerup</code></span></label>
-</div>
-</div>
-<div class="col">
-<div class="panel">
-<button id="btnPointer" class="btn" type="button">
-PointerButton
-<small>pointerdown → visuell feedback, pointerup → byt variabel</small>
-</button>
-</div>
-<div class="panel">
-<button id="btnClick" class="btn" type="button">
-ClickButton
-<small>enbart onclick (för jämförelse)</small>
-</button>
-</div>
-</div>
-<div class="col">
-<div class="panel">
-<button id="btnMixed" class="btn" type="button">
-MixedButton
-<small>pointer + click på samma knapp (medveten fälla)</small>
-</button>
-</div>
-<div class="panel">
-<pre class="log" id="log"></pre>
-</div>
-</div>
-</div>
-
-
-<p class="note">Tips: Tryck snabbt flera gånger på varje knapp på mobilen. Titta på skillnader i latency och om <em>MixedButton</em> ibland dubbelfirar.</p>
-</div>
-
+  <div id="flash" class="bigflash">⏱️ Tap registrerad</div>
 
 <script>
 (() => {
-const $ = (sel) => document.querySelector(sel);
-const logEl = $('#log');
-const outVar = $('#varVal');
-const outLat = $('#latency');
-const outPath = $('#evpath');
-const optManip = $('#optManip');
-const optAddClick = $('#optAddClick');
-const optHeavy = $('#optHeavy');
-const optRAF = $('#optRAF');
-const optPrevent = $('#optPrevent');
+  const $ = (sel) => document.querySelector(sel);
+  const logEl = $('#log');
+  const outVar = $('#varVal');
+  const outLat = $('#latency');
+  const outPath = $('#evpath');
+  const outPress = $('#presses');
+  const flash = $('#flash');
+  const optManip = $('#optManip');
+  const optAddClick = $('#optAddClick');
+  const optHeavy = $('#optHeavy');
+  const optRAF = $('#optRAF');
+  const optPrevent = $('#optPrevent');
 
+  let presses = 0;
+  let stateVar = false;
+  let tDown = 0;
 
-let stateVar = false;
-let tDown = 0;
+  function setManipulation(on){
+    document.querySelectorAll('.btn').forEach(b=>{
+      b.style.touchAction = on ? 'manipulation' : 'auto';
+    });
+  }
 
+  function heavyWork(ms=200){
+    const start = performance.now();
+    while (performance.now() - start < ms) { /* busy */ }
+  }
 
-function setManipulation(on){
-document.querySelectorAll('.btn').forEach(b=>{
-b.style.touchAction = on ? 'manipulation' : 'auto';
-});
-}
+  function writeLog(line){
+    const ts = new Date().toLocaleTimeString();
+    logEl.textContent = `[${ts}] ${line}
+` + logEl.textContent;
+  }
 
+  function updateStats(lat, path){
+    outVar.textContent = String(stateVar);
+    outLat.textContent = (lat!=null) ? lat.toFixed(1) : '–';
+    outPath.textContent = path || '–';
+    outPress.textContent = String(presses);
+  }
 
-function heavyWork(ms=200){
-const start = performance.now();
+  function showFlash(){
+    flash.classList.add('on');
+    try { navigator.vibrate && navigator.vibrate(10); } catch {}
+    clearTimeout(showFlash._t);
+    showFlash._t = setTimeout(()=>flash.classList.remove('on'), 220);
+  }
+
+  function instantVisual(btn){
+    btn.classList.add('active');
+    btn.style.backgroundColor = '#2b3b5a';
+    setTimeout(()=>{ btn.style.backgroundColor=''; }, 120);
+  }
+
+  function onDownGeneric(btn){
+    tDown = performance.now();
+    presses++; updateStats(null, 'pointerdown');
+    instantVisual(btn);
+    showFlash();
+  }
+
+  // --- Pointer button (rekommenderad)
+  const btnPointer = $('#btnPointer');
+  btnPointer.addEventListener('pointerdown', (e) => onDownGeneric(btnPointer));
+  btnPointer.addEventListener('pointercancel', () => btnPointer.classList.remove('active'));
+  btnPointer.addEventListener('pointerup', (e) => {
+    const path = 'pointerdown → pointerup';
+    if (optPrevent.checked) e.preventDefault();
+
+    const doAction = () => {
+      if (optHeavy.checked) heavyWork(200);
+      stateVar = !stateVar;
+      const latency = performance.now() - tDown;
+      btnPointer.classList.remove('active');
+      updateStats(latency, path);
+      writeLog(`${path} | latency=${latency.toFixed(1)}ms var=${stateVar}`);
+    };
+
+    if (optRAF.checked) requestAnimationFrame(doAction); else doAction();
+  });
+
+  // --- Click button (endast onclick)
+  const btnClick = $('#btnClick');
+  btnClick.addEventListener('pointerdown', () => onDownGeneric(btnClick));
+  btnClick.addEventListener('pointercancel', () => btnClick.classList.remove('active'));
+  function clickHandler(e){
+    const path = 'click';
+    const doAction = () => {
+      if (optHeavy.checked) heavyWork(200);
+      stateVar = !stateVar;
+      const latency = performance.now() - tDown;
+      btnClick.classList.remove('active');
+      updateStats(latency, path);
+      writeLog(`${path} | latency=${latency.toFixed(1)}ms var=${stateVar}`);
+    };
+    if (optRAF.checked) requestAnimationFrame(doAction); else doAction();
+  }
+  btnClick.addEventListener('click', clickHandler);
+
+  // --- Mixed button (pointer + click)
+  const btnMixed = $('#btnMixed');
+  btnMixed.addEventListener('pointerdown', () => onDownGeneric(btnMixed));
+  btnMixed.addEventListener('pointercancel', () => btnMixed.classList.remove('active'));
+  btnMixed.addEventListener('pointerup', (e)=>{
+    if (optPrevent.checked) e.preventDefault();
+    const path = 'pointerdown → pointerup (+click?)';
+    const doAction = () => {
+      if (optHeavy.checked) heavyWork(200);
+      stateVar = !stateVar;
+      const latency = performance.now() - tDown;
+      btnMixed.classList.remove('active');
+      updateStats(latency, path);
+      writeLog(`${path} | latency=${latency.toFixed(1)}ms var=${stateVar}`);
+    };
+    if (optRAF.checked) requestAnimationFrame(doAction); else doAction();
+  });
+
+  function mixedClick(e){
+    const path = 'click (mixed)';
+    const doAction = () => {
+      if (optHeavy.checked) heavyWork(200);
+      stateVar = !stateVar;
+      const latency = performance.now() - tDown;
+      updateStats(latency, path);
+      writeLog(`${path} | latency=${latency.toFixed(1)}ms var=${stateVar}`);
+    };
+    if (optRAF.checked) requestAnimationFrame(doAction); else doAction();
+  }
+
+  // --- Options wiring
+  function syncOptions(){
+    setManipulation(optManip.checked);
+
+    btnMixed.removeEventListener('click', mixedClick);
+    btnPointer.removeEventListener('click', mixedClick);
+    btnClick.removeEventListener('click', clickHandler);
+    btnClick.addEventListener('click', clickHandler);
+
+    if (optAddClick.checked) {
+      btnMixed.addEventListener('click', mixedClick);
+      btnPointer.addEventListener('click', mixedClick);
+    }
+  }
+
+  optManip.addEventListener('change', syncOptions);
+  optAddClick.addEventListener('change', syncOptions);
+  optHeavy.addEventListener('change', ()=>{});
+  optRAF.addEventListener('change', ()=>{});
+  optPrevent.addEventListener('change', ()=>{});
+
+  // init
+  syncOptions();
+  updateStats(null, null);
+})();
 </script>
 </body>
 </html>
