@@ -1069,7 +1069,7 @@ html, body{
 .dropdown, .menu, #transformMenu{ z-index: 2400 !important; }
 
 /* === LANDSCAPE + TOUCH: gör UI kompakt (~45%) utan transform === */
-/*@media (orientation: landscape) and (pointer: coarse){*/
+@media (pointer: coarse){
 
   /* Top bar + knappar */
   #topBar{ gap: 8px !important; height: 42px !important; top: 8px !important; }
@@ -1140,10 +1140,12 @@ html, body{
     gap: 8px !important;
     border-radius: 12px !important;
   }
+  @media (orientation: landscape) and (pointer: coarse){
   .palette-grid{
     grid-auto-columns: 32px !important;
     grid-template-rows: repeat(5, 32px) !important;
     gap: 4px !important;
+  }
   }
   .palette-grid .color-swatch{
     width: 32px !important; height: 32px !important; border-radius: 6px !important;
@@ -1205,7 +1207,7 @@ html, body{
     font-size: 10px !important;
   }
   
-/*}*/
+}
 #dockWrap {
   position: fixed;
   bottom: calc(40px + env(safe-area-inset-bottom));;
@@ -5232,7 +5234,7 @@ canvas.addEventListener('pointercancel', endPointer, { passive: false });
                 }
                 
                 zomzomzom=1;
-                if(window.innerHeight  < window.innerWidth&&mobileAndTabletCheck()){
+                if(mobileAndTabletCheck()){
                     zomzomzom=0.5;
                 }
                 
