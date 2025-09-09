@@ -686,10 +686,6 @@ html{
 
 /* === SIDEBAR LAYOUT === */
 #mainToolBar{
-  position: fixed;
-  left: 12px;
-  top: 30%;
-  transform: translateY(-50%);
   display: grid;
   gap: 10px;
   padding: 10px;
@@ -1223,6 +1219,7 @@ html, body{
   width: 100%;
   display: flex;
   justify-content: center;
+  pointer-events: none;
 }
 @media (orientation: landscape) and (pointer: coarse){
     
@@ -1240,7 +1237,19 @@ html, body{
     
 }
 
-
+#dockWrap2{
+    
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100%;           /* sträck container över hela höjden */
+  display: flex;
+  align-items: center;    /* mitten på Y-led */
+  pointer-events: none;   /* låt klick/rita gå igenom */
+    
+    
+    
+}
 
 
         </style>
@@ -1416,7 +1425,7 @@ html, body{
   </div>
 </div>
 
-
+<div id="dockWrap2">
 <!-- === MAIN TOOL SIDEBAR === -->
 <nav id="mainToolBar" aria-label="Main tools">
   <button class="tool-btn" id="tool-pen"        data-tool="pen"        title="Pen (B)"         aria-pressed="false" style="font-size:38px;">✏️</button>
@@ -1426,7 +1435,7 @@ html, body{
   <button class="tool-btn" id="tool-select"     data-tool="select"     title="Select (V)"      aria-pressed="false" style="font-size:38px;">▣</button>
   <button class="tool-btn" id="tool-lasso"      data-tool="lasso"      title="Lasso (L)"       aria-pressed="false" style="font-size:38px;">🪢</button>
 </nav>
-
+</div>
 
 <!-- === TOP BAR === -->
 <div id="topBar" aria-label="Top toolbar">
