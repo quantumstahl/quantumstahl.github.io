@@ -189,7 +189,7 @@ html, body { height: 100dvh; }
    ========================= */
 #dockWrap3{
   position:fixed; left:0; right:0;
-  top: env(safe-area-inset-top, 0);
+  top: calc(12px + env(safe-area-inset-top));
   display:flex; justify-content:center;
   pointer-events:none; z-index:100000;
 }
@@ -355,9 +355,9 @@ html, body { height: 100dvh; }
   }
 
   /* Center-TopBar */
-  #centerTopBar{ padding:5px 9px; gap:7px; border-radius:13px; }
+  #centerTopBar{ padding:5px 9px; gap:0px; border-radius:0px; }
   #centerTopBar .barbtn{
-    min-width:23px; height:23px; font-size:18px; border-radius:11px;
+    min-width:23px; height:23px; font-size:18px; border-radius:0px;
   }
 
   /* Transform-knapp + meny */
