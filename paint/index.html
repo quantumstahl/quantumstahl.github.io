@@ -5109,7 +5109,7 @@ canvas.addEventListener('pointerdown', (ev) => {
       } else if (currentTool === 'text') {
         const text = prompt("Enter your text:"); if (text) { beginAction(); drawText(x, y, text); endAction(); }
       } else if (currentTool === 'pen') {
-        beginAction(); isDrawing = true; lastX = 0; lastY = 0; drawPixel(x, y);
+        beginAction(); _capturePreStroke();delatare=true;isDrawing = true; lastX = 0; lastY = 0; drawPixel(x, y);
       }
     }
   }
