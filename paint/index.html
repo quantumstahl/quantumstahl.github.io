@@ -251,7 +251,7 @@ html, body { height: 100dvh; }
    BOTTOM DOCK (center) + LANDSCAPE-HÖGER
    ========================= */
 #dockWrap{
-  position:fixed; left:0; right:0;
+  position:fixed; left:0; right:env(safe-area-inset-right);
   bottom: 40px;                                         /* fallback */
   bottom: max(env(safe-area-inset-bottom), 40px);       /* iOS safe-area */
   display:flex; justify-content:center;
