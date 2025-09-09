@@ -143,10 +143,9 @@ html, body { height: 100dvh; }
    TRANSFORM-FLYTKNAPP (HÖGER)
    ========================= */
 
-
-#transformDock{ z-index:2300; pointer-events:none; }
 #transformBtn{
-  right:12px;
+  position:absolute;
+  right:12px;top:calc(12px+(env(safe-area-inset-top)));
   pointer-events:auto;
   width:56px; height:56px; border-radius:9999px;
   display:flex; align-items:center; justify-content:center;
@@ -172,16 +171,6 @@ html, body { height: 100dvh; }
 }
 #transformMenu .item:hover{ background:rgba(255,255,255,.08); }
 
-#dockWrap5{
-  position: fixed;
-  left: 0; right: 10px;
-  top: calc(12px+(env(safe-area-inset-top))); /* iOS notch-säker */
-  display: flex;
-  justify-content: right;
-  pointer-events: none;     /* rita igenom utanför baren */
-  z-index: 100000;          /* över canvas/övrigt */
-}
-#dockWrap5 > * { pointer-events: auto; } 
 
 
 /* =========================
@@ -637,9 +626,8 @@ html, body { height: 100dvh; }
 
 
 
-<div id="dockWrap5">
+
 <!-- Right-side Transform menu -->
-<div id="transformDock" aria-label="Transform tools">
   <button id="transformBtn" title="Transform">✥</button>
   <div id="transformMenu" role="menu" aria-label="Transform menu">
     <button class="item" id="trFlipH"  role="menuitem">Flip Horizontal</button>
@@ -649,8 +637,7 @@ html, body { height: 100dvh; }
     <button class="item" id="trRotL"   role="menuitem">Rotate −90°</button>
     <button class="item" id="trRotFree" role="menuitem">Rotate (free)…</button>
   </div>
-</div>
-</div>
+
 
 
 
