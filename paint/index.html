@@ -138,16 +138,7 @@ html, body { height: 100dvh; }
 /* =========================
    TRANSFORM-FLYTKNAPP (HÖGER)
    ========================= */
-#dockWrap5{
-  position: fixed;
-  left: 0; right: 0;
-  top: calc(12px+(env(safe-area-inset-top))); /* iOS notch-säker */
-  display: flex;
-  justify-content: right;
-  pointer-events: none;     /* rita igenom utanför baren */
-  z-index: 100000;          /* över canvas/övrigt */
-}
-#dockWrap5 > * { pointer-events: auto; } 
+
 
 #transformDock{ z-index:2300; pointer-events:none; }
 #transformBtn{
@@ -176,6 +167,18 @@ html, body { height: 100dvh; }
   background:transparent; color:#fff; border:none; cursor:pointer;
 }
 #transformMenu .item:hover{ background:rgba(255,255,255,.08); }
+
+#dockWrap5{
+  position: fixed;
+  left: 0; right: 10px;
+  top: calc(12px+(env(safe-area-inset-top))); /* iOS notch-säker */
+  display: flex;
+  justify-content: right;
+  pointer-events: none;     /* rita igenom utanför baren */
+  z-index: 100000;          /* över canvas/övrigt */
+}
+#dockWrap5 > * { pointer-events: auto; } 
+
 
 /* =========================
    CENTER TOP BAR (Copy/Paste/Undo/Redo)
