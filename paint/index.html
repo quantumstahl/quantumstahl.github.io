@@ -1895,71 +1895,14 @@ function switchTool(newTool, opts = {}) {
                 // Ensure the canvas renders crisply on high DPI displays
                 ctx.scale(devicePixelRatio, devicePixelRatio);
                 
+                
+                drawstartx = canvas.width/devicePixelRatio/2 - drawareax/2;
+                drawstarty = canvas.height/devicePixelRatio/2 - drawareay/2;
+                
+                
                 disableSmoothing(ctx);
             }
-            function sizesizerezie(){
-                
-                // Store current state before resize
-                prevDrawAreaX = drawareax;
-                prevDrawAreaY = drawareay;
-                prevDrawStartX = drawstartx;
-                prevDrawStartY = drawstarty;
-                prevZoom = zoom;
-
-                // Update canvas size
-                const oldDevicePixelRatio = window.devicePixelRatio || 1;
-                resizeCanvas();
-
-                // Preserve drawing content by copying to temporary canvas
-                tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-                tempCtx.drawImage(drawingCanvas, 0, 0);
-
-                // CRITICAL: Do not change the drawing area dimensions during resize!
-                // Just maintain position based on window size change
-                const deltaWidth = window.innerWidth - (canvas.width / oldDevicePixelRatio);
-                const deltaHeight = window.innerHeight - (canvas.height / oldDevicePixelRatio);
-
-                // Maintain the same relative position
-                if (drawareax > canvas.width|| drawareay > canvas.height) { // If zoomed in
-                    // Do nothing to the dimensions - keep them exactly as they were
-                    drawareax = prevDrawAreaX;
-                    drawareay = prevDrawAreaY;
-
-                    // Keep the canvas in the same relative position
-                    drawstartx = prevDrawStartX;
-                    drawstarty = prevDrawStartY;
-                } else {
-                    // Not zoomed in - center the canvas
-                    const toolbarHeight = 155;
-                    drawstartx = (window.innerWidth / 2) - (drawareax / 2);
-                    drawstarty = Math.max(toolbarHeight, (window.innerHeight / 2) - (drawareay / 2));
-                    movescrollxvalue = 0;
-                    scrollx = 0;
-                    movescrollyvalue = 0;
-                    scrolly = 0;
-                }
-
-                // Restore drawing content
-                // EFTER (bevarar alfa)
-                drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-                // Extra säkert sätt:
-                drawingCtx.globalCompositeOperation = 'copy';
-                drawingCtx.drawImage(tempCanvas, 0, 0);
-                drawingCtx.globalCompositeOperation = 'source-over';
-
-                // Reset background
-                ctx.fillStyle = "lightgray";
-                ctx.fillRect(0, 0, canvas.width/devicePixelRatio, canvas.height/devicePixelRatio);
-
-                startan = true;
-                
-                
-            }
             
-            
-            window.addEventListener('resize', (event) => {
-                sizesizerezie();
-            });
             //NYTT----------------------------------------------------------------------------------
             // ======== LASSO + TRANSFORM STATE ========
 let lassoPoints = [];
@@ -4173,37 +4116,6 @@ function recalcCanvasSize() {
     canvas.style.height = h + 'px';
   }
 }
-
-function sizesizerezie2() {
-  // vänta 1–2 frames efter rotation för att iOS ska bli “klar”
-  requestAnimationFrame(() => {
-      
-    if(window.innerHeight  > window.innerWidth&&mobileAndTabletCheck()){
-                 
-      
-   // recalcCanvasSize();
-
-    const z   = (typeof _effectiveZoom === 'function') ? _effectiveZoom() : (window.zoom || 1);
-    const wpx = canvas.clientWidth;   // CSS-px
-    const hpx = canvas.clientHeight;  // CSS-px
-    const vvTop = (window.visualViewport && window.visualViewport.offsetTop) || 0;
-
-    // Centrera bilden i skärmen: (skärmens mitt) - (bildens halvbredd i skärmpx)
-    drawstartx = Math.round((wpx - drawareax * z) / 2);
-    drawstarty = Math.round((hpx - drawareay * z) / 2 + vvTop);
-
-    if (typeof render === 'function') render();
-    } 
-  });
-}
-
-// Lyssnare som täcker iOS
-window.addEventListener('orientationchange', sizesizerezie2, { passive:true });
-window.addEventListener('resize',            sizesizerezie2, { passive:true });
-if (window.visualViewport) {
-  visualViewport.addEventListener('resize', sizesizerezie2, { passive:true });
-  visualViewport.addEventListener('scroll', sizesizerezie2, { passive:true }); // adressfält glider
-}
 document.getElementById('mnuNew').addEventListener('click', ()=>{
   if (confirm("Start a new drawing? Unsaved work will be lost.")) {
     location.reload(); // enklaste variant A
@@ -4436,7 +4348,6 @@ canvas.addEventListener('pointercancel', endPointer, { passive: false });
                     if(mobileAndTabletCheck())HANDLE_SIZE_SCR = 24;
                     if(window.innerHeight  < window.innerWidth&&mobileAndTabletCheck()){}
                     else zoom=zoom/zomzomzom;
-                    sizesizerezie2();
                 }
                 
                 
