@@ -336,54 +336,62 @@ html, body { height: 100dvh; }
 }
 
 /* =========================
-   KOMPAKT MOBILPROFIL (~45%)
+   KOMPAKT MOBILPROFIL (~35% mindre än desktop, ~10% mindre än din gamla kompakt)
    ========================= */
 @media (pointer:coarse), (max-width:768px){
   /* Top bar + knappar */
-  #topBar{ gap:8px; height:42px; }
+  #topBar{ gap:7px; height:38px; }
   .topbtn{
-    height:42px; min-width:42px; padding:0 12px; border-radius:10px;
-    font-size:14px; gap:6px;
+    height:38px; min-width:38px; padding:0 10px; border-radius:9px;
+    font-size:12.5px; gap:5px;
   }
-  .hamburger{ font-size:16px; }
+  .hamburger{ font-size:14px; }
 
   .menu, .dropdown{
-    top:52px; min-width:200px; padding:8px; border-radius:10px;
+    top:47px; min-width:180px; padding:7px; border-radius:9px;
   }
-  .menu .item, .dropdown .item{ padding:10px 12px; font-size:14px; border-radius:10px; }
+  .menu .item, .dropdown .item{
+    padding:9px 11px; font-size:12.5px; border-radius:9px;
+  }
 
   /* Center-TopBar */
-  #centerTopBar{ padding:6px 10px; gap:8px; border-radius:14px; }
-  #centerTopBar .barbtn{ min-width:48px; height:48px; font-size:22px; border-radius:12px; }
+  #centerTopBar{ padding:5px 9px; gap:7px; border-radius:13px; }
+  #centerTopBar .barbtn{
+    min-width:43px; height:43px; font-size:20px; border-radius:11px;
+  }
 
   /* Transform-knapp + meny */
-  #transformBtn{ width:44px; height:44px; font-size:18px; }
-  #transformMenu{ top:56px; min-width:200px; padding:8px; border-radius:12px; }
-  #transformMenu .item{ padding:10px 12px; font-size:14px; border-radius:10px; }
+  #transformBtn{ width:40px; height:40px; font-size:16px; }
+  #transformMenu{ top:50px; min-width:180px; padding:7px; border-radius:11px; }
+  #transformMenu .item{
+    padding:9px 11px; font-size:12.5px; border-radius:9px;
+  }
 
   /* Sidebar */
-  #mainToolBar{ gap:8px; padding:8px; border-radius:12px; }
-  #mainToolBar .tool-btn{ width:44px; height:44px; font-size:22px; border-radius:10px; }
+  #mainToolBar{ gap:7px; padding:7px; border-radius:11px; }
+  #mainToolBar .tool-btn{
+    width:40px; height:40px; font-size:20px; border-radius:9px;
+  }
 
   /* Bottom dock */
-  #bottomDock{ padding:6px 8px; gap:8px; border-radius:12px; }
+  #bottomDock{ padding:5px 7px; gap:7px; border-radius:11px; }
   .palette-grid{
-    grid-auto-columns:32px;
-    grid-template-rows:repeat(2, 32px);
-    gap:4px;
+    grid-auto-columns:29px;
+    grid-template-rows:repeat(2, 29px);
+    gap:3.5px;
   }
-  .palette-grid .color-swatch{ width:32px; height:32px; border-radius:6px; }
-  .edit-btn{ width:40px; height:40px; border-radius:8px; }
+  .palette-grid .color-swatch{ width:29px; height:29px; border-radius:5px; }
+  .edit-btn{ width:36px; height:36px; border-radius:7px; }
 
-  #brushSizeSlider, #zoomSlider{ max-width:40vw; height:18px; }
-  #zoomLabel, #brushSizeLabel{ font-size:10px; }
+  #brushSizeSlider, #zoomSlider{ max-width:36vw; height:16px; }
+  #zoomLabel, #brushSizeLabel{ font-size:9px; }
 }
 
 /* Extra: landscape + touch – paletten i 5 rader (smal högerdocka) */
 @media (orientation:landscape) and (pointer:coarse){
   .palette-grid{
-    grid-auto-columns:32px;
-    grid-template-rows:repeat(5, 32px);
+    grid-auto-columns:29px;
+    grid-template-rows:repeat(5, 29px);
   }
 }
 
