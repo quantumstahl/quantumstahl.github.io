@@ -617,9 +617,7 @@ html{
 /* ===== Bottom Dock (kompakt) ===== */
 /* === Centered Bottom Dock (compact) === */
 #bottomDock{
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
+  
   
   z-index: 1200;
 
@@ -690,7 +688,7 @@ html{
 #mainToolBar{
   position: fixed;
   left: 12px;
-  top: 50%;
+  top: 30%;
   transform: translateY(-50%);
   display: grid;
   gap: 10px;
@@ -1225,7 +1223,13 @@ html, body{
   }
   
 }
-
+#dockWrap {
+  position: fixed;
+  bottom: 20px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
 
 
         </style>
@@ -1334,6 +1338,8 @@ html, body{
 
 <!-- Bottom Dock -->
 <!-- Centered Bottom Dock -->
+
+<div id="dockWrap">
 <div id="bottomDock" aria-label="Bottom dock controls">
   <div class="dock-left">
     <!-- 2 rader färger -->
@@ -1371,6 +1377,7 @@ html, body{
     <button id="edit-color-btn" class="edit-btn" type="button" title="Edit Color 🎨"
             style="font-size:52px; width:56px; height:56px;">🎨</button>
   </div>
+</div>
 </div>
 
 <!-- Flyttad/behållen färg-editor (popup) -->
