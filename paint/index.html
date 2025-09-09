@@ -24,7 +24,7 @@
 <link href="icons/icon-192.png" rel="icon" type="image/vnd.microsoft.icon"/>
 <style>
             
-    
+
     
     /* === Top Bar / Menyer === */
 #topBar{
@@ -720,9 +720,6 @@ html{
 
 /* === Center Top Bar === */
 #centerTopBar {
-  position: fixed;
-  top: 12px; left: 50%;
-  transform: translateX(-50%);
   display: flex; gap: 12px;
   background: rgba(30,30,30,.92);
   border: 1px solid rgba(255,255,255,.12);
@@ -845,8 +842,7 @@ html{
 @media (pointer:coarse), (max-width: 768px){
   /* Flytta centerTopBar lite åt höger + ge den mer luft */
   #centerTopBar{
-    left: 58%;                   /* lite mer åt höger */
-    transform: translateX(-50%); /* behåll "center" kring nya left */
+
     padding: 0px 0px;
     gap: 0px;
     border-radius: 28px;
@@ -932,10 +928,7 @@ html{
 #brushSizeSlider, #zoomSlider{
   width: 100%;
 }
-#centerTopBar{
-    left: 50%;                   /* lite mer åt höger */
 
-  }
   
   
 #color-editor .color-pop-inner{
@@ -1050,9 +1043,10 @@ html, body{
   box-shadow: none !important; outline: none !important;
 }    
 }
-.topbar, 
+.topBar, 
 #bottomDock, 
 #mainToolBar, 
+#centerTopBar,
 .dropdown, 
 .color-pop, 
 .ui-panel {
@@ -1246,12 +1240,19 @@ html, body{
   display: flex;
   align-items: center;    /* mitten på Y-led */
   pointer-events: none;   /* låt klick/rita gå igenom */
-    
-    
-    
 }
+#dockWrap2 > * { pointer-events: auto; }
 
-
+#dockWrap3{
+  position: fixed;
+  left: 0; right: 0;
+  top: env(safe-area-inset-top, 0); /* iOS notch-säker */
+  display: flex;
+  justify-content: center;
+  pointer-events: none;     /* rita igenom utanför baren */
+  z-index: 100000;          /* över canvas/övrigt */
+}
+#dockWrap3 > * { pointer-events: auto; }    
         </style>
 </head>
 <body>  
@@ -1483,11 +1484,14 @@ html, body{
   </div>
 </div>
 
+
+<div id="dockWrap3">
 <div id="centerTopBar" aria-label="Clipboard & history">
   <button id="barCopy"  class="barbtn" title="Copy" style="font-size:48px;">⧉</button>
   <button id="barPaste" class="barbtn" title="Paste" style="font-size:48px;">📋</button>
   <button id="barUndo"  class="barbtn" title="Undo" style="font-size:48px;">⟲</button>
   <button id="barRedo"  class="barbtn" title="Redo" style="font-size:48px;">⟳</button>
+</div>
 </div>
 
 <!-- Resize Modal Dialog -->
