@@ -3846,8 +3846,8 @@ canvas.addEventListener('pointermove', (ev)=>{
 function _finalizeRectSelection() {
   const x0 = Math.min(selectionStartX, selectionEndX);
   const y0 = Math.min(selectionStartY, selectionEndY);
-  const w  = Math.max(1, Math.abs(selectionEndX - selectionStartX));
-  const h  = Math.max(1, Math.abs(selectionEndY - selectionStartY));
+  const w  = Math.max(0, Math.abs(selectionEndX - selectionStartX));
+  const h  = Math.max(0, Math.abs(selectionEndY - selectionStartY));
   if (w <= 0 || h <= 0) return;
 
   // Canvas-path (skärm) för “marching ants”
