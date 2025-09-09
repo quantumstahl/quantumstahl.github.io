@@ -4057,7 +4057,7 @@ async function _bitmapFromDataURL(dataURL) {
 // Aktivera som flyttbar markering (ingen direkt målning på ritytan)
 function _activatePastedBitmap(imgBitmap) {
   // 1) Bygg en canvas av den inklistrade bilden
-  if (typeof beginAction === 'function') beginAction('paste/load');
+  
   const w = imgBitmap.width | 0, h = imgBitmap.height | 0;
   if (!w || !h) return;
   const c = document.createElement('canvas');
@@ -5479,6 +5479,7 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
     try {
+      if (typeof beginAction === 'function') beginAction('paste/load');  
       const bmp = await createImageBitmap(file);
       await _activateLoadedBitmap(bmp);
     } catch (err) {
