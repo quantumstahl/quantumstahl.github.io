@@ -1270,7 +1270,7 @@ html, body{
 
 #dockWrap4{
   position: fixed;
-  left: 0; right: 0;
+  left: env(safe-area-inset-left, 0);; right: 0;
   top: env(safe-area-inset-top, 0); /* iOS notch-säker */
   display: flex;
   pointer-events: none;     /* rita igenom utanför baren */
@@ -1278,7 +1278,16 @@ html, body{
 }
 #dockWrap4 > * { pointer-events: auto; } 
 
-
+#dockWrap5{
+  position: fixed;
+  left: 0; right: 0;
+  top: env(safe-area-inset-top, 0); /* iOS notch-säker */
+  display: flex;
+  justify-content: right;
+  pointer-events: none;     /* rita igenom utanför baren */
+  z-index: 100000;          /* över canvas/övrigt */
+}
+#dockWrap4 > * { pointer-events: auto; } 
 
 
 
@@ -1471,18 +1480,7 @@ html, body{
 
 
 
-<!-- Right-side Transform menu -->
-<div id="transformDock" aria-label="Transform tools">
-  <button id="transformBtn" title="Transform">✥</button>
-  <div id="transformMenu" role="menu" aria-label="Transform menu">
-    <button class="item" id="trFlipH"  role="menuitem">Flip Horizontal</button>
-    <button class="item" id="trFlipV"  role="menuitem">Flip Vertical</button>
-    <hr style="border:0;height:1px;background:rgba(255,255,255,.12);margin:6px 2px;">
-    <button class="item" id="trRotR"   role="menuitem">Rotate +90°</button>
-    <button class="item" id="trRotL"   role="menuitem">Rotate −90°</button>
-    <button class="item" id="trRotFree" role="menuitem">Rotate (free)…</button>
-  </div>
-</div>
+
 
 
 <div id="dockWrap3">
@@ -1535,9 +1533,20 @@ html, body{
 
 </div>
 
-
-
-
+<div id="dockWrap5">
+<!-- Right-side Transform menu -->
+<div id="transformDock" aria-label="Transform tools">
+  <button id="transformBtn" title="Transform">✥</button>
+  <div id="transformMenu" role="menu" aria-label="Transform menu">
+    <button class="item" id="trFlipH"  role="menuitem">Flip Horizontal</button>
+    <button class="item" id="trFlipV"  role="menuitem">Flip Vertical</button>
+    <hr style="border:0;height:1px;background:rgba(255,255,255,.12);margin:6px 2px;">
+    <button class="item" id="trRotR"   role="menuitem">Rotate +90°</button>
+    <button class="item" id="trRotL"   role="menuitem">Rotate −90°</button>
+    <button class="item" id="trRotFree" role="menuitem">Rotate (free)…</button>
+  </div>
+</div>
+</div>
 
 
 
