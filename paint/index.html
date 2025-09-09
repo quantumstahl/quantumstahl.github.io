@@ -5074,10 +5074,10 @@ function sizesizerezie2() {
   // vänta 1–2 frames efter rotation för att iOS ska bli “klar”
   requestAnimationFrame(() => {
       
-    if(mobileAndTabletCheck()){
+    if(window.innerHeight  > window.innerWidth&&mobileAndTabletCheck()){
                  
       
-    recalcCanvasSize();
+   // recalcCanvasSize();
 
     const z   = (typeof _effectiveZoom === 'function') ? _effectiveZoom() : (window.zoom || 1);
     const wpx = canvas.clientWidth;   // CSS-px
