@@ -1266,6 +1266,23 @@ html, body{
 
 }
 
+
+
+#dockWrap4{
+  position: fixed;
+  left: 0; right: 0;
+  top: env(safe-area-inset-top, 0); /* iOS notch-säker */
+  display: flex;
+  pointer-events: none;     /* rita igenom utanför baren */
+  z-index: 100000;          /* över canvas/övrigt */
+}
+#dockWrap4 > * { pointer-events: auto; } 
+
+
+
+
+
+
         </style>
 </head>
 <body>  
@@ -1476,6 +1493,14 @@ html, body{
   <button id="barRedo"  class="barbtn" title="Redo" style="font-size:48px;">⟳</button>
 </div>
     
+
+    
+</div>
+
+
+
+
+<div id="dockWrap4">
 <!-- === TOP BAR === -->
 <div id="topBar" aria-label="Top toolbar">
   <!-- Hamburger (vänster) -->
@@ -1507,8 +1532,32 @@ html, body{
 </div>
 
 <div id="menuBackdrop" aria-hidden="true"></div>    
-    
+
 </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 <!-- Resize Modal Dialog -->
 <div class="modal" id="resizeModal">
