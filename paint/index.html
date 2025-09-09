@@ -217,11 +217,13 @@
     
     
     
+html{
+    background: #000;
+}
     
     
     
-    
-           html,body {
+           body {
     overscroll-behavior: none;
     touch-action: none;
         user-select: none;
@@ -1066,10 +1068,14 @@ html, body{
 .dropdown, 
 .color-pop, 
 .ui-panel {
+    /* Viktigt mot hairlines */
+  overflow: hidden;                       /* klipp AA-kanten */
+  background-clip: padding-box;           /* hindra “seam” */
+  -webkit-background-clip: padding-box;
+  outline: 1px solid rgba(0,0,0,0);       /* iOS Safari-hack */
+  transform: translateZ(0);               /* lägg på egen layer */
   backface-visibility: hidden;
-  background-color: #333;   /* samma som din body-bakgrund */
-  outline: 1px solid rgba(0,0,0,0); /* fix mot tunna linjer */
-  box-sizing: border-box;
+  will-change: transform;
 }
 
 /* === GLOBALT – säkra klick i iOS PWA (ändrar inte storlek) === */
