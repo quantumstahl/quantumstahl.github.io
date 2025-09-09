@@ -138,9 +138,20 @@ html, body { height: 100dvh; }
 /* =========================
    TRANSFORM-FLYTKNAPP (HÖGER)
    ========================= */
+#dockWrap5{
+  position: fixed;
+  left: 0; right: 0;
+  top: calc(12px+(env(safe-area-inset-top))); /* iOS notch-säker */
+  display: flex;
+  justify-content: right;
+  pointer-events: none;     /* rita igenom utanför baren */
+  z-index: 100000;          /* över canvas/övrigt */
+}
+#dockWrap5 > * { pointer-events: auto; } 
+
 #transformDock{ z-index:2300; pointer-events:none; }
 #transformBtn{
-  position:absolute; right:12px; top:0;
+  right:12px;
   pointer-events:auto;
   width:56px; height:56px; border-radius:9999px;
   display:flex; align-items:center; justify-content:center;
