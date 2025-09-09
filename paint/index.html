@@ -4368,7 +4368,7 @@ canvas.addEventListener('pointercancel', endPointer, { passive: false });
                 
                 zomzomzom=1;
                 if(mobileAndTabletCheck()){
-                    zomzomzom=1;
+                    zomzomzom=0.5;
                 }
                 
                 // Update canvas size
@@ -4403,8 +4403,7 @@ canvas.addEventListener('pointercancel', endPointer, { passive: false });
                     projectdrawstarty = [drawstarty, drawstarty, drawstarty];
                     projectzoom = [zoom, zoom, zoom];
                     if(mobileAndTabletCheck())HANDLE_SIZE_SCR = 24;
-                    if(window.innerHeight  < window.innerWidth&&mobileAndTabletCheck()){}
-                    else zoom=zoom/zomzomzom;
+                    zoom=zoom/zomzomzom;
                     resizeCanvas();
                 }
                 
