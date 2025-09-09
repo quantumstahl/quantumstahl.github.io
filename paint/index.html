@@ -27,7 +27,7 @@
     
     /* === Top Bar / Menyer === */
 #topBar{
-  position: fixed; top: 10px; left: 10px; right: 10px; height: 48px;
+  position: fixed; top: env(safe-area-inset-top, 0);; left: 10px; right: 10px; height: 48px;
   display: flex; align-items: center; gap: 10px;
   z-index: 2000; pointer-events: none; /* bara knappar får events */
    -webkit-user-select: none;
