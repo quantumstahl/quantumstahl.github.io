@@ -774,10 +774,7 @@ html{
 /* === Mobile XL sizing overrides (sidebar, menyer, center-topbar) === */
 @media (pointer:coarse), (max-width: 768px){
     
-    
-    #bottomDock{
-        bottom: clamp(80px, 1.8vh, 80px);
-}
+
     
     
   /* Sidebar */
@@ -893,10 +890,7 @@ html{
   
   
 #bottomDock{
-  position: absolute;
-  left: 98%;
-  transform: translateX(-98%);
-  top: 15%;
+
 
   display: grid;
   grid-template-columns: 1fr;
@@ -1044,7 +1038,7 @@ html, body{
 @media (pointer: fine) and (min-width: 1100px){
     
   #bottomDock{
-    top: 88%;
+   
    }  
     
   .palette-grid{
@@ -1230,6 +1224,20 @@ html, body{
   display: flex;
   justify-content: center;
 }
+@media (orientation: landscape) and (pointer: coarse){
+    
+#dockWrap {
+  position: fixed;
+  right: 10px;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+}
+    
+    
+}
+
+
 
 
         </style>
