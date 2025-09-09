@@ -1214,6 +1214,34 @@ html, body{
   
 }
 
+
+/* 1) Stäng av textmarkering/callout som default i appen */
+#app, #app * {
+  -webkit-user-select: none; /* iOS/Safari/PWA */
+          user-select: none;
+  -webkit-touch-callout: none; /* inga långtrycks-menyer */
+}
+
+/* 2) Stäng av “dra-bild”-ghost på iOS */
+img, canvas, svg {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+/* 3) Stäng av markeringsfärg om något ändå råkar markeras */
+#app ::selection {
+  background: transparent;
+  color: inherit;
+}
+
+/* 4) Opt-in: tillåt markering där det behövs (inputs/textarea/egen klass) */
+input, textarea, [contenteditable],
+.selectable, .allow-select, .text-input-area {
+  -webkit-user-select: text;
+          user-select: text;
+  -webkit-touch-callout: default;
+}
+
         </style>
 </head>
 <body>  
