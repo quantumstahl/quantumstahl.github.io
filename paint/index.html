@@ -890,14 +890,14 @@
   position: absolute;
   left: 98%;
   transform: translateX(-98%);
-  top: 20%;
+  top: 15%;
 
   display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: auto auto auto;   /* 1: palette, 2: edit-btn, 3: sliders */
   row-gap: 10px;
 
-  width: 60px;
+  width: 90px;
 }
 
 /* Viktigt: gör barnen till DIREKTA grid-items */
@@ -5928,44 +5928,6 @@ updateGridButton();</script>
   });
 </script>
 
-<script>
-(() => {
-  let tDown = 0;
-  const overlay = document.createElement('div');
-  overlay.style.cssText = `
-    position:fixed; right:8px; bottom:8px; z-index:999999;
-    background:rgba(0,0,0,.75); color:#0f0;
-    font:14px/1.4 ui-monospace, monospace;
-    padding:6px 10px; border-radius:8px;
-    pointer-events:none; min-width:90px; text-align:right;
-  `;
-  overlay.textContent = 'latency: –';
-  document.body.appendChild(overlay);
-
-  // mät per knapp
-  function armButton(btn){
-    btn.addEventListener('pointerdown', () => { tDown = performance.now(); }, {passive:true});
-    btn.addEventListener('pointerup', (e) => {
-      e.preventDefault();
-      const latency = performance.now() - tDown;
-      overlay.textContent = `latency: ${latency.toFixed(1)}ms`;
-      // blink
-      overlay.style.color = '#fff';
-      setTimeout(()=>overlay.style.color='#0f0',120);
-    });
-  }
-
-  function armAll(){
-    document.querySelectorAll('button, [role=\"button\"], .btn')
-      .forEach(armButton);
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', armAll);
-  } else {
-    armAll();
-  }
-})();
-</script>
 
 </body>
 </html>
