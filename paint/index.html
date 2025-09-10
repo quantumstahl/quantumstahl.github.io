@@ -1940,7 +1940,7 @@ function switchTool(newTool, opts = {}) {
                 const devicePixelRatio = window.devicePixelRatio || 1;
                 
                 const isStandalone = matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-                if(isStandalone&&mobileAndTabletCheck()){
+                if(isStandalone&&mobileAndTabletCheck()&&window.innerWidth<window.innerHeight){
                     canvas.width = window.innerWidth * devicePixelRatio;
                     canvas.height = screen.height * devicePixelRatio;
                     canvas.style.width = window.innerWidth + 'px';
