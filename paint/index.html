@@ -168,8 +168,8 @@ canvas{
 #transformBtn:active{ transform: translateY(1px) !important; }
 
 #transformMenu{
-  position:absolute; right:0; top:68px; display:none;
-  min-width:220px; padding:8px; border-radius:14px;
+  position:absolute; right:0; top:calc(68px + env(safe-area-inset-top)); display:none;
+  padding:8px; border-radius:14px;
   background:rgba(30,30,30,.97); color:#fff;
   border:1px solid rgba(255,255,255,.12);
   box-shadow:0 12px 32px rgba(0,0,0,.35);
@@ -292,11 +292,16 @@ canvas{
   display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:center;
 }
 #brushSizeSlider{ width:320px; max-width:56vw; }
+.brush-row label{color: #fff;}
+  
 
 /* 🎨-knapp höger */
 .dock-right{ display:flex; align-items:center; }
 .edit-btn{ width:69px; height:69px; border-radius:7px;font-size:52px }
 .edit-btn:hover{ transform:scale(1.1); }
+
+
+
 
 /* Landscape + touch: docken längs HÖGER kant, centrerad på höjden */
 @media (orientation:landscape) and (pointer:coarse){
@@ -364,7 +369,7 @@ canvas{
 
   /* Transform-knapp + meny */
   #transformBtn{ width:40px; height:40px; font-size:16px; }
-  #transformMenu{ top:50px; min-width:180px; padding:7px; border-radius:11px; }
+  #transformMenu{ top:calc(50px + env(safe-area-inset-top)); width:180px; padding:7px; border-radius:11px; }
   #transformMenu .item{
     padding:9px 11px; font-size:12.5px; border-radius:9px;
   }
