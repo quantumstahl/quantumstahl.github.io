@@ -4890,7 +4890,7 @@ function restoreState(state){
   
   const newVW = window.innerWidth;
   const newVH = window.innerHeight;
-
+if(newVW!==state.canvasw){
   // 1) Bildens center i SNAPSHOT-ögonblicket (i bild-pixlar)
   // center_img = x0 + viewW_img/2, där x0 = -drawstartx*z
   const cx_img = -state.drawstartx + state.canvasw/2;
@@ -4907,9 +4907,12 @@ function restoreState(state){
   
   drawstartx = -x0;
   drawstarty = -y0;
-
-  state.canvasw= newVW;
-  state.canvash=newVH;
+  }
+  else{
+      drawstartx = state.drawstartx;
+      drawstarty = state.drawstarty;
+      
+  }
 
   if (typeof markDirty === 'function') markDirty();
 }
