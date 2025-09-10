@@ -1030,7 +1030,7 @@ canvas{
                 projectdrawareay[index] = drawareay;
                 projectdrawstartx[index] = drawstartx;
                 projectdrawstarty[index] = drawstarty;
-                projectzoom[index] = zoom;
+                projectzoom[index] = zoom*zomzomzom;
 
                 if (!projectDirty[index]) return; // ingenting att spara
 
@@ -1070,11 +1070,11 @@ canvas{
             drawstartx  = projectdrawstartx[index] ?? drawstartx;
             drawstarty  = projectdrawstarty[index] ?? drawstarty;
             zoom        = projectzoom[index] ?? zoom;
-
-            const zoomvalue = Math.round(zoom/zomzomzom * 100);
+            
+            const zoomvalue = Math.round(zoom* 100);
             document.getElementById("zoomSlider").value = zoomvalue;
             document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
-
+            zoom=zoom/zomzomzom;
             // 3) Rita tillbaka från snabb-cache (bitmap) eller blob-URL
             drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
 
