@@ -58,7 +58,7 @@ canvas{
 }
 
 /* Nya viewporthöjder – undvik 100vh-hopp på iOS */
-html, body { height: 100dvh; }
+
 
 /* Anti-hairline utility – lägg på alla flytande paneler/bars */
 .ui-panel,
@@ -1941,11 +1941,11 @@ function switchTool(newTool, opts = {}) {
                 
                 // Set the canvas size to match the display size
                 canvas.width = window.innerWidth * devicePixelRatio;
-                canvas.height = window.innerHeight * devicePixelRatio;
+                canvas.height = window.innerHeight+1000 * devicePixelRatio;
                 
                 // Scale the canvas CSS size to match the window
                 canvas.style.width = window.innerWidth + 'px';
-                canvas.style.height = window.innerHeight + 'px';
+                canvas.style.height = window.innerHeight+1000 + 'px';
                 
                 // Ensure the canvas renders crisply on high DPI displays
                 ctx.scale(devicePixelRatio, devicePixelRatio);
