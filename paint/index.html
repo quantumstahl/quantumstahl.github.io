@@ -4898,7 +4898,9 @@ function restoreState(state){
 
   // 2) Nytt övre-vänster hörn i bild-pixlar med NUVARANDE viewport
   const viewW_img = newVW ;
-  const viewH_img = newVH ;
+  const viewH_img = newVH;
+  
+  
 
   let x0 = Math.round(cx_img - viewW_img/2);
   let y0 = Math.round(cy_img - viewH_img/2);
@@ -4906,7 +4908,8 @@ function restoreState(state){
   drawstartx = -x0;
   drawstarty = -y0;
 
-
+  state.canvasw= newVW;
+  state.canvash=newVH;
 
   if (typeof markDirty === 'function') markDirty();
 }
