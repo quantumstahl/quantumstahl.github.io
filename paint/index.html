@@ -4787,7 +4787,7 @@ document.addEventListener('DOMContentLoaded', function () {
 // ===== History (synkron, region-baserad) =====
 const HIST_MAX = 100;
 
-let savelabel,savebmp,savew,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom;
+let savelabel,savebmp,savew,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom,canvasw,canvash;
 
 
 
@@ -4826,7 +4826,8 @@ function beginAction(label = ''){
     savedrawstartx=drawstartx;
     savedrawstarty=drawstarty;
     savezoom=zoom;
-  
+    canvasw=window.innerWidth;
+    canvash=window.innerHeight;
 }
 function destroyAction(){
     
@@ -4839,7 +4840,8 @@ function destroyAction(){
     savedrawstartx=0;
     savedrawstarty=0;
     savezoom=0;
-    
+    canvasw=0;
+    canvash=0;
 }
 
 
@@ -4854,7 +4856,7 @@ function endAction(){
         savelabel,
         bmp: savebmp,         // snapshot canvas av bildytan
         w: savew, h: saveh,  // "logiska" bildmått i px (utan zoom)
-        drawareax:savedrawareax, drawareay:savedrawareay, drawstartx:savedrawstartx, drawstarty:savedrawstarty, zoom:savezoom
+        drawareax:savedrawareax, drawareay:savedrawareay, drawstartx:savedrawstartx, drawstarty:savedrawstarty, zoom:savezoom,canvasw:canvasw,canvash:canvash
       });
       pruneStack(undoStack);
 
@@ -4884,8 +4886,25 @@ function restoreState(state){
   zoom=state.zoom;
   drawareax  = state.w * zoom;
   drawareay  = state.h * zoom;
-  drawstartx = state.drawstartx;
-  drawstarty = state.drawstarty;
+  
+  
+  const newVW = window.innerWidth;
+  const newVH = window.innerHeight;
+
+  // 1) Bildens center i SNAPSHOT-ögonblicket (i bild-pixlar)
+  // center_img = x0 + viewW_img/2, där x0 = -drawstartx*z
+  const cx_img = -state.drawstartx + state.canvasw/2;
+  const cy_img = -state.drawstarty + state.canvash/2;
+
+  // 2) Nytt övre-vänster hörn i bild-pixlar med NUVARANDE viewport
+  const viewW_img = newVW ;
+  const viewH_img = newVH ;
+
+  let x0 = Math.round(cx_img - viewW_img/2);
+  let y0 = Math.round(cy_img - viewH_img/2);
+  
+  drawstartx = -x0;
+  drawstarty = -y0;
 
 
 
@@ -4899,7 +4918,7 @@ function undo(){
   const cur = captureRegionSnapshot();
   redoStack.push({
     bmp: cur.snap, w: cur.imgW, h: cur.imgH,
-    drawareax:drawareax, drawareay:drawareay, drawstartx:drawstartx, drawstarty:drawstarty,zoom:zoom
+    drawareax:drawareax, drawareay:drawareay, drawstartx:drawstartx, drawstarty:drawstarty,zoom:zoom,canvasw:canvasw,canvash:canvash
   });
   pruneStack(redoStack);
 
@@ -4915,7 +4934,7 @@ function redo(){
   const cur = captureRegionSnapshot();
   undoStack.push({
     bmp: cur.snap, w: cur.imgW, h: cur.imgH,
-    drawareax:drawareax, drawareay:drawareay, drawstartx:drawstartx, drawstarty:drawstarty,zoom:zoom
+    drawareax:drawareax, drawareay:drawareay, drawstartx:drawstartx, drawstarty:drawstarty,zoom:zoom,canvasw:canvasw,canvash:canvash
   });
   pruneStack(undoStack);
 
