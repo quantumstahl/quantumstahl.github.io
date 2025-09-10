@@ -368,6 +368,12 @@ canvas{
     outline: none;
     touch-action: manipulation; 
   }
+  #centerTopBar .barbtn:hover,
+  #centerTopBar .barbtn:focus,
+  #centerTopBar .barbtn:focus-visible {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
   @media (orientation:landscape){#dockWrap3{left:0;}}
 
   /* Transform-knapp + meny */
@@ -4781,7 +4787,7 @@ document.addEventListener('DOMContentLoaded', function () {
 // ===== History (synkron, region-baserad) =====
 const HIST_MAX = 100;
 
-let savelabel,savebmp,savew,saveh,savedrawareax,savedrawareay,savezoom;
+let savelabel,savebmp,savew,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom;
 
 
 
@@ -4817,6 +4823,8 @@ function beginAction(label = ''){
     saveh=imgH;
     savedrawareax=drawareax;
     savedrawareay=drawareay;
+    savedrawstartx=drawstartx;
+    savedrawstarty=drawstarty;
     savezoom=zoom;
   
 }
@@ -4828,6 +4836,8 @@ function destroyAction(){
     saveh=0;
     savedrawareax=0;
     savedrawareay=0;
+    savedrawstartx=0;
+    savedrawstarty=0;
     savezoom=0;
     
 }
@@ -4844,7 +4854,7 @@ function endAction(){
         savelabel,
         bmp: savebmp,         // snapshot canvas av bildytan
         w: savew, h: saveh,  // "logiska" bildmått i px (utan zoom)
-        drawareax:savedrawareax, drawareay:savedrawareay, zoom:savezoom
+        drawareax:savedrawareax, drawareay:savedrawareay, drawstartx:savedrawstartx, drawstarty:savedrawstarty, zoom:savezoom
       });
       pruneStack(undoStack);
 
@@ -4874,6 +4884,8 @@ function restoreState(state){
   zoom=state.zoom;
   drawareax  = state.w * zoom;
   drawareay  = state.h * zoom;
+  drawstartx = state.drawstartx;
+  drawstarty = state.drawstarty;
 
 
 
@@ -4887,7 +4899,7 @@ function undo(){
   const cur = captureRegionSnapshot();
   redoStack.push({
     bmp: cur.snap, w: cur.imgW, h: cur.imgH,
-    drawareax:drawareax, drawareay:drawareay,zoom:zoom
+    drawareax:drawareax, drawareay:drawareay, drawstartx:drawstartx, drawstarty:drawstarty,zoom:zoom
   });
   pruneStack(redoStack);
 
@@ -4903,7 +4915,7 @@ function redo(){
   const cur = captureRegionSnapshot();
   undoStack.push({
     bmp: cur.snap, w: cur.imgW, h: cur.imgH,
-    drawareax:drawareax, drawareay:drawareay,zoom:zoom
+    drawareax:drawareax, drawareay:drawareay, drawstartx:drawstartx, drawstarty:drawstarty,zoom:zoom
   });
   pruneStack(undoStack);
 
