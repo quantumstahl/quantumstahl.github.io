@@ -1089,8 +1089,8 @@ canvas{
               drawingCtx.fillStyle = "white";
               drawingCtx.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
             }
-
             // Nytt projekt startar "clean"
+            resizeCanvas();
             projectDirty[index] = false;
           }
             document.getElementById('project1Btn').addEventListener('click', () => loadProject(0));
