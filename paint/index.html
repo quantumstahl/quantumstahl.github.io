@@ -1939,14 +1939,20 @@ function switchTool(newTool, opts = {}) {
             function resizeCanvas() {
                 const devicePixelRatio = window.devicePixelRatio || 1;
                 
-                // Set the canvas size to match the display size
-                canvas.width = window.innerWidth * devicePixelRatio;
-                canvas.height = window.innerHeight * devicePixelRatio;
-                
-                // Scale the canvas CSS size to match the window
-                canvas.style.width = window.innerWidth + 'px';
-                canvas.style.height = window.innerHeight + 'px';
-                
+                const isStandalone = matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+                if(isStandalone&&mobileAndTabletCheck()){
+                    canvas.width = window.innerWidth * devicePixelRatio;
+                    canvas.height = screen.height * devicePixelRatio;
+                    canvas.style.width = window.innerWidth + 'px';
+                    canvas.style.height = screen.height + 'px';
+                    
+                }
+                else{
+                    canvas.width = window.innerWidth * devicePixelRatio;
+                    canvas.height = window.innerHeight * devicePixelRatio;
+                    canvas.style.width = window.innerWidth + 'px';
+                    canvas.style.height = window.innerHeight + 'px';
+                }
                 // Ensure the canvas renders crisply on high DPI displays
                 ctx.scale(devicePixelRatio, devicePixelRatio);
                 
