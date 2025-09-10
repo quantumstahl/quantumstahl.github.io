@@ -35,7 +35,7 @@ body{
     touch-action: none;
     
     width: 100%;
-    height: 100dvh;
+    height: 100%;
     overflow: hidden;
     background: #000;
     -webkit-user-select: none !important;
@@ -48,7 +48,6 @@ body{
 canvas{
   display:block; margin:0 auto; z-index:0;
   max-width:100%; max-height:100%;
-   height: 100dvh;
   background:#50459b;
   image-rendering:-moz-crisp-edges;
   image-rendering:-webkit-crisp-edges;
@@ -993,8 +992,6 @@ html, body { height: 100dvh; }
             const canvas = document.getElementById("myCanvas");
             const ctx = canvas.getContext("2d");
             document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
-            canvas.style.width = window.innerWidth + "px";
-            canvas.style.height = window.innerHeight + "px";
     
             // Create an in-memory canvas to store our drawing
             const drawingCanvas = document.createElement('canvas');
@@ -1947,11 +1944,11 @@ function switchTool(newTool, opts = {}) {
                 
                 // Set the canvas size to match the display size
                 canvas.width = window.innerWidth * devicePixelRatio;
-                canvas.height = window.innerHeight * devicePixelRatio;
+                canvas.height = screen.availHeight * devicePixelRatio;
                 
                 // Scale the canvas CSS size to match the window
                 canvas.style.width = window.innerWidth + 'px';
-                canvas.style.height = window.innerHeight + 'px';
+                canvas.style.height = screen.availHeight + 'px';
                 
                 // Ensure the canvas renders crisply on high DPI displays
                 ctx.scale(devicePixelRatio, devicePixelRatio);
