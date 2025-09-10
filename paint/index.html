@@ -156,14 +156,14 @@ html, body { height: 100dvh; }
   /* HÖGER: fallback + safe-area (viktigt i landscape) */
   right: 12px; /* fallback */
   right: calc(12px + env(safe-area-inset-right));
-
+  z-index: 100010; 
   pointer-events: auto;
   width: 56px; height: 56px; border-radius: 9999px;
   display: flex; align-items: center; justify-content: center;
   background: rgba(30,30,30,.92); color: #fff;
   border: 1px solid rgba(255,255,255,.12);
   box-shadow: 0 10px 24px rgba(0,0,0,.35);
-  cursor: pointer; user-select: none;
+  cursor: pointer; user-select: auto;
 
   /* se till att INGEN ancestor “fixar” layern */
   transform: none !important;
