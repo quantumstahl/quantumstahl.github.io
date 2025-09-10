@@ -1,7 +1,7 @@
 {
   "name": "MaxPaint",
   "short_name": "MaxPaint",
-  "start_url": "/?source=pwa?fullscreen=true",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "background_color": "#111111",
