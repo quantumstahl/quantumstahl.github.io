@@ -4826,8 +4826,8 @@ function beginAction(label = ''){
     savedrawstartx=drawstartx;
     savedrawstarty=drawstarty;
     savezoom=zoom;
-    canvasw=window.innerWidth;
-    canvash=window.innerHeight;
+    canvasw=window.innerWidth/drawstartx;
+    canvash=window.innerHeight/drawstarty;
 }
 function destroyAction(){
     
@@ -4887,32 +4887,10 @@ function restoreState(state){
   drawareax  = state.w * zoom;
   drawareay  = state.h * zoom;
   
-  
-  const newVW = window.innerWidth;
-  const newVH = window.innerHeight;
-if(newVW!==state.canvasw){
-  // 1) Bildens center i SNAPSHOT-ögonblicket (i bild-pixlar)
-  // center_img = x0 + viewW_img/2, där x0 = -drawstartx*z
-  const cx_img = -state.drawstartx + state.canvasw/2;
-  const cy_img = -state.drawstarty + state.canvash/2;
 
-  // 2) Nytt övre-vänster hörn i bild-pixlar med NUVARANDE viewport
-  const viewW_img = newVW ;
-  const viewH_img = newVH;
-  
-  
+  drawstartx = state.canvasw*window.innerWidth;
+  drawstarty = state.canvash*window.innerHeight;
 
-  let x0 = Math.round(cx_img - viewW_img/2);
-  let y0 = Math.round(cy_img - viewH_img/2);
-  
-  drawstartx = -x0;
-  drawstarty = -y0;
-  }
-  else{
-      drawstartx = state.drawstartx;
-      drawstarty = state.drawstarty;
-      
-  }
 
   if (typeof markDirty === 'function') markDirty();
 }
