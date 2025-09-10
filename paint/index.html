@@ -1941,11 +1941,11 @@ function switchTool(newTool, opts = {}) {
                 
                 // Set the canvas size to match the display size
                 canvas.width = window.innerWidth * devicePixelRatio;
-                canvas.height = window.innerHeight+1000 * devicePixelRatio;
+                canvas.height = window.innerHeight * devicePixelRatio;
                 
                 // Scale the canvas CSS size to match the window
                 canvas.style.width = window.innerWidth + 'px';
-                canvas.style.height = window.innerHeight+1000 + 'px';
+                canvas.style.height = window.innerHeight + 'px';
                 
                 // Ensure the canvas renders crisply on high DPI displays
                 ctx.scale(devicePixelRatio, devicePixelRatio);
