@@ -364,6 +364,9 @@ canvas{
   #centerTopBar{ padding:0px 0px; gap:0px; border-radius:10px; }
   #centerTopBar .barbtn{
     width:1px; height:38px; font-size:8px; border-radius:10px;
+    -webkit-tap-highlight-color: transparent; /* ta bort grå overlay på iOS/Android */
+    outline: none;
+    touch-action: manipulation; 
   }
   @media (orientation:landscape){#dockWrap3{left:0;}}
 
