@@ -4375,6 +4375,9 @@ function endPointer(ev) {
 canvas.addEventListener('pointerup', endPointer, { passive: false });
 canvas.addEventListener('pointercancel', endPointer, { passive: false });
 
+let pcanvasw=0;
+let pcanvash=0;
+
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
@@ -4390,8 +4393,9 @@ canvas.addEventListener('pointercancel', endPointer, { passive: false });
                 }
                 
                 // Update canvas size
-                if (canvas.width !== window.innerWidth * (window.devicePixelRatio || 1) ||
-                    canvas.height !== window.innerHeight * (window.devicePixelRatio || 1)) {
+                if (pcanvasw !== window.innerWidth||pcanvash !== window.innerHeight) {
+                    pcanvasw=window.innerWidth;
+                    pcanvash=window.innerHeight;
                     resizeCanvas();
                 }
                 
@@ -4787,7 +4791,7 @@ document.addEventListener('DOMContentLoaded', function () {
 // ===== History (synkron, region-baserad) =====
 const HIST_MAX = 100;
 
-let savelabel,savebmp,savew,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom,canvasw,canvash;
+let savelabel,savebmp,savew,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom,canvasw,canvash,originaldrawareax,originaldrawareay;
 
 
 
@@ -4826,8 +4830,11 @@ function beginAction(label = ''){
     savedrawstartx=drawstartx;
     savedrawstarty=drawstarty;
     savezoom=zoom;
-    canvasw=window.innerWidth/drawstartx;
-    canvash=window.innerHeight/drawstarty;
+    canvasw=window.innerWidth;
+    canvash=window.innerHeight;
+    
+    
+    
 }
 function destroyAction(){
     
@@ -4856,7 +4863,7 @@ function endAction(){
         savelabel,
         bmp: savebmp,         // snapshot canvas av bildytan
         w: savew, h: saveh,  // "logiska" bildmått i px (utan zoom)
-        drawareax:savedrawareax, drawareay:savedrawareay, drawstartx:savedrawstartx, drawstarty:savedrawstarty, zoom:savezoom,canvasw:canvasw,canvash:canvash
+        drawareax:savedrawareax, drawareay:savedrawareay, drawstartx:savedrawstartx, drawstarty:savedrawstarty, zoom:savezoom,canvasw:canvasw,canvash:canvash,originaldrawareax:drawareax,originaldrawareay:drawareay
       });
       pruneStack(undoStack);
 
@@ -4887,9 +4894,19 @@ function restoreState(state){
   drawareax  = state.w * zoom;
   drawareay  = state.h * zoom;
   
+  const newVW = window.innerWidth;
+  const newVH = window.innerHeight;
 
-  drawstartx = state.canvasw*window.innerWidth;
-  drawstarty = state.canvash*window.innerHeight;
+  const cx_img = (-state.drawstartx + state.canvasw/2);
+  const cy_img = (-state.drawstarty + state.canvash/2);
+
+
+
+  drawstartx = -(Math.round(cx_img - newVW/2));
+  drawstarty = -(Math.round(cy_img - newVH/2));
+   
+  
+
 
 
   if (typeof markDirty === 'function') markDirty();
@@ -4902,7 +4919,13 @@ function undo(){
   const cur = captureRegionSnapshot();
   redoStack.push({
     bmp: cur.snap, w: cur.imgW, h: cur.imgH,
-    drawareax:drawareax, drawareay:drawareay, drawstartx:drawstartx, drawstarty:drawstarty,zoom:zoom,canvasw:canvasw,canvash:canvash
+    drawareax:drawareax, 
+    drawareay:drawareay, 
+    drawstartx:undoStack[undoStack.length-1].drawstartx-(drawareax-undoStack[undoStack.length-1].drawareax),
+    drawstarty:undoStack[undoStack.length-1].drawstarty-(drawareay-undoStack[undoStack.length-1].drawareay),
+    zoom:zoom,canvasw:undoStack[undoStack.length-1].canvasw,canvash:undoStack[undoStack.length-1].canvash,
+    originaldrawareax:undoStack[undoStack.length-1].originaldrawareax,
+    originaldrawareay:undoStack[undoStack.length-1].originaldrawareay
   });
   pruneStack(redoStack);
 
@@ -4918,7 +4941,13 @@ function redo(){
   const cur = captureRegionSnapshot();
   undoStack.push({
     bmp: cur.snap, w: cur.imgW, h: cur.imgH,
-    drawareax:drawareax, drawareay:drawareay, drawstartx:drawstartx, drawstarty:drawstarty,zoom:zoom,canvasw:canvasw,canvash:canvash
+    drawareax:drawareax, 
+    drawareay:drawareay, 
+    drawstartx:redoStack[redoStack.length-1].drawstartx-(drawareax-redoStack[redoStack.length-1].drawareax),
+    drawstarty:redoStack[redoStack.length-1].drawstarty -(drawareay-redoStack[redoStack.length-1].drawareay),
+    zoom:zoom,canvasw:redoStack[redoStack.length-1].canvasw,canvash:redoStack[redoStack.length-1].canvash,
+    originaldrawareax:redoStack[redoStack.length-1].originaldrawareax,
+    originaldrawareay:redoStack[redoStack.length-1].originaldrawareay
   });
   pruneStack(undoStack);
 
