@@ -1034,7 +1034,7 @@ canvas{
             let saveStack=[];
             let saveStack2=[];
             let Bigger=0;
-       
+            let BiggerY=0;
             let canvasPools = new Map();
             let projectBitmaps = [null, null, null];     // ImageBitmap per projekt (RAM)
             let projectBlobURLs = [null, null, null];    // Fallback om bitmap inte går
@@ -4382,6 +4382,7 @@ let pcanvasw=0;
 let pcanvash=0;
 let knäppt=false;
 let onece=false;
+let oneceY=false;
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
@@ -4426,11 +4427,25 @@ let onece=false;
                 // --- Räkna om start så att samma bildpunkt ligger kvar i mitten
                 
                 
-                if(Bigger!==0&&onece===false){
+                if((Bigger!==0&&onece===false)&&(BiggerY===0||oneceY===true)){
                     onece=true;
-                drawstartx = (screenCenterX - imgCenterX * newZoom)+Bigger;
-                drawstarty = screenCenterY - imgCenterY * newZoom;
+                    drawstartx = (screenCenterX - imgCenterX * newZoom)+Bigger;
+                    drawstarty = screenCenterY - imgCenterY * newZoom;
                 }
+                else if((BiggerY!==0&&oneceY===false)&&(Bigger===0||onece===true)){
+                    oneceY=true;
+                    drawstartx = (screenCenterX - imgCenterX * newZoom);
+                    drawstarty = (screenCenterY - imgCenterY * newZoom)+BiggerY;;
+                }
+                else if((Bigger!==0&&onece===false)&&(BiggerY!==0&&oneceY===false)){
+                    onece=true;
+                    oneceY=true;
+                    drawstartx = (screenCenterX - imgCenterX * newZoom)+Bigger;
+                    drawstarty = (screenCenterY - imgCenterY * newZoom)+BiggerY;
+                    
+                    
+                }
+                
                 else{
                     drawstartx = (screenCenterX - imgCenterX * newZoom);
                     drawstarty = screenCenterY - imgCenterY * newZoom;
@@ -5000,7 +5015,7 @@ function redo(){
   pruneStack(undoStack);
   const next = redoStack.pop();
   if((next.drawareax!==drawareax)&&(next.originaldrawstartx<drawstartx)){onece=false;Bigger=drawareax-next.drawareax;}
-  
+  if((next.drawareay!==drawareay)&&(next.originaldrawstarty<drawstarty)){oneceY=false;BiggerY=drawareay-next.drawareay;}
   restoreState(next);
 }
 
