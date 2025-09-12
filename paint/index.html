@@ -5019,8 +5019,12 @@ function redo(){
   }
   pruneStack(undoStack);
   // återställ nästa
+  
+  let evvil=redoStack[redoStack.length-1];
+  if(!evvil)evvil=redoStack[0];
+  
   const next = redoStack.pop();
-  restoreState(next,isond,redoStack[redoStack.length-1]);
+  restoreState(next,isond,evvil);
 }
 
 const gridBtn = document.getElementById('gridBtn');
