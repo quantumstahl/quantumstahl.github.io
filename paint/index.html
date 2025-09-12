@@ -4904,6 +4904,26 @@ function restoreState(state,isondd,cow){
   if(isondd){
 	isond=false;
 	alert("JAAA3");
+	
+	if(cow==null){
+	alert("NEJJ);
+	const cur = captureRegionSnapshot();
+		cow={
+      bmp: cur.snap, w: cur.imgW, h: cur.imgH,
+      drawareax:drawareax, 
+      drawareay:drawareay, 
+      drawstartx:drawstartx,
+      drawstarty:drawstarty,
+      zoom:zoom,canvasw:canvasw,canvash:canvash,
+      originaldrawstartx:drawstartx,
+      originaldrawstarty:drawstarty,
+      zomzom:zoom
+      
+    };
+	
+	}
+	
+	
   const cxImg = (-cow.drawstartx + cow.canvasw/2) / cow.zoom;
   const cyImg = (-cow.drawstarty+ cow.canvash/2) / cow.zoom;
 
