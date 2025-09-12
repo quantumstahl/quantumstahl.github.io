@@ -1971,8 +1971,8 @@ function switchTool(newTool, opts = {}) {
                 ctx.scale(devicePixelRatio, devicePixelRatio);
                 
                 
-                drawstartx = canvas.width/devicePixelRatio/2 - drawareax/2;
-                drawstarty = canvas.height/devicePixelRatio/2 - drawareay/2;
+               // drawstartx = canvas.width/devicePixelRatio/2 - drawareax/2;
+               // drawstarty = canvas.height/devicePixelRatio/2 - drawareay/2;
                 
                 
                 disableSmoothing(ctx);
@@ -4403,13 +4403,25 @@ let pcanvash=0;
                 
                 
                 zoom=zoom/zomzomzom;
-                let centerX = drawstartx + drawareax / 2;
-                let centerY = drawstarty + drawareay / 2;
-                drawareax = (drawareax / zoom * (zoomvalue / 100));
-                drawareay = (drawareay / zoom * (zoomvalue / 100));
-                drawstartx = centerX - drawareax / 2;
-                drawstarty = centerY - drawareay / 2;
-                zoom = zoomvalue / 100;
+                const oldZoom = zoom;
+                const newZoom = zoomvalue / 100;
+
+                // --- Mittpunkt på skärmen (inte på drawarea)
+                const screenCenterX = window.innerWidth / 2;
+                const screenCenterY = window.innerHeight / 2;
+
+                // --- Mappa skärmens mitt till bildens koordinater
+                const imgCenterX = (screenCenterX - drawstartx) / oldZoom;
+                const imgCenterY = (screenCenterY - drawstarty) / oldZoom;
+
+                // --- Uppdatera zoom
+                zoom = newZoom;
+                drawareax = drawareax / oldZoom * newZoom;
+                drawareay = drawareay / oldZoom * newZoom;
+
+                // --- Räkna om start så att samma bildpunkt ligger kvar i mitten
+                drawstartx = screenCenterX - imgCenterX * newZoom;
+                drawstarty = screenCenterY - imgCenterY * newZoom;
                 zoom=zoom*zomzomzom;
                 if((document.body.clientWidth > 100 && startan == false)) {
                     startan = true;  
@@ -4572,7 +4584,7 @@ let pcanvash=0;
                 if (isCanvasTooSmallForScrollingX && 
                     (drawstartx < 0 || drawstartx + drawareax > canvas.width/devicePixelRatio)) {
                     // Center horizontally
-                    drawstartx = canvas.width/devicePixelRatio/2 - drawareax/2;
+                   // drawstartx = canvas.width/devicePixelRatio/2 - drawareax/2;
                     movescrollxvalue = 0;
                     scrollx = 0;
                 }
@@ -4581,7 +4593,7 @@ let pcanvash=0;
                 if (isCanvasTooSmallForScrollingY && 
                     (drawstarty < 0 || drawstarty + drawareay > canvas.height/devicePixelRatio)) {
                     // Center vertically
-                    drawstarty = canvas.height/devicePixelRatio/2 - drawareay/2;
+                    //drawstarty = canvas.height/devicePixelRatio/2 - drawareay/2;
                     movescrollyvalue = 0;
                     scrolly = 0;
                 }
@@ -4791,7 +4803,7 @@ document.addEventListener('DOMContentLoaded', function () {
 // ===== History (synkron, region-baserad) =====
 const HIST_MAX = 100;
 
-let savelabel,savebmp,savew,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom,canvasw,canvash,originaldrawareax,originaldrawareay;
+let savelabel,savebmp,savew,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom,canvasw,canvash,originaldrawstartx,originaldrawstarty,zomzom;
 
 
 
@@ -4832,7 +4844,7 @@ function beginAction(label = ''){
     savezoom=zoom;
     canvasw=window.innerWidth;
     canvash=window.innerHeight;
-    
+    zomzom=zoom;
     
     
 }
@@ -4863,7 +4875,7 @@ function endAction(){
         savelabel,
         bmp: savebmp,         // snapshot canvas av bildytan
         w: savew, h: saveh,  // "logiska" bildmått i px (utan zoom)
-        drawareax:savedrawareax, drawareay:savedrawareay, drawstartx:savedrawstartx, drawstarty:savedrawstarty, zoom:savezoom,canvasw:canvasw,canvash:canvash,originaldrawareax:drawareax,originaldrawareay:drawareay
+        drawareax:savedrawareax, drawareay:savedrawareay, drawstartx:savedrawstartx, drawstarty:savedrawstarty, zoom:savezoom,canvasw:canvasw,canvash:canvash,originaldrawstartx:drawstartx,originaldrawstarty:drawstarty,zomzom:zomzom
       });
       pruneStack(undoStack);
 
@@ -4879,81 +4891,134 @@ function endAction(){
   }
 }
 
-function restoreState(state){
+function restoreState(state,isond){
   if (!state || !state.bmp) return;
 
-  // 1) Rensa HELA backing-canvas (undvik gamla rester)
+  // 1) Rensa & rita tillbaka bitmapen i originalstorlek
   drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
   if (typeof disableSmoothing === 'function') disableSmoothing(drawingCtx);
-
-  // 2) Rita tillbaka snapshoten på (0,0) i originalstorlek
   drawingCtx.drawImage(state.bmp, 0, 0);
 
-  // 3) Återställ vy – baserat på sparad zoom + bildmått
-  zoom=state.zoom;
-  drawareax  = state.w * zoom;
-  drawareay  = state.h * zoom;
   
-  const newVW = window.innerWidth;
-  const newVH = window.innerHeight;
-
-  const cx_img = (-state.drawstartx + state.canvasw/2);
-  const cy_img = (-state.drawstarty + state.canvash/2);
-
-
-
-  drawstartx = -(Math.round(cx_img - newVW/2));
-  drawstarty = -(Math.round(cy_img - newVH/2));
-   
   
+  if(isond){
+  const cxImg = (-state.drawstartx + state.canvasw/2) / state.zoom;
+  const cyImg = (-state.drawstarty + state.canvash/2) / state.zoom;
 
+  // 4) Använd nuvarande viewport i SKÄRM-px
+  
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  
+  // 5) Placera så att samma bild-centrum hamnar i mitten av den nya vyn
+  drawstartx = -((cxImg) * state.zoom - vw/2)-state.drawstartx+drawstartx;
+  drawstarty = -((cyImg) * state.zoom - vh/2)-state.drawstarty+drawstarty;
+      
+  }
+  else{
+  // 3) Hitta sparat centrum i BILD-koordinater
+  const cxImg = (-state.drawstartx + state.canvasw/2) / state.zoom;
+  const cyImg = (-state.drawstarty + state.canvash/2) / state.zoom;
 
+  // 4) Använd nuvarande viewport i SKÄRM-px
+  
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  
+  // 5) Placera så att samma bild-centrum hamnar i mitten av den nya vyn
+  drawstartx = -((cxImg) * state.zoom - vw/2);
+  drawstarty = -((cyImg) * state.zoom - vh/2);
 
+  }
+  
+  zoom = state.zoom;  
+  drawareax = state.w * zoom;
+  drawareay = state.h * zoom;
+  
   if (typeof markDirty === 'function') markDirty();
 }
 
+
+let isond=false;
 function undo(){
   if (!undoStack.length) return;
 
   // flytta current → redo
   const cur = captureRegionSnapshot();
-  redoStack.push({
-    bmp: cur.snap, w: cur.imgW, h: cur.imgH,
-    drawareax:drawareax, 
-    drawareay:drawareay, 
-    drawstartx:undoStack[undoStack.length-1].drawstartx-(drawareax-undoStack[undoStack.length-1].drawareax),
-    drawstarty:undoStack[undoStack.length-1].drawstarty-(drawareay-undoStack[undoStack.length-1].drawareay),
-    zoom:zoom,canvasw:undoStack[undoStack.length-1].canvasw,canvash:undoStack[undoStack.length-1].canvash,
-    originaldrawareax:undoStack[undoStack.length-1].originaldrawareax,
-    originaldrawareay:undoStack[undoStack.length-1].originaldrawareay
-  });
+  if(drawareax!==undoStack[undoStack.length-1].drawareax){
+    isond=true;
+    redoStack.push({
+      bmp: cur.snap, w: cur.imgW, h: cur.imgH,
+      drawareax:drawareax, 
+      drawareay:drawareay, 
+      drawstartx:undoStack[undoStack.length-1].drawstartx,
+      drawstarty:undoStack[undoStack.length-1].drawstarty,
+      zoom:undoStack[undoStack.length-1].zoom,canvasw:undoStack[undoStack.length-1].canvasw,canvash:undoStack[undoStack.length-1].canvash,
+      originaldrawstartx:drawstartx,
+      originaldrawstarty:drawstarty,
+      zomzom:zoom
+      
+    });
+  }
+  else{  
+    redoStack.push({
+      bmp: cur.snap, w: cur.imgW, h: cur.imgH,
+      drawareax:drawareax, 
+      drawareay:drawareay, 
+      drawstartx:undoStack[undoStack.length-1].drawstartx,
+      drawstarty:undoStack[undoStack.length-1].drawstarty,
+      zoom:undoStack[undoStack.length-1].zoom,canvasw:undoStack[undoStack.length-1].canvasw,canvash:undoStack[undoStack.length-1].canvash,
+      originaldrawstartx:drawstartx,
+      originaldrawstarty:drawstarty,
+      zomzom:zoom
+    });
+  }
   pruneStack(redoStack);
-
   // återställ föregående
   const prev = undoStack.pop();
-  restoreState(prev);
+  restoreState(prev,isond);
 }
 
 function redo(){
   if (!redoStack.length) return;
-
+ // alert(drawareax+" "+redoStack[redoStack.length-1].drawareax);
   // flytta current → undo
   const cur = captureRegionSnapshot();
-  undoStack.push({
+  if(drawareax!==redoStack[redoStack.length-1].drawareax){
+      isond=true;
+      undoStack.push({
     bmp: cur.snap, w: cur.imgW, h: cur.imgH,
     drawareax:drawareax, 
     drawareay:drawareay, 
-    drawstartx:redoStack[redoStack.length-1].drawstartx-(drawareax-redoStack[redoStack.length-1].drawareax),
-    drawstarty:redoStack[redoStack.length-1].drawstarty -(drawareay-redoStack[redoStack.length-1].drawareay),
-    zoom:zoom,canvasw:redoStack[redoStack.length-1].canvasw,canvash:redoStack[redoStack.length-1].canvash,
-    originaldrawareax:redoStack[redoStack.length-1].originaldrawareax,
-    originaldrawareay:redoStack[redoStack.length-1].originaldrawareay
+    drawstartx:redoStack[redoStack.length-1].drawstartx,
+    drawstarty:redoStack[redoStack.length-1].drawstarty,
+    zoom:redoStack[redoStack.length-1].zoom,canvasw:redoStack[redoStack.length-1].canvasw,canvash:redoStack[redoStack.length-1].canvash,
+    originaldrawstartx:drawstartx,
+    originaldrawstarty:drawstarty,
+    zomzom:zoom
   });
+      
+      
+  }
+  else{
+      undoStack.push({
+    bmp: cur.snap, w: cur.imgW, h: cur.imgH,
+    drawareax:drawareax, 
+    drawareay:drawareay, 
+    drawstartx:redoStack[redoStack.length-1].drawstartx,
+    drawstarty:redoStack[redoStack.length-1].drawstarty,
+    zoom:redoStack[redoStack.length-1].zoom,canvasw:redoStack[redoStack.length-1].canvasw,canvash:redoStack[redoStack.length-1].canvash,
+    originaldrawstartx:drawstartx,
+    originaldrawstarty:drawstarty,
+    zomzom:zoom
+  });
+      
+      
+  }
   pruneStack(undoStack);
-
   // återställ nästa
   const next = redoStack.pop();
-  restoreState(next);
+  restoreState(next,isond);
 }
 
 const gridBtn = document.getElementById('gridBtn');
