@@ -4891,7 +4891,7 @@ function endAction(){
   }
 }
 
-function restoreState(state,isond){
+function restoreState(state,isondd){
   if (!state || !state.bmp) return;
 
   // 1) Rensa & rita tillbaka bitmapen i originalstorlek
@@ -4901,8 +4901,8 @@ function restoreState(state,isond){
 
   
   
-  if(isond){
-  
+  if(isondd){
+	isond=false;
   
   const cxImg = (-drawstartx+(drawstartx-state.drawstartx) + canvasw/2) / state.zoom;
   const cyImg = (-drawstarty+ (drawstarty-state.drawstarty)+ canvash/2) / state.zoom;
