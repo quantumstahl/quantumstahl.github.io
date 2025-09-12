@@ -5021,7 +5021,7 @@ function redo(){
   // återställ nästa
   
   let evvil=redoStack[redoStack.length-1];
-  if(!evvil)evvil=redoStack[0];
+  if(evvil===null)evvil=undoStack[0];
   
   const next = redoStack.pop();
   restoreState(next,isond,evvil);
