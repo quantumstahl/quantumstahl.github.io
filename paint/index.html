@@ -4913,8 +4913,8 @@ function restoreState(state,isond){
   const vh = window.innerHeight;
   
   // 5) Placera så att samma bild-centrum hamnar i mitten av den nya vyn
-  drawstartx = -((cxImg) * state.zoom - vw/2)+(drawstartx-state.drawstartx);
-  drawstarty = -((cyImg) * state.zoom - vh/2)+(drawstarty-state.drawstarty);
+  drawstartx = -((cxImg) * state.zoom - vw/2)+(drawstartx-state.drawstartx)*2;
+  drawstarty = -((cyImg) * state.zoom - vh/2)+(drawstarty-state.drawstarty)*2;
       
   }
   else{
