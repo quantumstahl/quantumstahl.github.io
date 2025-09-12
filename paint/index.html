@@ -4941,6 +4941,7 @@ function restoreState(state,isond){
 
 let isond=false;
 function undo(){
+	alert(undoStack.length);
   if (!undoStack.length) return;
 
   // flytta current → redo
