@@ -5021,7 +5021,7 @@ function redo(){
   pruneStack(undoStack);
   // återställ nästa
   const next = redoStack.pop();
-  restoreState(next,isond,undoStack(0));
+  restoreState(next,isond,redoStack(redoStack.length-1));
 }
 
 const gridBtn = document.getElementById('gridBtn');
