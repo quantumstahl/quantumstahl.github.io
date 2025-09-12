@@ -4903,9 +4903,9 @@ function restoreState(state,isond){
   
   if(isond){
   
-  alert("JAAA");
-  const cxImg = (-state.drawstartx + state.canvasw/2) / state.zoom;
-  const cyImg = (-state.drawstarty + state.canvash/2) / state.zoom;
+  
+  const cxImg = (-drawstartx + canvasw/2) / state.zoom;
+  const cyImg = (-drawstarty + canvash/2) / state.zoom;
 
   // 4) Använd nuvarande viewport i SKÄRM-px
   
@@ -4913,8 +4913,8 @@ function restoreState(state,isond){
   const vh = window.innerHeight;
   
   // 5) Placera så att samma bild-centrum hamnar i mitten av den nya vyn
-  drawstartx = -((cxImg) * state.zoom - vw/2)-(drawstartx-state.drawstartx);
-  drawstarty = -((cyImg) * state.zoom - vh/2)-(drawstarty-state.drawstarty);
+  drawstartx = -((cxImg) * state.zoom - vw/2);
+  drawstarty = -((cyImg) * state.zoom - vh/2);
       
   }
   else{
