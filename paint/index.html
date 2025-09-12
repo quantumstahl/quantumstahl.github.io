@@ -5042,7 +5042,7 @@ function redo(){
   // återställ nästa
 	pruneStack(undoStack);
   let evviel=undoStack[undoStack.length-1];
-  if(undoStack.length==0)evviel=null;
+  if(undoStack.length==1)evviel=null;
   const next = redoStack.pop();
   restoreState(next,isond,evviel);
   
