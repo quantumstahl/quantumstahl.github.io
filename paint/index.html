@@ -2900,8 +2900,8 @@ function resizeCommit(){
 
   // Håll valfritt hörn visuellt "fast" genom att flytta drawstart* (för NW/NE/SW)
   // SE: top-left fast → inget att göra
-  if (rc_corner === 'NW' || rc_corner === 'NE') drawstarty += (rc_oldH - newH) * z;
-  if (rc_corner === 'NW' || rc_corner === 'SW') drawstartx += (rc_oldW - newW) * z;
+  if (rc_corner === 'NW' || rc_corner === 'NE'){ drawstarty += (rc_oldH - newH) * z;drawstartYY += (rc_oldH - newH) * z;}
+  if (rc_corner === 'NW' || rc_corner === 'SW'){ drawstartx += (rc_oldW - newW) * z;drawstartXX+=(rc_oldW - newW) * z;}
 
   if (typeof endAction === 'function') endAction();
   rc_active = false; rc_snap = null;
@@ -4383,6 +4383,8 @@ let pcanvash=0;
 let knäppt=false;
 let onece=false;
 let oneceY=false;
+let drawstartXX=0;
+let drawstartYY=0;
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
@@ -4429,19 +4431,19 @@ let oneceY=false;
                 
                 if((Bigger!==0&&onece===false)&&(BiggerY===0||oneceY===true)){
                     onece=true;
-                    drawstartx = (screenCenterX - imgCenterX * newZoom)+Bigger;
-                    drawstarty = screenCenterY - imgCenterY * newZoom;
+                    drawstartx = (screenCenterX - (imgCenterX) * newZoom)+Bigger;
+                    drawstarty = screenCenterY - (imgCenterY) * newZoom;
                 }
                 else if((BiggerY!==0&&oneceY===false)&&(Bigger===0||onece===true)){
                     oneceY=true;
-                    drawstartx = (screenCenterX - imgCenterX * newZoom);
-                    drawstarty = (screenCenterY - imgCenterY * newZoom)+BiggerY;;
+                    drawstartx = (screenCenterX - (imgCenterX) * newZoom);
+                    drawstarty = (screenCenterY - (imgCenterY) * newZoom)+BiggerY;;
                 }
                 else if((Bigger!==0&&onece===false)&&(BiggerY!==0&&oneceY===false)){
                     onece=true;
                     oneceY=true;
-                    drawstartx = (screenCenterX - imgCenterX * newZoom)+Bigger;
-                    drawstarty = (screenCenterY - imgCenterY * newZoom)+BiggerY;
+                    drawstartx = (screenCenterX - (imgCenterX) * newZoom)+Bigger;
+                    drawstarty = (screenCenterY - (imgCenterY) * newZoom)+BiggerY;
                     
                     
                 }
@@ -4451,6 +4453,10 @@ let oneceY=false;
                     drawstarty = screenCenterY - imgCenterY * newZoom;
                     
                 }
+                drawstartXX=screenCenterX - (screenCenterX - drawstartXX) / oldZoom * newZoom;
+                drawstartYY=screenCenterY - (screenCenterY - drawstartYY) / oldZoom * newZoom;
+                
+                
                 
                 zoom=zoom*zomzomzom;
                 knäppt=false;
@@ -4458,6 +4464,8 @@ let oneceY=false;
                     startan = true;  
                     drawstartx = (canvas.width/devicePixelRatio)/2 - drawareax/2;
                     drawstarty = (canvas.height/devicePixelRatio)/2 - drawareay/2;
+                    drawstartXX = (canvas.width/devicePixelRatio)/2 - drawareax/2;
+                    drawstartYY= (canvas.height/devicePixelRatio)/2 - drawareay/2;
                     prevDrawAreaX = drawareax;
                     prevDrawAreaY = drawareay;
                     prevDrawStartX = drawstartx;
@@ -4871,8 +4879,8 @@ function beginAction(label = ''){
     saveh=imgH;
     savedrawareax=drawareax;
     savedrawareay=drawareay;
-    savedrawstartx=drawstartx;
-    savedrawstarty=drawstarty;
+    savedrawstartx=drawstartXX;
+    savedrawstarty=drawstartYY;
     savezoom=zoom;
     canvasw=window.innerWidth;
     canvash=window.innerHeight;
@@ -4902,6 +4910,8 @@ function endAction(){
   if (typeof markDirty === 'function'){
       
       if(savedrawareax===0){return;}
+      
+      
       
       undoStack.push({
         savelabel,
@@ -4934,25 +4944,10 @@ function restoreState(state,isonds){
   drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
   if (typeof disableSmoothing === 'function') disableSmoothing(drawingCtx);
   drawingCtx.drawImage(state.bmp, 0, 0);
-
-
-
-
-
-
-   zoom = state.zoom;  
+  
+  zoom = state.zoom;  
   drawareax = state.w * zoom;
   drawareay = state.h * zoom;
-  
-  
-
-      
- 
-  
-
-  
-  
-  
   // 3) Hitta sparat centrum i BILD-koordinater
   const cxImg = (-state.drawstartx + state.canvasw/2) / state.zoom;
   const cyImg = (-state.drawstarty + state.canvash/2) / state.zoom;
@@ -4973,6 +4968,10 @@ function restoreState(state,isonds){
   if (typeof markDirty === 'function') markDirty();
   }
 
+let savweX=0;
+let savweY=0;
+let onaX=false;
+let onaY=false;
 
 function undo(){
   if (!undoStack.length) return;
@@ -4992,6 +4991,9 @@ function undo(){
     });
   pruneStack(redoStack);
   const prev = undoStack.pop();
+
+  
+  
   restoreState(prev);
 }
 
@@ -5014,8 +5016,8 @@ function redo(){
     
   pruneStack(undoStack);
   const next = redoStack.pop();
-  if((next.drawareax!==drawareax)&&(next.originaldrawstartx<drawstartx)){onece=false;Bigger=drawareax-next.drawareax;}
-  if((next.drawareay!==drawareay)&&(next.originaldrawstarty<drawstarty)){oneceY=false;BiggerY=drawareay-next.drawareay;}
+  if((next.drawareax!==drawareax)&&(next.originaldrawstartx<drawstartx)){savweX=redoStack.length;Bigger=drawareax-next.drawareax;onece=false;}
+  if((next.drawareay!==drawareay)&&(next.originaldrawstarty<drawstarty)){savweY=redoStack.length;BiggerY=drawareay-next.drawareay;oneceY=false;}
   restoreState(next);
 }
 
