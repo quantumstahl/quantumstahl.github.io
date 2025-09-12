@@ -4987,7 +4987,7 @@ function redo(){
  // alert(drawareax+" "+redoStack[redoStack.length-1].drawareax);
   // flytta current → undo
   const cur = captureRegionSnapshot();
-  if(drawareax!==redoStack[redoStack.length-1].drawareax){
+  if(redoStack[redoStack.length-1].originaldrawstartx!==redoStack[redoStack.length-1].drawareax){
       isond=true;
       undoStack.push({
     bmp: cur.snap, w: cur.imgW, h: cur.imgH,
