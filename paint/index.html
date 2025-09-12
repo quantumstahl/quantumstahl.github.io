@@ -4904,8 +4904,8 @@ function restoreState(state,isondd,cow){
   if(isondd){
 	isond=false;
 	alert("JAAA");
-  const cxImg = (-drawstartx + canvasw/2) / zoom;
-  const cyImg = (-drawstarty+ canvash/2) / zoom;
+  const cxImg = (-cow.drawstartx + cow.canvasw/2) / cow.zoom;
+  const cyImg = (-cow.drawstarty+ cow.canvash/2) / cow.zoom;
 
   // 4) Använd nuvarande viewport i SKÄRM-px
   
@@ -4913,8 +4913,8 @@ function restoreState(state,isondd,cow){
   const vh = window.innerHeight;
   
   // 5) Placera så att samma bild-centrum hamnar i mitten av den nya vyn
-  drawstartx = -((cxImg) * zoom - vw/2);
-  drawstarty = -((cyImg) * zoom - vh/2);
+  drawstartx = -((cxImg) * cow.zoom - vw/2);
+  drawstarty = -((cyImg) * cow.zoom - vh/2);
       
   }
   else{
@@ -5020,12 +5020,10 @@ function redo(){
   }
   pruneStack(undoStack);
   // återställ nästa
-  
-  let evvil=redoStack[redoStack.length-1];
-  if(evvil===null)evvil=undoStack[0];
+
   
   const next = redoStack.pop();
-  restoreState(next,isond,evvil);
+  restoreState(next,isond,undoStack[undoStack.length-1]);
 }
 
 const gridBtn = document.getElementById('gridBtn');
