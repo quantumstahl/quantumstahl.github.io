@@ -4903,7 +4903,7 @@ function restoreState(state,isondd,cow){
   
   if(isondd){
 	isond=false;
-	alert("JAAA2");
+	alert("JAAA3");
   const cxImg = (-cow.drawstartx + cow.canvasw/2) / cow.zoom;
   const cyImg = (-cow.drawstarty+ cow.canvash/2) / cow.zoom;
 
@@ -5020,11 +5020,11 @@ function redo(){
   }
   
   // återställ nästa
-
+	pruneStack(undoStack);
   
   const next = redoStack.pop();
   restoreState(next,isond,undoStack[undoStack.length-1]);
-  pruneStack(undoStack);
+  
 }
 
 const gridBtn = document.getElementById('gridBtn');
