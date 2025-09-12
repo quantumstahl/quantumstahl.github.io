@@ -4903,7 +4903,7 @@ function restoreState(state,isondd,cow){
   
   if(isondd){
 	isond=false;
-	alert("JAAA3");
+	alert("JAAA4");
 	
 	if(cow==null){
 	alert("NEJJ");
@@ -5041,9 +5041,10 @@ function redo(){
   
   // återställ nästa
 	pruneStack(undoStack);
-  
+  let evviel=undoStack[undoStack.length-1];
+  if(undoStack.length==0)evviel=null;
   const next = redoStack.pop();
-  restoreState(next,isond,undoStack[undoStack.length-1]);
+  restoreState(next,isond,evviel);
   
 }
 
