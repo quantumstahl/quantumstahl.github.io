@@ -5018,12 +5018,13 @@ function redo(){
       
       
   }
-  pruneStack(undoStack);
+  
   // återställ nästa
 
   
   const next = redoStack.pop();
   restoreState(next,isond,undoStack[undoStack.length-1]);
+  pruneStack(undoStack);
 }
 
 const gridBtn = document.getElementById('gridBtn');
