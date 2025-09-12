@@ -4901,19 +4901,9 @@ function restoreState(state,isondd,cow){
 
   
   
-  if(isondd&&cow){
+  if(isondd){
 	isond=false;
-  const cxImg = (-cow.drawstartx + cow.canvasw/2) / cow.zoom;
-  const cyImg = (-cow.drawstarty+ cow.canvash/2) / cow.zoom;
 
-  // 4) Använd nuvarande viewport i SKÄRM-px
-  
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  
-  // 5) Placera så att samma bild-centrum hamnar i mitten av den nya vyn
-  drawstartx = -((cxImg) * cow.zoom - vw/2);
-  drawstarty = -((cyImg) * cow.zoom - vh/2);
       
   }
   else{
