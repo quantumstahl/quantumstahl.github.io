@@ -4981,13 +4981,12 @@ function undo(){
 }
 
 function redo(){
-alert(redoStack.length);
   if (!redoStack.length) return;
  // alert(drawareax+" "+redoStack[redoStack.length-1].drawareax);
   // flytta current → undo
   const cur = captureRegionSnapshot();
   if(drawareax!==redoStack[redoStack.length-1].drawareax){
-    //  isond=true;
+      isond=true;
       undoStack.push({
     bmp: cur.snap, w: cur.imgW, h: cur.imgH,
     drawareax:drawareax, 
