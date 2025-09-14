@@ -4842,7 +4842,7 @@ document.addEventListener('DOMContentLoaded', function () {
 // ===== History (synkron, region-baserad) =====
 const HIST_MAX = 100;
 
-let savelabel,savebmp,savew,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom,canvasw,canvash,originaldrawstartx,originaldrawstarty,zomzom;
+let savelabel,savebmp,savew,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom,canvasw,canvash,originaldrawstartx,originaldrawstarty,zomzom,first;
 
 
 
@@ -4885,7 +4885,7 @@ function beginAction(label = ''){
     canvasw=window.innerWidth;
     canvash=window.innerHeight;
     zomzom=zoom;
-    
+    first=true;
     
 }
 function destroyAction(){
