@@ -83,6 +83,7 @@ canvas{
    TOP BAR & DROPDOWNS
    ========================= */
 #topBar{
+      pointer-events: none !important;
   position:fixed;
   left:10px; right:10px;
   top: 12px;                                           /* fallback */
@@ -145,7 +146,6 @@ canvas{
 
 #transformBtn{
   position: fixed;
-
   /* TOPP: fallback + safe-area */
   top: 12px; /* fallback */
   top: calc(12px + env(safe-area-inset-top));
@@ -201,6 +201,7 @@ canvas{
   border:1px solid rgba(255,255,255,.12);
   border-radius:20px; padding:8px 14px;
   box-shadow:0 10px 26px rgba(0,0,0,.35);
+
 }
 #centerTopBar .barbtn{
   min-width:45px; height:48px;
@@ -1954,32 +1955,54 @@ function switchTool(newTool, opts = {}) {
             
             // Initialize canvas size properly
             function resizeCanvas() {
-                const devicePixelRatio = window.devicePixelRatio || 1;
-                
-                const isStandalone = matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-                if(isStandalone&&mobileAndTabletCheck()&&window.innerWidth<window.innerHeight){
-                    canvas.width = window.innerWidth * devicePixelRatio;
-                    canvas.height = screen.height * devicePixelRatio;
-                    canvas.style.width = window.innerWidth + 'px';
-                    canvas.style.height = screen.height + 'px';
-                    
-                }
-                else{
-                    canvas.width = window.innerWidth * devicePixelRatio;
-                    canvas.height = window.innerHeight * devicePixelRatio;
-                    canvas.style.width = window.innerWidth + 'px';
-                    canvas.style.height = window.innerHeight + 'px';
-                }
-                // Ensure the canvas renders crisply on high DPI displays
-                ctx.scale(devicePixelRatio, devicePixelRatio);
-                
-                
-                drawstartx = canvas.width/devicePixelRatio/2 - drawareax/2;
-                drawstarty = canvas.height/devicePixelRatio/2 - drawareay/2;
-                
-                
-                disableSmoothing(ctx);
-            }
+  const dpr = window.devicePixelRatio || 1;
+
+  // 1) Mät nuvarande viewport (CSS-px) och spara bild-centrum i BILD-koordinater
+  const prevVW = (canvas.width  || 0) / (dpr || 1);
+  const prevVH = (canvas.height || 0) / (dpr || 1);
+  const z = (zoom > 10 ? zoom/100 : zoom);
+
+  // OBS: om canvas ännu inte är initierad kan prevVW/VH bli 0; hantera det
+  const hadSize = prevVW > 0 && prevVH > 0;
+  let cxImg = 0.5 * drawingCanvas.width;   // fallback = bildens mitt
+  let cyImg = 0.5 * drawingCanvas.height;
+  if (hadSize) {
+    cxImg = (-drawstartx + prevVW/2) / z;
+    cyImg = (-drawstarty + prevVH/2) / z;
+  }
+
+  // 2) Räkna ny CSS-storlek
+  const isStandalone = matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  const cssW = window.innerWidth;
+  const cssH = (isStandalone && mobileAndTabletCheck() && window.innerWidth < window.innerHeight)
+    ? screen.height
+    : window.innerHeight;
+
+  // 3) Sätt pixelstorlek utan kumulativ skala
+  canvas.width  = Math.max(1, Math.round(cssW * dpr));
+  canvas.height = Math.max(1, Math.round(cssH * dpr));
+  canvas.style.width  = cssW + 'px';
+  canvas.style.height = cssH + 'px';
+
+  // 4) Nollställ transform och skala en gång till DPR (ingen ackumulering)
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(dpr, dpr);
+  if (typeof disableSmoothing === 'function') disableSmoothing(ctx);
+
+  // 5) BEVARA VYN: återställ drawstart så att samma bild-centrum är kvar på skärmen
+  const curVW = cssW;
+  const curVH = cssH;
+  drawstartx = Math.round(curVW/2 - z * cxImg);
+  drawstarty = Math.round(curVH/2 - z * cyImg);
+
+  // 6) Uppdatera sparade viewportmått och re-mappa stackar via din ko()
+  canvasw = curVW;
+  canvash = curVH;
+  ko(undoStack);
+  ko(redoStack);
+
+  if (typeof markDirty === 'function') markDirty();
+}
             
             //NYTT----------------------------------------------------------------------------------
             // ======== LASSO + TRANSFORM STATE ========
@@ -4378,6 +4401,216 @@ function endPointer(ev) {
 canvas.addEventListener('pointerup', endPointer, { passive: false });
 canvas.addEventListener('pointercancel', endPointer, { passive: false });
 
+const HIST_MAX = 100;
+let savelabel,savebmp,savew,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom,canvasw,canvash,ox,oy;
+
+
+function pruneStack(stack){
+  while (stack.length > HIST_MAX) {
+    const old = stack.shift();
+    return old;
+    // old.bmp är en <canvas>; låt GC ta den
+  }
+}
+
+function captureRegionSnapshot() {
+  // Snapshot av aktuella bildmått (w,h) – inte hela backing-canvas
+  const z = (zoom > 10 ? zoom/100 : zoom);
+  const imgW = Math.max(1, Math.floor(drawareax / z)) | 0;
+  const imgH = Math.max(1, Math.floor(drawareay / z)) | 0;
+
+  const snap = document.createElement('canvas');
+  snap.width = imgW; snap.height = imgH;
+  const sctx = snap.getContext('2d');
+  if (typeof disableSmoothing === 'function') disableSmoothing(sctx);
+  // kopiera exakt bildytan 0..imgW/0..imgH
+  sctx.drawImage(drawingCanvas, 0, 0, imgW, imgH, 0, 0, imgW, imgH);
+
+  return { snap, imgW, imgH };
+}
+
+function beginAction(label = ''){
+  const { snap, imgW, imgH } = captureRegionSnapshot();
+  
+    savelabel=label;
+    savebmp=snap;
+    savew=imgW;
+    saveh=imgH;
+    savedrawareax=drawareax;
+    savedrawareay=drawareay;
+    savedrawstartx=drawstartx;
+    savedrawstarty=drawstarty;
+    savezoom=zoom;
+    canvasw=window.innerWidth;
+    canvash=window.innerHeight;
+    
+}
+function destroyAction(){
+    
+    savelabel=null;
+    savebmp=null;
+    savew=0;
+    saveh=0;
+    savedrawareax=0;
+    savedrawareay=0;
+    savedrawstartx=0;
+    savedrawstarty=0;
+    savezoom=0;
+    canvasw=0;
+    canvash=0;
+}
+function endAction(){
+  if (typeof markDirty === 'function'){
+      
+      if(savedrawareax===0){return;}
+      undoStack.push({
+        savelabel,
+        bmp: savebmp,         // snapshot canvas av bildytan
+        w: savew, h: saveh,  // "logiska" bildmått i px (utan zoom)
+        drawareax:savedrawareax, drawareay:savedrawareay, drawstartx:savedrawstartx, drawstarty:savedrawstarty, zoom:savezoom,canvasw:canvasw,canvash:canvash,ox:savedrawstartx,oy:savedrawstarty
+      });
+      pruneStack(undoStack);
+      while (redoStack.length) redoStack.pop();
+      markDirty();
+  }
+}
+
+
+function restoreState(state){
+  if (!state || !state.bmp) return;
+
+  drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+  if (typeof disableSmoothing === 'function') disableSmoothing(drawingCtx);
+  drawingCtx.drawImage(state.bmp, 0, 0);
+
+  zoom = state.zoom;
+  drawareax = state.w * zoom;
+  drawareay = state.h * zoom;
+
+  // Lita på att drawstartx/y redan är rätt preppade (via ko())
+  drawstartx = state.drawstartx;
+  drawstarty = state.drawstarty;
+
+  if (typeof markDirty === 'function') markDirty();
+}
+function ko(stack){
+  if (!stack || !stack.length) return;
+  
+  
+  for(let s of stack){
+  
+ 
+
+  // Gamla viewporten (som sparades i posten) och nya viewporten (aktuella fönstret)
+  const prevVW = Math.max(1, s.canvasw || window.innerWidth);
+  const prevVH = Math.max(1, s.canvash || window.innerHeight);
+  const curVW  = Math.max(1, window.innerWidth);
+  const curVH  = Math.max(1, window.innerHeight);
+
+  // Effektiv zoom för posten
+  const z = s.zoom;
+
+  // Bildens storlek (hela backing-bilden, ex 10000×10000)
+  const imgW = drawingCanvas.width;
+  const imgH = drawingCanvas.height;
+
+  // 1) Beräkna bild-centrum i BILD-px från sparat “original”-läge (ox/oy) + GAMLA viewporten
+  const cxImg = (-s.ox+(s.ox-s.drawstartx) + prevVW/2) / z;
+  const cyImg = (-s.oy+(s.oy-s.drawstarty) + prevVH/2) / z;
+
+  // 2) Ny drawstart så samma bild-centrum hamnar mitt i den NYA viewporten
+  let sx = Math.round(curVW/2 - z * cxImg);
+  let sy = Math.round(curVH/2 - z * cyImg);
+
+  // 3) Clamp:a mot nya tillåtna spann i SKÄRM-px
+  const imgWscreen = imgW * z;
+  const imgHscreen = imgH * z;
+  const minX = curVW - imgWscreen; // ≤ 0
+  const minY = curVH - imgHscreen; // ≤ 0
+  //sx = clamp(sx, minX, 0);
+  //sy = clamp(sy, minY, 0);
+
+  // 4) Skriv tillbaka i posten + uppdatera dess sparade viewport
+  s.drawstartx = sx;
+  s.drawstarty = sy;
+  s.canvasw = curVW;
+  s.canvash = curVH;
+  }
+}
+function undo(){
+  if (!undoStack.length) return;
+
+  const cur = captureRegionSnapshot();
+  canvasw = window.innerWidth;
+  canvash = window.innerHeight;
+
+  // flytta current → redo
+  redoStack.push({
+    bmp: cur.snap, w: cur.imgW, h: cur.imgH,
+    drawareax, drawareay, drawstartx, drawstarty,
+    zoom, canvasw, canvash,
+    ox: undoStack[undoStack.length-1].ox,
+    oy: undoStack[undoStack.length-1].oy
+  });
+  pruneStack(redoStack);
+
+  // Om viewport ändrats relativt posten vi ska visa -> centrera den posten med ko()
+  const willShow = undoStack[undoStack.length-1];
+  if (willShow && (window.innerWidth !== willShow.canvasw || window.innerHeight !== willShow.canvash)) {
+    ko(undoStack); // justera sista posten i undoStack
+  }
+
+  const prev = undoStack.pop();
+  restoreState(prev);
+}
+
+function redo(){
+  if (!redoStack.length) return;
+
+  const cur = captureRegionSnapshot();
+  canvasw = window.innerWidth;
+  canvash = window.innerHeight;
+
+  // flytta current → undo
+  undoStack.push({
+    bmp: cur.snap, w: cur.imgW, h: cur.imgH,
+    drawareax, drawareay, drawstartx, drawstarty,
+    zoom, canvasw, canvash,
+    ox: redoStack[redoStack.length-1].ox,
+    oy: redoStack[redoStack.length-1].oy // <-- fix: inte .ox
+  });
+  pruneStack(undoStack);
+  
+  const willShow = redoStack[redoStack.length-1];
+  if (willShow && (window.innerWidth !== willShow.canvasw || window.innerHeight !== willShow.canvash)) {
+    ko(redoStack); // justera sista posten i redoStack
+  }
+  
+  const next = redoStack.pop();
+  restoreState(next);
+}
+
+const gridBtn = document.getElementById('gridBtn');
+function updateGridButton() {
+    if (!gridBtn) return;
+    gridBtn.style.backgroundColor = showGrid ? '#d4ffd4' : '#f1f1f1';
+    gridBtn.style.borderColor = showGrid ? '#4CAF50' : '#ccc';
+}
+
+gridBtn.addEventListener('click', () => { showGrid = !showGrid; updateGridButton(); });
+document.getElementById('undoBtn').addEventListener('click', undo);
+document.getElementById('redoBtn').addEventListener('click', redo);
+window.addEventListener('keydown', function(e) {
+  const z = e.key.toLowerCase() === 'z';
+  const y = e.key.toLowerCase() === 'y';
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && z && !e.shiftKey) { e.preventDefault(); undo(); }
+  else if (mod && (y || (z && e.shiftKey))) { e.preventDefault(); redo(); }
+  if (e.key.toLowerCase() === 'g') { showGrid = !showGrid; updateGridButton(); }
+});
+updateGridButton();
+
+
 let pcanvasw=0;
 let pcanvash=0;
 let knäppt=false;
@@ -4404,6 +4637,7 @@ let drawstartYY=0;
                     pcanvasw=window.innerWidth;
                     pcanvash=window.innerHeight;
                     resizeCanvas();
+
                 }
                 
                
@@ -4834,214 +5068,7 @@ document.addEventListener('DOMContentLoaded', function () {
             resizeCanvas();
             
         </script>
-<script>
-// Assuming drawingCanvas, drawingCtx, undoStack, redoStack are defined globally or accessible.
-// Also assuming drawareax, drawareay, zoom, showGrid, gridBtn, lastSaveTime, actionInProgress are defined.
 
-// ===== Robust history state (canvas + vy) =====
-// ===== History (synkron, region-baserad) =====
-const HIST_MAX = 100;
-
-let savelabel,savebmp,savew,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom,canvasw,canvash,originaldrawstartx,originaldrawstarty,zomzom,first;
-
-
-
-function pruneStack(stack){
-  while (stack.length > HIST_MAX) {
-    const old = stack.shift();
-    return old;
-    // old.bmp är en <canvas>; låt GC ta den
-  }
-}
-
-function captureRegionSnapshot() {
-  // Snapshot av aktuella bildmått (w,h) – inte hela backing-canvas
-  const z = (zoom > 10 ? zoom/100 : zoom);
-  const imgW = Math.max(1, Math.floor(drawareax / z)) | 0;
-  const imgH = Math.max(1, Math.floor(drawareay / z)) | 0;
-
-  const snap = document.createElement('canvas');
-  snap.width = imgW; snap.height = imgH;
-  const sctx = snap.getContext('2d');
-  if (typeof disableSmoothing === 'function') disableSmoothing(sctx);
-  // kopiera exakt bildytan 0..imgW/0..imgH
-  sctx.drawImage(drawingCanvas, 0, 0, imgW, imgH, 0, 0, imgW, imgH);
-
-  return { snap, imgW, imgH };
-}
-
-function beginAction(label = ''){
-  const { snap, imgW, imgH } = captureRegionSnapshot();
-  
-    savelabel=label;
-    savebmp=snap;
-    savew=imgW;
-    saveh=imgH;
-    savedrawareax=drawareax;
-    savedrawareay=drawareay;
-    savedrawstartx=drawstartXX;
-    savedrawstarty=drawstartYY;
-    savezoom=zoom;
-    canvasw=window.innerWidth;
-    canvash=window.innerHeight;
-    zomzom=zoom;
-    first=true;
-    
-}
-function destroyAction(){
-    
-    savelabel=null;
-    savebmp=null;
-    savew=0;
-    saveh=0;
-    savedrawareax=0;
-    savedrawareay=0;
-    savedrawstartx=0;
-    savedrawstarty=0;
-    savezoom=0;
-    canvasw=0;
-    canvash=0;
-}
-
-
-
-
-function endAction(){
-  if (typeof markDirty === 'function'){
-      
-      if(savedrawareax===0){return;}
-      
-      
-      
-      undoStack.push({
-        savelabel,
-        bmp: savebmp,         // snapshot canvas av bildytan
-        w: savew, h: saveh,  // "logiska" bildmått i px (utan zoom)
-        drawareax:savedrawareax, drawareay:savedrawareay, drawstartx:savedrawstartx, drawstarty:savedrawstarty, zoom:savezoom,canvasw:canvasw,canvash:canvash,originaldrawstartx:drawstartx,originaldrawstarty:drawstarty,zomzom:zomzom,first:true
-      });
-      pruneStack(undoStack);
-
-      // Ny gren -> töm redo
-      while (redoStack.length) redoStack.pop();
-      
-      
-      
-      
-      
-      
-      markDirty();
-  }
-}
-
-
-
-let svasavesavex=0;
-let svasavesavey=0;
-function restoreState(state,isonds){
-  if (!state || !state.bmp) return;
-
-  // 1) Rensa & rita tillbaka bitmapen i originalstorlek
-  drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-  if (typeof disableSmoothing === 'function') disableSmoothing(drawingCtx);
-  drawingCtx.drawImage(state.bmp, 0, 0);
-  
-  zoom = state.zoom;  
-  drawareax = state.w * zoom;
-  drawareay = state.h * zoom;
-  // 3) Hitta sparat centrum i BILD-koordinater
-  const cxImg = (-state.drawstartx + state.canvasw/2) / state.zoom;
-  const cyImg = (-state.drawstarty + state.canvash/2) / state.zoom;
-
-  // 4) Använd nuvarande viewport i SKÄRM-px
-  
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  
-  // 5) Placera så att samma bild-centrum hamnar i mitten av den nya vyn
-  drawstartx = -((cxImg) * state.zoom - vw/2);
-  drawstarty = -((cyImg) * state.zoom - vh/2);
-
-  
- 
-  
-  
-  if (typeof markDirty === 'function') markDirty();
-  }
-
-let savweX=0;
-let savweY=0;
-let onaX=false;
-let onaY=false;
-
-function undo(){
-  if (!undoStack.length) return;
-  // flytta current → redo
-  const cur = captureRegionSnapshot();
-
-    redoStack.push({
-      bmp: cur.snap, w: cur.imgW, h: cur.imgH,
-      drawareax:drawareax, 
-      drawareay:drawareay, 
-      drawstartx:undoStack[undoStack.length-1].drawstartx,
-      drawstarty:undoStack[undoStack.length-1].drawstarty,
-      zoom:undoStack[undoStack.length-1].zoom,canvasw:undoStack[undoStack.length-1].canvasw,canvash:undoStack[undoStack.length-1].canvash,
-      originaldrawstartx:drawstartx,
-      originaldrawstarty:drawstarty,
-      zomzom:zoom
-	  first:false
-    });
-  pruneStack(redoStack);
-  const prev = undoStack.pop();
-
-  
-  
-  restoreState(prev);
-}
-
-function redo(){
-  if (!redoStack.length) return;
-  const cur = captureRegionSnapshot();
-    undoStack.push({
-        bmp: cur.snap, w: cur.imgW, h: cur.imgH,
-        drawareax:drawareax, 
-        drawareay:drawareay, 
-        drawstartx:redoStack[redoStack.length-1].drawstartx,
-        drawstarty:redoStack[redoStack.length-1].drawstarty,
-        zoom:redoStack[redoStack.length-1].zoom,canvasw:redoStack[redoStack.length-1].canvasw,canvash:redoStack[redoStack.length-1].canvash,
-        originaldrawstartx:drawstartx,
-        originaldrawstarty:drawstarty,
-        zomzom:zoom
-		first:false
-    });
-    
-   
-    
-  pruneStack(undoStack);
-  const next = redoStack.pop();
-  if((next.drawareax!==drawareax)&&(next.originaldrawstartx<drawstartx)&&next.first){savweX=redoStack.length;Bigger=drawareax-next.drawareax;onece=false;}
-  if((next.drawareay!==drawareay)&&(next.originaldrawstarty<drawstarty)&&next.first){savweY=redoStack.length;BiggerY=drawareay-next.drawareay;oneceY=false;}
-  restoreState(next);
-}
-
-const gridBtn = document.getElementById('gridBtn');
-function updateGridButton() {
-    if (!gridBtn) return;
-    gridBtn.style.backgroundColor = showGrid ? '#d4ffd4' : '#f1f1f1';
-    gridBtn.style.borderColor = showGrid ? '#4CAF50' : '#ccc';
-}
-
-gridBtn.addEventListener('click', () => { showGrid = !showGrid; updateGridButton(); });
-document.getElementById('undoBtn').addEventListener('click', undo);
-document.getElementById('redoBtn').addEventListener('click', redo);
-window.addEventListener('keydown', function(e) {
-  const z = e.key.toLowerCase() === 'z';
-  const y = e.key.toLowerCase() === 'y';
-  const mod = e.ctrlKey || e.metaKey;
-  if (mod && z && !e.shiftKey) { e.preventDefault(); undo(); }
-  else if (mod && (y || (z && e.shiftKey))) { e.preventDefault(); redo(); }
-  if (e.key.toLowerCase() === 'g') { showGrid = !showGrid; updateGridButton(); }
-});
-updateGridButton();</script>
 
 <script>
 (function(){
