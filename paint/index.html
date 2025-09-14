@@ -4917,7 +4917,7 @@ function endAction(){
         savelabel,
         bmp: savebmp,         // snapshot canvas av bildytan
         w: savew, h: saveh,  // "logiska" bildmått i px (utan zoom)
-        drawareax:savedrawareax, drawareay:savedrawareay, drawstartx:savedrawstartx, drawstarty:savedrawstarty, zoom:savezoom,canvasw:canvasw,canvash:canvash,originaldrawstartx:drawstartx,originaldrawstarty:drawstarty,zomzom:zomzom
+        drawareax:savedrawareax, drawareay:savedrawareay, drawstartx:savedrawstartx, drawstarty:savedrawstarty, zoom:savezoom,canvasw:canvasw,canvash:canvash,originaldrawstartx:drawstartx,originaldrawstarty:drawstarty,zomzom:zomzom,first:true
       });
       pruneStack(undoStack);
 
@@ -4988,6 +4988,7 @@ function undo(){
       originaldrawstartx:drawstartx,
       originaldrawstarty:drawstarty,
       zomzom:zoom
+	  first:false
     });
   pruneStack(redoStack);
   const prev = undoStack.pop();
@@ -5010,14 +5011,15 @@ function redo(){
         originaldrawstartx:drawstartx,
         originaldrawstarty:drawstarty,
         zomzom:zoom
+		first:false
     });
     
    
     
   pruneStack(undoStack);
   const next = redoStack.pop();
-  if((next.drawareax!==drawareax)&&(next.originaldrawstartx<drawstartx)){savweX=redoStack.length;Bigger=drawareax-next.drawareax;onece=false;}
-  if((next.drawareay!==drawareay)&&(next.originaldrawstarty<drawstarty)){savweY=redoStack.length;BiggerY=drawareay-next.drawareay;oneceY=false;}
+  if((next.drawareax!==drawareax)&&(next.originaldrawstartx<drawstartx)&&next.first){savweX=redoStack.length;Bigger=drawareax-next.drawareax;onece=false;}
+  if((next.drawareay!==drawareay)&&(next.originaldrawstarty<drawstarty)&&next.first){savweY=redoStack.length;BiggerY=drawareay-next.drawareay;oneceY=false;}
   restoreState(next);
 }
 
