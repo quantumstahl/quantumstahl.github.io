@@ -4435,6 +4435,9 @@ canvas.addEventListener('pointermove', (ev) => {
         }
     }
     else{
+        
+        if(startxxx===0){startxxx=(p0.clientX + p1.clientX);startyyy=(p0.clientY + p1.clientY);}
+        
         const cx = ((p0.clientX + p1.clientX)-startxxx )/ zoom;
         const cy = ((p0.clientY + p1.clientY)-startyyy )/zoom;
         
