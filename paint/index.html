@@ -4300,7 +4300,7 @@ let touchTimer = null;
 let lastPinchDistance = 0;            // 0 = ingen pinch-baslinje satt ännu
 let startxxx=0;
 let startyyy=0;
-
+let locker=false;
 
 function twoPointers() {
   const it = pointers.values();
@@ -4421,17 +4421,8 @@ canvas.addEventListener('pointermove', (ev) => {
     const delta = newDistance - lastPinchDistance;
 
 
-    if(Math.abs(delta)<=10){
-        const cx = ((p0.clientX + p1.clientX)-startxxx )/ zoom;
-        const cy = ((p0.clientY + p1.clientY)-startyyy )/zoom;
-        
-        // Vi vill INTE skriva till drawstartx/y här → använd skuggoffset och skuggzoom
-        drawstartx = drawstartx+cx;
-        drawstarty = drawstarty+cy;
-        startxxx=(p0.clientX + p1.clientX);
-        startyyy=(p0.clientY + p1.clientY); 
-    }
-    else{
+  
+    if(Math.abs(delta)>=10&&locker===false){
 
         let newzoom = zoom / zomzomzom;  // behåller din befintliga formel
         if (Math.abs(delta) > 10) {
@@ -4443,8 +4434,20 @@ canvas.addEventListener('pointermove', (ev) => {
           lastPinchDistance = newDistance;
         }
     }
+    else{
+        locker=true;
+        const cx = ((p0.clientX + p1.clientX)-startxxx )/ zoom;
+        const cy = ((p0.clientY + p1.clientY)-startyyy )/zoom;
+        
+        // Vi vill INTE skriva till drawstartx/y här → använd skuggoffset och skuggzoom
+        drawstartx = drawstartx-cx*0.5;
+        drawstarty = drawstarty-cy*0.5;
+        startxxx=(p0.clientX + p1.clientX);
+        startyyy=(p0.clientY + p1.clientY); 
+    }
     return; // när två fingrar – rita inte
   }
+  else{locker=false;}
   // === 1 finger: rita
   if (ev.target === canvas && pointers.size === 1) {
     const rect = canvas.getBoundingClientRect();
