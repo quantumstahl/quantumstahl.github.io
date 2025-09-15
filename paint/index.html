@@ -424,6 +424,7 @@ canvas{
     align-content: start;   
     width:4.6875rem;   /* 75px */
     height:85%;
+    
   }
   #bottomDock > *{
     margin: 0;         /* nolla titel/p/knapp-marginaler som spär ut */
@@ -1087,10 +1088,6 @@ canvas{
 
             let undoStack = [];
             let redoStack = [];
-            let saveStack=[];
-            let saveStack2=[];
-            let Bigger=0;
-            let BiggerY=0;
             let canvasPools = new Map();
             let projectBitmaps = [null, null, null];     // ImageBitmap per projekt (RAM)
             let projectBlobURLs = [null, null, null];    // Fallback om bitmap inte går
@@ -1143,8 +1140,7 @@ canvas{
             drawstartx  = projectdrawstartx[index] ?? drawstartx;
             drawstarty  = projectdrawstarty[index] ?? drawstarty;
             zoom        = projectzoom[index] ?? zoom;
-            
-            const zoomvalue = Math.round(zoom* 100);
+            zoomvalue = Math.round(zoom* 100);
             document.getElementById("zoomSlider").value = zoomvalue;
             document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
             zoom=zoom/zomzomzom;
@@ -1163,7 +1159,13 @@ canvas{
               drawingCtx.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
             }
             // Nytt projekt startar "clean"
-            resizeCanvas();
+          
+            
+            drawstartx = window.innerWidth/2- drawareax/2;
+            drawstarty = window.innerHeight/2 -drawareay/2;
+            undoStack.length=0;
+            redoStack.length=0;
+            
             projectDirty[index] = false;
           }
             document.getElementById('project1Btn').addEventListener('click', () => loadProject(0));
@@ -2508,23 +2510,24 @@ function startSelectionSession() {
 
 function commitSelectionSession(){
   if (!selSessionActive || !selectionBBox) return;
-
+  
+  
   // 1) Se till att bara originalhålet finns (om sådant existerar)
   if (!selectionHoleCut && selectionHoleBBox){
     _eraseSelectionAt(selectionHoleBBox.x, selectionHoleBBox.y);
     selectionHoleCut = true;
   }
-
   // NEW: tillåt commit även utan selectionSrcCanvas
   const src = selectionSrcCanvas || selectionImageCanvas;
   if (!src) return;
-
   // 2) Baka in slutläget
   drawingCtx.save();
+
+  
   if (typeof disableSmoothing==='function') disableSmoothing(drawingCtx);
   drawingCtx.drawImage(
     src, 0,0, src.width, src.height,
-    selectionBBox.x, selectionBBox.y, selectionBBox.w, selectionBBox.h
+    selectionBBox.x, selectionBBox.y, src.width, src.height
   );
   drawingCtx.restore();
   if(canvasw!==window.innerWidth||canvash!==window.innerHeight)cow=true;
@@ -3403,7 +3406,7 @@ function _activatePastedBitmap(imgBitmap) {
 
   // 3) Mata in i selection-systemet
   selectionImageCanvas = c;
-  selectionBBox = { x: cx, y: cy, w, h };
+  selectionBBox = { x: cx, y: cy, w:drawareax/z, h:drawareay/z };
 
     // NEW: make paste committable
   selectionSrcCanvas   = selectionImageCanvas;   // ← viktigt för commit
@@ -4412,14 +4415,35 @@ canvas.addEventListener('pointermove', (ev) => {
     const newDistance = Math.hypot(dx, dy);
     const delta = newDistance - lastPinchDistance;
 
-    let newzoom = zoom / zomzomzom;  // behåller din befintliga formel
-    if (Math.abs(delta) > 5) {
-      newzoom *= (delta > 0) ? 1.05 : 0.95;
-      newzoom = Math.max(0.10, Math.min(newzoom, 50));
-      zoomvalue = Math.round(newzoom * 100);
-      document.getElementById("zoomSlider").value = String(zoomvalue);
-      document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
-      lastPinchDistance = newDistance;
+
+    if(delta<10){
+        const cx = (p0.clientX + p1.clientX) * 0.5;
+        const cy = (p0.clientY + p1.clientY) * 0.5;
+        const PscreenX = cx, PscreenY = cy;
+        const PimgX = (PscreenX - (drawstartx)) / zoom;
+        const PimgY = (PscreenY - (drawstarty)) / zoom;
+
+        // När zoomen blir z1eff ska skärmpunkten fortfarande vara Pscreen:
+        // => (drawstart + pan)' = Pscreen - P_img * z1eff
+        const newStartX = PscreenX - PimgX * zoom;
+        const newStartY = PscreenY - PimgY * zoom;
+
+        // Vi vill INTE skriva till drawstartx/y här → använd skuggoffset och skuggzoom
+        drawstartx = newStartX - drawstartx;
+        drawstarty = newStartY - drawstarty;
+        
+    }
+    else{
+
+        let newzoom = zoom / zomzomzom;  // behåller din befintliga formel
+        if (Math.abs(delta) > 5) {
+          newzoom *= (delta > 0) ? 1.05 : 0.95;
+          newzoom = Math.max(0.10, Math.min(newzoom, 50));
+          zoomvalue = Math.round(newzoom * 100);
+          document.getElementById("zoomSlider").value = String(zoomvalue);
+          document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
+          lastPinchDistance = newDistance;
+        }
     }
     return; // när två fingrar – rita inte
   }
@@ -4724,10 +4748,6 @@ updateGridButton();
 let pcanvasw=0;
 let pcanvash=0;
 let knäppt=false;
-let onece=false;
-let oneceY=false;
-let drawstartXX=0;
-let drawstartYY=0;
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
@@ -4749,7 +4769,6 @@ let drawstartYY=0;
                     resizeCanvas();
 
                 }
-                
                
                 
                 knäppt=true;
@@ -4772,44 +4791,14 @@ let drawstartYY=0;
 
                 // --- Räkna om start så att samma bildpunkt ligger kvar i mitten
                 
-                
-                if((Bigger!==0&&onece===false)&&(BiggerY===0||oneceY===true)){
-                    onece=true;
-                    drawstartx = (screenCenterX - (imgCenterX) * newZoom)+Bigger;
-                    drawstarty = screenCenterY - (imgCenterY) * newZoom;
-                }
-                else if((BiggerY!==0&&oneceY===false)&&(Bigger===0||onece===true)){
-                    oneceY=true;
-                    drawstartx = (screenCenterX - (imgCenterX) * newZoom);
-                    drawstarty = (screenCenterY - (imgCenterY) * newZoom)+BiggerY;;
-                }
-                else if((Bigger!==0&&onece===false)&&(BiggerY!==0&&oneceY===false)){
-                    onece=true;
-                    oneceY=true;
-                    drawstartx = (screenCenterX - (imgCenterX) * newZoom)+Bigger;
-                    drawstarty = (screenCenterY - (imgCenterY) * newZoom)+BiggerY;
-                    
-                    
-                }
-                
-                else{
-                    drawstartx = (screenCenterX - imgCenterX * newZoom);
-                    drawstarty = screenCenterY - imgCenterY * newZoom;
-                    
-                }
-                drawstartXX=screenCenterX - (screenCenterX - drawstartXX) / oldZoom * newZoom;
-                drawstartYY=screenCenterY - (screenCenterY - drawstartYY) / oldZoom * newZoom;
-                
-                
-                
+                drawstartx = (screenCenterX - imgCenterX * newZoom);
+                drawstarty = screenCenterY - imgCenterY * newZoom;
                 zoom=zoom*zomzomzom;
                 knäppt=false;
                 if((document.body.clientWidth > 100 && startan == false)) {
                     startan = true;  
                     drawstartx = (canvas.width/devicePixelRatio)/2 - drawareax/2;
                     drawstarty = (canvas.height/devicePixelRatio)/2 - drawareay/2;
-                    drawstartXX = (canvas.width/devicePixelRatio)/2 - drawareax/2;
-                    drawstartYY= (canvas.height/devicePixelRatio)/2 - drawareay/2;
                     prevDrawAreaX = drawareax;
                     prevDrawAreaY = drawareay;
                     prevDrawStartX = drawstartx;
