@@ -3891,6 +3891,13 @@ function _fitViewportToImage(newW, newH) {
   const dpr = window.devicePixelRatio || 1;
   drawstartx = (canvas.width / dpr - drawareax) / 2;
   drawstarty = (canvas.height / dpr - drawareay) / 2;
+  
+  canvasw = window.innerWidth;
+  canvash = window.innerHeight;
+  ko(undoStack);
+  ko(redoStack);
+  
+  
 }
 async function _activateLoadedBitmap(imgBitmap) {
   if (!imgBitmap || !imgBitmap.width || !imgBitmap.height) return;
@@ -4243,6 +4250,7 @@ canvas.addEventListener('pointerdown', (ev) => {
 
     // movecorners
     if(tapedTwice&&ev.pointerType === 'touch'||ev.pointerType !== 'touch'){
+        
         if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty-30 && y < drawstarty+10) { movecorners = true; resizeStart('NW'); return; }
         if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty-30 && y < drawstarty+10) { movecorners = true; resizeStart('NE'); return; }
         if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty+drawareay && y < drawstarty-10+drawareay+30) { movecorners = true; resizeStart('SW'); return; }
@@ -4299,6 +4307,7 @@ canvas.addEventListener('pointermove', (ev) => {
 
   // dragga hörn
   if (movecorners) {
+      clearSelection();
     const rect = canvas.getBoundingClientRect();
     const xNow = ev.clientX - rect.left;
     const yNow = ev.clientY - rect.top;
@@ -4352,7 +4361,7 @@ function endPointer(ev) {
     lastPinchDistance = 0;
   }
 
-  if (movecorners) { resizeCommit(); movecorners = false; }
+  if (movecorners) {clearSelection(); resizeCommit(); movecorners = false; }
   movescrollx = false;
   movescrolly = false;
   isposetive = false;
