@@ -4689,55 +4689,6 @@ window.addEventListener('keydown', function(e) {
 });
 updateGridButton();
 
-//-->editor
-const editBtn = document.getElementById('edit-color-btn');
-const pop     = document.getElementById('color-editor');
-
-// Flytta editorn direkt under <body> (undviker att någon container klipper den)
-if (pop && pop.parentElement !== document.body) {
-  document.body.appendChild(pop);
-}
-
-function measureShown(el){
-  const wasHidden = getComputedStyle(el).display === 'none';
-  const prevD = el.style.display, prevV = el.style.visibility;
-  if (wasHidden){ el.style.visibility='hidden'; el.style.display='block'; }
-  const r = el.getBoundingClientRect();
-  if (wasHidden){ el.style.display=prevD||''; el.style.visibility=prevV||''; }
-  return { w: r.width || 360, h: r.height || 220 };
-}
-
-
-
-function placeEditor(){
-  if (!editBtn || !pop || pop.classList.contains('hidden')) return;
-
-  const { w: ew, h: eh } = measureShown(pop);
-  const br = editBtn.getBoundingClientRect();
-  const M  = 8;
-
-  // centrera över knappen
-  let left = Math.round(br.left + br.width/2 - ew/2);
-
-
-  // helst ovanför; annars under
-  let top = Math.round(br.top - eh - M);
-
-  if(window.innerHeight  < window.innerWidth&&mobileAndTabletCheck()){
-                //  top=top+100;
-  }
-  pop.style.left = (canvas.width/2/ devicePixelRatio)-150 + 'px';
-  pop.style.top  = top  + 'px';
-
-}
-
-// Knyt till din befintliga 🎨-knapp + mutationer + resize
-editBtn?.addEventListener('click', ()=> requestAnimationFrame(placeEditor));
-new MutationObserver(()=> requestAnimationFrame(placeEditor))
-  .observe(pop, { attributes:true, attributeFilter:['class','style'] });
-//<--editor
-
-
 
 let pcanvasw=0;
 let pcanvash=0;
@@ -4765,7 +4716,6 @@ let drawstartYY=0;
                     pcanvasw=window.innerWidth;
                     pcanvash=window.innerHeight;
                     resizeCanvas();
-                    placeEditor();
 
                 }
                 
@@ -5200,7 +5150,59 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
 <script>
+(function(){
+  const editBtn = document.getElementById('edit-color-btn');
+  const pop     = document.getElementById('color-editor');
 
+  // Flytta editorn direkt under <body> (undviker att någon container klipper den)
+  if (pop && pop.parentElement !== document.body) {
+    document.body.appendChild(pop);
+  }
+
+  function measureShown(el){
+    const wasHidden = getComputedStyle(el).display === 'none';
+    const prevD = el.style.display, prevV = el.style.visibility;
+    if (wasHidden){ el.style.visibility='hidden'; el.style.display='block'; }
+    const r = el.getBoundingClientRect();
+    if (wasHidden){ el.style.display=prevD||''; el.style.visibility=prevV||''; }
+    return { w: r.width || 360, h: r.height || 220 };
+  }
+
+
+
+  function placeEditor(){
+    if (!editBtn || !pop || pop.classList.contains('hidden')) return;
+
+    const { w: ew, h: eh } = measureShown(pop);
+    const br = editBtn.getBoundingClientRect();
+    const M  = 8;
+
+    // centrera över knappen
+    let left = Math.round(br.left + br.width/2 - ew/2);
+
+
+    // helst ovanför; annars under
+    let top = Math.round(br.top - eh - M);
+    
+    if(window.innerHeight  < window.innerWidth&&mobileAndTabletCheck()){
+                  //  top=top+100;
+    }
+    
+    
+    
+    
+
+    pop.style.left = (canvas.width/2/ devicePixelRatio)-150 + 'px';
+    pop.style.bottom  = 200  + 'px';
+    
+  }
+
+  // Knyt till din befintliga 🎨-knapp + mutationer + resize
+  editBtn?.addEventListener('click', ()=> requestAnimationFrame(placeEditor));
+  new MutationObserver(()=> requestAnimationFrame(placeEditor))
+    .observe(pop, { attributes:true, attributeFilter:['class','style'] });
+  window.addEventListener('resize', placeEditor);
+})();
 
 (function initMainToolSidebar(){
   const bar = document.getElementById('mainToolBar');
