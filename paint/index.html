@@ -4242,11 +4242,12 @@ canvas.addEventListener('pointerdown', (ev) => {
     y = ev.clientY - rect.top;
 
     // movecorners
-    if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty-30 && y < drawstarty+10) { movecorners = true; resizeStart('NW'); return; }
-    if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty-30 && y < drawstarty+10) { movecorners = true; resizeStart('NE'); return; }
-    if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty+drawareay && y < drawstarty-10+drawareay+30) { movecorners = true; resizeStart('SW'); return; }
-    if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty+drawareay-10 && y < drawstarty+drawareay+30) { movecorners = true; resizeStart('SE'); return; }
-
+    if(tapedTwice&&ev.pointerType === 'touch'||ev.pointerType !== 'touch'){
+        if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty-30 && y < drawstarty+10) { movecorners = true; resizeStart('NW'); return; }
+        if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty-30 && y < drawstarty+10) { movecorners = true; resizeStart('NE'); return; }
+        if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty+drawareay && y < drawstarty-10+drawareay+30) { movecorners = true; resizeStart('SW'); return; }
+        if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty+drawareay-10 && y < drawstarty+drawareay+30) { movecorners = true; resizeStart('SE'); return; }
+    }
     // scrollbar (oförändrad)
     let sbThickness = getScrollbarThickness();
     if (drawareax - (canvas.width/devicePixelRatio*2) > -canvas.width/devicePixelRatio-50) {
