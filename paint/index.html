@@ -306,16 +306,28 @@ canvas{
 /* =========================
    COLOR-POPOVER (kort version)
    ========================= */
+#colorWrap{
+      position:fixed; left:0; right:0;
+  top:calc(10rem);
+  display:flex; justify-content:center;
+  pointer-events:none; z-index:100000;
+    
+    
+    
+}
+
+
+
+
 .color-pop.hidden{ display:none; }
 .color-pop{
   position:fixed !important;
-  top:20rem;
-  left:67rem;
   z-index:3000;
   max-width:min(26.25rem, calc(100vw - 1rem));
   background:#222; color:#fff;
   border:1px solid #444; border-radius:0.75rem;
   box-shadow:0 0.5rem 1.875rem rgba(0,0,0,.35);
+  pointer-events:auto;
 }
 .color-pop-inner{ padding:0.75rem; }
 #rainbowCanvas{
@@ -644,6 +656,7 @@ canvas{
 </div>
 
 <!-- Flyttad/behållen färg-editor (popup) -->
+<div id="colorWrap">
 <div id="color-editor" class="color-pop hidden" role="dialog" aria-modal="true" aria-label="Edit Color">
   <div class="color-pop-inner">
     <div class="row">
@@ -667,7 +680,7 @@ canvas{
     </div>
   </div>
 </div>
-
+</div>
 <div id="dockWrap2">
 <!-- === MAIN TOOL SIDEBAR === -->
 <nav id="mainToolBar" aria-label="Main tools">
