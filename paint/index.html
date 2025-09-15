@@ -3863,6 +3863,8 @@ async function _loadBitmapFromURL(src) {
 //NYTT
 function _fitViewportToImage(newW, newH) {
   // Behåll beteendet: auto-fit till ~80% av fönstret, men lyft upp till ~50% om det blir för smått
+  
+  beginAction();
   let newZoom = zoom;
   const availW = window.innerWidth;
   const availH = window.innerHeight - 100; // din toppbar-marginal
