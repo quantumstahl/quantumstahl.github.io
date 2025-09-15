@@ -435,6 +435,62 @@ canvas{
 #topBar{ z-index:2300 !important; }
 .dropdown, .menu, #transformMenu{ z-index:2400 !important; }
 
+/* =========================
+   COLOR-POPOVER – kompakt mobil
+   ========================= */
+@media (pointer:coarse), (max-width: 48rem) {
+  .color-pop{
+    /* smalare + tajtare på mobil */
+    max-width: min(18rem, calc(100vw - 0.75rem));
+    border-radius: 0.625rem;
+  }
+  .color-pop-inner{
+    padding: 0.5rem;
+  }
+
+  /* Färgrutan mindre */
+  #colorPreview{
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 0.5rem;
+  }
+
+  /* HSV-rutan lägre */
+  #rainbowCanvas{
+    height: clamp(9rem, 36vh, 14rem);
+  }
+
+  /* Hex-text och övrig typografi */
+  #hexOut{
+    font-size: 1rem;
+    line-height: 1.1;
+  }
+  .color-pop .btn,
+  .color-pop button{
+    min-height: 2rem;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.85rem;
+    border-radius: 0.5rem;
+  }
+}
+
+/* Extra krymp i landscape på mobil */
+@media (orientation: landscape) and (pointer:coarse){
+  .color-pop{
+    max-width: min(16rem, calc(100vw - 0.75rem));
+  }
+  #rainbowCanvas{
+    height: clamp(7.5rem, 32vh, 12rem);
+  }
+  #colorPreview{
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+  #hexOut{
+    font-size: 0.9rem;
+  }
+}
+
 
 
 
@@ -1964,10 +2020,7 @@ function switchTool(newTool, opts = {}) {
   drawstarty = Math.round(curVH/2 - z * cyImg);
 
   // 6) Uppdatera sparade viewportmått och re-mappa stackar via din ko()
-  canvasw = curVW;
-  canvash = curVH;
-  ko(undoStack);
-  ko(redoStack);
+
 
   if (typeof markDirty === 'function') markDirty();
 }
@@ -2001,6 +2054,7 @@ function clearSelection() {
   selectionImageCanvas = null;
   selectionMaskCanvas = null;
   selectionOrigBBox = null;
+  cow=false;
 }
 
 function _effectiveZoom(){ return (zoom > 10) ? (zoom/100) : zoom; }
@@ -2414,7 +2468,7 @@ function startSelectionSession() {
     startdragstuffx=selectionStartX;
     startdragstuffy=selectionStartY;
   if (!selSessionActive) {
-    if (typeof beginAction === 'function') beginAction(); // snapshot för undo
+    if (typeof beginAction === 'function'){beginAction(); }// snapshot för undo
     selSessionActive = true;
     selErasedOnce = false;
     
@@ -2442,9 +2496,11 @@ function commitSelectionSession(){
     selectionBBox.x, selectionBBox.y, selectionBBox.w, selectionBBox.h
   );
   drawingCtx.restore();
-  if(startdragstuffx!==selectionStartX||startdragstuffy!==selectionStartY){destroyAction();}
+  if(canvasw!==window.innerWidth||canvash!==window.innerHeight)cow=true;
+  if(startdragstuffx!==selectionStartX||startdragstuffy!==selectionStartY){destroyAction();cow=false;}
   
-  endAction();
+      
+  endAction(cow);
 
   
   // 3) Städa
@@ -2527,7 +2583,7 @@ canvas.addEventListener('pointerdown', (ev)=>{
 
 
 
-
+    beginAction();
 
 
     startSelectionSession();
@@ -2910,7 +2966,6 @@ function quantizeToZoomGrid(screenValue, z) {
 //funkar lite
 function drawResizeOverlay() {
   if (!rc_active) return;
-
   const z = (zoom > 10 ? zoom/100 : zoom);
   const oldW = rc_oldW, oldH = rc_oldH;
   const newW = rc_prevW|0, newH = rc_prevH|0;
@@ -2954,18 +3009,20 @@ function drawResizeOverlay() {
   ctx.save();
   disableSmoothing(ctx);
 
-  // 1) Bakgrund i nya ytan
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(prevX0, prevY0, prevW, prevH);
-
-  // 2) Rita snapshot (endast overlap) på kvantiserad plats
+  ctx.fillStyle = "rgba(32, 45, 21, 0.3)";
+  if(copyW > 0 && copyH > 0){
+      ctx.fillRect(prevX0, prevY0, prevW, prevH);
+  }
+  
+  
+  /*
   if (rc_snap && copyW > 0 && copyH > 0) {
       ctx.drawImage(
       rc_snap,
       srcX, srcY, copyW, copyH,        // KÄLLA: orörd i doc-pixlar
       dstXs,dstYs, drawW, drawH // MÅL: kvantiserade skärmpixlar
     );
-  }
+  }*/
 
   // 3) Skugga UTANFÖR nya ytan
   ctx.fillStyle = 'rgba(0,0,0,0.10)';
@@ -3281,7 +3338,7 @@ async function _bitmapFromDataURL(dataURL) {
   const blob = await res.blob();
   return await createImageBitmap(blob);
 }
-
+let cow=false;
 // Aktivera som flyttbar markering (ingen direkt målning på ritytan)
 function _activatePastedBitmap(imgBitmap) {
   // 1) Bygg en canvas av den inklistrade bilden
@@ -3340,7 +3397,7 @@ function _activatePastedBitmap(imgBitmap) {
   if (typeof currentTool !== 'undefined') {switchTool('select');currentTool = 'select';}
 
   // 6) Be om en redraw
-  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(()=>{});
+ // if (typeof requestAnimationFrame === 'function') requestAnimationFrame(()=>{});
 }
 window.addEventListener('paste', async (e) => {
   // Försök hitta bild
@@ -3864,7 +3921,7 @@ async function _loadBitmapFromURL(src) {
 function _fitViewportToImage(newW, newH) {
   // Behåll beteendet: auto-fit till ~80% av fönstret, men lyft upp till ~50% om det blir för smått
   
-  beginAction();
+ 
   let newZoom = zoom;
   const availW = window.innerWidth;
   const availH = window.innerHeight - 100; // din toppbar-marginal
@@ -3894,15 +3951,13 @@ function _fitViewportToImage(newW, newH) {
   drawstartx = (canvas.width / dpr - drawareax) / 2;
   drawstarty = (canvas.height / dpr - drawareay) / 2;
   
-  canvasw = window.innerWidth;
-  canvash = window.innerHeight;
-  ko(undoStack);
-  ko(redoStack);
+
   
   
 }
 async function _activateLoadedBitmap(imgBitmap) {
   if (!imgBitmap || !imgBitmap.width || !imgBitmap.height) return;
+  beginAction();
   ensureCanvasSize(imgBitmap.width, imgBitmap.height); // behåll din säkerhetsmarginal
   _fitViewportToImage(imgBitmap.width, imgBitmap.height);
   _activatePastedBitmap(imgBitmap);                     // in i nya selectTool-flödet
@@ -4384,9 +4439,9 @@ canvas.addEventListener('pointerup', endPointer, { passive: false });
 canvas.addEventListener('pointercancel', endPointer, { passive: false });
 
 const HIST_MAX = 100;
-let savelabel,savebmp,savew,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom,canvasw,canvash,ox,oy;
-
-
+let savelabel,savew,savebmp,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom,canvash,ox,oy;
+let canvasw=null;
+let startansasa=true;
 function pruneStack(stack){
   while (stack.length > HIST_MAX) {
     const old = stack.shift();
@@ -4414,18 +4469,23 @@ function captureRegionSnapshot() {
 function beginAction(label = ''){
   const { snap, imgW, imgH } = captureRegionSnapshot();
   
-    savelabel=label;
-    savebmp=snap;
-    savew=imgW;
-    saveh=imgH;
-    savedrawareax=drawareax;
-    savedrawareay=drawareay;
-    savedrawstartx=drawstartx;
-    savedrawstarty=drawstarty;
-    savezoom=zoom;
-    canvasw=window.innerWidth;
-    canvash=window.innerHeight;
-    
+
+      if(!canvasw||startansasa){
+          
+        startansasa=false;
+        savelabel=label;
+        savebmp=snap;
+        savew=imgW;
+        saveh=imgH;
+        savedrawareax=drawareax;
+        savedrawareay=drawareay;
+        savedrawstartx=drawstartx;
+        savedrawstarty=drawstarty;
+        savezoom=zoom;
+        canvasw=window.innerWidth;
+        canvash=window.innerHeight;
+        
+      }
 }
 function destroyAction(){
     
@@ -4441,19 +4501,56 @@ function destroyAction(){
     canvasw=0;
     canvash=0;
 }
-function endAction(){
+function endAction(cowcow){
   if (typeof markDirty === 'function'){
+      if(savebmp===null){return;}
       
-      if(savedrawareax===0){return;}
+      
+      if(cowcow){  
+        const prevVW = Math.max(1, canvasw || window.innerWidth);
+        const prevVH = Math.max(1, canvash || window.innerHeight);
+        const curVW  = Math.max(1, window.innerWidth);
+        const curVH  = Math.max(1, window.innerHeight);
+
+        // Effektiv zoom för posten
+        const z = savezoom;
+
+        // Bildens storlek (hela backing-bilden, ex 10000×10000)
+        const imgW = drawingCanvas.width;
+        const imgH = drawingCanvas.height;
+
+        // 1) Beräkna bild-centrum i BILD-px från sparat “original”-läge (ox/oy) + GAMLA viewporten
+        const cxImg = (-savedrawstartx + prevVW/2) / z;
+        const cyImg = (-savedrawstarty + prevVH/2) / z;
+
+        // 2) Ny drawstart så samma bild-centrum hamnar mitt i den NYA viewporten
+        let sx = Math.round(curVW/2 - z * cxImg);
+        let sy = Math.round(curVH/2 - z * cyImg);
+
+        // 3) Clamp:a mot nya tillåtna spann i SKÄRM-px
+        const imgWscreen = imgW * z;
+        const imgHscreen = imgH * z;
+        const minX = curVW - imgWscreen; // ≤ 0
+        const minY = curVH - imgHscreen; // ≤ 0
+        savedrawstartx = sx;
+        savedrawstarty = sy;
+        canvasw = curVW;
+        canvash = curVH;
+        
+      } 
       undoStack.push({
         savelabel,
         bmp: savebmp,         // snapshot canvas av bildytan
         w: savew, h: saveh,  // "logiska" bildmått i px (utan zoom)
         drawareax:savedrawareax, drawareay:savedrawareay, drawstartx:savedrawstartx, drawstarty:savedrawstarty, zoom:savezoom,canvasw:canvasw,canvash:canvash,ox:savedrawstartx,oy:savedrawstarty
       });
+      ko(undoStack);
+      
       pruneStack(undoStack);
       while (redoStack.length) redoStack.pop();
+      canvasw=null;
       markDirty();
+
   }
 }
 
