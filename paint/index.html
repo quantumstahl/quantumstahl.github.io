@@ -308,7 +308,7 @@ canvas{
    ========================= */
 #colorWrap{
       position:fixed; left:0; right:0;
-  top:calc(10rem);
+  top:10rem;
   display:flex; justify-content:center;
   pointer-events:none; z-index:100000;
     
@@ -490,6 +490,9 @@ canvas{
 
 /* Extra krymp i landscape på mobil */
 @media (orientation: landscape) and (pointer:coarse){
+    
+   #colorWrap{top:5rem;} 
+    
   .color-pop{
     max-width: min(16rem, calc(100vw - 0.75rem));
   }
