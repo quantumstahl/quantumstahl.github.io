@@ -4746,11 +4746,11 @@ function cameraHome(){camera.x=0;camera.y=0;}
 function setZoomAroundScreenCenter(newZoom,oldZoom){
   const sx = window.innerWidth  / 2;
   const sy = window.innerHeight / 2;
-  setZoomAroundScreenPoint(newZoom, sx, sy, "shiftCamera",oldZoom);
+  setZoomAroundScreenPoint(newZoom, sx, sy, "shiftDrawstart",oldZoom);
 }
 
 // mode: "shiftDrawstart" (default), "shiftCamera", eller "snapDrawstartInt"
-function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom){
+function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftDrawstart",oldZoom){
   const z0  = _effectiveZoom();                     // gamla zoomen (samma som i render)
   const ox0 = drawstartx + camera.x;                // kombinerad offset före zoom
   const oy0 = drawstarty + camera.y;
