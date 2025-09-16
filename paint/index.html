@@ -1551,14 +1551,8 @@ const TOLER    = 10;   // RGB-tolerans
 const TOL_A    = 10;   // alfa-tolerans
 
 // ====== Helpers ======
-function __effZoom(){
-  if (typeof _effectiveZoom === 'function') return _effectiveZoom();
-  const z = (window.zoom > 10 ? window.zoom/100 : (window.zoom || 1));
-  const css = (mobileAndTabletCheck() && window.innerHeight < window.innerWidth && typeof window.zomzomzom === 'number') ? window.zomzomzom : 1;
-  return z * css;
-}
 function __screenToImage(sx, sy){
-  const z = __effZoom();
+  const z = _effectiveZoom();
   return { x: ((sx - drawstartx)/z)|0, y: ((sy - drawstarty)/z)|0 };
 }
 function __clamp(v, lo, hi){ return v < lo ? lo : (v > hi ? hi : v); }
@@ -1566,7 +1560,7 @@ function __clamp(v, lo, hi){ return v < lo ? lo : (v > hi ? hi : v); }
 // Aktiv vy i BILD-koordinater (klipper mot hela canvasen)
 function __activeRect(){
   const W = drawingCanvas.width|0, H = drawingCanvas.height|0;
-  const z = __effZoom();
+  const z = _effectiveZoom();
   // var i bilden som visas på skärmen:
   const x0 = Math.max(0, Math.floor((0 - drawstartx)/z));
   const y0 = Math.max(0, Math.floor((0 - drawstarty)/z));
