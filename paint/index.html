@@ -4327,7 +4327,7 @@ canvas.addEventListener('pointerdown', (ev) => {
   if (pointers.size === 2) {
       clearSelection();
     clearTimeout(touchTimer);
-    if (delatare === true) { delatare = false;isDrawing = false;endAction(); undo(); }
+    if (delatare === true) { delatare = false;isDrawing = false;if(undoStack.length>0){endAction(); undo();} }
 
     const [p0, p1] = twoPointers();
     const dx = p0.clientX - p1.clientX;
