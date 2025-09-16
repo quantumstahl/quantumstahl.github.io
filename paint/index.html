@@ -2130,7 +2130,7 @@ function _effectiveZoom(){
 }
 function _canvasXYtoImageXY(cx, cy){
   const z=_effectiveZoom();
-  return { x: Math.floor((cx - drawstartx)/z), y: Math.floor((cy - drawstarty)/z) };
+  return { x: Math.floor((cx - drawstartx-camera.x)/z), y: Math.floor((cy - drawstarty-camera.y)/z) };
 }
 function _eraseSelectionAt(ix, iy){
   if (!selectionMaskCanvas) return;
@@ -2165,8 +2165,8 @@ function _rebuildMaskFromImageCanvas(){
 
 function _imageXYtoCanvasXY(ix, iy) {
   const z = _effectiveZoom();
-  const x = drawstartx + ix * z;
-  const y = drawstarty + iy * z;
+  const x = drawstartx+camera.x + ix * z;
+  const y = drawstarty+camera.y + iy * z;
   return {x, y};
 }
 
@@ -2978,8 +2978,8 @@ function resizeStart(corner){
   rc_oldH = Math.floor(drawareay / z);
   rc_prevW = rc_oldW;
   rc_prevH = rc_oldH;
-  rc_baseStartX = Math.round(drawstartx);   // <- BASELÄGE
-  rc_baseStartY = Math.round(drawstarty);   // <- BASELÄGE
+  rc_baseStartX = Math.round(drawstartx+camera.x);   // <- BASELÄGE
+  rc_baseStartY = Math.round(drawstarty+camera.y);   // <- BASELÄGE
   rc_snap = _snapshotDocArea(rc_oldW, rc_oldH);
   beginAction?.(); // ett undo-steg
   rc_active = true;
@@ -3280,8 +3280,8 @@ function _drawSelectOverlay() {
 
   const z = (typeof _effectiveZoom === 'function') ? _effectiveZoom() : zoom;
 
-  const left   = drawstartx + Math.min(selectionStartX, selectionEndX) * z;
-  const top    = drawstarty + Math.min(selectionStartY, selectionEndY) * z;
+  const left   = drawstartx+camera.x + Math.min(selectionStartX, selectionEndX) * z;
+  const top    = drawstarty+camera.y + Math.min(selectionStartY, selectionEndY) * z;
   const width  = Math.abs(selectionEndX - selectionStartX) * z;
   const height = Math.abs(selectionEndY - selectionStartY) * z;
 
