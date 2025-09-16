@@ -1481,6 +1481,7 @@ confirmResizeBtn.addEventListener('click', async function() {
             let isTextToolActive = false;
             let currentImagecanvas=currentproject;
             let showGrid = false;
+            const camera = {x: 0,y: 0};
             // Event listener for zoom slider
             document.getElementById("zoomSlider").addEventListener("input", (e) => {
                 e.preventDefault();
@@ -4345,8 +4346,8 @@ canvas.addEventListener('pointerdown', (ev) => {
   // --- Resten av din singel-finger nedtryckningslogik ---
   if (ev.target === canvas && pointers.size === 1) {
     const rect = canvas.getBoundingClientRect();
-    x = ev.clientX - rect.left;
-    y = ev.clientY - rect.top;
+    x = ev.clientX - rect.left-camera.x;
+    y = ev.clientY - rect.top-camera.y;
 
     // movecorners
     if(tapedTwice&&ev.pointerType === 'touch'||ev.pointerType !== 'touch'){
@@ -4446,8 +4447,8 @@ canvas.addEventListener('pointermove', (ev) => {
         const cy = ((p0.clientY + p1.clientY)-startyyy )*zoom;
         
         // Vi vill INTE skriva till drawstartx/y här → använd skuggoffset och skuggzoom
-        drawstartx = drawstartx+cx*0.25;
-        drawstarty = drawstarty+cy*0.25;
+        camera.x = camera.x+cx*0.25;
+        camera.y = camera.y+cy*0.25;
         startxxx=(p0.clientX + p1.clientX);
         startyyy=(p0.clientY + p1.clientY); 
     }
@@ -4457,8 +4458,8 @@ canvas.addEventListener('pointermove', (ev) => {
   // === 1 finger: rita
   if (ev.target === canvas && pointers.size === 1) {
     const rect = canvas.getBoundingClientRect();
-    x = ev.clientX - rect.left;
-    y = ev.clientY - rect.top;
+    x = ev.clientX - rect.left-camera.x;
+    y = ev.clientY - rect.top-camera.y;
 
     isposetive = false; if (isdirposetive < x) { isposetive = true; } isdirposetive = x;
     isposetivey = false; if (isdirposetivey < y) { isposetivey = true; } isdirposetivey = y;
@@ -4754,8 +4755,43 @@ updateGridButton();
 let pcanvasw=0;
 let pcanvash=0;
 let knäppt=false;
+
+let keyState = {up: false,down: false,left: false,right: false,h: false,plus:false,minus:false};         
+document.addEventListener("keydown", function(e) {
+    try{if(audio.paused&&gameState!=='game_over'){ audio.play();}}catch(error){};
+    if (e.key === "w") keyState.up = true;
+    if (e.key === "a") keyState.left = true;
+    if (e.key === "s") keyState.down = true;
+    if (e.key === "d") keyState.right = true;
+    if (e.key === "h") keyState.h = true;
+    if (e.key === "+") keyState.plus = true;
+    if (e.key === "-") keyState.minus = true;
+});
+
+document.addEventListener("keyup", function(e) {
+    if (e.key === "w") keyState.up = false;
+    if (e.key === "a") keyState.left = false;
+    if (e.key === "s") keyState.down = false;
+    if (e.key === "d") keyState.right = false;
+    if (e.key === "h") keyState.h = false;
+    if (e.key === "+") keyState.plus = false;
+    if (e.key === "-") keyState.minus = false;
+});
+
+
+
+
             //check---------------------------------------------------------------------------------------
             var check = function() {
+                
+                if(keyState.up)camera.y-=4*zoom;
+                if(keyState.down)camera.y+=4*zoom;
+                if(keyState.left)camera.x-=4*zoom;
+                if(keyState.right)camera.x+=4*zoom;
+                if(keyState.h){camera.x=0;camera.y=0;}
+                if(keyState.plus){newzoom = Math.max(0.10, Math.min(zoom*1.01, 50));zoomvalue = Math.round(newzoom * 100);document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
+                if(keyState.minus){newzoom = Math.max(0.10, Math.min(zoom*0.99, 50));zoomvalue = Math.round(newzoom * 100);document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
+                
                 
             const active = document.querySelector('.color-swatch.active');
                 if (active && active.dataset.color !== brushColor) {
@@ -4882,10 +4918,10 @@ let knäppt=false;
                 const pattern = ctx.createPattern(checkerPattern, 'repeat');
                 ctx.fillStyle = pattern;
                 // Use integer coordinates and add 1px buffer to prevent edge artifacts
-                const patternX = Math.floor(drawstartx+1);
-                const patternY = Math.floor(drawstarty+1);
-                const patternWidth = (Math.ceil(drawareax + (drawstartx - patternX)) - 3);
-                const patternHeight = (Math.ceil(drawareay + (drawstarty - patternY)) - 3);
+                const patternX = Math.floor(drawstartx+1+camera.x);
+                const patternY = Math.floor(drawstarty+1+camera.y);
+                const patternWidth = (Math.ceil(drawareax + (drawstartx+camera.x - patternX)) - 3);
+                const patternHeight = (Math.ceil(drawareay + (drawstarty+camera.y - patternY)) - 3);
                 ctx.fillRect(patternX, patternY, patternWidth, patternHeight);
 
 
@@ -4899,7 +4935,7 @@ let knäppt=false;
            
                 
                     ctx.save(); // Save the current state
-                    ctx.translate(drawstartx, drawstarty); // Move to the top-left corner
+                    ctx.translate(drawstartx+camera.x, drawstarty+camera.y); // Move to the top-left corner
                     const z = _effectiveZoom(); // Apply zoom scaling
                     ctx.scale(z, z);
                     const displayWidth  = ensureIntDimension(drawareax / z);
@@ -4914,18 +4950,18 @@ let knäppt=false;
                     ctx.strokeStyle = 'rgba(0,0,0,0.2)';
 
                     for (let gx = 0; gx <= displayWidth; gx++) {
-                        const xPix = drawstartx-0.5 + gx * zoom;
+                        const xPix = drawstartx+camera.x-0.5 + gx * zoom;
                         ctx.beginPath();
-                        ctx.moveTo(xPix + 0.5, drawstarty-0.5);
-                        ctx.lineTo(xPix + 0.5, drawstarty-0.5 + displayHeight * zoom);
+                        ctx.moveTo(xPix + 0.5, drawstarty+camera.y-0.5);
+                        ctx.lineTo(xPix + 0.5, drawstarty+camera.y-0.5 + displayHeight * zoom);
                         ctx.stroke();
                     }
 
                     for (let gy = 0; gy <= displayHeight; gy++) {
-                        const yPix = drawstarty-0.5 + gy * zoom;
+                        const yPix = drawstarty+camera.y-0.5 + gy * zoom;
                         ctx.beginPath();
-                        ctx.moveTo(drawstartx-0.5, yPix + 0.5);
-                        ctx.lineTo(drawstartx-0.5 + displayWidth * zoom, yPix + 0.5);
+                        ctx.moveTo(drawstartx+camera.x-0.5, yPix + 0.5);
+                        ctx.lineTo(drawstartx+camera.x-0.5 + displayWidth * zoom, yPix + 0.5);
                         ctx.stroke();
                     }
 
@@ -4934,10 +4970,10 @@ let knäppt=false;
                 
                 if(!movecorners){
                     ctx.fillStyle = "black";
-                    ctx.fillRect(drawstartx-20, drawstarty-20, 20, 20);
-                    ctx.fillRect(drawstartx+drawareax, drawstarty-20, 20, 20);
-                    ctx.fillRect(drawstartx-20, drawstarty+drawareay, 20, 20);
-                    ctx.fillRect(drawstartx+drawareax, drawstarty+drawareay, 20, 20);
+                    ctx.fillRect(drawstartx+camera.x-20, drawstarty+camera.y-20, 20, 20);
+                    ctx.fillRect(drawstartx+camera.x+drawareax, drawstarty+camera.y-20, 20, 20);
+                    ctx.fillRect(drawstartx+camera.x-20, drawstarty+camera.y+drawareay, 20, 20);
+                    ctx.fillRect(drawstartx+camera.x+drawareax, drawstarty+camera.y+drawareay, 20, 20);
                 }
                 // Draw scrollbars
                 ctx.fillStyle = "rgb(100, 100, 100)";
@@ -4961,7 +4997,7 @@ let knäppt=false;
 
                 // Center horizontally if needed
                 if (isCanvasTooSmallForScrollingX && 
-                    (drawstartx < 0 || drawstartx + drawareax > canvas.width/devicePixelRatio)) {
+                    (drawstartx+camera.x < 0 || drawstartx+camera.x + drawareax > canvas.width/devicePixelRatio)) {
                     // Center horizontally
                    // drawstartx = canvas.width/devicePixelRatio/2 - drawareax/2;
                     movescrollxvalue = 0;
@@ -4970,7 +5006,7 @@ let knäppt=false;
 
                 // Center vertically if needed
                 if (isCanvasTooSmallForScrollingY && 
-                    (drawstarty < 0 || drawstarty + drawareay > canvas.height/devicePixelRatio)) {
+                    (drawstarty+camera.y < 0 || drawstarty+camera.y + drawareay > canvas.height/devicePixelRatio)) {
                     // Center vertically
                     //drawstarty = canvas.height/devicePixelRatio/2 - drawareay/2;
                     movescrollyvalue = 0;
@@ -5011,7 +5047,7 @@ let knäppt=false;
                       ctx.save();
 
                       // bild→skärm
-                      ctx.translate(drawstartx, drawstarty);
+                      ctx.translate(drawstartx+camera.x, drawstarty+camera.y);
                       ctx.scale(z, z);
 
                       // Mappa originalkonturen (selectionPathImg i bildkoordinater)
