@@ -739,6 +739,7 @@ canvas{
       <hr style="border:0;height:1px;background:rgba(255,255,255,.12);margin:6px 2px;">
       <button class="item" id="mnuResize" role="menuitem">Resize canvas…</button>
       <button class="item" id="mnuGrid"   role="menuitem">Toggle grid</button>
+      <button class="item" id="mnuCameraCenter"   role="menuitem">Center camera</button>
     </div>
   </div>
 
@@ -1345,10 +1346,7 @@ confirmResizeBtn.addEventListener('click', async function() {
             function quantizeValue(value, quantum) {
     return Math.round(value / quantum) * quantum;
 }
-            // Function to return scrollbar thickness based on mobile status
-            function getScrollbarThickness() {
-                return mobileAndTabletCheck() ? 60 : 30;
-            }
+
             
             if(mobileAndTabletCheck()){
  
@@ -1386,23 +1384,15 @@ confirmResizeBtn.addEventListener('click', async function() {
             let drawareay = 640;
             let drawstartx = 1000;
             let drawstarty = 1000;
+            let zoom = 1;
             let startan = false;
             
             let movecorners = false;
-            let movescrollx = false;
-            let movescrollxvalue = 0;
-            let savescrollxvalue = 0;
-            let isposetive = false;
-            let isdirposetive = 0;
             let x = 0;
             let y = 0;
             let zoomvalue = 100;
-            let zoom = 1;
-            let scrollx = 0;
-            let scrolly = 0;
-            let movescrollyvalue = 0;
-            let movescrolly = false;
-            let savescrollyvalue = 0;
+            
+
             
             let isposetivey = false;
             let isdirposetivey = 0;
@@ -4382,22 +4372,6 @@ canvas.addEventListener('pointerdown', (ev) => {
         if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty+drawareay && y < drawstarty-10+drawareay+30) { movecorners = true; resizeStart('SW'); return; }
         if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty+drawareay-10 && y < drawstarty+drawareay+30) { movecorners = true; resizeStart('SE'); return; }
     }
-    // scrollbar (oförändrad)
-    let sbThickness = getScrollbarThickness();
-    if (drawareax - (canvas.width/devicePixelRatio*2) > -canvas.width/devicePixelRatio-50) {
-      if (x <= canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue + (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01) &&
-          x >= canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue &&
-          y >= canvas.height/devicePixelRatio - sbThickness && y <= canvas.height/devicePixelRatio) {
-        movescrollx = true; savescrollxvalue = x; return;
-      }
-    }
-    if (drawareay - (canvas.height/devicePixelRatio*2) > -canvas.height/devicePixelRatio-50) {
-      if (x <= canvas.width/devicePixelRatio && x >= canvas.width/devicePixelRatio - sbThickness &&
-          y >= 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue &&
-          y <= 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue + (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)) {
-        movescrolly = true; savescrollyvalue = y; return;
-      }
-    }
 
     // Tools
     if (x >= drawstartx && x < drawstartx + drawareax && y >= drawstarty && y < drawstarty + drawareay) {
@@ -4486,10 +4460,8 @@ canvas.addEventListener('pointermove', (ev) => {
     x = ev.clientX - rect.left-camera.x;
     y = ev.clientY - rect.top-camera.y;
 
-    isposetive = false; if (isdirposetive < x) { isposetive = true; } isdirposetive = x;
-    isposetivey = false; if (isdirposetivey < y) { isposetivey = true; } isdirposetivey = y;
 
-    if (isDrawing && currentTool === 'pen' && !movescrolly && !movescrollx) {
+    if (isDrawing && currentTool === 'pen' ) {
       drawPixel(x, y);
     }
   }
@@ -4506,11 +4478,7 @@ function endPointer(ev) {
   }
 
   if (movecorners) {clearSelection(); resizeCommit(); movecorners = false; }
-  movescrollx = false;
-  movescrolly = false;
-  isposetive = false;
-  scrollx = movescrollxvalue;
-  scrolly = movescrollyvalue;
+
 
   if (isDrawing === true) endAction();
   isDrawing = false;
@@ -4807,15 +4775,15 @@ document.addEventListener("keyup", function(e) {
 });
 
 
-
-
+document.getElementById('mnuCameraCenter')  ?.addEventListener('click', ()=>{ closeAll(); cameraHome(); });
+function cameraHome(){camera.x=0;camera.y=0;}
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
-                if(keyState.up)camera.y-=4*zoom;
-                if(keyState.down)camera.y+=4*zoom;
-                if(keyState.left)camera.x-=4*zoom;
-                if(keyState.right)camera.x+=4*zoom;
+                if(keyState.up)camera.y-=2*zoom;
+                if(keyState.down)camera.y+=2*zoom;
+                if(keyState.left)camera.x-=2*zoom;
+                if(keyState.right)camera.x+=2*zoom;
                 if(keyState.h){camera.x=0;camera.y=0;}
                 if(keyState.plus){newzoom = Math.max(0.10, Math.min(zoom*1.01, 50));zoomvalue = Math.round(newzoom * 100);document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
                 if(keyState.minus){newzoom = Math.max(0.10, Math.min(zoom*0.99, 50));zoomvalue = Math.round(newzoom * 100);document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
@@ -4903,32 +4871,7 @@ document.addEventListener("keyup", function(e) {
                 
                 
                 
-                
-                if (movescrollx == true) {
-                    movescrollxvalue = -savescrollxvalue + x + scrollx;
-                    if (canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue < 0 && !isposetive) {
-                        scrollx = scrollx - movescrollxvalue + canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 - (canvas.width/devicePixelRatio - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01));
-                        movescrollxvalue = canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 - (canvas.width/devicePixelRatio - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01));
-                    }
-                    if (canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue > canvas.width/devicePixelRatio - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01) && isposetive) {
-                        scrollx = scrollx - movescrollxvalue + canvas.width/devicePixelRatio - ((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01 - (canvas.width/devicePixelRatio/2 - ((((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2));
-                        movescrollxvalue = canvas.width/devicePixelRatio - ((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01 - (canvas.width/devicePixelRatio/2 - ((((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2));
-                    }
-                    drawstartx = -(drawareax/2) - (movescrollxvalue * ((drawareax)/(canvas.width/devicePixelRatio)+(100/drawareax)*canvas.width/devicePixelRatio/20)*1.08) + canvas.width/devicePixelRatio/2;
-                }
-                
-                if (movescrolly == true) {
-                    movescrollyvalue = -savescrollyvalue + y + scrolly;
-                    if (-50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue < 0 && !isposetivey) {
-                        scrolly = 50 + scrolly - movescrollyvalue + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 - (canvas.height/devicePixelRatio - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01));
-                        movescrollyvalue = 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 - (canvas.height/devicePixelRatio - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01));
-                    }
-                    if (50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue > canvas.height/devicePixelRatio - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)) {
-                        scrolly = scrolly - movescrollyvalue - 50 + canvas.height/devicePixelRatio - ((canvas.height/devicePixelRatio-200)/drawareay)*(canvas.height/devicePixelRatio/1.01) - (canvas.height/devicePixelRatio/2 - ((((canvas.height/devicePixelRatio-200)/drawareay)*(canvas.height/devicePixelRatio/1.01))/2));
-                        movescrollyvalue = -50 + canvas.height/devicePixelRatio - ((canvas.height/devicePixelRatio-200)/drawareay)*(canvas.height/devicePixelRatio/1.01) - (canvas.height/devicePixelRatio/2 - ((((canvas.height/devicePixelRatio-200)/drawareay)*(canvas.height/devicePixelRatio/1.01))/2));
-                    }
-                    drawstarty = 50 - (drawareay/2) - (movescrollyvalue * ((drawareay)/(canvas.height/devicePixelRatio)+(100/drawareay)*canvas.height/devicePixelRatio/20)*1.08) + canvas.height/devicePixelRatio/2;
-                }
+
                 
                 // Draw the document background
                 ctx.fillStyle = "#4D4D4D";
@@ -5012,45 +4955,7 @@ document.addEventListener("keyup", function(e) {
                     ctx.fillRect(drawstartx+camera.x-20, drawstarty+camera.y+drawareay, 20, 20);
                     ctx.fillRect(drawstartx+camera.x+drawareax, drawstarty+camera.y+drawareay, 20, 20);
                 }
-                // Draw scrollbars
-                ctx.fillStyle = "rgb(100, 100, 100)";
-                let sbThickness = getScrollbarThickness();
-    
-                if (drawareax - (canvas.width/devicePixelRatio*2) > -canvas.width/devicePixelRatio-50) {
-                    ctx.fillRect(
-                        canvas.width/devicePixelRatio/2 - (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01)/2 + movescrollxvalue, 
-                        canvas.height/devicePixelRatio - sbThickness, 
-                        (((canvas.width/devicePixelRatio)/drawareax)*canvas.width/devicePixelRatio/1.01), 
-                        sbThickness
-                    );
-                }
-                
-                if (drawareay - (canvas.height/devicePixelRatio*2) > -canvas.height/devicePixelRatio-50) {
-                   ctx.fillRect(canvas.width/devicePixelRatio - sbThickness, 50 + canvas.height/devicePixelRatio/2 - (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01)/2 + movescrollyvalue, sbThickness, (((canvas.height/devicePixelRatio-200)/drawareay)*canvas.height/devicePixelRatio/1.01));
-                }
-              
-                const isCanvasTooSmallForScrollingX = !(drawareax - (canvas.width/devicePixelRatio*2) > -canvas.width/devicePixelRatio-50);
-                const isCanvasTooSmallForScrollingY = !(drawareay - (canvas.height/devicePixelRatio*2) > -canvas.height/devicePixelRatio-50);
 
-                // Center horizontally if needed
-                if (isCanvasTooSmallForScrollingX && 
-                    (drawstartx+camera.x < 0 || drawstartx+camera.x + drawareax > canvas.width/devicePixelRatio)) {
-                    // Center horizontally
-                   // drawstartx = canvas.width/devicePixelRatio/2 - drawareax/2;
-                    movescrollxvalue = 0;
-                    scrollx = 0;
-                }
-
-                // Center vertically if needed
-                if (isCanvasTooSmallForScrollingY && 
-                    (drawstarty+camera.y < 0 || drawstarty+camera.y + drawareay > canvas.height/devicePixelRatio)) {
-                    // Center vertically
-                    //drawstarty = canvas.height/devicePixelRatio/2 - drawareay/2;
-                    movescrollyvalue = 0;
-                    scrolly = 0;
-                }
-                            // ======== RITA LOOPEN/SELECTION-OVERLAY I DIN huvud-loop ========
-               // i din render/overlay-del
                
                if(currentTool!=="lasso"&&currentTool !== 'select'){isDraggingSelection = false;if (selSessionActive) commitSelectionSession();clearSelection();}
                
