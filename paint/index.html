@@ -1552,7 +1552,8 @@ colorSwatches.forEach(swatch => {
                 // Draw using transformation matrix
                 ctx.save();
                 ctx.translate(renderX, renderY);
-                ctx.scale(zoom, zoom);
+                const z = _effectiveZoom();
+                ctx.scale(z, z);
                 ctx.drawImage(drawingCanvas, 0, 0, displayWidth, displayHeight, 0, 0, displayWidth, displayHeight);
                 ctx.restore();
 
@@ -2017,7 +2018,7 @@ function switchTool(newTool, opts = {}) {
   // 1) Mät nuvarande viewport (CSS-px) och spara bild-centrum i BILD-koordinater
   const prevVW = (canvas.width  || 0) / (dpr || 1);
   const prevVH = (canvas.height || 0) / (dpr || 1);
-  const z = (zoom > 10 ? zoom/100 : zoom);
+  const z = _effectiveZoom();
 
   // OBS: om canvas ännu inte är initierad kan prevVW/VH bli 0; hantera det
   const hadSize = prevVW > 0 && prevVH > 0;
@@ -2090,7 +2091,11 @@ function clearSelection() {
   cow=false;
 }
 
-function _effectiveZoom(){ return (zoom > 10) ? (zoom/100) : zoom; }
+function _effectiveZoom(){
+  // UI: zoomvalue är procent (t.ex. 100..5000). Fallback till zoom-faktor om procent saknas.
+  //if (typeof window.zoomvalue === 'number') return Math.max(0.1, window.zoomvalue / 100);
+  return zoom;
+}
 function _canvasXYtoImageXY(cx, cy){
   const z=_effectiveZoom();
   return { x: Math.floor((cx - drawstartx)/z), y: Math.floor((cy - drawstarty)/z) };
@@ -2254,7 +2259,7 @@ function rotateSelection(deg) {
 
   // --- HELA BILDEN ---
   beginAction();  // <-- SAKNADES
-  const z = (zoom > 10 ? zoom/100 : zoom);
+  const z = _effectiveZoom();
   const w = Math.floor(drawareax / z), h = Math.floor(drawareay / z);
 
   const rad = (deg*Math.PI)/180;
@@ -2318,7 +2323,7 @@ function flipSelection(axis /* 'h'|'v' */) {
 
   // --- HELA BILDEN ---
   beginAction(); // <-- SAKNADES
-  const z = (zoom > 10 ? zoom/100 : zoom);
+  const z = _effectiveZoom();
   const w = Math.floor(drawareax / z), h = Math.floor(drawareay / z);
 
   const tmp = document.createElement('canvas'); tmp.width = w; tmp.height = h;
@@ -2380,7 +2385,7 @@ function rotateSelectionFree() {
 
   // --- HELA BILDEN (fri vinkel) ---
   beginAction();
-  const z = (zoom > 10 ? zoom/100 : zoom);
+  const z = _effectiveZoom();
   const w = Math.floor(drawareax / z), h = Math.floor(drawareay / z);
 
   const rad = (deg*Math.PI)/180;
@@ -2523,11 +2528,10 @@ function commitSelectionSession(){
   // 2) Baka in slutläget
   drawingCtx.save();
 
-  
   if (typeof disableSmoothing==='function') disableSmoothing(drawingCtx);
   drawingCtx.drawImage(
     src, 0,0, src.width, src.height,
-    selectionBBox.x, selectionBBox.y, src.width, src.height
+    selectionBBox.x, selectionBBox.y, selectionBBox.w, selectionBBox.h
   );
   drawingCtx.restore();
   if(canvasw!==window.innerWidth||canvash!==window.innerHeight)cow=true;
@@ -2860,8 +2864,6 @@ function _binarizeAndDilateMask(maskCanvas, dilatePx = 1) {
   if (dilatePx > 0) _dilateAlpha(maskCanvas, dilatePx);
 }
 let resizeOccurred = false;
-// === NYTT: helpers ===
-function _effZ(){ return (zoom > 10 ? zoom/100 : zoom); }
 
 // snapshot av dokumentytan (0..docW × 0..docH) — inte hela drawingCanvas
 function _snapshotDocArea(docW, docH){
@@ -2926,9 +2928,8 @@ let rc_snap = null;
 let rc_anchorX=0, rc_anchorY=0, rc_anchorSet=false;
 let rc_lastSW=0, rc_lastSH=0;
 
-function _effZ(){ return (zoom > 10 ? zoom/100 : zoom); }
-function sx2ix(sx){ const z=_effZ(); return Math.round((sx - rc_baseStartX) / z); }
-function sy2iy(sy){ const z=_effZ(); return Math.round((sy - rc_baseStartY) / z); }
+function sx2ix(sx){ const z=_effectiveZoom(); return Math.round((sx - rc_baseStartX) / z); }
+function sy2iy(sy){ const z=_effectiveZoom(); return Math.round((sy - rc_baseStartY) / z); }
 
 function _snapshotDocArea(w,h){
   const c = document.createElement('canvas'); c.width=w; c.height=h;
@@ -2939,7 +2940,7 @@ function _snapshotDocArea(w,h){
 
 function resizeStart(corner){
   if (rc_active) return;
-  const z = _effZ();
+  const z = _effectiveZoom();
   rc_corner = corner.toUpperCase();
   rc_oldW = Math.floor(drawareax / z);
   rc_oldH = Math.floor(drawareay / z);
@@ -2975,14 +2976,14 @@ function resizeCommit(){
   blitNoLoss(rc_snap, newW, newH, dx, dy, /* bgColor */ null);
 
   // uppdatera drawarea (skärmpixlar)
-  const z = _effZ();
+  const z = _effectiveZoom();
   drawareax = newW * z;
   drawareay = newH * z;
 
   // Håll valfritt hörn visuellt "fast" genom att flytta drawstart* (för NW/NE/SW)
   // SE: top-left fast → inget att göra
-  if (rc_corner === 'NW' || rc_corner === 'NE'){ drawstarty += (rc_oldH - newH) * z;drawstartYY += (rc_oldH - newH) * z;}
-  if (rc_corner === 'NW' || rc_corner === 'SW'){ drawstartx += (rc_oldW - newW) * z;drawstartXX+=(rc_oldW - newW) * z;}
+  if (rc_corner === 'NW' || rc_corner === 'NE'){ drawstarty += (rc_oldH - newH) * z;}
+  if (rc_corner === 'NW' || rc_corner === 'SW'){ drawstartx += (rc_oldW - newW) * z;}
 
   if (typeof endAction === 'function') endAction();
   rc_active = false; rc_snap = null;
@@ -3000,7 +3001,7 @@ function quantizeToZoomGrid(screenValue, z) {
 //funkar lite
 function drawResizeOverlay() {
   if (!rc_active) return;
-  const z = (zoom > 10 ? zoom/100 : zoom);
+  const z = _effectiveZoom();
   const oldW = rc_oldW, oldH = rc_oldH;
   const newW = rc_prevW|0, newH = rc_prevH|0;
 
@@ -3374,7 +3375,7 @@ async function _bitmapFromDataURL(dataURL) {
 }
 let cow=false;
 // Aktivera som flyttbar markering (ingen direkt målning på ritytan)
-function _activatePastedBitmap(imgBitmap) {
+function _activatePastedBitmap(imgBitmap,whole) {
   // 1) Bygg en canvas av den inklistrade bilden
   beginAction();
   const w = imgBitmap.width | 0, h = imgBitmap.height | 0;
@@ -3405,8 +3406,11 @@ function _activatePastedBitmap(imgBitmap) {
     const cy = Math.max(0, (centerImg.y - h/2) | 0);
 
   // 3) Mata in i selection-systemet
+  
+  
   selectionImageCanvas = c;
-  selectionBBox = { x: cx, y: cy, w:drawareax/z, h:drawareay/z };
+    selectionBBox = { x: cx, y: cy, w, h };
+    
 
     // NEW: make paste committable
   selectionSrcCanvas   = selectionImageCanvas;   // ← viktigt för commit
@@ -3994,7 +3998,7 @@ async function _activateLoadedBitmap(imgBitmap) {
   beginAction();
   ensureCanvasSize(imgBitmap.width, imgBitmap.height); // behåll din säkerhetsmarginal
   _fitViewportToImage(imgBitmap.width, imgBitmap.height);
-  _activatePastedBitmap(imgBitmap);                     // in i nya selectTool-flödet
+  _activatePastedBitmap(imgBitmap,true);                     // in i nya selectTool-flödet
   if (typeof currentTool !== 'undefined') { switchTool('select'); currentTool = 'select'; }
 }
 //NYTT
@@ -4438,12 +4442,12 @@ canvas.addEventListener('pointermove', (ev) => {
         
         if(startxxx===0){startxxx=(p0.clientX + p1.clientX);startyyy=(p0.clientY + p1.clientY);}
         
-        const cx = ((p0.clientX + p1.clientX)-startxxx )/ zoom;
-        const cy = ((p0.clientY + p1.clientY)-startyyy )/zoom;
+        const cx = ((p0.clientX + p1.clientX)-startxxx )*zoom;
+        const cy = ((p0.clientY + p1.clientY)-startyyy )*zoom;
         
         // Vi vill INTE skriva till drawstartx/y här → använd skuggoffset och skuggzoom
-        drawstartx = drawstartx+cx*0.5;
-        drawstarty = drawstarty+cy*0.5;
+        drawstartx = drawstartx+cx*0.25;
+        drawstarty = drawstarty+cy*0.25;
         startxxx=(p0.clientX + p1.clientX);
         startyyy=(p0.clientY + p1.clientY); 
     }
@@ -4509,7 +4513,7 @@ function pruneStack(stack){
 
 function captureRegionSnapshot() {
   // Snapshot av aktuella bildmått (w,h) – inte hela backing-canvas
-  const z = (zoom > 10 ? zoom/100 : zoom);
+  const z = _effectiveZoom();
   const imgW = Math.max(1, Math.floor(drawareax / z)) | 0;
   const imgH = Math.max(1, Math.floor(drawareay / z)) | 0;
 
@@ -4896,9 +4900,10 @@ let knäppt=false;
                 
                     ctx.save(); // Save the current state
                     ctx.translate(drawstartx, drawstarty); // Move to the top-left corner
-                    ctx.scale(zoom, zoom); // Apply zoom scaling
-                    const displayWidth = ensureIntDimension(drawareax / zoom);
-                    const displayHeight = ensureIntDimension(drawareay / zoom);
+                    const z = _effectiveZoom(); // Apply zoom scaling
+                    ctx.scale(z, z);
+                    const displayWidth  = ensureIntDimension(drawareax / z);
+                    const displayHeight = ensureIntDimension(drawareay / z);
                     ctx.drawImage(drawingCanvas, 0, 0, displayWidth, displayHeight, 0,0,displayWidth, displayHeight);
                     ctx.restore();
             
@@ -5229,25 +5234,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   wrapExistingSwitch();
 
-  // --- Fånga FRAMTIDA assignment till window.switchTool
-  if (!window.__switchToolSetterInstalled){
-    let _st = window.switchTool; // kan vara undefined nu
-    Object.defineProperty(window, 'switchTool', {
-      configurable: true,
-      get(){ return _st; },
-      set(fn){
-        // wrap varje gång någon sätter en ny funktion
-        _st = function(){
-          const tool = arguments[0];
-          const r = fn && fn.apply(this, arguments);
-          window.dispatchEvent(new CustomEvent('toolchange', { detail:{ tool } }));
-          return r;
-        };
-        window.__wrappedSwitchTool = true;
-      }
-    });
-    window.__switchToolSetterInstalled = true;
-  }
+
 
   // --- Fallback: om kod byter currentTool direkt utan switchTool
   (function pollCurrentTool(){
