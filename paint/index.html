@@ -4408,8 +4408,7 @@ canvas.addEventListener('pointermove', (ev) => {
         const cx = ((p0.clientX + p1.clientX)-startxxx );
         const cy = ((p0.clientY + p1.clientY)-startyyy );
         
-        if(cx>2)cx=2;if(cx<-2)cx=-2;
-        if(cy>2)cy=2;if(cy<-2)cy=-2;
+  
         
         // Vi vill INTE skriva till drawstartx/y här → använd skuggoffset och skuggzoom
         camera.x +=cx*zoom;
