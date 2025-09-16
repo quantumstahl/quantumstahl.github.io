@@ -4742,13 +4742,61 @@ document.addEventListener("keyup", function(e) {
 
 document.getElementById('mnuCameraCenter')  ?.addEventListener('click', ()=>{ closeAll(); cameraHome(); });
 function cameraHome(){camera.x=0;camera.y=0;}
+
+function setZoomAroundScreenCenter(newZoom,oldZoom){
+  const sx = window.innerWidth  / 2;
+  const sy = window.innerHeight / 2;
+  setZoomAroundScreenPoint(newZoom, sx, sy, "shiftCamera",oldZoom);
+}
+
+// mode: "shiftDrawstart" (default), "shiftCamera", eller "snapDrawstartInt"
+function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom){
+  const z0  = _effectiveZoom();                     // gamla zoomen (samma som i render)
+  const ox0 = drawstartx + camera.x;                // kombinerad offset före zoom
+  const oy0 = drawstarty + camera.y;
+
+  // Bildpunkten som ligger under pivoten (sx,sy)
+  const ix = (sx - ox0) / z0;
+  const iy = (sy - oy0) / z0;
+
+  // Uppdatera zoom + härled drawarea från bildmått (blanda inte in gamla drawarea)
+  zoom      = newZoom;
+  drawareax = drawareax / oldZoom * newZoom;
+  drawareay = drawareay / oldZoom * newZoom;
+
+  // Önskad kombinerad offset efter zoom så att samma bildpunkt stannar under (sx,sy)
+  const ox1 = sx - ix * newZoom;
+  const oy1 = sy - iy * newZoom;
+
+  // === Välj hur du vill fördela ox1/oy1 på drawstart vs camera ===
+  if (mode === "shiftDrawstart"){
+    // 1) Lägg hela deltat på drawstart, lämna camera oförändrad
+    drawstartx += (ox1 - ox0);
+    drawstarty += (oy1 - oy0);
+  } else if (mode === "shiftCamera"){
+    // 2) Låt drawstart vara, lägg deltat på camera
+    camera.x   += (ox1 - ox0);
+    camera.y   += (oy1 - oy0);
+  } else if (mode === "snapDrawstartInt"){
+    // 3) “Pixel-snap”: lägg kombinerad offset på drawstart (heltal), resten i camera
+    const nx = Math.round(ox1), ny = Math.round(oy1);
+    const rx = ox1 - nx,        ry = oy1 - ny;
+    camera.x += rx;
+    camera.y += ry;
+    drawstartx = nx;
+    drawstarty = ny;
+  }
+
+
+}
+
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
-                if(keyState.up)camera.y-=2*zoom;
-                if(keyState.down)camera.y+=2*zoom;
-                if(keyState.left)camera.x-=2*zoom;
-                if(keyState.right)camera.x+=2*zoom;
+                if(keyState.up)camera.y-=6;
+                if(keyState.down)camera.y+=6;
+                if(keyState.left)camera.x-=6;
+                if(keyState.right)camera.x+=6;
                 if(keyState.h){camera.x=0;camera.y=0;}
                 if(keyState.plus){newzoom = Math.max(0.10, Math.min(zoom*1.01, 50));zoomvalue = Math.round(newzoom * 100);document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
                 if(keyState.minus){newzoom = Math.max(0.10, Math.min(zoom*0.99, 50));zoomvalue = Math.round(newzoom * 100);document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
@@ -4778,24 +4826,24 @@ function cameraHome(){camera.x=0;camera.y=0;}
                 zoom=zoom/zomzomzom;
                 const oldZoom = zoom;
                 const newZoom = zoomvalue / 100;
-
+                setZoomAroundScreenCenter(newZoom,oldZoom);
                 // --- Mittpunkt på skärmen (inte på drawarea)
-                const screenCenterX = window.innerWidth / 2;
-                const screenCenterY = window.innerHeight / 2;
+                //const screenCenterX = window.innerWidth / 2;
+                //const screenCenterY = window.innerHeight / 2;
 
                 // --- Mappa skärmens mitt till bildens koordinater
-                const imgCenterX = (screenCenterX - drawstartx) / oldZoom;
-                const imgCenterY = (screenCenterY - drawstarty) / oldZoom;
+               // const imgCenterX = (screenCenterX - drawstartx) / oldZoom;
+              //  const imgCenterY = (screenCenterY - drawstarty) / oldZoom;
 
                 // --- Uppdatera zoom
-                zoom = newZoom;
-                drawareax = drawareax / oldZoom * newZoom;
-                drawareay = drawareay / oldZoom * newZoom;
+                //zoom = newZoom;
+                //drawareax = drawareax / oldZoom * newZoom;
+                //drawareay = drawareay / oldZoom * newZoom;
 
                 // --- Räkna om start så att samma bildpunkt ligger kvar i mitten
                 
-                drawstartx = (screenCenterX - imgCenterX * newZoom);
-                drawstarty = screenCenterY - imgCenterY * newZoom;
+                //drawstartx = (screenCenterX - imgCenterX * newZoom);
+                //drawstarty = (screenCenterY - imgCenterY * newZoom);
                 zoom=zoom*zomzomzom;
                 knäppt=false;
                 if((document.body.clientWidth > 100 && startan == false)) {
