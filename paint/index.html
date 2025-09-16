@@ -4531,7 +4531,7 @@ function endPointer(ev) {
 canvas.addEventListener('pointerup', endPointer, { passive: false });
 canvas.addEventListener('pointercancel', endPointer, { passive: false });
 
-const HIST_MAX = 100;
+const HIST_MAX = mobileAndTabletCheck() ? 50 : 100;
 let savelabel,savew,savebmp,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom,canvash,ox,oy;
 let canvasw=null;
 let startansasa=true;
