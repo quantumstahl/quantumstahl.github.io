@@ -1160,12 +1160,11 @@ canvas{
             }
             // Nytt projekt startar "clean"
           
-            
-            drawstartx = window.innerWidth/2- drawareax/2;
-            drawstarty = window.innerHeight/2 -drawareay/2;
-            undoStack.length=0;
-            redoStack.length=0;
-            
+            if(redoMap.get(currentproject)?.length===0&&undoMap.get(currentproject)?.length===0){
+                drawstartx = window.innerWidth/2- drawareax/2;
+                drawstarty = window.innerHeight/2 -drawareay/2;
+            }
+      
             projectDirty[index] = false;
           }
             document.getElementById('project1Btn').addEventListener('click', () => loadProject(0));
@@ -2014,45 +2013,77 @@ function switchTool(newTool, opts = {}) {
             
             // Initialize canvas size properly
             function resizeCanvas() {
-  const dpr = window.devicePixelRatio || 1;
+                const dpr = window.devicePixelRatio || 1;
 
-  // 1) Mät nuvarande viewport (CSS-px) och spara bild-centrum i BILD-koordinater
-  const prevVW = (canvas.width  || 0) / (dpr || 1);
-  const prevVH = (canvas.height || 0) / (dpr || 1);
-  const z = _effectiveZoom();
+                // 1) Mät nuvarande viewport (CSS-px) och spara bild-centrum i BILD-koordinater
+                const prevVW = (canvas.width  || 0) / (dpr || 1);
+                const prevVH = (canvas.height || 0) / (dpr || 1);
+                const z = _effectiveZoom();
 
-  // OBS: om canvas ännu inte är initierad kan prevVW/VH bli 0; hantera det
-  const hadSize = prevVW > 0 && prevVH > 0;
-  let cxImg = 0.5 * drawingCanvas.width;   // fallback = bildens mitt
-  let cyImg = 0.5 * drawingCanvas.height;
-  if (hadSize) {
-    cxImg = (-drawstartx + prevVW/2) / z;
-    cyImg = (-drawstarty + prevVH/2) / z;
-  }
+                // OBS: om canvas ännu inte är initierad kan prevVW/VH bli 0; hantera det
+                const hadSize = prevVW > 0 && prevVH > 0;
+                let cxImg = 0.5 * drawingCanvas.width;   // fallback = bildens mitt
+                let cyImg = 0.5 * drawingCanvas.height;
+                
+                
+                let cximage = [0.5 * drawingCanvas.width, 0.5 * drawingCanvas.width, 0.5 * drawingCanvas.width];
+                let cyimage = [0.5 * drawingCanvas.height, 0.5 * drawingCanvas.height, 0.5 * drawingCanvas.height];
+                
+                if (hadSize) {
+                  cxImg = (-drawstartx + prevVW/2) / z;
+                  cyImg = (-drawstarty + prevVH/2) / z;
+                  
+                  cximage[0]=(-projectdrawstartx[0] + prevVW/2) / z;
+                  cyimage[0]= (-projectdrawstarty[0] + prevVH/2) / z;
 
-  // 2) Räkna ny CSS-storlek
-  const isStandalone = matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-  const cssW = window.innerWidth;
-  const cssH = (isStandalone && mobileAndTabletCheck() && window.innerWidth < window.innerHeight)
-    ? screen.height
-    : window.innerHeight;
+                  cximage[1]=(-projectdrawstartx[1] + prevVW/2) / z;
+                  cyimage[1]= (-projectdrawstarty[1] + prevVH/2) / z;
 
-  // 3) Sätt pixelstorlek utan kumulativ skala
-  canvas.width  = Math.max(1, Math.round(cssW * dpr));
-  canvas.height = Math.max(1, Math.round(cssH * dpr));
-  canvas.style.width  = cssW + 'px';
-  canvas.style.height = cssH + 'px';
+                  cximage[2]=(-projectdrawstartx[2] + prevVW/2) / z;
+                  cyimage[2]=(-projectdrawstarty[2] + prevVH/2) / z;
+                  
+                }
+                
+                
+                
+                
+                
+                
+                
+                
+                // 2) Räkna ny CSS-storlek
+                const isStandalone = matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+                const cssW = window.innerWidth;
+                const cssH = (isStandalone && mobileAndTabletCheck() && window.innerWidth < window.innerHeight)
+                  ? screen.height
+                  : window.innerHeight;
 
-  // 4) Nollställ transform och skala en gång till DPR (ingen ackumulering)
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.scale(dpr, dpr);
-  if (typeof disableSmoothing === 'function') disableSmoothing(ctx);
+                // 3) Sätt pixelstorlek utan kumulativ skala
+                canvas.width  = Math.max(1, Math.round(cssW * dpr));
+                canvas.height = Math.max(1, Math.round(cssH * dpr));
+                canvas.style.width  = cssW + 'px';
+                canvas.style.height = cssH + 'px';
 
-  // 5) BEVARA VYN: återställ drawstart så att samma bild-centrum är kvar på skärmen
-  const curVW = cssW;
-  const curVH = cssH;
-  drawstartx = Math.round(curVW/2 - z * cxImg);
-  drawstarty = Math.round(curVH/2 - z * cyImg);
+                // 4) Nollställ transform och skala en gång till DPR (ingen ackumulering)
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.scale(dpr, dpr);
+                if (typeof disableSmoothing === 'function') disableSmoothing(ctx);
+
+                // 5) BEVARA VYN: återställ drawstart så att samma bild-centrum är kvar på skärmen
+                const curVW = cssW;
+                const curVH = cssH;
+                drawstartx = Math.round(curVW/2 - z * cxImg);
+                drawstarty = Math.round(curVH/2 - z * cyImg);
+                
+                for (let i=0;i<3;i++){
+                    if(i!==currentproject){
+                        
+                        projectdrawstartx[i]=Math.round(curVW/2 - z * cximage[i]);
+                        projectdrawstarty[i]=Math.round(curVH/2 - z * cyimage[i]);
+                        
+                    }
+                }
+                
 
   // 6) Uppdatera sparade viewportmått och re-mappa stackar via din ko()
 
@@ -4505,8 +4536,8 @@ let savelabel,savew,savebmp,saveh,savedrawareax,savedrawareay,savedrawstartx,sav
 let canvasw=null;
 let startansasa=true;
 function pruneStack(stack){
-  while (stack.length > HIST_MAX) {
-    const old = stack.shift();
+  while (stack?.length > HIST_MAX) {
+    const old = stack?.shift();
     return old;
     // old.bmp är en <canvas>; låt GC ta den
   }
@@ -4600,16 +4631,19 @@ function endAction(cowcow){
         canvash = curVH;
         
       } 
-      undoStack.push({
+      
+      
+      
+      undoMap.get(currentproject)?.push({
         savelabel,
         bmp: savebmp,         // snapshot canvas av bildytan
         w: savew, h: saveh,  // "logiska" bildmått i px (utan zoom)
         drawareax:savedrawareax, drawareay:savedrawareay, drawstartx:savedrawstartx, drawstarty:savedrawstarty, zoom:savezoom,canvasw:canvasw,canvash:canvash,ox:savedrawstartx,oy:savedrawstarty
       });
-      ko(undoStack);
+      ko(undoMap.get(currentproject));
       
-      pruneStack(undoStack);
-      while (redoStack.length) redoStack.pop();
+      pruneStack(undoMap.get(currentproject));
+      while (redoStack.length) redoMap.get(currentproject)?.pop();
       canvasw=null;
       markDirty();
 
@@ -4679,55 +4713,55 @@ function ko(stack){
   }
 }
 function undo(){
-  if (!undoStack.length) return;
+  if (!undoMap.get(currentproject)?.length) return;
 
   const cur = captureRegionSnapshot();
   canvasw = window.innerWidth;
   canvash = window.innerHeight;
 
   // flytta current → redo
-  redoStack.push({
+  redoMap.get(currentproject)?.push({
     bmp: cur.snap, w: cur.imgW, h: cur.imgH,
     drawareax, drawareay, drawstartx, drawstarty,
     zoom, canvasw, canvash,
-    ox: undoStack[undoStack.length-1].ox,
-    oy: undoStack[undoStack.length-1].oy
+    ox: undoMap.get(currentproject)?.at(-1)?.ox ?? null,
+    oy: undoMap.get(currentproject)?.at(-1)?.oy ?? null
   });
-  pruneStack(redoStack);
+  pruneStack(redoMap.get(currentproject));
 
   // Om viewport ändrats relativt posten vi ska visa -> centrera den posten med ko()
-  const willShow = undoStack[undoStack.length-1];
+  const willShow = undoMap.get(currentproject)?.at(-1) ?? null;
   if (willShow && (window.innerWidth !== willShow.canvasw || window.innerHeight !== willShow.canvash)) {
-    ko(undoStack); // justera sista posten i undoStack
+    ko(undoMap.get(currentproject)); // justera sista posten i undoStack
   }
 
-  const prev = undoStack.pop();
+  const prev = undoMap.get(currentproject)?.pop();
   restoreState(prev);
 }
 
 function redo(){
-  if (!redoStack.length) return;
+  if (!redoMap.get(currentproject)?.length) return;
 
   const cur = captureRegionSnapshot();
   canvasw = window.innerWidth;
   canvash = window.innerHeight;
 
   // flytta current → undo
-  undoStack.push({
+  undoMap.get(currentproject)?.push({
     bmp: cur.snap, w: cur.imgW, h: cur.imgH,
     drawareax, drawareay, drawstartx, drawstarty,
     zoom, canvasw, canvash,
-    ox: redoStack[redoStack.length-1].ox,
-    oy: redoStack[redoStack.length-1].oy // <-- fix: inte .ox
+    ox: redoMap.get(currentproject)?.at(-1)?.ox ?? null,
+    oy: redoMap.get(currentproject)?.at(-1)?.oy ?? null // <-- fix: inte .ox
   });
-  pruneStack(undoStack);
+  pruneStack(undoMap.get(currentproject));
   
-  const willShow = redoStack[redoStack.length-1];
+  const willShow = redoMap.get(currentproject)?.at(-1) ?? null;
   if (willShow && (window.innerWidth !== willShow.canvasw || window.innerHeight !== willShow.canvash)) {
-    ko(redoStack); // justera sista posten i redoStack
+    ko(redoMap.get(currentproject)); // justera sista posten i redoStack
   }
   
-  const next = redoStack.pop();
+  const next = redoMap.get(currentproject)?.pop();
   restoreState(next);
 }
 
@@ -4853,6 +4887,15 @@ document.addEventListener("keyup", function(e) {
                     if(mobileAndTabletCheck())HANDLE_SIZE_SCR = 24;
                     zoom=zoom/zomzomzom;
                     resizeCanvas();
+                    
+                    undoMap.set(0,[]);
+                    undoMap.set(1,[]);
+                    undoMap.set(2,[]);
+                    
+                    redoMap.set(0,[]);
+                    redoMap.set(1,[]);
+                    redoMap.set(2,[]);
+                    
                 }
                 
                 
