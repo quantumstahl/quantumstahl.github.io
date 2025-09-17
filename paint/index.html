@@ -1095,7 +1095,7 @@ canvas{
                 projectdrawareay[index] = drawareay;
                 projectdrawstartx[index] = drawstartx;
                 projectdrawstarty[index] = drawstarty;
-                projectzoom[index] = zoom*zomzomzom;
+                projectzoom[index] = zoomvalue;
 
                 if (!projectDirty[index]) return; // ingenting att spara
 
@@ -1134,10 +1134,8 @@ canvas{
             drawareay   = projectdrawareay[index] ?? drawareay;
             drawstartx  = projectdrawstartx[index] ?? drawstartx;
             drawstarty  = projectdrawstarty[index] ?? drawstarty;
-            zoom        = projectzoom[index] ?? zoom;
-            zoomvalue = Math.round(zoom* 100);
-            document.getElementById("zoomSlider").value = zoomvalue;
-            document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
+            zoomvalue        = projectzoom[index] ?? zoomvalue;
+
             // 3) Rita tillbaka från snabb-cache (bitmap) eller blob-URL
             drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
 
@@ -4861,7 +4859,7 @@ function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom)
                     projectdrawareay = [drawareay, drawareay, drawareay];
                     projectdrawstartx = [drawstartx, drawstartx, drawstartx];
                     projectdrawstarty = [drawstarty, drawstarty, drawstarty];
-                    projectzoom = [zoom, zoom, zoom];
+                    projectzoom = [zoomvalue, zoomvalue, zoomvalue];
                     if(mobileAndTabletCheck())HANDLE_SIZE_SCR = 24;
                     zoom=zoom/zomzomzom;
                     resizeCanvas();
