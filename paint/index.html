@@ -2445,7 +2445,7 @@ document.addEventListener('keydown', (e)=>{
    if (mod && e.key.toLowerCase() === 'v') {pasteFromClipboard();return;}
    if (e.ctrlKey && (e.key==='r' || e.key==='R')) { e.preventDefault(); rotateSelectionFree(); return; }
    if (e.key==='r' || e.key==='R') { e.preventDefault(); rotateSelection( e.shiftKey? -90 : +90 ); return; }
-   if (e.key==='h' || e.key==='H') { e.preventDefault(); flipSelection('h'); return; }
+   if (e.key==='n' || e.key==='N') { e.preventDefault(); flipSelection('h'); return; }
    if (e.key==='v' || e.key==='V') { e.preventDefault(); flipSelection('v'); return; }
    if (e.key==='l' || e.key==='L') { e.preventDefault(); switchTool('lasso'); return; }
   
@@ -4495,18 +4495,24 @@ function endPointer(ev) {
 canvas.addEventListener('pointerup', endPointer, { passive: false });
 canvas.addEventListener('pointercancel', endPointer, { passive: false });
 
-const HIST_MAX = mobileAndTabletCheck() ? 50 : 100;
+const HIST_MAX = 50;
 let savelabel,savew,savebmp,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom,canvash,ox,oy;
 let canvasw=null;
 let startansasa=true;
 function pruneStack(stack){
-  while (stack?.length > HIST_MAX) {
-    const old = stack?.shift();
-    return old;
-    // old.bmp är en <canvas>; låt GC ta den
+  if (!stack) return;
+  while (stack.length > HIST_MAX) {
+      
+      
+      
+    stack.shift(); // kasta äldsta; låt GC ta canvasen
   }
 }
-
+function ensureStacks(pid){
+  if (!undoMap.has(pid)) undoMap.set(pid, []);
+  if (!redoMap.has(pid)) redoMap.set(pid, []);
+  return { undo: undoMap.get(pid), redo: redoMap.get(pid) };
+}
 function captureRegionSnapshot() {
   // Snapshot av aktuella bildmått (w,h) – inte hela backing-canvas
   const z = _effectiveZoom();
@@ -4522,12 +4528,12 @@ function captureRegionSnapshot() {
 
   return { snap, imgW, imgH };
 }
-
+let actionOpen = true;
 function beginAction(label = ''){
   const { snap, imgW, imgH } = captureRegionSnapshot();
   
 
-      if(!canvasw||startansasa){
+      if(canvasw===0||startansasa){
           
         startansasa=false;
         savelabel=label;
@@ -4607,8 +4613,8 @@ function endAction(cowcow){
       ko(undoMap.get(currentproject));
       
       pruneStack(undoMap.get(currentproject));
-      while (redoStack.length) redoMap.get(currentproject)?.pop();
-      canvasw=null;
+      while (redoMap.get(currentproject)?.length) redoMap.get(currentproject)?.pop();
+      canvasw=0;
       markDirty();
 
   }
@@ -4617,7 +4623,6 @@ function endAction(cowcow){
 
 function restoreState(state){
   if (!state || !state.bmp) return;
-
   drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
   if (typeof disableSmoothing === 'function') disableSmoothing(drawingCtx);
   drawingCtx.drawImage(state.bmp, 0, 0);
@@ -4625,7 +4630,6 @@ function restoreState(state){
   zoom = state.zoom;
   drawareax = state.w * zoom;
   drawareay = state.h * zoom;
-
   // Lita på att drawstartx/y redan är rätt preppade (via ko())
   drawstartx = state.drawstartx;
   drawstarty = state.drawstarty;
@@ -4680,53 +4684,53 @@ function undo(){
   if (!undoMap.get(currentproject)?.length) return;
 
   const cur = captureRegionSnapshot();
-  canvasw = window.innerWidth;
-  canvash = window.innerHeight;
+
 
   // flytta current → redo
   redoMap.get(currentproject)?.push({
     bmp: cur.snap, w: cur.imgW, h: cur.imgH,
     drawareax, drawareay, drawstartx, drawstarty,
-    zoom, canvasw, canvash,
-    ox: undoMap.get(currentproject)?.at(-1)?.ox ?? null,
-    oy: undoMap.get(currentproject)?.at(-1)?.oy ?? null
+    zoom, canvasw:window.innerWidth, canvash:window.innerHeight,
+    ox: undoMap.get(currentproject)?.at(-1)?.ox,
+    oy: undoMap.get(currentproject)?.at(-1)?.oy
   });
   pruneStack(redoMap.get(currentproject));
-
+  
   // Om viewport ändrats relativt posten vi ska visa -> centrera den posten med ko()
   const willShow = undoMap.get(currentproject)?.at(-1) ?? null;
   if (willShow && (window.innerWidth !== willShow.canvasw || window.innerHeight !== willShow.canvash)) {
     ko(undoMap.get(currentproject)); // justera sista posten i undoStack
   }
 
-  const prev = undoMap.get(currentproject)?.pop();
-  restoreState(prev);
+
+  restoreState(willShow);
+  undoMap.get(currentproject)?.pop();
+
 }
 
 function redo(){
   if (!redoMap.get(currentproject)?.length) return;
 
   const cur = captureRegionSnapshot();
-  canvasw = window.innerWidth;
-  canvash = window.innerHeight;
+
 
   // flytta current → undo
   undoMap.get(currentproject)?.push({
     bmp: cur.snap, w: cur.imgW, h: cur.imgH,
     drawareax, drawareay, drawstartx, drawstarty,
-    zoom, canvasw, canvash,
-    ox: redoMap.get(currentproject)?.at(-1)?.ox ?? null,
-    oy: redoMap.get(currentproject)?.at(-1)?.oy ?? null // <-- fix: inte .ox
+    zoom, canvasw:window.innerWidth, canvash:window.innerHeight,
+    ox: redoMap.get(currentproject)?.at(-1)?.ox,
+    oy: redoMap.get(currentproject)?.at(-1)?.oy // <-- fix: inte .ox
   });
   pruneStack(undoMap.get(currentproject));
-  
   const willShow = redoMap.get(currentproject)?.at(-1) ?? null;
   if (willShow && (window.innerWidth !== willShow.canvasw || window.innerHeight !== willShow.canvash)) {
     ko(redoMap.get(currentproject)); // justera sista posten i redoStack
   }
   
-  const next = redoMap.get(currentproject)?.pop();
-  restoreState(next);
+
+  restoreState(willShow);
+  redoMap.get(currentproject)?.pop();
 }
 
 const gridBtn = document.getElementById('gridBtn');
@@ -4784,14 +4788,14 @@ function cameraHome(){keyState.h=true;}
 function setZoomAroundScreenCenter(newZoom,oldZoom){
   const sx = window.innerWidth  / 2;
   const sy = window.innerHeight / 2;
-  setZoomAroundScreenPoint(newZoom, sx, sy, "shiftCamera",oldZoom);
+  setZoomAroundScreenPoint(newZoom, sx, sy, "shiftDrawstart",oldZoom);
 }
 
 
 
 
 // mode: "shiftDrawstart" (default), "shiftCamera", eller "snapDrawstartInt"
-function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom){
+function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftDrawstart",oldZoom){
   const z0  = _effectiveZoom() ;                     // gamla zoomen (samma som i render)
   const ox0 = drawstartx + camera.x;                // kombinerad offset före zoom
   const oy0 = drawstarty + camera.y;
@@ -4837,11 +4841,13 @@ function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom)
 let hcounter=2;
             //check---------------------------------------------------------------------------------------
             var check = function() {
+                
+                
                 if(keyState.up)camera.y-=6;
                 if(keyState.down)camera.y+=6;
                 if(keyState.left)camera.x-=6;
                 if(keyState.right)camera.x+=6;
-                if(keyState.h){camera.x=firstbloodx;camera.y=firstbloody;zoomvalue=100;document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";if(hcounter==0){keyState.h=false;hcounter=2;}hcounter--;}
+                if(keyState.h){camera.x=0;camera.y=0;zoomvalue=100;document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";keyState.h=false;}
                 if(keyState.plus){newzoom = Math.max(0.10, Math.min(zoom*1.01, 50));zoomvalue = Math.round(newzoom * 100);document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
                 if(keyState.minus){newzoom = Math.max(0.10, Math.min(zoom*0.99, 50));zoomvalue = Math.round(newzoom * 100);document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
                 
