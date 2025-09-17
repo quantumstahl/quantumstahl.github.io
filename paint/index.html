@@ -2584,7 +2584,7 @@ canvas.addEventListener('pointerdown', (ev)=>{
     if (ev.pointerType === 'touch') ev.preventDefault(); 
     isdragdrag=true;
     markDirty();
-  if (currentTool !== 'lasso') return;
+  if (currentTool !== 'lasso'||pointers.size === 2) return;
   if(tapedTwice)return;
   
   const rect = canvas.getBoundingClientRect();
@@ -2996,8 +2996,8 @@ function drawResizeOverlay() {
   const copyH = Math.max(0, Math.min(oldH - srcY, newH - dstY)) | 0;
 
   // Förhandsvisningens topp-vänster i SKÄRMpixlar (håll motsatt hörn "fast")
-  let previewTLx = drawstartx + ((rc_corner==='NW' || rc_corner==='SW') ? (oldW - newW) * z : 0);
-  let previewTLy = drawstarty + ((rc_corner==='NW' || rc_corner==='NE') ? (oldH - newH) * z : 0);
+  let previewTLx = drawstartx+camera.x + ((rc_corner==='NW' || rc_corner==='SW') ? (oldW - newW) * z : 0);
+  let previewTLy = drawstarty+camera.y + ((rc_corner==='NW' || rc_corner==='NE') ? (oldH - newH) * z : 0);
 
   // === VIKTIGT: kvantisera skärmpixlar till zoom-rutnätet ===
   previewTLx = quantizeToZoomGrid(previewTLx, z);
@@ -3007,7 +3007,7 @@ function drawResizeOverlay() {
   const prevW = quantizeToZoomGrid(newW * z, z);
   const prevH = quantizeToZoomGrid(newH * z, z);
 
-  const docX0 = drawstartx,             docY0 = drawstarty;
+  const docX0 = drawstartx+camera.x,             docY0 = drawstarty+camera.y;
   const docX1 = docX0 + quantizeToZoomGrid(oldW * z, z);
   const docY1 = docY0 + quantizeToZoomGrid(oldH * z, z);
 
@@ -3057,7 +3057,7 @@ let isRectSelecting = false;
 
 canvas.addEventListener('pointerdown', (ev)=>{
     if (ev.pointerType === 'touch') ev.preventDefault();
-  if (currentTool !== 'select') return;
+  if (currentTool !== 'select'||pointers.size === 2) return;
   
   const rect = canvas.getBoundingClientRect();
   const cx = ev.clientX - rect.left;
