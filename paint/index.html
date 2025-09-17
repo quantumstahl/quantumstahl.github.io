@@ -1087,6 +1087,14 @@ canvas{
             let projectBitmaps = [null, null, null];     // ImageBitmap per projekt (RAM)
             let projectBlobURLs = [null, null, null];    // Fallback om bitmap inte går
             let projectDirty = [false, false, false]; 
+            
+            let projectstopper=false;
+            let tvfirst=[false, false, false];
+            
+            tvaaaa=false;
+            treeee=false;
+            
+            let koko=false;
             function markDirty(){ projectDirty[currentproject] = true; }
             // Function to save the current drawing to the selected project
             async function saveCurrentProject(index) {
@@ -1095,8 +1103,10 @@ canvas{
                 projectdrawareay[index] = drawareay;
                 projectdrawstartx[index] = drawstartx;
                 projectdrawstarty[index] = drawstarty;
-                projectzoom[index] = zoom*zomzomzom;
-
+                projectzoom[index] = zoom;
+                projectcamerax[index]=camera.x;
+                projectcameray[index]=camera.y;
+                
                 if (!projectDirty[index]) return; // ingenting att spara
 
                 // Rensa tidigare cache
@@ -1124,21 +1134,33 @@ canvas{
             // Function to load the selected project image into the drawing canvas
             async function loadProject(index) {
             // Spara undo/redo-mapparna som du redan gör
-
+            
             // 1) Spara *bara* om nuvarande projekt är dirty
             await saveCurrentProject(currentproject);
-
             // 2) Växla aktivt projekt (läge/zoom m.m.)
             currentproject = index;
             drawareax   = projectdrawareax[index] ?? drawareax;
             drawareay   = projectdrawareay[index] ?? drawareay;
             drawstartx  = projectdrawstartx[index] ?? drawstartx;
             drawstarty  = projectdrawstarty[index] ?? drawstarty;
+            camera.x     = projectcamerax[index];
+            camera.y     = projectcameray[index];
+            
             zoom        = projectzoom[index] ?? zoom;
             zoomvalue = Math.round(zoom* 100);
             document.getElementById("zoomSlider").value = zoomvalue;
             document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
-            zoom=zoom/zomzomzom;
+            if(currentproject===1&&tvfirst[1]===false){
+                
+                tvaaaa=true;
+                tvfirst[1]=true;
+                
+            }
+            else if(currentproject===2&&tvfirst[2]===false){
+                
+                treeee=true;
+                tvfirst[2]=true;
+            }
             // 3) Rita tillbaka från snabb-cache (bitmap) eller blob-URL
             drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
 
@@ -1156,8 +1178,8 @@ canvas{
             // Nytt projekt startar "clean"
           
             if(redoMap.get(currentproject)?.length===0&&undoMap.get(currentproject)?.length===0){
-                drawstartx = window.innerWidth/2- drawareax/2;
-                drawstarty = window.innerHeight/2 -drawareay/2;
+              //  drawstartx = window.innerWidth/2- drawareax/2;
+               // drawstarty = window.innerHeight/2 -drawareay/2;
             }
       
             projectDirty[index] = false;
@@ -1457,8 +1479,9 @@ confirmResizeBtn.addEventListener('click', async function() {
             let projectdrawareay = [drawareay, drawareay, drawareay];
             let projectdrawstartx = [drawstartx, drawstartx, drawstartx];
             let projectdrawstarty = [drawstarty, drawstarty, drawstarty];
-            let projectzoom = [zoomvalue, zoomvalue, zoomvalue];
-            
+            let projectzoom = [0,0,0];
+            let projectcamerax=[0, 0, 0];
+            let projectcameray=[0, 0, 0];
             
             let prevzoom=1;
             let isTextToolActive = false;
@@ -3369,6 +3392,7 @@ function _activatePastedBitmap(imgBitmap,whole) {
     const z = (typeof _effectiveZoom === 'function') ? _effectiveZoom() : (window.zoom || 1);
 
     // Rätt sätt: konvertera canvas-mitten → bildkoordinater
+    
     let centerImg;
     if (typeof _canvasXYtoImageXY === 'function') {
       centerImg = _canvasXYtoImageXY(drawareax/2, drawareay/2);
@@ -4391,7 +4415,7 @@ canvas.addEventListener('pointermove', (ev) => {
   
     if(Math.abs(delta)>=10){
 
-        let newzoom = zoom / zomzomzom;  // behåller din befintliga formel
+        let newzoom = zoom;  // behåller din befintliga formel
         if (Math.abs(delta) > 10) {
           newzoom *= (delta > 0) ? 1.05 : 0.95;
           newzoom = Math.max(0.10, Math.min(newzoom, 50));
@@ -4755,7 +4779,7 @@ function setZoomAroundScreenCenter(newZoom,oldZoom){
 
 // mode: "shiftDrawstart" (default), "shiftCamera", eller "snapDrawstartInt"
 function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom){
-  const z0  = _effectiveZoom();                     // gamla zoomen (samma som i render)
+  const z0  = _effectiveZoom() ;                     // gamla zoomen (samma som i render)
   const ox0 = drawstartx + camera.x;                // kombinerad offset före zoom
   const oy0 = drawstarty + camera.y;
 
@@ -4764,9 +4788,7 @@ function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom)
   const iy = (sy - oy0) / z0;
 
   // Uppdatera zoom + härled drawarea från bildmått (blanda inte in gamla drawarea)
-  zoom      = newZoom;
-  drawareax = drawareax / oldZoom * newZoom;
-  drawareay = drawareay / oldZoom * newZoom;
+
 
   // Önskad kombinerad offset efter zoom så att samma bildpunkt stannar under (sx,sy)
   const ox1 = sx - ix * newZoom;
@@ -4796,7 +4818,6 @@ function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom)
 
             //check---------------------------------------------------------------------------------------
             var check = function() {
-                
                 if(keyState.up)camera.y-=6;
                 if(keyState.down)camera.y+=6;
                 if(keyState.left)camera.x-=6;
@@ -4812,7 +4833,7 @@ function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom)
                  
                 }
                 
-                zomzomzom=1;
+                zomzomzom=0.6;
                 if(mobileAndTabletCheck()){
                     zomzomzom=0.6;
                 }
@@ -4827,29 +4848,24 @@ function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom)
                
                 
                 knäppt=true;
-                setZoomAroundScreenCenter(zoomvalue / 100,zoom);
-                zoom=zoom/zomzomzom;
-                const oldZoom = zoom;
-                const newZoom = zoomvalue / 100;
+            //    zoom=zoom/zomzomzom;
+                    if(tvaaaa===true){tvaaaa=false;zoomvalue=100;}
+                    else if(treeee===true){treeee=false;zoomvalue=100;}
+                  
+                    const oldZoom = zoom;
+                    const newZoom = zoomvalue / 100;
+                    setZoomAroundScreenCenter(zoomvalue / 100,zoom);
+                    zoom = newZoom;
+                    drawareax = drawareax / oldZoom * newZoom;
+                    drawareay = drawareay / oldZoom * newZoom;
+                    
+                    
                 
-                // --- Mittpunkt på skärmen (inte på drawarea)
-                //const screenCenterX = window.innerWidth / 2;
-                //const screenCenterY = window.innerHeight / 2;
-
-                // --- Mappa skärmens mitt till bildens koordinater
-               // const imgCenterX = (screenCenterX - drawstartx) / oldZoom;
-              //  const imgCenterY = (screenCenterY - drawstarty) / oldZoom;
-
-                // --- Uppdatera zoom
-                //zoom = newZoom;
-                //drawareax = drawareax / oldZoom * newZoom;
-                //drawareay = drawareay / oldZoom * newZoom;
-
                 // --- Räkna om start så att samma bildpunkt ligger kvar i mitten
                 
                 //drawstartx = (screenCenterX - imgCenterX * newZoom);
                 //drawstarty = (screenCenterY - imgCenterY * newZoom);
-                zoom=zoom*zomzomzom;
+               // zoom=zoom*zomzomzom;
                 knäppt=false;
                 if((document.body.clientWidth > 100 && startan == false)) {
                     startan = true;  
@@ -4863,9 +4879,12 @@ function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom)
                     projectdrawareay = [drawareay, drawareay, drawareay];
                     projectdrawstartx = [drawstartx, drawstartx, drawstartx];
                     projectdrawstarty = [drawstarty, drawstarty, drawstarty];
+                     
+                    
+                    zoom=zoom/zomzomzom;
                     projectzoom = [zoom, zoom, zoom];
                     if(mobileAndTabletCheck())HANDLE_SIZE_SCR = 24;
-                    zoom=zoom/zomzomzom;
+                   
                     resizeCanvas();
                     
                     undoMap.set(0,[]);
@@ -4878,6 +4897,7 @@ function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom)
                     
                 }
                 
+      
                 
    
                 
