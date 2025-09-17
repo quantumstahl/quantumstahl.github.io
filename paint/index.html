@@ -4771,8 +4771,8 @@ function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom)
   drawareay = drawareay / oldZoom * newZoom;
 
   // Önskad kombinerad offset efter zoom så att samma bildpunkt stannar under (sx,sy)
-  const ox1 = sx - ix * newZoom;
-  const oy1 = sy - iy * newZoom;
+  const ox1 = sx - ix * newZoom*zomzomzom;
+  const oy1 = sy - iy * newZoom*zomzomzom;
 
   // === Välj hur du vill fördela ox1/oy1 på drawstart vs camera ===
   if (mode === "shiftDrawstart"){
