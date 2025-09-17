@@ -2651,7 +2651,7 @@ if (selectionImageCanvas || selectionBBox){
 
 canvas.addEventListener('pointermove', (ev)=>{
     if (ev.pointerType === 'touch') ev.preventDefault(); 
-  if (currentTool !== 'lasso') return;
+  if (currentTool !== 'lasso'||pointers.size === 2) return;
   
   const rect = canvas.getBoundingClientRect();
   const cx = ev.clientX - rect.left;
@@ -3122,7 +3122,7 @@ if (selectionImageCanvas || selectionBBox){
 
 canvas.addEventListener('pointermove', (ev)=>{
     if (ev.pointerType === 'touch') ev.preventDefault();
-  if (currentTool !== 'select') return;
+  if (currentTool !== 'select'||pointers.size === 2) return;
   
   const rect = canvas.getBoundingClientRect();
   const cx = ev.clientX - rect.left;
