@@ -4778,13 +4778,17 @@ document.addEventListener("keyup", function(e) {
 
 
 document.getElementById('mnuCameraCenter')  ?.addEventListener('click', ()=>{ closeAll(); cameraHome(); });
-function cameraHome(){camera.x=0;camera.y=0;}
+function cameraHome(){camera.x=firstbloodx;camera.y=firstbloody;zoomvalue=100;document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
 
 function setZoomAroundScreenCenter(newZoom,oldZoom){
   const sx = window.innerWidth  / 2;
   const sy = window.innerHeight / 2;
   setZoomAroundScreenPoint(newZoom, sx, sy, "shiftCamera",oldZoom);
 }
+
+let firstbloodx=0;
+let firstbloody=0;
+
 
 // mode: "shiftDrawstart" (default), "shiftCamera", eller "snapDrawstartInt"
 function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom){
@@ -4812,6 +4816,12 @@ function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom)
     // 2) Låt drawstart vara, lägg deltat på camera
     camera.x   += (ox1 - ox0);
     camera.y   += (oy1 - oy0);
+    
+    if(firstbloodx===0){
+        firstbloodx=camera.x;
+        firstbloody=camera.y;
+    }
+    
   } else if (mode === "snapDrawstartInt"){
     // 3) “Pixel-snap”: lägg kombinerad offset på drawstart (heltal), resten i camera
     const nx = Math.round(ox1), ny = Math.round(oy1);
@@ -4831,7 +4841,7 @@ function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom)
                 if(keyState.down)camera.y+=6;
                 if(keyState.left)camera.x-=6;
                 if(keyState.right)camera.x+=6;
-                if(keyState.h){camera.x=0;camera.y=0;}
+                if(keyState.h){camera.x=firstbloodx;camera.y=firstbloody;zoomvalue=100;document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
                 if(keyState.plus){newzoom = Math.max(0.10, Math.min(zoom*1.01, 50));zoomvalue = Math.round(newzoom * 100);document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
                 if(keyState.minus){newzoom = Math.max(0.10, Math.min(zoom*0.99, 50));zoomvalue = Math.round(newzoom * 100);document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
                 
