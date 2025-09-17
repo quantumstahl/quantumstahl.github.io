@@ -1134,7 +1134,8 @@ canvas{
             // Function to load the selected project image into the drawing canvas
             async function loadProject(index) {
             // Spara undo/redo-mapparna som du redan gör
-            
+            if(koko===true){koko=false;return;}
+            else koko=true;
             // 1) Spara *bara* om nuvarande projekt är dirty
             await saveCurrentProject(currentproject);
             // 2) Växla aktivt projekt (läge/zoom m.m.)
@@ -1147,19 +1148,27 @@ canvas{
             camera.y     = projectcameray[index];
             
             zoom        = projectzoom[index] ?? zoom;
-            zoomvalue = Math.round(zoom* 100);
-            document.getElementById("zoomSlider").value = zoomvalue;
-            document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
+            
             if(currentproject===1&&tvfirst[1]===false){
-                
+             //   zoomvalue = 100;
+              //  document.getElementById("zoomSlider").value = zoomvalue;
+               // document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
                 tvaaaa=true;
                 tvfirst[1]=true;
                 
             }
             else if(currentproject===2&&tvfirst[2]===false){
-                
+               // zoomvalue = 100;
+              //  document.getElementById("zoomSlider").value = zoomvalue;
+              //  document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
                 treeee=true;
                 tvfirst[2]=true;
+            }
+            else{
+               zoomvalue = Math.round(zoom* 100);
+               document.getElementById("zoomSlider").value = zoomvalue;
+               document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
+                
             }
             // 3) Rita tillbaka från snabb-cache (bitmap) eller blob-URL
             drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
@@ -4835,7 +4844,7 @@ function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom)
                 
                 zomzomzom=1;
                 if(mobileAndTabletCheck()){
-                    zomzomzom=0.6;
+                    zomzomzom=0.3;
                 }
                 
                 // Update canvas size
