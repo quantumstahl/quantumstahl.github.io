@@ -1095,7 +1095,7 @@ canvas{
                 projectdrawareay[index] = drawareay;
                 projectdrawstartx[index] = drawstartx;
                 projectdrawstarty[index] = drawstarty;
-                projectzoom[index] = zoomvalue;
+                projectzoom[index] = zoom*zomzomzom;
 
                 if (!projectDirty[index]) return; // ingenting att spara
 
@@ -1134,8 +1134,11 @@ canvas{
             drawareay   = projectdrawareay[index] ?? drawareay;
             drawstartx  = projectdrawstartx[index] ?? drawstartx;
             drawstarty  = projectdrawstarty[index] ?? drawstarty;
-            zoomvalue        = projectzoom[index] ?? zoomvalue;
-
+            zoom        = projectzoom[index] ?? zoom;
+            zoomvalue = Math.round(zoom* 100);
+            document.getElementById("zoomSlider").value = zoomvalue;
+            document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
+            zoom=zoom/zomzomzom;
             // 3) Rita tillbaka från snabb-cache (bitmap) eller blob-URL
             drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
 
@@ -4824,10 +4827,11 @@ function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom)
                
                 
                 knäppt=true;
+                setZoomAroundScreenCenter(zoomvalue / 100,zoom);
                 zoom=zoom/zomzomzom;
                 const oldZoom = zoom;
                 const newZoom = zoomvalue / 100;
-                setZoomAroundScreenCenter(newZoom,oldZoom);
+                
                 // --- Mittpunkt på skärmen (inte på drawarea)
                 //const screenCenterX = window.innerWidth / 2;
                 //const screenCenterY = window.innerHeight / 2;
@@ -4859,7 +4863,7 @@ function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom)
                     projectdrawareay = [drawareay, drawareay, drawareay];
                     projectdrawstartx = [drawstartx, drawstartx, drawstartx];
                     projectdrawstarty = [drawstarty, drawstarty, drawstarty];
-                    projectzoom = [zoomvalue, zoomvalue, zoomvalue];
+                    projectzoom = [zoom, zoom, zoom];
                     if(mobileAndTabletCheck())HANDLE_SIZE_SCR = 24;
                     zoom=zoom/zomzomzom;
                     resizeCanvas();
