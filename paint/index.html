@@ -1134,8 +1134,13 @@ canvas{
             drawareay   = projectdrawareay[index] ?? drawareay;
             drawstartx  = projectdrawstartx[index] ?? drawstartx;
             drawstarty  = projectdrawstarty[index] ?? drawstarty;
-            zoomvalue        = projectzoom[index] ?? zoom;
-
+            zoom        = projectzoom[index] ?? zoom;
+			zoomvalue = Math.round(zoom * 100);
+            document.getElementById("zoomSlider").value = zoomvalue;
+            document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
+			
+			
+			
             // 3) Rita tillbaka från snabb-cache (bitmap) eller blob-URL
             drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
 
