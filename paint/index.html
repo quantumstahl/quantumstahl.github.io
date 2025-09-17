@@ -1138,7 +1138,6 @@ canvas{
             zoomvalue = Math.round(zoom* 100);
             document.getElementById("zoomSlider").value = zoomvalue;
             document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
-            zoom=zoom/zomzomzom;
             // 3) Rita tillbaka från snabb-cache (bitmap) eller blob-URL
             drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
 
@@ -4750,11 +4749,11 @@ function cameraHome(){camera.x=0;camera.y=0;}
 function setZoomAroundScreenCenter(newZoom,oldZoom){
   const sx = window.innerWidth  / 2;
   const sy = window.innerHeight / 2;
-  setZoomAroundScreenPoint(newZoom, sx, sy, "shiftDrawstart",oldZoom);
+  setZoomAroundScreenPoint(newZoom, sx, sy, "shiftCamera",oldZoom);
 }
 
 // mode: "shiftDrawstart" (default), "shiftCamera", eller "snapDrawstartInt"
-function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftDrawstart",oldZoom){
+function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom){
   const z0  = _effectiveZoom();                     // gamla zoomen (samma som i render)
   const ox0 = drawstartx + camera.x;                // kombinerad offset före zoom
   const oy0 = drawstarty + camera.y;
