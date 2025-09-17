@@ -1135,10 +1135,19 @@ canvas{
             drawstartx  = projectdrawstartx[index] ?? drawstartx;
             drawstarty  = projectdrawstarty[index] ?? drawstarty;
             zoom        = projectzoom[index] ?? zoom;
+<<<<<<< HEAD
             zoomvalue = Math.round(zoom* 100);
             document.getElementById("zoomSlider").value = zoomvalue;
             document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
             zoom=zoom/zomzomzom;
+=======
+			zoomvalue = Math.round(zoom * 100);
+            document.getElementById("zoomSlider").value = zoomvalue;
+            document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
+			
+			
+			
+>>>>>>> dd294c2e2a94126af3da803c0a8000f0bcac079b
             // 3) Rita tillbaka från snabb-cache (bitmap) eller blob-URL
             drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
 
@@ -1457,7 +1466,7 @@ confirmResizeBtn.addEventListener('click', async function() {
             let projectdrawareay = [drawareay, drawareay, drawareay];
             let projectdrawstartx = [drawstartx, drawstartx, drawstartx];
             let projectdrawstarty = [drawstarty, drawstarty, drawstarty];
-            let projectzoom = [zoomvalue, zoomvalue, zoomvalue];
+            let projectzoom = [zoom, zoom, zoom];
             
             
             let prevzoom=1;
@@ -4827,8 +4836,12 @@ function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom)
                
                 
                 knäppt=true;
+<<<<<<< HEAD
                 setZoomAroundScreenCenter(zoomvalue / 100,zoom);
                 zoom=zoom/zomzomzom;
+=======
+              //  zoom=zoom/zomzomzom;
+>>>>>>> dd294c2e2a94126af3da803c0a8000f0bcac079b
                 const oldZoom = zoom;
                 const newZoom = zoomvalue / 100;
                 
@@ -4849,7 +4862,7 @@ function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom)
                 
                 //drawstartx = (screenCenterX - imgCenterX * newZoom);
                 //drawstarty = (screenCenterY - imgCenterY * newZoom);
-                zoom=zoom*zomzomzom;
+              //  zoom=zoom*zomzomzom;
                 knäppt=false;
                 if((document.body.clientWidth > 100 && startan == false)) {
                     startan = true;  
