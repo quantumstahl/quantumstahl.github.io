@@ -5362,7 +5362,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Visa toast
   function showAndroidHint({ canPrompt }) {
-
+      if(/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))return;
 
     // UI
     const box = document.createElement('div');
