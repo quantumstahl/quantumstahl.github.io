@@ -5345,7 +5345,113 @@ document.addEventListener('DOMContentLoaded', function () {
     // deferredPrompt.prompt(); deferredPrompt = null;
   });
 </script>
+<script>
+/** ===== Android Install-hint (Chrome/Edge m.fl.) ===== */
+(() => {
+  const LS_KEY_DISMISSED = 'a2hs_dismiss_until';
+  let deferredPrompt = null;
 
+  // Hjälpare: är appen redan installerad?
+  function isStandalone() {
+    // Chrome/Edge/Android
+    if (window.matchMedia('(display-mode: standalone)').matches) return true;
+    // iOS fallback (skadar inte på Android)
+    if ('standalone' in navigator && navigator.standalone) return true;
+    return false;
+  }
+
+  // Visa toast
+  function showAndroidHint({ canPrompt }) {
+
+
+    // UI
+    const box = document.createElement('div');
+    box.style.cssText = `
+      position:fixed;left:50%;bottom:16px;transform:translateX(-50%);
+      max-width:min(92vw,560px);
+      background:#000c;border:1px solid #444;color:#fff;padding:10px 12px;
+      border-radius:12px;font:14px/1.35 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      z-index:9999;backdrop-filter: blur(6px);display:flex;gap:10px;align-items:center;
+    `;
+
+    const txt = document.createElement('div');
+    txt.style.flex = '1';
+
+    // Text beroende på om vi kan trigga prompten program­matiskt eller ej
+    if (canPrompt) {
+      txt.textContent = 'Installera MaxPaint för helskärmsläge & offline.';
+    } else {
+      txt.textContent = 'Tips: Installera appen via Meny (⋮) → “Installera appen”.';
+    }
+
+    const btn = document.createElement('button');
+    btn.textContent = canPrompt ? 'Installera' : 'Ok';
+    btn.style.cssText = `
+      background:#1e88e5;border:none;color:#fff;padding:8px 12px;border-radius:10px;
+      font:600 14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif;cursor:pointer;
+    `;
+
+    const close = document.createElement('button');
+    close.innerHTML = '✕';
+    close.setAttribute('aria-label', 'Stäng');
+    close.style.cssText = `
+      background:transparent;border:none;color:#bbb;font-size:16px;cursor:pointer;
+      padding:4px 6px;line-height:1;
+    `;
+
+    box.appendChild(txt);
+    box.appendChild(btn);
+    box.appendChild(close);
+    document.body.appendChild(box);
+
+    // Knapp: installera eller bara stäng
+    btn.addEventListener('click', async () => {
+      if (canPrompt && deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt = null; // kan bara användas en gång
+      }
+      box.remove();
+    });
+
+    // Stäng-kryss – tyst i 7 dagar
+    close.addEventListener('click', () => {
+      box.remove();
+      
+    });
+
+    // Auto-försvinn efter 8s (utan att sätta snooze)
+    setTimeout(() => { if (box.isConnected) box.remove(); }, 8000);
+  }
+
+  // Lyssna på beforeinstallprompt
+  window.addEventListener('beforeinstallprompt', (e) => {
+    // Blockera automatisk prompt, spara event
+    e.preventDefault();
+    deferredPrompt = e;
+
+    if (!isStandalone()) {
+      showAndroidHint({ canPrompt: true });
+    }
+  });
+
+  // Om ingen beforeinstallprompt fired (t.ex. Firefox/vanlig webview) – visa mjuk hint
+  window.addEventListener('load', () => {
+    // Vänta en kort stund för att se om BIP hinner komma
+    setTimeout(() => {
+      const sawBIP = !!deferredPrompt;
+      if (!sawBIP && !isStandalone()) {
+        showAndroidHint({ canPrompt: false });
+      }
+    }, 1200);
+  });
+
+  // När appen blir installerad – rensa ev. sparat prompt-event
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    // valfritt: localStorage.removeItem(LS_KEY_DISMISSED);
+  });
+})();
+</script>
 
 </body>
 </html>
