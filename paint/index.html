@@ -11,8 +11,10 @@
 
 
 <!-- PWA -->
-<link rel="manifest" href="/manifest.webmanifest">
+<link rel="manifest" href="/paint/manifest.webmanifest">
 <meta name="theme-color" content="#111111">
+
+<meta name="mobile-web-app-capable" content="yes">
 
 <!-- iOS speciellt -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -5312,7 +5314,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Registrera service worker
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch(console.error);
+      navigator.serviceWorker.register('/paint/sw.js', { scope: '/paint/' })
     });
   }
 
