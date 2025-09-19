@@ -1,13 +1,13 @@
 // Enkel offline-cache för MaxPaint
 const CACHE_NAME = 'maxpaint-v1';
 const ASSETS = [
-  '/paint/',
-  '/paint/index.html',
-  '/paint/app.js',
-  '/paint/icons/icon-192.png',
-  '/paint/icons/icon-512.png',
-  '/paint/icons/icon-180.png',
-  '/paint/manifest.webmanifest'
+  '/',
+  'index.html',
+  'app.js',
+  'icons/icon-192.png',
+  'icons/icon-512.png',
+  'icons/icon-180.png',
+  'manifest.webmanifest'
 ];
 
 self.addEventListener('install', (e) => {
