@@ -5,7 +5,8 @@
       "namespace": "android_app",
       "package_name": "MaxPaint.TWA",
       "sha256_cert_fingerprints": [
-        "77:4A:8C:51:BC:52:38:C0:61:0F:36:60:9E:0B:20:82:F0:FF:4C:C1:18:49:7B:CA:90:B8:68:30:7E:6B:59:84"
+        "UPLOAD:KEY:FINGERPRINT:77:4A:8C:51:BC:52:38:C0:61:0F:36:60:9E:0B:20:82:F0:FF:4C:C1:18:49:7B:CA:90:B8:68:30:7E:6B:59:84",
+	"DEBUG:KEY:FINGERPRINT:DD:3D:C2:AB:A4:02:96:4A:B4:A9:A7:8D:11:1D:D2:DF:70:23:DF:4F:7A:C2:F8:AE:02:8F:27:C2:F3:0C:38:6D"
       ]
     }
   }
