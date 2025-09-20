@@ -518,10 +518,38 @@ canvas{
   }
 }
 
-
+.version-badge{
+  position: fixed; bottom: 8px; right: 8px;
+  background: rgba(0,0,0,.6);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font: 12px/1.2 system-ui, monospace;
+  z-index: 9999;
+  user-select: none;
+}
 
 
         </style>
+        
+<script>
+// === 0) Upptäck native (Capacitor) tidigt
+(function () {
+  const isNative = !!(window.Capacitor?.getPlatform && window.Capacitor.getPlatform() !== 'web');
+  window.__IS_NATIVE__ = isNative;                 // global flagga
+  document.documentElement.classList.toggle('is-native', isNative);
+  if (isNative) {
+    // Städa redan existerande PWA-element
+    document.querySelectorAll('.only-pwa,#pwaInstallHint,[data-only="pwa"]').forEach(el => el.remove());
+  }
+})();
+</script>        
+        
+        
+        
+        
+        
+        
 </head>
 <body>  
     
@@ -816,6 +844,9 @@ canvas{
 <canvas height="10" id="myCanvas" style="border:0px solid black" width="10"></canvas>
 
     
+<div class="version-badge" aria-label="App version">
+  <span id="appVersion"></span>
+</div>
 
 
  
@@ -4893,6 +4924,7 @@ function resetPaletteToDefaults(activateIndex = 0){
   // om du visar förhandsvisning etc., uppdatera där också vid behov
 }
 
+
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
@@ -4974,6 +5006,8 @@ function resetPaletteToDefaults(activateIndex = 0){
                     redoMap.set(0,[]);
                     redoMap.set(1,[]);
                     redoMap.set(2,[]);
+                    
+                 
                     
                 }
                 
@@ -5188,39 +5222,127 @@ document.addEventListener('DOMContentLoaded', function () {
 });
     document.addEventListener('DOMContentLoaded', function() {
     // Get the save button
+    
+    
+    
+
+
+// Hjälpare
+async function canvasToBlobPNG(cnv){
+  return (cnv.convertToBlob
+    ? cnv.convertToBlob({ type:'image/png' })
+    : new Promise(res => cnv.toBlob(res, 'image/png')));
+}
+function arrayBufferToBase64(buf){
+  let s = '', b = new Uint8Array(buf), CH = 0x8000;
+  for (let i=0;i<b.length;i+=CH) s += String.fromCharCode(...b.subarray(i,i+CH));
+  return btoa(s);
+}
+function isNative(){ return !!(window.Capacitor?.getPlatform && window.Capacitor.getPlatform() !== 'web'); }
+
+// === SAVE CORE (med debug) ===
+async function saveCanvasAsPng(targetCanvas, suggestedName = 'maxpaint-image.png'){
+  const blob = await canvasToBlobPNG(targetCanvas);
+  const file = new File([blob], suggestedName, { type:'image/png' });
+  console.log('[save] start', { native: isNative(), hasFS: !!window.Capacitor?.Plugins?.Filesystem, hasShare: !!window.Capacitor?.Plugins?.Share });
+
+try{
+    if ('showSaveFilePicker' in window){
+    const handle = await showSaveFilePicker({
+      suggestedName: 'maxpaint-image.png',
+      types: [{ description: 'PNG', accept: { 'image/png': ['.png'] } }]
+    });
+    const w = await handle.createWritable();
+    await w.write(blob); await w.close();
+    return;
+  }
+}catch(e){}
+  
+  // 2) Capacitor: skriv fil → dela
+  const FS = window.Capacitor?.Plugins?.Filesystem;
+  const Share = window.Capacitor?.Plugins?.Share;
+  const Media = window.Capacitor?.Plugins?.Media;
+  const Toast = window.Capacitor?.Plugins?.Toast;
+  if (isNative() && FS){
+      
+   
+      const buf = await blob.arrayBuffer();
+      const b64 = arrayBufferToBase64(buf);
+      const name = `maxpaint-${Date.now()}.png`;
+      
+       const dataUrl = 'data:image/png;base64,' + b64;
+       const albumName = 'MaxPaint';
+       let albumId;
+        try {
+          let { albums } = await Media.getAlbums();
+          let found = albums?.find(a => a.name === albumName);
+          if (!found) {
+            await Media.createAlbum({ name: albumName });
+            ({ albums } = await Media.getAlbums());
+            found = albums?.find(a => a.name === albumName);
+          }
+          albumId = found?.identifier;
+          if (!albumId) throw new Error('albumIdentifier saknas');
+        } catch (e) {
+          return;
+        }
+
+        // 4) Spara till Galleri
+        const fileName = 'maxpaint-' + Date.now(); // utan .png enligt pluginens krav (Android)
+        await Media.savePhoto({ path: dataUrl, albumIdentifier: albumId, fileName });
+        await Toast.show({ text: `Saved to Photos/Gallery — Album: ${albumName}` });
+      }
+      
+      
+      
+      
+
+
+    
+    
+    
+    
+    
+  
+}
+async function saveVisible(){
+
+  const save = document.createElement('canvas');
+  save.width = Math.floor(drawareax / zoom); save.height = Math.floor(drawareay / zoom);
+  const sctx = save.getContext('2d', { alpha:true });
+  if (typeof disableSmoothing === 'function') disableSmoothing(sctx);
+
+  sctx.drawImage(drawingCanvas, 0, 0, Math.floor(drawareax / zoom), Math.floor(drawareay / zoom), 0, 0, Math.floor(drawareax / zoom), Math.floor(drawareay / zoom));
+  
+  
+  await saveCanvasAsPng(save);
+}
+
+function dumpCapStatus(where=''){
+  const cap = window.Capacitor;
+  const info = {
+    where,
+    hasCap: !!cap,
+    platform: cap?.getPlatform?.(),
+    isNativePlatform: cap?.isNativePlatform?.(),
+    plugins: Object.keys(cap?.Plugins || {}),
+    hasFS: !!cap?.Plugins?.Filesystem,
+    hasShare: !!cap?.Plugins?.Share,
+    hasSavePicker: 'showSaveFilePicker' in window,
+    canWebShareFiles: !!navigator.canShare?.({ files:[new File(['x'],'t.txt',{type:'text/plain'})] })
+  };
+  console.log('[cap]', info);
+  alert(JSON.stringify(info, null, 2)); // tillfälligt – så du ser i appen
+}
+
+    
+    
     const saveBtn = document.getElementById('saveImageBtn');
     
     // Add click event handler for save button
     if (saveBtn) {
         saveBtn.addEventListener('click', function() {
-            // Create a temporary canvas for the final image
-            const saveCanvas = document.createElement('canvas');
-            const saveCtx = saveCanvas.getContext('2d', {alpha: true});
-            
-            // Set dimensions to match the current drawing area
-            const displayWidth = Math.floor(drawareax / zoom);
-            const displayHeight = Math.floor(drawareay / zoom);
-            saveCanvas.width = displayWidth;
-            saveCanvas.height = displayHeight;
-            
-            // Draw the content WITHOUT filling white background first
-            disableSmoothing(saveCtx);
-            
-            // Just draw the drawing canvas directly   
-            saveCtx.drawImage(drawingCanvas, 0, 0, displayWidth, displayHeight, 0, 0, displayWidth, displayHeight);
-            
-            try {
-                // Convert to data URL with PNG format to support transparency
-                const dataURL = saveCanvas.toDataURL('image/png');
-                const link = document.createElement('a');
-                link.download = 'maxpaint-image.png';
-                link.href = dataURL;
-                link.click();
-                console.log("Image saved successfully with transparency");
-            } catch (e) {
-                console.error("Error saving image:", e);
-                alert("Could not save the image. Error: " + e.message);
-            }
+            saveVisible().catch(console.error);
         });
     }
     
@@ -5361,7 +5483,10 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 
-<script>
+<script>         
+                
+  if (!window.__IS_NATIVE__) {              
+                
   // Registrera service worker
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -5395,9 +5520,15 @@ document.addEventListener('DOMContentLoaded', function () {
     // Visa egen knapp i din UI om du vill: “Installera”. När användaren klickar:
     // deferredPrompt.prompt(); deferredPrompt = null;
   });
+  
+  
+    }
 </script>
 <script>
 /** ===== Android Install-hint (Chrome/Edge m.fl.) ===== */
+
+if (!window.__IS_NATIVE__) {
+
 (() => {
   const LS_KEY_DISMISSED = 'a2hs_dismiss_until';
   let deferredPrompt = null;
@@ -5502,6 +5633,77 @@ document.addEventListener('DOMContentLoaded', function () {
     // valfritt: localStorage.removeItem(LS_KEY_DISMISSED);
   });
 })();
+}
+else{
+function warmUp2D(){
+  try{
+    // rör den riktiga duken
+    const id = drawingCtx.getImageData(0,0,1,1);
+    drawingCtx.putImageData(id, 0, 0);
+    // rör ev. selection/temp-contexts också om de används av fill
+    // selectionCtx?.getImageData(0,0,1,1); selectionCtx?.putImageData(new ImageData(1,1),0,0);
+  }catch{}
+  requestAnimationFrame(()=>{}); // låt WebView “settla”
+}
+document.addEventListener('DOMContentLoaded', warmUp2D);
+
+
+
+    
+}
+
+(function () {
+  const C = window.Capacitor;
+  const App = C?.Plugins?.App ?? C?.App ?? window.CapacitorApp;
+
+  function isNative() {
+    if (!C) return false;
+    if (typeof C.isNativePlatform === 'function') return !!C.isNativePlatform();
+    if (typeof C.getPlatform === 'function') return C.getPlatform() === 'android' || C.getPlatform() === 'ios';
+    return false;
+  }
+
+  const IS_NATIVE = isNative();
+
+  // Show version (native)
+  if (IS_NATIVE && App?.getInfo) {
+    App.getInfo().then(i => {
+      const el = document.getElementById('appVersion');
+      if (el) el.textContent = i?.version ? `${i.version}${i.build ? ' ('+i.build+')' : ''}` : 'native';
+    }).catch(()=>{});
+  } else {
+    const el = document.getElementById('appVersion');
+    if (el) el.textContent = '';
+  }
+
+  // Android hardware back
+  if (IS_NATIVE && App?.addListener) {
+    App.addListener('backButton', (ev) => {
+      console.log('[back]', ev);   // see this in Logcat/console
+      // If WebView has history, go back in-app; otherwise confirm exit
+      if (ev?.canGoBack) {
+        history.back();
+      } else {
+        // Always confirm for now (change to your own dirty-flag later)
+        if (confirm('Exit MaxPaint? Unsaved changes will be lost.')) {
+          App.exitApp?.();
+        }
+      }
+    });
+  }
+  const NavBar = window.Capacitor?.Plugins?.NavigationBar;
+(async () => {
+  // Gör nav-baren transparent och välj ikonfärg (darkButtons = mörka pilar/ikoner)
+  await NavBar?.setTransparency({ isTransparent: true });
+  await NavBar?.setColor({ color: '#00000000', darkButtons: true }); // 8-hex = ARGB, 00 = fullt transparent
+})();
+  
+  
+  
+})();
+
+
+
 </script>
 
 
