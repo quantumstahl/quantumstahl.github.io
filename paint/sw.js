@@ -1,5 +1,5 @@
 // Enkel offline-cache för MaxPaint
-const CACHE_NAME = 'v1';
+const CACHE_NAME = 'maxpaint-v1.06';
 const ASSETS = [
   'index.html',
   'app.js',
@@ -19,13 +19,12 @@ self.addEventListener('activate', (e) => {
     const keys = await caches.keys();
     await Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)));
     await self.clients.claim();
-    // Broadcasta version till alla öppna fönster
+    // Broadcast VERSION till alla öppna fönster
     const clis = await self.clients.matchAll({ type:'window', includeUncontrolled:true });
     for (const cli of clis) cli.postMessage({ type:'VERSION', cache: CACHE_NAME });
   })());
 });
 
-// Svara när sidan frågar
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
   if (event.data?.type === 'GET_VERSION') {
@@ -35,17 +34,14 @@ self.addEventListener('message', (event) => {
   }
 });
 
-
-
-// Network-first för allt dynamiskt, fallback till cache offline
+// Network-first, men fallback till *index.html* (inte '/')
 self.addEventListener('fetch', (e) => {
-  const req = e.request;
   e.respondWith(
-    fetch(req).then(res => {
+    fetch(e.request).then(res => {
       const copy = res.clone();
-      caches.open(CACHE_NAME).then(c => c.put(req, copy)).catch(()=>{});
+      caches.open(CACHE_NAME).then(c => c.put(e.request, copy)).catch(()=>{});
       return res;
-    }).catch(() => caches.match(req).then(m => m || caches.match('/')))
+    }).catch(() => caches.match(e.request).then(m => m || caches.match('index.html')))
   );
 });
 

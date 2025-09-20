@@ -5384,7 +5384,7 @@ async function saveVisible(){
 
 <script>         
   
-const SW_URL = 'sw.js';   // <- rätt sökväg för dig
+const SW_URL   = '/paint/sw.js';   // se till att denna path stämmer i din sajt
 const SW_SCOPE = '/paint/';
 
 function setBadge(txt){
@@ -5393,46 +5393,39 @@ function setBadge(txt){
 }
 
 if ('serviceWorker' in navigator) {
+  // Lyssna på broadcast från SW (kommer vid activate)
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    if (e.data?.type === 'VERSION' && e.data.cache) setBadge(e.data.cache);
+  });
+
   window.addEventListener('load', async () => {
     const reg = await navigator.serviceWorker.register(SW_URL, {
       scope: SW_SCOPE,
       updateViaCache: 'none'
     });
 
-    // 1) Lyssna på broadcast från SW (kommer vid activate)
-    navigator.serviceWorker.addEventListener('message', (e) => {
-      if (e.data?.type === 'VERSION' && e.data.cache) setBadge(e.data.cache);
-    });
+    // Tvinga koll efter ny SW
+    reg.update();
 
-    // 2) Be den aktiva SW:n om version (via MessageChannel)
     async function requestVersion() {
-      const sw = reg.active || reg.waiting || reg.installing;
-      if (!sw) return;
+      // vänta tills SW är "ready" (aktiv och/eller controlling)
+      const readyReg = await navigator.serviceWorker.ready;
+      const worker = navigator.serviceWorker.controller || readyReg.active || readyReg.waiting || readyReg.installing;
+      if (!worker) return;
       const ch = new MessageChannel();
       ch.port1.onmessage = (e) => {
         if (e.data?.type === 'VERSION' && e.data.cache) setBadge(e.data.cache);
       };
-      sw.postMessage({ type:'GET_VERSION' }, [ch.port2]);
+      worker.postMessage({ type:'GET_VERSION' }, [ch.port2]);
     }
 
-    // Första försök direkt…
-    if (navigator.serviceWorker.controller) {
-      requestVersion();
-    } else {
-      // …annars när nya SW tar kontroll
-      navigator.serviceWorker.addEventListener('controllerchange', requestVersion, { once:true });
-    }
+    // Fråga direkt (om vi redan kontrolleras), annars när kontrollern byts
+    if (navigator.serviceWorker.controller) requestVersion();
+    navigator.serviceWorker.addEventListener('controllerchange', () => requestVersion(), { once:true });
 
-    // 3) Fallback: läs cache-namn från Window Caches (om SW-svar uteblir)
-    caches.keys().then(keys => {
-      const k = keys.find(k => k.startsWith('maxpaint-'));
-      if (k) setBadge(k);
-    });
-
-    // (valfritt) trigga uppdateringscheckar
-    reg.update();
+    // Fräscha upp vid återkomst till appen
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') reg.update();
+      if (document.visibilityState === 'visible') { reg.update(); requestVersion(); }
     });
   });
 }
