@@ -531,25 +531,7 @@ canvas{
 
 
         </style>
-        
-<script>
-// === 0) Upptäck native (Capacitor) tidigt
-(function () {
-  const isNative = !!(window.Capacitor?.getPlatform && window.Capacitor.getPlatform() !== 'web');
-  window.__IS_NATIVE__ = isNative;                 // global flagga
-  document.documentElement.classList.toggle('is-native', isNative);
-  if (isNative) {
-    // Städa redan existerande PWA-element
-    document.querySelectorAll('.only-pwa,#pwaInstallHint,[data-only="pwa"]').forEach(el => el.remove());
-  }
-})();
-</script>        
-        
-        
-        
-        
-        
-        
+
 </head>
 <body>  
     
@@ -1091,7 +1073,7 @@ canvas{
     
             // Create an in-memory canvas to store our drawing
             const drawingCanvas = document.createElement('canvas');
-            const drawingCtx = drawingCanvas.getContext('2d', {desynchronized:true });
+            const drawingCtx = drawingCanvas.getContext('2d');
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             
@@ -1648,7 +1630,7 @@ function __getOff(w,h){
 }
 
 // ====== DROP-IN flood fill (SKÄRM-koordinater in) ======
-function floodFill(startSX, startSY){
+function floodFill(startSX, startSY,nopaint=false){
   const p = __screenToImage(startSX, startSY);
   const sX = p.x|0, sY = p.y|0;
 
@@ -1734,12 +1716,13 @@ function floodFill(startSX, startSY){
       }
     }
   }
-
+  if(nopaint==false){
   // Skriv tillbaka (återanvänd offscreen för snabbhet)
   const os = __getOff(cW, cH);
   os.x.putImageData(imageData, 0, 0);
   drawingCtx.clearRect(chunkX, chunkY, cW, cH);
   drawingCtx.drawImage(os.c, chunkX, chunkY);
+  }
 }
 
 function drawText(x, y, text) {
@@ -3390,7 +3373,7 @@ async function pasteFromClipboard() {
         return;
       }
     }
-
+    
     
   } catch (err) {
     console.error(err);
@@ -4352,7 +4335,7 @@ let lastPinchDistance = 0;            // 0 = ingen pinch-baslinje satt ännu
 let startxxx=0;
 let startyyy=0;
 let delatare=false;
-
+let onece=true;
 function twoPointers() {
   const it = pointers.values();
   const p0 = it.next().value;
@@ -4741,7 +4724,6 @@ function undo(){
 
   restoreState(willShow);
   undoMap.get(currentproject)?.pop();
-
 }
 
 function redo(){
@@ -4911,8 +4893,6 @@ function resetPaletteToDefaults(activateIndex = 0){
   }
   // om du visar förhandsvisning etc., uppdatera där också vid behov
 }
-
-
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
@@ -4994,9 +4974,6 @@ function resetPaletteToDefaults(activateIndex = 0){
                     redoMap.set(0,[]);
                     redoMap.set(1,[]);
                     redoMap.set(2,[]);
-                    
-                 
-                    
                 }
                 
       
@@ -5226,13 +5203,11 @@ function arrayBufferToBase64(buf){
   for (let i=0;i<b.length;i+=CH) s += String.fromCharCode(...b.subarray(i,i+CH));
   return btoa(s);
 }
-function isNative(){ return !!(window.Capacitor?.getPlatform && window.Capacitor.getPlatform() !== 'web'); }
 
 // === SAVE CORE (med debug) ===
 async function saveCanvasAsPng(targetCanvas, suggestedName = 'maxpaint-image.png'){
   const blob = await canvasToBlobPNG(targetCanvas);
   const file = new File([blob], suggestedName, { type:'image/png' });
-  console.log('[save] start', { native: isNative(), hasFS: !!window.Capacitor?.Plugins?.Filesystem, hasShare: !!window.Capacitor?.Plugins?.Share });
 
 try{
     if ('showSaveFilePicker' in window){
@@ -5245,53 +5220,6 @@ try{
     return;
   }
 }catch(e){}
-  
-  // 2) Capacitor: skriv fil → dela
-  const FS = window.Capacitor?.Plugins?.Filesystem;
-  const Share = window.Capacitor?.Plugins?.Share;
-  const Media = window.Capacitor?.Plugins?.Media;
-  const Toast = window.Capacitor?.Plugins?.Toast;
-  if (isNative() && FS){
-      
-   
-      const buf = await blob.arrayBuffer();
-      const b64 = arrayBufferToBase64(buf);
-      const name = `maxpaint-${Date.now()}.png`;
-      
-       const dataUrl = 'data:image/png;base64,' + b64;
-       const albumName = 'MaxPaint';
-       let albumId;
-        try {
-          let { albums } = await Media.getAlbums();
-          let found = albums?.find(a => a.name === albumName);
-          if (!found) {
-            await Media.createAlbum({ name: albumName });
-            ({ albums } = await Media.getAlbums());
-            found = albums?.find(a => a.name === albumName);
-          }
-          albumId = found?.identifier;
-          if (!albumId) throw new Error('albumIdentifier saknas');
-        } catch (e) {
-          return;
-        }
-
-        // 4) Spara till Galleri
-        const fileName = 'maxpaint-' + Date.now(); // utan .png enligt pluginens krav (Android)
-        await Media.savePhoto({ path: dataUrl, albumIdentifier: albumId, fileName });
-        await Toast.show({ text: `Saved to Photos/Gallery — Album: ${albumName}` });
-      }
-      
-      
-      
-      
-
-
-    
-    
-    
-    
-    
-  
 }
 async function saveVisible(){
 
@@ -5304,23 +5232,6 @@ async function saveVisible(){
   
   
   await saveCanvasAsPng(save);
-}
-
-function dumpCapStatus(where=''){
-  const cap = window.Capacitor;
-  const info = {
-    where,
-    hasCap: !!cap,
-    platform: cap?.getPlatform?.(),
-    isNativePlatform: cap?.isNativePlatform?.(),
-    plugins: Object.keys(cap?.Plugins || {}),
-    hasFS: !!cap?.Plugins?.Filesystem,
-    hasShare: !!cap?.Plugins?.Share,
-    hasSavePicker: 'showSaveFilePicker' in window,
-    canWebShareFiles: !!navigator.canShare?.({ files:[new File(['x'],'t.txt',{type:'text/plain'})] })
-  };
-  console.log('[cap]', info);
-  alert(JSON.stringify(info, null, 2)); // tillfälligt – så du ser i appen
 }
 
     
@@ -5473,7 +5384,7 @@ function dumpCapStatus(where=''){
 
 <script>         
                 
-  if (!window.__IS_NATIVE__) {              
+  if (matchMedia('(display-mode: standalone)').matches === false) {              
                 
   // Registrera service worker
   if ('serviceWorker' in navigator) {
@@ -5495,7 +5406,7 @@ function dumpCapStatus(where=''){
       border-radius:12px;font:14px/1.3 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
       z-index:9999;backdrop-filter: blur(6px);
     `;
-    hint.textContent = 'Installera appen: Dela-knappen → “Lägg till på hemskärmen”';
+    hint.textContent = 'Install the app: Share button → “Add to Home Screen”.';
     document.body.appendChild(hint);
     setTimeout(()=>hint.remove(), 7000);
   })();
@@ -5515,7 +5426,7 @@ function dumpCapStatus(where=''){
 <script>
 /** ===== Android Install-hint (Chrome/Edge m.fl.) ===== */
 
-if (!window.__IS_NATIVE__) {
+if (matchMedia('(display-mode: standalone)').matches === false) {
 
 (() => {
   const LS_KEY_DISMISSED = 'a2hs_dismiss_until';
@@ -5549,10 +5460,8 @@ if (!window.__IS_NATIVE__) {
 
     // Text beroende på om vi kan trigga prompten program­matiskt eller ej
     if (canPrompt) {
-      txt.textContent = 'Installera MaxPaint för helskärmsläge & offline.';
-    } else {
-      txt.textContent = 'Tips: Installera appen via Meny (⋮) → “Installera appen”.';
-    }
+      txt.textContent = 'Install MaxPaint for fullscreen and offline use.';
+    
 
     const btn = document.createElement('button');
     btn.textContent = canPrompt ? 'Installera' : 'Ok';
@@ -5591,6 +5500,7 @@ if (!window.__IS_NATIVE__) {
 
     // Auto-försvinn efter 8s (utan att sätta snooze)
     setTimeout(() => { if (box.isConnected) box.remove(); }, 8000);
+    } 
   }
 
   // Lyssna på beforeinstallprompt
@@ -5622,66 +5532,6 @@ if (!window.__IS_NATIVE__) {
   });
 })();
 }
-else{
-
-
-
-
-    
-}
-
-(function () {
-  const C = window.Capacitor;
-  const App = C?.Plugins?.App ?? C?.App ?? window.CapacitorApp;
-
-  function isNative() {
-    if (!C) return false;
-    if (typeof C.isNativePlatform === 'function') return !!C.isNativePlatform();
-    if (typeof C.getPlatform === 'function') return C.getPlatform() === 'android' || C.getPlatform() === 'ios';
-    return false;
-  }
-
-  const IS_NATIVE = isNative();
-
-  // Show version (native)
-  if (IS_NATIVE && App?.getInfo) {
-    App.getInfo().then(i => {
-      const el = document.getElementById('appVersion');
-      if (el) el.textContent = i?.version ? `${i.version}${i.build ? ' ('+i.build+')' : ''}` : 'native';
-    }).catch(()=>{});
-  } else {
-    const el = document.getElementById('appVersion');
-    if (el) el.textContent = '';
-  }
-
-  // Android hardware back
-  if (IS_NATIVE && App?.addListener) {
-    App.addListener('backButton', (ev) => {
-      console.log('[back]', ev);   // see this in Logcat/console
-      // If WebView has history, go back in-app; otherwise confirm exit
-      if (ev?.canGoBack) {
-        history.back();
-      } else {
-        // Always confirm for now (change to your own dirty-flag later)
-        if (confirm('Exit MaxPaint? Unsaved changes will be lost.')) {
-          App.exitApp?.();
-        }
-      }
-    });
-  }
-  const NavBar = window.Capacitor?.Plugins?.NavigationBar;
-(async () => {
-  // Gör nav-baren transparent och välj ikonfärg (darkButtons = mörka pilar/ikoner)
-  await NavBar?.setTransparency({ isTransparent: true });
-  await NavBar?.setColor({ color: '#00000000', darkButtons: true }); // 8-hex = ARGB, 00 = fullt transparent
-})();
-  
-  
-  
-})();
-
-
-
 </script>
 
 
