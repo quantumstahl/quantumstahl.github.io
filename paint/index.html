@@ -5387,11 +5387,46 @@ async function saveVisible(){
   if (matchMedia('(display-mode: standalone)').matches === false) {              
                 
   // Registrera service worker
+  /*
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('sw.js', { scope: '/' })
     });
-  }
+  }*/
+
+
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    const reg = await navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
+    reg.update(); // kolla direkt
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') reg.update();
+    });
+  });
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistration().then(reg => {
+    if (!reg) return;
+    reg.addEventListener('updatefound', () => {
+      const sw = reg.installing;
+      sw?.addEventListener('statechange', () => {
+        if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+          // visa knapp
+          const btn = document.createElement('button');
+          btn.textContent = 'New version — Reload';
+          Object.assign(btn.style, { position:'fixed', left:'12px', bottom:'12px', zIndex:9999 });
+          btn.onclick = async () => {
+            reg.waiting?.postMessage({ type: 'SKIP_WAITING' });
+          };
+          document.body.appendChild(btn);
+        }
+      });
+    });
+    navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
+  });
+}
 
   // Enkel iOS-hint (visas bara i Safari när appen EJ är installerad)
   (function showIOSInstallHint(){

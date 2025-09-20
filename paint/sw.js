@@ -31,7 +31,7 @@ self.addEventListener('fetch', (e) => {
       const copy = res.clone();
       caches.open(CACHE_NAME).then(c => c.put(req, copy)).catch(()=>{});
       return res;
-    }).catch(() => caches.match(req).then(m => m || caches.match('/')))
+    }).catch(() => caches.match(req).then(m => m || caches.match('index.html')))
   );
 });
 
