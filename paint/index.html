@@ -1091,7 +1091,7 @@ canvas{
     
             // Create an in-memory canvas to store our drawing
             const drawingCanvas = document.createElement('canvas');
-            const drawingCtx = drawingCanvas.getContext('2d');
+            const drawingCtx = drawingCanvas.getContext('2d', {desynchronized:true });
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             
@@ -1943,86 +1943,73 @@ function switchTool(newTool, opts = {}) {
                     console.log(`Canvas resized to ${drawingCanvas.width}x${drawingCanvas.height}`);
                 }
             }
-            
-            // Event listener for image open button
-     
-     
-            function drawBresenhamLine(x0, y0, x1, y1, size) {
-                x0 = Math.floor(x0);
-                y0 = Math.floor(y0);
-                x1 = Math.floor(x1);
-                y1 = Math.floor(y1);
+function odd(n){ return (n|1); }
 
-                const dx = Math.abs(x1 - x0);
-                const dy = Math.abs(y1 - y0);
-                const sx = (x0 < x1) ? 1 : -1;
-                const sy = (y0 < y1) ? 1 : -1;
-                let err = dx - dy;
+drawingCtx.imageSmoothingEnabled = false;
+if (typeof disableSmoothing === 'function') disableSmoothing(drawingCtx);
 
-                const halfSize = Math.floor(size / 2);
+// Ritar en pixelperfekt linje med kvadratiska stämplar, i EN fill()
+function drawLinePixelArt(x0, y0, x1, y1, size, erase, color){
+  // heltal i dokument-pixlar
+  x0|=0; y0|=0; x1|=0; y1|=0;
+  size = odd(size);
+  const half = size >> 1;
 
-                while (true) {
-                    // Simplified: just draw one rectangle at each point
-                    if (isTransparentBrush) {
-                        drawingCtx.clearRect(x0 - halfSize, y0 - halfSize, size, size);
-                    } else {
-                        drawingCtx.fillRect(x0 - halfSize, y0 - halfSize, size, size);
-                    }
+  let dx = Math.abs(x1 - x0),
+      dy = Math.abs(y1 - y0),
+      sx = (x0 < x1) ? 1 : -1,
+      sy = (y0 < y1) ? 1 : -1,
+      err = dx - dy;
 
-                    if (x0 === x1 && y0 === y1) break;
+  const ctx = drawingCtx;
+  ctx.save();
+  ctx.globalCompositeOperation = erase ? 'destination-out' : 'source-over';
+  if (!erase) ctx.fillStyle = color;
+  ctx.beginPath();
 
-                    const e2 = 2 * err;
-                    if (e2 > -dy) {
-                        err -= dy;
-                        x0 += sx;
-                    }
-                    if (e2 < dx) {
-                        err += dx;
-                        y0 += sy;
-                    }
-                }
-            }
+  for(;;){
+    // stämpla en kvadrat exakt på pixelgrid
+    ctx.rect(x0 - half, y0 - half, size, size);
+    if (x0 === x1 && y0 === y1) break;
+
+    const e2 = err << 1;
+    if (e2 > -dy){ err -= dy; x0 += sx; }
+    if (e2 <  dx){ err += dx; y0 += sy; }
+  }
+
+  ctx.fill();
+  ctx.restore();
+}
+let lastRX = null, lastRY = null;
+const isEraser = () => isTransparentBrush; // din flagga
+
+function toDoc(screenX, screenY){
+  return [
+    Math.floor((screenX - drawstartx) / zoom),
+    Math.floor((screenY - drawstarty) / zoom)
+  ];
+}
+
+function penDown(screenX, screenY){
+  const [rx, ry] = toDoc(screenX, screenY);
+  lastRX = rx; lastRY = ry;
+  // första punkt
+  drawLinePixelArt(rx, ry, rx, ry, brushSize, isEraser(), brushColor);
+}
+
+function penMove(screenX, screenY){
+  const [rx, ry] = toDoc(screenX, screenY);
+  if (lastRX === null) { lastRX = rx; lastRY = ry; return; }
+  if (rx === lastRX && ry === lastRY) return;
+  drawLinePixelArt(lastRX, lastRY, rx, ry, brushSize, isEraser(), brushColor);
+  lastRX = rx; lastRY = ry;
+}
+
+function penUp(){ lastRX = lastRY = null; }
             function ensureIntDimension(value) {
                 // Add a tiny bias (0.001) to prevent rounding down due to floating point errors
                 return Math.round(value + 0.001);
             }
-            // IMPROVED: More accurate pixel drawing
-            function drawPixel(x, y) {
-                const relativeX = Math.floor((x - drawstartx) / zoom );
-                const relativeY = Math.floor((y - drawstarty) / zoom );
-
-                // Set the brush color
-                if (!isTransparentBrush) {
-                    drawingCtx.fillStyle = brushColor;
-                }
-
-                if (x >= drawstartx && x < drawstartx + drawareax &&
-                    y >= drawstarty && y < drawstarty + drawareay) {
-
-                    if(lastX === 0 && lastY === 0) {
-                        lastX = relativeX; 
-                        lastY = relativeY;
-
-                        const halfSize = Math.floor(brushSize / 2);
-                        if (isTransparentBrush) {
-                            drawingCtx.clearRect(relativeX - halfSize, relativeY - halfSize, brushSize, brushSize);
-                        } else {
-                            drawingCtx.fillRect(relativeX - halfSize, relativeY - halfSize, brushSize, brushSize);
-                        }
-                    } else {
-                        drawBresenhamLine(lastX, lastY, relativeX, relativeY, brushSize);
-                        lastX = relativeX;
-                        lastY = relativeY;
-                    }
-                } else {
-                    if(lastX !== 0 && lastY !== 0) {
-                        drawBresenhamLine(lastX, lastY, relativeX, relativeY, brushSize);
-                    }
-                    lastX = relativeX;
-                    lastY = relativeY;
-                }
-            }
-            
             // Initialize canvas size properly
             function resizeCanvas() {
                 const dpr = window.devicePixelRatio || 1;
@@ -4433,7 +4420,7 @@ canvas.addEventListener('pointerdown', (ev) => {
       } else if (currentTool === 'text') {
         const text = prompt("Enter your text:"); if (text) { beginAction(); drawText(x, y, text); endAction(); }
       } else if (currentTool === 'pen') {
-        beginAction(); _capturePreStroke();delatare=true;isDrawing = true; lastX = 0; lastY = 0; drawPixel(x, y);
+        beginAction(); _capturePreStroke();delatare=true;isDrawing = true; lastX = 0; lastY = 0; penDown(x, y);
       }
     }
   }
@@ -4508,7 +4495,7 @@ canvas.addEventListener('pointermove', (ev) => {
 
 
     if (isDrawing && currentTool === 'pen' ) {
-      drawPixel(x, y);
+      penMove(x, y);
     }
   }
 }, { passive: false });
@@ -4528,6 +4515,7 @@ function endPointer(ev) {
 
   if (isDrawing === true) endAction();
   isDrawing = false;
+  penUp();
   lastX = 0; lastY = 0;
   isSelecting = false;
 
@@ -5635,17 +5623,7 @@ if (!window.__IS_NATIVE__) {
 })();
 }
 else{
-function warmUp2D(){
-  try{
-    // rör den riktiga duken
-    const id = drawingCtx.getImageData(0,0,1,1);
-    drawingCtx.putImageData(id, 0, 0);
-    // rör ev. selection/temp-contexts också om de används av fill
-    // selectionCtx?.getImageData(0,0,1,1); selectionCtx?.putImageData(new ImageData(1,1),0,0);
-  }catch{}
-  requestAnimationFrame(()=>{}); // låt WebView “settla”
-}
-document.addEventListener('DOMContentLoaded', warmUp2D);
+
 
 
 
