@@ -5384,44 +5384,42 @@ async function saveVisible(){
 
 <script>         
   
-const SW_URL = 'sw.js';
-const SW_SCOPE = '/';
 
-function setBadge(txt){
-  const el = document.getElementById('appVersion');
-  if (el) el.textContent = txt;
-}
-
+const BASE = document.querySelector('base')?.getAttribute('href')
+          || (location.pathname.endsWith('/') ? location.pathname
+                                              : location.pathname.replace(/[^/]+$/, '/'));
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
-    const reg = await navigator.serviceWorker.register(SW_URL, { scope: SW_SCOPE, updateViaCache: 'none' });
-    reg.update(); // kolla direkt efter ny SW
-
-    // Ta emot version från SW
-    navigator.serviceWorker.addEventListener('message', (e) => {
-      if (e.data?.type === 'VERSION' && e.data.cache) setBadge(e.data.cache);
+    const swUrl   = new URL('sw.js', location.origin + BASE).href;   // -> /paint/sw.js
+    const reg = await navigator.serviceWorker.register(swUrl, {
+      scope: BASE,                       // -> /paint/
+      updateViaCache: 'none'
     });
-
-    // Fråga aktiv SW om version (även utan ny aktivering)
-    const ask = () => {
-      if (!reg.active && !reg.waiting && !reg.installing) return;
-      const ch = new MessageChannel();
-      ch.port1.onmessage = (e) => {
-        if (e.data?.type === 'VERSION' && e.data.cache) setBadge(e.data.cache);
-      };
-      (reg.active || reg.waiting || reg.installing)
-        .postMessage({ type:'GET_VERSION' }, [ch.port2]);
-    };
-
-    if (navigator.serviceWorker.controller) ask();
-    else navigator.serviceWorker.addEventListener('controllerchange', ask, { once:true });
-
-    // Uppdatera när appen blir synlig
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') reg.update();
-    });
+    reg.update();
   });
 }
+async function updateVersionBadge(){
+  const el = document.getElementById('appVersion');
+  if (!el) return;
+
+  const BASE = document.querySelector('base')?.getAttribute('href')
+             || (location.pathname.endsWith('/') ? location.pathname
+                                                 : location.pathname.replace(/[^/]+$/, '/'));
+  const url = new URL('version.txt', location.origin + BASE).href;  // -> /paint/version.txt
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw 0;
+    el.textContent = await res.text();        // t.ex. "maxpaint-v1.05"
+  } catch {
+    el.textContent = ''; // eller 'web'
+  }
+}
+
+// Kör vid load + när appen blir synlig (om SW uppdaterats i bakgrunden)
+window.addEventListener('load', updateVersionBadge);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') updateVersionBadge();
+});
   
   
   if (matchMedia('(display-mode: standalone)').matches === false) {              

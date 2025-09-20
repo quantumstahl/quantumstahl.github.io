@@ -9,6 +9,30 @@ const ASSETS = [
   'manifest.webmanifest'
 ];
 
+self.addEventListener('fetch', (e) => {
+  const url = new URL(e.request.url);
+
+  // --- VERSION ENDPOINT (måste vara först) ---
+  const originOk = url.origin === self.location.origin;
+  const isVersion = url.pathname === '/paint/version.txt' || url.pathname.endsWith('/version.txt');
+  if (originOk && isVersion) {
+    e.respondWith(new Response(CACHE_NAME, {
+      headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' }
+    }));
+    return; // <-- superviktigt
+  }
+
+  // --- DIN BEFINTLIGA FETCH-STRATEGI (network-first) ---
+  e.respondWith(
+    fetch(e.request).then(res => {
+      const copy = res.clone();
+      caches.open(CACHE_NAME).then(c => c.put(e.request, copy)).catch(()=>{});
+      return res;
+    }).catch(() => caches.match(e.request).then(m => m || caches.match('index.html')))
+  );
+});
+
+
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
   self.skipWaiting();
@@ -25,15 +49,7 @@ self.addEventListener('activate', (e) => {
   })());
 });
 
-// Svara när sidan frågar
-self.addEventListener('message', (event) => {
-  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
-  if (event.data?.type === 'GET_VERSION') {
-    const payload = { type:'VERSION', cache: CACHE_NAME };
-    if (event.ports?.[0]) event.ports[0].postMessage(payload);
-    else event.source?.postMessage(payload);
-  }
-});
+
 
 // Network-first för allt dynamiskt, fallback till cache offline
 self.addEventListener('fetch', (e) => {
