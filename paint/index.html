@@ -5425,7 +5425,7 @@ if ('serviceWorker' in navigator) {
 
     // 3) Fallback: läs cache-namn från Window Caches (om SW-svar uteblir)
     caches.keys().then(keys => {
-      const k = keys.find(k );
+      const k = keys.find(k => k.startsWith('maxpaint-'));
       if (k) setBadge(k);
     });
 
