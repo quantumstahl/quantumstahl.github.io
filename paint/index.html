@@ -5385,19 +5385,11 @@ async function saveVisible(){
 <script>         
   
 
-const BASE = document.querySelector('base')?.getAttribute('href')
-          || (location.pathname.endsWith('/') ? location.pathname
-                                              : location.pathname.replace(/[^/]+$/, '/'));
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    const swUrl   = new URL('sw.js', location.origin + BASE).href;   // -> /paint/sw.js
-    const reg = await navigator.serviceWorker.register(swUrl, {
-      scope: BASE,                       // -> /paint/
-      updateViaCache: 'none'
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js', { scope: '/' })
     });
-    reg.update();
-  });
-}
+  }
 async function updateVersionBadge(){
   const el = document.getElementById('appVersion');
   if (!el) return;
@@ -5405,6 +5397,9 @@ async function updateVersionBadge(){
   const BASE = document.querySelector('base')?.getAttribute('href')
              || (location.pathname.endsWith('/') ? location.pathname
                                                  : location.pathname.replace(/[^/]+$/, '/'));
+                                                 
+        alert(location.origin + BASE);                                         
+                                                 
   const url = new URL('version.txt', location.origin + BASE).href;  // -> /paint/version.txt
   try {
     const res = await fetch(url, { cache: 'no-store' });
