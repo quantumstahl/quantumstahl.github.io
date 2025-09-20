@@ -1,5 +1,5 @@
 // Enkel offline-cache för MaxPaint
-const CACHE_NAME = 'v1.01';
+const CACHE_NAME = 'v1';
 const ASSETS = [
   'index.html',
   'app.js',
@@ -15,12 +15,15 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
-    ))
-  );
-  self.clients.claim();
+  e.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)));
+    await self.clients.claim();
+
+    // Broadcasta versionen till alla fönster
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clients) client.postMessage({ type: 'VERSION', cache: CACHE_NAME });
+  })());
 });
 
 // Network-first för allt dynamiskt, fallback till cache offline
