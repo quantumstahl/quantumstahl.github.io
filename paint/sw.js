@@ -20,13 +20,11 @@ self.addEventListener('activate', (e) => {
     const keys = await caches.keys();
     await Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)));
     await self.clients.claim();
-    // Broadcasta version till alla öppna fönster
     const clis = await self.clients.matchAll({ type:'window', includeUncontrolled:true });
     for (const cli of clis) cli.postMessage({ type:'VERSION', cache: CACHE_NAME });
   })());
 });
 
-// Svara när sidan frågar
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
   if (event.data?.type === 'GET_VERSION') {

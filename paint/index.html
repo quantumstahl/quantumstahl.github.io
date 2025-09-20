@@ -5384,7 +5384,7 @@ async function saveVisible(){
 
 <script>         
   
-const SW_URL = '/paint/sw.js';   // <- rätt sökväg för dig
+const SW_URL = '/paint/sw.js';
 const SW_SCOPE = '/paint/';
 
 function setBadge(txt){
@@ -5394,43 +5394,29 @@ function setBadge(txt){
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
-    const reg = await navigator.serviceWorker.register(SW_URL, {
-      scope: SW_SCOPE,
-      updateViaCache: 'none'
-    });
+    const reg = await navigator.serviceWorker.register(SW_URL, { scope: SW_SCOPE, updateViaCache: 'none' });
+    reg.update(); // kolla direkt efter ny SW
 
-    // 1) Lyssna på broadcast från SW (kommer vid activate)
+    // Ta emot version från SW
     navigator.serviceWorker.addEventListener('message', (e) => {
       if (e.data?.type === 'VERSION' && e.data.cache) setBadge(e.data.cache);
     });
 
-    // 2) Be den aktiva SW:n om version (via MessageChannel)
-    async function requestVersion() {
-      const sw = reg.active || reg.waiting || reg.installing;
-      if (!sw) return;
+    // Fråga aktiv SW om version (även utan ny aktivering)
+    const ask = () => {
+      if (!reg.active && !reg.waiting && !reg.installing) return;
       const ch = new MessageChannel();
       ch.port1.onmessage = (e) => {
         if (e.data?.type === 'VERSION' && e.data.cache) setBadge(e.data.cache);
       };
-      sw.postMessage({ type:'GET_VERSION' }, [ch.port2]);
-    }
+      (reg.active || reg.waiting || reg.installing)
+        .postMessage({ type:'GET_VERSION' }, [ch.port2]);
+    };
 
-    // Första försök direkt…
-    if (navigator.serviceWorker.controller) {
-      requestVersion();
-    } else {
-      // …annars när nya SW tar kontroll
-      navigator.serviceWorker.addEventListener('controllerchange', requestVersion, { once:true });
-    }
+    if (navigator.serviceWorker.controller) ask();
+    else navigator.serviceWorker.addEventListener('controllerchange', ask, { once:true });
 
-    // 3) Fallback: läs cache-namn från Window Caches (om SW-svar uteblir)
-    caches.keys().then(keys => {
-      const k = keys.find(k => k.startsWith('maxpaint-'));
-      if (k) setBadge(k);
-    });
-
-    // (valfritt) trigga uppdateringscheckar
-    reg.update();
+    // Uppdatera när appen blir synlig
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') reg.update();
     });
