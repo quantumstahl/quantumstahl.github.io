@@ -3,7 +3,7 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "se.quantumstahl.maxpaint",
+      "package_name": "MaxPaint.TWA",
       "sha256_cert_fingerprints": [
         "77:4A:8C:51:BC:52:38:C0:61:0F:36:60:9E:0B:20:82:F0:FF:4C:C1:18:49:7B:CA:90:B8:68:30:7E:6B:59:84"
       ]
