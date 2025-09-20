@@ -35,3 +35,14 @@ self.addEventListener('fetch', (e) => {
   );
 });
 
+self.addEventListener('message', (event) => {
+  const msg = event.data;
+  if (msg?.type === 'SKIP_WAITING') self.skipWaiting();
+
+  if (msg?.type === 'GET_VERSION') {
+    const payload = { type: 'VERSION', cache: CACHE_NAME };
+    // Svara via MessageChannel om finns, annars direkt till källan
+    if (event.ports && event.ports[0]) event.ports[0].postMessage(payload);
+    else if (event.source) event.source.postMessage(payload);
+  }
+});
