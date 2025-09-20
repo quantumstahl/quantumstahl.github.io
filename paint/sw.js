@@ -19,22 +19,20 @@ self.addEventListener('activate', (e) => {
     const keys = await caches.keys();
     await Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)));
     await self.clients.claim();
+    // Broadcasta version till alla öppna fönster
+    const clis = await self.clients.matchAll({ type:'window', includeUncontrolled:true });
+    for (const cli of clis) cli.postMessage({ type:'VERSION', cache: CACHE_NAME });
   })());
 });
 
-// NYTT: svara på /paint/version.txt med din CACHE_NAME
-self.addEventListener('fetch', (e) => {
-  const url = new URL(e.request.url);
-
-  // Anpassa path om din app ligger under /paint/
-  if (url.origin === self.location.origin && url.pathname.endsWith('/paint/version.txt')) {
-    e.respondWith(new Response(CACHE_NAME, {
-      headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' }
-    }));
-    return; // sluta här, övrig fetch hanteras som vanligt nedan
+// Svara när sidan frågar
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+  if (event.data?.type === 'GET_VERSION') {
+    const payload = { type:'VERSION', cache: CACHE_NAME };
+    if (event.ports?.[0]) event.ports[0].postMessage(payload);
+    else event.source?.postMessage(payload);
   }
-
-  // ...din befintliga fetch-strategi här (network-first m.m.)
 });
 
 // Network-first för allt dynamiskt, fallback till cache offline

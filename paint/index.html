@@ -5384,47 +5384,55 @@ async function saveVisible(){
 
 <script>         
   
+const SW_URL = '/paint/sw.js';
+const SW_SCOPE = '/paint/';
 
-
-  
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js', { scope: '/paint/' })
-    });
-  }
-
-async function showSwVersion() {
+function setBadge(txt){
   const el = document.getElementById('appVersion');
-  if (!el) return;
-
-  try {
-    // Viktigt: disable cache så vi alltid får senaste
-    const res = await fetch('/paint/version.txt', { cache: 'no-store' });
-    if (res.ok) {
-      el.textContent = await res.text(); // t.ex. "maxpaint-v1.04"
-      return;
-    }
-  } catch (e) {
-    // ignore, vi provar igen senare
-  }
-  // fallback
-  el.textContent = 'web';
+  if (el) el.textContent = txt;
 }
 
-// Kör vid load och därefter ibland (om SW byts i bakgrunden)
-window.addEventListener('load', () => {
-  showSwVersion();
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') showSwVersion();
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    const reg = await navigator.serviceWorker.register(SW_URL, { scope: SW_SCOPE, updateViaCache: 'none' });
+    reg.update(); // kolla direkt efter ny SW
+
+    // Ta emot version från SW
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (e.data?.type === 'VERSION' && e.data.cache) setBadge(e.data.cache);
+    });
+
+    // Fråga aktiv SW om version (även utan ny aktivering)
+    const ask = () => {
+      if (!reg.active && !reg.waiting && !reg.installing) return;
+      const ch = new MessageChannel();
+      ch.port1.onmessage = (e) => {
+        if (e.data?.type === 'VERSION' && e.data.cache) setBadge(e.data.cache);
+      };
+      (reg.active || reg.waiting || reg.installing)
+        .postMessage({ type:'GET_VERSION' }, [ch.port2]);
+    };
+
+    if (navigator.serviceWorker.controller) ask();
+    else navigator.serviceWorker.addEventListener('controllerchange', ask, { once:true });
+
+    // Uppdatera när appen blir synlig
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') reg.update();
+    });
   });
-  setInterval(showSwVersion, 60 * 1000);
-});
+}
   
   
   if (matchMedia('(display-mode: standalone)').matches === false) {              
                 
   // Registrera service worker
-
+  /*
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js', { scope: '/' })
+    });
+  }*/
 
 
 
