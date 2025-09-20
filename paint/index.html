@@ -4893,62 +4893,6 @@ function resetPaletteToDefaults(activateIndex = 0){
   }
   // om du visar förhandsvisning etc., uppdatera där också vid behov
 }
-
-
-  if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    const reg = await navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
-    reg.update(); // kolla direkt
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') reg.update();
-    });
-  });
-}
-
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistration().then(reg => {
-    if (!reg) return;
-    reg.addEventListener('updatefound', () => {
-      const sw = reg.installing;
-      sw?.addEventListener('statechange', () => {
-        if (sw.state === 'installed' && navigator.serviceWorker.controller) {
-          // visa knapp
-          const btn = document.createElement('button');
-          btn.textContent = 'New version — Reload';
-          Object.assign(btn.style, { position:'fixed', left:'12px', bottom:'12px', zIndex:9999 });
-          btn.onclick = async () => {
-            reg.waiting?.postMessage({ type: 'SKIP_WAITING' });
-          };
-          document.body.appendChild(btn);
-        }
-      });
-    });
-    navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
-  });
-}
-function wireSwVersionBadge() {
-  const el = document.getElementById('appVersion');
-  if (!el || !('serviceWorker' in navigator)) return;
-
-  // Lyssna på broadcast från SW (vid activate)
-  navigator.serviceWorker.addEventListener('message', (e) => {
-    if (e.data?.type === 'VERSION' && e.data.cache) {
-      el.textContent = e.data.cache; // t.ex. "maxpaint-v2"
-    }
-  });
-
-  // Fråga aktiv SW direkt (så vi får texten även utan nylig activate)
-  navigator.serviceWorker.getRegistration().then((reg) => {
-    const sw = reg?.active || reg?.waiting || reg?.installing;
-    if (!sw) { el.textContent = 'web'; return; }
-
-    const chan = new MessageChannel();
-    chan.port1.onmessage = (e) => {
-      if (e.data?.type === 'VERSION' && e.data.cache) el.textContent = e.data.cache;
-    };
-    sw.postMessage({ type: 'GET_VERSION' }, [chan.port2]);
-  });
-}  
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
@@ -5440,7 +5384,58 @@ async function saveVisible(){
 
 <script>         
   
+const SW_URL = '/paint/sw.js';   // <- rätt sökväg för dig
+const SW_SCOPE = '/paint/';
 
+function setBadge(txt){
+  const el = document.getElementById('appVersion');
+  if (el) el.textContent = txt;
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    const reg = await navigator.serviceWorker.register(SW_URL, {
+      scope: SW_SCOPE,
+      updateViaCache: 'none'
+    });
+
+    // 1) Lyssna på broadcast från SW (kommer vid activate)
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (e.data?.type === 'VERSION' && e.data.cache) setBadge(e.data.cache);
+    });
+
+    // 2) Be den aktiva SW:n om version (via MessageChannel)
+    async function requestVersion() {
+      const sw = reg.active || reg.waiting || reg.installing;
+      if (!sw) return;
+      const ch = new MessageChannel();
+      ch.port1.onmessage = (e) => {
+        if (e.data?.type === 'VERSION' && e.data.cache) setBadge(e.data.cache);
+      };
+      sw.postMessage({ type:'GET_VERSION' }, [ch.port2]);
+    }
+
+    // Första försök direkt…
+    if (navigator.serviceWorker.controller) {
+      requestVersion();
+    } else {
+      // …annars när nya SW tar kontroll
+      navigator.serviceWorker.addEventListener('controllerchange', requestVersion, { once:true });
+    }
+
+    // 3) Fallback: läs cache-namn från Window Caches (om SW-svar uteblir)
+    caches.keys().then(keys => {
+      const k = keys.find(k => k.startsWith('maxpaint-'));
+      if (k) setBadge(k);
+    });
+
+    // (valfritt) trigga uppdateringscheckar
+    reg.update();
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') reg.update();
+    });
+  });
+}
   
   
   if (matchMedia('(display-mode: standalone)').matches === false) {              
