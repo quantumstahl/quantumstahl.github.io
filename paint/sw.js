@@ -19,12 +19,13 @@ self.addEventListener('activate', (e) => {
     const keys = await caches.keys();
     await Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)));
     await self.clients.claim();
-    // Broadcast VERSION till alla öppna fönster
+    // Broadcasta version till alla öppna fönster
     const clis = await self.clients.matchAll({ type:'window', includeUncontrolled:true });
     for (const cli of clis) cli.postMessage({ type:'VERSION', cache: CACHE_NAME });
   })());
 });
 
+// Svara när sidan frågar
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
   if (event.data?.type === 'GET_VERSION') {
@@ -34,14 +35,17 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Network-first, men fallback till *index.html* (inte '/')
+
+
+// Network-first för allt dynamiskt, fallback till cache offline
 self.addEventListener('fetch', (e) => {
+  const req = e.request;
   e.respondWith(
-    fetch(e.request).then(res => {
+    fetch(req).then(res => {
       const copy = res.clone();
-      caches.open(CACHE_NAME).then(c => c.put(e.request, copy)).catch(()=>{});
+      caches.open(CACHE_NAME).then(c => c.put(req, copy)).catch(()=>{});
       return res;
-    }).catch(() => caches.match(e.request).then(m => m || caches.match('index.html')))
+    }).catch(() => caches.match(req).then(m => m || caches.match('/')))
   );
 });
 
