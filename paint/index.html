@@ -2,34 +2,51 @@
 
 <script>
 (function(){
-    
   if (!('serviceWorker' in navigator)) return;
 
-  // 1) Auto-reload EN gång när en SW tar kontroll över denna flik
-  let reloaded = sessionStorage.getItem('sw-reloaded') === '1';
+  // 1) Lyssna på controllerchange och gör EN auto-reload
+  let didReload = sessionStorage.getItem('sw-reloaded') === '1';
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!reloaded) {
+    if (!didReload) {
       sessionStorage.setItem('sw-reloaded','1');
-      location.reload();            // <- ny worker tar över => ladda om en gång
+      location.reload();
     }
   });
 
-  // 2) Registrera ASAP (inte i window.load), cache-busta BARA sw.js
-  navigator.serviceWorker.register('sw.js?v=' + Date.now(), {
-    updateViaCache: 'none'
-  }).catch(console.error);
+  // 2) Registrera ASAP (inte i window.load)
+  navigator.serviceWorker.register('sw.js?v=' + Date.now(), { updateViaCache: 'none' })
+  .then(async (reg) => {
+    // 3) Om vi inte är controlled: be SW att CLAIM:a, annars nudge:a med explicit navigering
+    const nudge = async () => {
+      try {
+        // försök 1: be aktiva (eller väntande) SW att claim:a
+        const sw = reg.active || reg.waiting || reg.installing;
+        if (sw) sw.postMessage({ type:'CLAIM' });
+      } catch(e){}
+      // efter lite tid, fortfarande inte controlled? – gör EN explicit nav till index.html
+      setTimeout(() => {
+        if (!navigator.serviceWorker.controller && !didReload) {
+          sessionStorage.setItem('sw-reloaded','1');
+          // Viktigt: explicit fil-url hjälper vissa webviews jämfört med katalog-url
+          location.replace('./index.html?sw=1');
+        }
+      }, 1200);
+    };
 
-  // 3) Safety: om SW hunnit aktivera men fliken saknar controller,
-  //    gör en "nudge" efter kort delay (iOS/standalone-quirk).
-  setTimeout(() => {
-    if (!navigator.serviceWorker.controller) {
-      const key = 'sw-reloaded';
-      if (!sessionStorage.getItem(key)) {
-        sessionStorage.setItem(key, '1');
-        location.reload();
-      }
-    }
-  }, 1200);
+    if (!navigator.serviceWorker.controller) nudge();
+
+    // 4) Om en ny SW går in i "waiting" -> ta över direkt
+    reg.addEventListener('updatefound', () => {
+      const sw = reg.installing;
+      if (!sw) return;
+      sw.addEventListener('statechange', () => {
+        if (sw.state === 'installed' && reg.waiting && navigator.serviceWorker.controller) {
+          reg.waiting.postMessage({ type:'SKIP_WAITING' });
+        }
+      });
+    });
+  })
+  .catch(console.error);
 })();
 </script>
 
