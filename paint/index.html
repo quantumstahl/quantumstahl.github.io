@@ -644,7 +644,64 @@ if ('serviceWorker' in navigator) {
     }
   });
 }
+const SW_URL = 'sw.js';
 
+function setBadge(txt){
+  const el = document.getElementById('appVersion');
+  if (el) el.textContent = txt;
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    const reg = await navigator.serviceWorker.register(
+      SW_URL + '?v=' + Date.now(),
+      { updateViaCache: 'none' }
+    );
+
+    // 1) När NY SW blir waiting -> be den ta över direkt
+    reg.addEventListener('updatefound', () => {
+      const sw = reg.installing;
+      if (!sw) return;
+      sw.addEventListener('statechange', () => {
+        if (sw.state === 'installed' && reg.waiting && navigator.serviceWorker.controller) {
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+      });
+    });
+
+    // 2) När controller byts -> auto-reload (detta är nyckeln)
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      // undvik loop
+      if (!sessionStorage.getItem('sw-reloaded')) {
+        sessionStorage.setItem('sw-reloaded', '1');
+        location.reload();
+      }
+    });
+
+    // 3) Ta emot version + ENGÅNGS-reload om vi fortfarande saknar controller
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (e.data?.type === 'VERSION' && e.data.cache) {
+        setBadge(e.data.cache);
+
+        // Om SW har aktiverats (vi ser VERSION) men fliken saknar controller:
+        if (!navigator.serviceWorker.controller && !sessionStorage.getItem('sw-reloaded')) {
+          sessionStorage.setItem('sw-reloaded', '1');
+          location.reload();
+        }
+      }
+    });
+
+    // 4) Begär version direkt
+    const sw = reg.active || reg.waiting || reg.installing;
+    if (sw) {
+      const ch = new MessageChannel();
+      ch.port1.onmessage = (e) => {
+        if (e.data?.type === 'VERSION' && e.data.cache) setBadge(e.data.cache);
+      };
+      sw.postMessage({ type: 'GET_VERSION' }, [ch.port2]);
+    }
+  });
+}
 
 </script>    
 <label for="directFileInput" style="position:absolute; top:10px; left:0px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; min-width:90px; text-align:center; font-size:16px;">Open Image</label>
