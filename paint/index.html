@@ -612,38 +612,6 @@ canvas{
   }
 })();
 
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    // 1) Avregistrera ev. FEL scope (t.ex. en gammal root-SW som äger /paint/)
-    try{
-      const regs = await navigator.serviceWorker.getRegistrations?.() || [];
-      const ours = new URL('./', location.href).href; // ex: https://.../paint/
-      for (const r of regs) if (r.scope !== ours) { try{ await r.unregister(); }catch{} }
-    }catch{}
-
-    // 2) Registrera vår SW (default scope = /paint/)
-    const reg = await navigator.serviceWorker.register('sw.js?v='+Date.now(), { updateViaCache:'none' });
-
-    // 3) Autotakeover
-    reg.addEventListener('updatefound', ()=>{
-      const sw = reg.installing;
-      sw && sw.addEventListener('statechange', ()=>{
-        if (sw.state==='installed' && reg.waiting && navigator.serviceWorker.controller) {
-          reg.waiting.postMessage({type:'SKIP_WAITING'});
-        }
-      });
-    });
-
-    // 4) Visa version & diag (badge-koden ovan tar hand om resten)
-    const sw = reg.active || reg.waiting || reg.installing;
-    if (sw) {
-      const ch = new MessageChannel();
-      ch.port1.onmessage = (e)=>{ if (e.data?.type==='VERSION') window.__setAppVersion(e.data.cache); };
-      sw.postMessage({type:'GET_VERSION'}, [ch.port2]);
-    }
-  });
-}
 const SW_URL = 'sw.js';
 
 function setBadge(txt){
