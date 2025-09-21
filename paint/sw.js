@@ -1,6 +1,6 @@
 // Enkel offline-cache för MaxPaint
 // sw.js
-const CACHE_NAME = 'maxpaint-v1.09'; // byt denna för “appVersion”
+const CACHE_NAME = 'maxpaint-v1.10'; // byt denna för “appVersion”
 const ASSETS = [
   'index.html',
   'app.js',
