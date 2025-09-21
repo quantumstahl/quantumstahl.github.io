@@ -1,5 +1,5 @@
 // Enkel offline-cache för MaxPaint
-const CACHE_NAME = 'maxpaint-v1.10';
+const CACHE_NAME = 'maxpaint-v3.00';
 const ASSETS = [
   'index.html',
   'app.js',
