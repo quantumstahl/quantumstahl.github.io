@@ -4320,21 +4320,7 @@ document.getElementById('mnuNew').addEventListener('click', ()=>{closeAll();
     switchTool("pen");
     resetPaletteToDefaults(0);
     
-    (async () => {
-  // Avregistrera ALLA SW för denna origin (inkl. gamla scope)
-  if (navigator.serviceWorker.getRegistrations) {
-    const regs = await navigator.serviceWorker.getRegistrations();
-    for (const r of regs) {
-      try { await r.unregister(); } catch(e){}
-    }
-  }
-  // Rensa ALLA caches för denna origin
-  if (window.caches && caches.keys) {
-    const keys = await caches.keys();
-    await Promise.all(keys.map(k => caches.delete(k)));
-  }
-  console.log('All service workers unregistered + all caches deleted for this origin.');
-})();
+    location.reload();
     
     
   }
