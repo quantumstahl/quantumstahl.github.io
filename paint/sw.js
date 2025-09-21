@@ -1,2 +1,2 @@
-self.__MP_VERSION__ = '1.41'; // <-- öka denna varje release
+self.__MP_VERSION__ = '2.00'; // <- höj denna när du släpper
 importScripts('./sw-core.js?v=' + self.__MP_VERSION__);

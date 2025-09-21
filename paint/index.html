@@ -532,9 +532,121 @@ canvas{
 
         </style>
 
+        
+        
+        
+        
+        
+        
+        
 </head>
 <body>  
-    
+<div id="swBadge" style="position:fixed;left:8px;bottom:8px;z-index:99999;background:#111;color:#0f0;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui"></div>
+<script>
+(function(){
+  const badge = document.getElementById('swBadge');
+  function show(obj){ badge.textContent = JSON.stringify(obj); }
+
+  window.__setAppVersion = (txt)=> {
+    const cur = badge.textContent ? JSON.parse(badge.textContent) : {};
+    cur.version = txt; show(cur);
+  };
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (e.data?.type === 'VERSION') {
+        window.__setAppVersion(e.data.cache);
+        const cur = badge.textContent ? JSON.parse(badge.textContent) : {};
+        cur.scope = e.data.scope; cur.scriptURL = e.data.scriptURL || cur.scriptURL; show(cur);
+      }
+      if (e.data?.type === '__DIAG_REPLY') {
+        const cur = badge.textContent ? JSON.parse(badge.textContent) : {};
+        cur.keys = e.data.keys; cur.scope = e.data.scope; cur.scriptURL = e.data.scriptURL; show(cur);
+      }
+    });
+
+    window.addEventListener('load', async () => {
+      const reg = await navigator.serviceWorker.register('sw.js?v='+Date.now(), { updateViaCache:'none' });
+
+      function diag(){
+        const data = {
+          controlled: !!navigator.serviceWorker.controller,
+          page: location.pathname,
+          regScope: reg.scope,
+          active: reg.active?.scriptURL || null
+        };
+        show(data);
+        reg.active || reg.waiting || reg.installing
+          ? (reg.active||reg.waiting||reg.installing).postMessage({type:'__DIAG'})
+          : null;
+      }
+
+      reg.addEventListener('updatefound', () => {
+        const sw = reg.installing;
+        sw && sw.addEventListener('statechange', () => {
+          if (sw.state === 'installed' && reg.waiting && navigator.serviceWorker.controller) {
+            reg.waiting.postMessage({type:'SKIP_WAITING'});
+          }
+        });
+      });
+
+      navigator.serviceWorker.addEventListener('controllerchange', diag);
+      diag();
+
+      // Begär version
+      const sw = reg.active || reg.waiting || reg.installing;
+      if (sw) {
+        const ch = new MessageChannel();
+        ch.port1.onmessage = (e)=>{ if (e.data?.type==='VERSION') window.__setAppVersion(e.data.cache); };
+        sw.postMessage({type:'GET_VERSION'}, [ch.port2]);
+      }
+
+      // Fallback – läs cache-namn
+      caches?.keys?.().then(keys => {
+        const k = keys.find(k => k.startsWith('maxpaint-'));
+        if (k) window.__setAppVersion(k);
+      });
+    });
+  } else {
+    show({error:'no serviceWorker support'});
+  }
+})();
+
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    // 1) Avregistrera ev. FEL scope (t.ex. en gammal root-SW som äger /paint/)
+    try{
+      const regs = await navigator.serviceWorker.getRegistrations?.() || [];
+      const ours = new URL('./', location.href).href; // ex: https://.../paint/
+      for (const r of regs) if (r.scope !== ours) { try{ await r.unregister(); }catch{} }
+    }catch{}
+
+    // 2) Registrera vår SW (default scope = /paint/)
+    const reg = await navigator.serviceWorker.register('sw.js?v='+Date.now(), { updateViaCache:'none' });
+
+    // 3) Autotakeover
+    reg.addEventListener('updatefound', ()=>{
+      const sw = reg.installing;
+      sw && sw.addEventListener('statechange', ()=>{
+        if (sw.state==='installed' && reg.waiting && navigator.serviceWorker.controller) {
+          reg.waiting.postMessage({type:'SKIP_WAITING'});
+        }
+      });
+    });
+
+    // 4) Visa version & diag (badge-koden ovan tar hand om resten)
+    const sw = reg.active || reg.waiting || reg.installing;
+    if (sw) {
+      const ch = new MessageChannel();
+      ch.port1.onmessage = (e)=>{ if (e.data?.type==='VERSION') window.__setAppVersion(e.data.cache); };
+      sw.postMessage({type:'GET_VERSION'}, [ch.port2]);
+    }
+  });
+}
+
+
+</script>    
 <label for="directFileInput" style="position:absolute; top:10px; left:0px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; min-width:90px; text-align:center; font-size:16px;">Open Image</label>
 <input accept="image/*" id="directFileInput" style="position:absolute; left:-200px;" type="file"/>
 <!-- Save Image button, positioned much lower -->
@@ -4997,7 +5109,7 @@ function resetPaletteToDefaults(activateIndex = 0){
                 
                 // Draw the document background
                // ctx.fillStyle = "#4D4D4D";
-               ctx.fillStyle = "green";
+               ctx.fillStyle = "blue";
                 ctx.fillRect(0, 0, canvas.width/devicePixelRatio, canvas.height/devicePixelRatio);
                 
  
@@ -5385,89 +5497,7 @@ async function saveVisible(){
 
 
 <script>         
-  
-const SW_URL = 'sw.js';
 
-function setBadge(t){
-  const el = document.getElementById('appVersion');
-  if (el) el.textContent = t;
-}
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    // (A) Engångs “surgical nuke”: ta bort ev. gammal root-SW som kontrollerar /paint/
-    try {
-      const regs = await navigator.serviceWorker.getRegistrations?.() || [];
-      const expectedScope = new URL('./', location.href).href; // t.ex. https://.../paint/
-      for (const r of regs) {
-        // Avregistrera ALLT som inte är exakt vårt /paint/-scope
-        if (r.scope !== expectedScope) { try { await r.unregister(); } catch{} }
-      }
-      // Rensa bort gamla cachenamn också (inom denna origin)
-      if (window.caches?.keys) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map(k => caches.delete(k)));
-      }
-    } catch {}
-
-    // (B) Registrera vår SW – låt default scope bli katalogen /paint/
-    const reg = await navigator.serviceWorker.register(
-      SW_URL + '?v=' + Date.now(),
-      { updateViaCache: 'none' }
-    );
-
-    // (C) version/diag
-    navigator.serviceWorker.addEventListener('message', (e) => {
-      if (e.data?.type === 'VERSION' && e.data.cache) setBadge(e.data.cache);
-      if (e.data?.type === '__DIAG_REPLY') console.log('[SW DIAG]', e.data);
-    });
-
-    function requestVersion(){
-      const sw = reg.active || reg.waiting || reg.installing;
-      if (!sw) return;
-      const ch = new MessageChannel();
-      ch.port1.onmessage = (e) => {
-        if (e.data?.type === 'VERSION' && e.data.cache) setBadge(e.data.cache);
-      };
-      sw.postMessage({ type:'GET_VERSION' }, [ch.port2]);
-    }
-
-    reg.addEventListener('updatefound', () => {
-      const sw = reg.installing;
-      if (!sw) return;
-      sw.addEventListener('statechange', () => {
-        if (sw.state === 'installed' && reg.waiting && navigator.serviceWorker.controller) {
-          reg.waiting.postMessage({ type:'SKIP_WAITING' });
-        }
-      });
-    });
-
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      requestVersion();
-      // location.reload(); // aktivera vid TWA om du vill hårdreloada direkt
-    });
-
-    if (navigator.serviceWorker.controller) requestVersion();
-    else navigator.serviceWorker.addEventListener('controllerchange', requestVersion, { once:true });
-
-    // (D) Fallback om SW-meddelanden blockas
-    caches.keys().then(keys => {
-      const k = keys.find(k => k.startsWith('maxpaint-'));
-      if (k) setBadge(k);
-    });
-
-    // (E) Liten diagnostik i konsolen
-    console.log('[diag]', {
-      page: location.href,
-      expectedScope: new URL('./', location.href).href
-    });
-    console.log('[diag] controller?', !!navigator.serviceWorker.controller);
-    if (navigator.serviceWorker.getRegistrations) {
-      const regs2 = await navigator.serviceWorker.getRegistrations();
-      console.log('[diag] registrations', regs2.map(r => ({ scope: r.scope, active: r.active?.scriptURL })));
-    }
-  });
-}
   
   
   if (matchMedia('(display-mode: standalone)').matches === false) {              
