@@ -4320,7 +4320,6 @@ document.getElementById('mnuNew').addEventListener('click', ()=>{closeAll();
     switchTool("pen");
     resetPaletteToDefaults(0);
     
-    location.reload();
     
   }
 });
@@ -5386,35 +5385,43 @@ async function saveVisible(){
 
 <script>         
   
-const SW_URL   = 'sw.js';
-const SW_SCOPE = '/paint/'; // <-- ändra om din app ligger under annan path
+const SW_URL = 'sw.js';
 
-function setBadge(txt){
+function setBadge(t){
   const el = document.getElementById('appVersion');
-  if (el) el.textContent = txt;
+  if (el) el.textContent = t;
 }
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
-    // Cache-busta BARA sw.js (inte scope)
+    // (A) Engångs “surgical nuke”: ta bort ev. gammal root-SW som kontrollerar /paint/
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations?.() || [];
+      const expectedScope = new URL('./', location.href).href; // t.ex. https://.../paint/
+      for (const r of regs) {
+        // Avregistrera ALLT som inte är exakt vårt /paint/-scope
+        if (r.scope !== expectedScope) { try { await r.unregister(); } catch{} }
+      }
+      // Rensa bort gamla cachenamn också (inom denna origin)
+      if (window.caches?.keys) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+    } catch {}
+
+    // (B) Registrera vår SW – låt default scope bli katalogen /paint/
     const reg = await navigator.serviceWorker.register(
-      `${SW_URL}?v=${Date.now()}`,
-      { scope: SW_SCOPE, updateViaCache: 'none' }
+      SW_URL + '?v=' + Date.now(),
+      { updateViaCache: 'none' }
     );
 
-    // Lyssna på SW-meddelanden
+    // (C) version/diag
     navigator.serviceWorker.addEventListener('message', (e) => {
-      if (e.data?.type === 'VERSION' && e.data.cache) {
-        setBadge(e.data.cache);
-        // console.log('SW version', e.data.cache, e.data.scope, e.data.scriptURL);
-      }
-      if (e.data?.type === '__DIAG_REPLY') {
-        console.log('[SW DIAG]', e.data);
-      }
+      if (e.data?.type === 'VERSION' && e.data.cache) setBadge(e.data.cache);
+      if (e.data?.type === '__DIAG_REPLY') console.log('[SW DIAG]', e.data);
     });
 
-    // Begär version via MessageChannel (stabilt på iOS/Android)
-    async function requestVersion() {
+    function requestVersion(){
       const sw = reg.active || reg.waiting || reg.installing;
       if (!sw) return;
       const ch = new MessageChannel();
@@ -5424,7 +5431,6 @@ if ('serviceWorker' in navigator) {
       sw.postMessage({ type:'GET_VERSION' }, [ch.port2]);
     }
 
-    // Autotakeover: när ny SW hittas → hoppa över waiting
     reg.addEventListener('updatefound', () => {
       const sw = reg.installing;
       if (!sw) return;
@@ -5435,32 +5441,29 @@ if ('serviceWorker' in navigator) {
       });
     });
 
-    // När kontrollen flyttas till nya SW:n
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       requestVersion();
-      // location.reload(); // valfritt för hård refresh i TWA/PWA
+      // location.reload(); // aktivera vid TWA om du vill hårdreloada direkt
     });
 
-    // Försök få version direkt
     if (navigator.serviceWorker.controller) requestVersion();
     else navigator.serviceWorker.addEventListener('controllerchange', requestVersion, { once:true });
 
-    // Din fallback via caches.keys() kan ligga kvar:
+    // (D) Fallback om SW-meddelanden blockas
     caches.keys().then(keys => {
       const k = keys.find(k => k.startsWith('maxpaint-'));
       if (k) setBadge(k);
     });
 
-    // Peta på update ibland
-    reg.update();
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') reg.update();
+    // (E) Liten diagnostik i konsolen
+    console.log('[diag]', {
+      page: location.href,
+      expectedScope: new URL('./', location.href).href
     });
-
-    // (tillfällig) diag: skriv ut registreringar
+    console.log('[diag] controller?', !!navigator.serviceWorker.controller);
     if (navigator.serviceWorker.getRegistrations) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      console.log('[All registrations]', regs.map(r => ({ scope: r.scope, scriptURL: r.active?.scriptURL || r.installing?.scriptURL || r.waiting?.scriptURL })));
+      const regs2 = await navigator.serviceWorker.getRegistrations();
+      console.log('[diag] registrations', regs2.map(r => ({ scope: r.scope, active: r.active?.scriptURL })));
     }
   });
 }
