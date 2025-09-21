@@ -1,5 +1,5 @@
 // ==== SW: maxpaint – robust uppdateringsstrategi ====
-const CACHE_NAME = 'maxpaint-v1.21'; // <-- byt denna när du släpper ny version
+const CACHE_NAME = 'maxpaint-v1.22'; // <-- byt denna när du släpper ny version
 const ASSETS = [
   'index.html',
   'app.js',
