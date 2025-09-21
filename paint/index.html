@@ -5384,7 +5384,8 @@ async function saveVisible(){
 
 <script>         
   
-const SW_URL = 'sw.js';   // <- rätt sökväg för dig
+// INDEX.JS (utdrag)
+const SW_URL = 'sw.js';
 const SW_SCOPE = '/paint/';
 
 function setBadge(txt){
@@ -5394,17 +5395,22 @@ function setBadge(txt){
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
-    const reg = await navigator.serviceWorker.register(SW_URL, {
-      scope: SW_SCOPE,
-      updateViaCache: 'none'
-    });
+    // cache-busta bara SW-filen, inte scope
+    const reg = await navigator.serviceWorker.register(
+      `${SW_URL}?v=${Date.now()}`, 
+      { scope: SW_SCOPE, updateViaCache: 'none' }
+    );
 
-    // 1) Lyssna på broadcast från SW (kommer vid activate)
+    // --- Version-mottagning (broadcast från SW)
     navigator.serviceWorker.addEventListener('message', (e) => {
       if (e.data?.type === 'VERSION' && e.data.cache) setBadge(e.data.cache);
+      if (e.data?.type === 'NEW_SW_WAITING') {
+        // Vi har en ny SW som väntar -> be den ta över direkt
+        reg.waiting?.postMessage({ type: 'SKIP_WAITING' });
+      }
     });
 
-    // 2) Be den aktiva SW:n om version (via MessageChannel)
+    // --- Be aktiv SW om version via MessageChannel (pålitligt)
     async function requestVersion() {
       const sw = reg.active || reg.waiting || reg.installing;
       if (!sw) return;
@@ -5415,21 +5421,34 @@ if ('serviceWorker' in navigator) {
       sw.postMessage({ type:'GET_VERSION' }, [ch.port2]);
     }
 
-    // Första försök direkt…
-    if (navigator.serviceWorker.controller) {
-      requestVersion();
-    } else {
-      // …annars när nya SW tar kontroll
-      navigator.serviceWorker.addEventListener('controllerchange', requestVersion, { once:true });
-    }
+    if (navigator.serviceWorker.controller) requestVersion();
+    else navigator.serviceWorker.addEventListener('controllerchange', requestVersion, { once:true });
 
-    // 3) Fallback: läs cache-namn från Window Caches (om SW-svar uteblir)<----bara den funkar
+    // --- Update flow: fånga när ny SW hittas och hamnar i "waiting"
+    reg.addEventListener('updatefound', () => {
+      const sw = reg.installing;
+      if (!sw) return;
+      sw.addEventListener('statechange', () => {
+        if (sw.state === 'installed' && reg.waiting) {
+          // Signal till sidan, så vi kan skipWaiting automatiskt (eller visa toast)
+          navigator.serviceWorker.controller && reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+      });
+    });
+
+    // Ny SW tog kontroll: uppdatera badge (och auto-reload om du vill)
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      requestVersion();
+      // location.reload(); // valfritt: hård uppfräschning
+    });
+
+    // Fallback som du redan har – låt den vara kvar
     caches.keys().then(keys => {
-      const k = keys.find(k => k.startsWith('maxpaint-')); //
+      const k = keys.find(k => k.startsWith('maxpaint-'));
       if (k) setBadge(k);
     });
 
-    // (valfritt) trigga uppdateringscheckar
+    // trigga uppdateringscheck ibland
     reg.update();
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') reg.update();
