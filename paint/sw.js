@@ -1,4 +1,4 @@
-const CACHE_NAME = 'maxpaint-v1.11';
+const CACHE_NAME = 'maxpaint-v1.12';
 const ASSETS = [
   'index.html',
   'app.js',
