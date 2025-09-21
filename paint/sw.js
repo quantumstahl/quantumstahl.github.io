@@ -33,7 +33,7 @@ self.addEventListener('message', (ev) => {
 });
 
 
-
+/*
 // Network-first för allt dynamiskt, fallback till cache offline
 self.addEventListener('fetch', (e) => {
   const req = e.request;
@@ -44,5 +44,5 @@ self.addEventListener('fetch', (e) => {
       return res;
     }).catch(() => caches.match(req).then(m => m || caches.match('/')))
   );
-});
+});*/
 
