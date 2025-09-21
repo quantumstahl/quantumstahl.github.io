@@ -4320,6 +4320,23 @@ document.getElementById('mnuNew').addEventListener('click', ()=>{closeAll();
     switchTool("pen");
     resetPaletteToDefaults(0);
     
+    (async () => {
+  // Avregistrera ALLA SW för denna origin (inkl. gamla scope)
+  if (navigator.serviceWorker.getRegistrations) {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    for (const r of regs) {
+      try { await r.unregister(); } catch(e){}
+    }
+  }
+  // Rensa ALLA caches för denna origin
+  if (window.caches && caches.keys) {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => caches.delete(k)));
+  }
+  console.log('All service workers unregistered + all caches deleted for this origin.');
+})();
+    
+    
   }
 });
 
@@ -5385,7 +5402,7 @@ async function saveVisible(){
 <script>         
   
 const SW_URL   = 'sw.js';
-const SW_SCOPE = '/paint/';
+const SW_SCOPE = '/paint/'; // <-- ändra om din app ligger under annan path
 
 function setBadge(txt){
   const el = document.getElementById('appVersion');
@@ -5394,18 +5411,24 @@ function setBadge(txt){
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
-    // Cache-busta bara sw.js (inte scope)
+    // Cache-busta BARA sw.js (inte scope)
     const reg = await navigator.serviceWorker.register(
       `${SW_URL}?v=${Date.now()}`,
       { scope: SW_SCOPE, updateViaCache: 'none' }
     );
 
-    // Lyssna version
+    // Lyssna på SW-meddelanden
     navigator.serviceWorker.addEventListener('message', (e) => {
-      if (e.data?.type === 'VERSION' && e.data.cache) setBadge(e.data.cache);
+      if (e.data?.type === 'VERSION' && e.data.cache) {
+        setBadge(e.data.cache);
+        // console.log('SW version', e.data.cache, e.data.scope, e.data.scriptURL);
+      }
+      if (e.data?.type === '__DIAG_REPLY') {
+        console.log('[SW DIAG]', e.data);
+      }
     });
 
-    // Be om version via MessageChannel (pålitligt i iOS/Android)
+    // Begär version via MessageChannel (stabilt på iOS/Android)
     async function requestVersion() {
       const sw = reg.active || reg.waiting || reg.installing;
       if (!sw) return;
@@ -5416,42 +5439,44 @@ if ('serviceWorker' in navigator) {
       sw.postMessage({ type:'GET_VERSION' }, [ch.port2]);
     }
 
-    // Update flow: när ny SW hittas → be den ta över
+    // Autotakeover: när ny SW hittas → hoppa över waiting
     reg.addEventListener('updatefound', () => {
       const sw = reg.installing;
       if (!sw) return;
       sw.addEventListener('statechange', () => {
-        if (sw.state === 'installed' && reg.waiting) {
-          // Har redan en controller? Ta över direkt.
-          if (navigator.serviceWorker.controller) {
-            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-          }
+        if (sw.state === 'installed' && reg.waiting && navigator.serviceWorker.controller) {
+          reg.waiting.postMessage({ type:'SKIP_WAITING' });
         }
       });
     });
 
-    // När controller byts till den nya SW:n
+    // När kontrollen flyttas till nya SW:n
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       requestVersion();
-      // location.reload(); // valfritt om du vill hård-uppdatera UI:t
+      // location.reload(); // valfritt för hård refresh i TWA/PWA
     });
 
-    // Försök få version direkt om vi redan har en controller
+    // Försök få version direkt
     if (navigator.serviceWorker.controller) requestVersion();
     else navigator.serviceWorker.addEventListener('controllerchange', requestVersion, { once:true });
 
-    // Din fallback kan vara kvar
+    // Din fallback via caches.keys() kan ligga kvar:
     caches.keys().then(keys => {
       const k = keys.find(k => k.startsWith('maxpaint-'));
       if (k) setBadge(k);
     });
 
-    // Peta Chrome/iOS att kolla uppdatering då och då
+    // Peta på update ibland
     reg.update();
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') reg.update();
     });
-    // (valfritt) setInterval(() => reg.update(), 60_000);
+
+    // (tillfällig) diag: skriv ut registreringar
+    if (navigator.serviceWorker.getRegistrations) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      console.log('[All registrations]', regs.map(r => ({ scope: r.scope, scriptURL: r.active?.scriptURL || r.installing?.scriptURL || r.waiting?.scriptURL })));
+    }
   });
 }
   
