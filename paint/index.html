@@ -5384,8 +5384,7 @@ async function saveVisible(){
 
 <script>         
   
-// INDEX.JS (utdrag)
-const SW_URL = 'sw.js';
+const SW_URL   = 'sw.js';
 const SW_SCOPE = '/paint/';
 
 function setBadge(txt){
@@ -5395,22 +5394,18 @@ function setBadge(txt){
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
-    // cache-busta bara SW-filen, inte scope
+    // Cache-busta bara sw.js (inte scope)
     const reg = await navigator.serviceWorker.register(
-      `${SW_URL}?v=${Date.now()}`, 
+      `${SW_URL}?v=${Date.now()}`,
       { scope: SW_SCOPE, updateViaCache: 'none' }
     );
 
-    // --- Version-mottagning (broadcast från SW)
+    // Lyssna version
     navigator.serviceWorker.addEventListener('message', (e) => {
       if (e.data?.type === 'VERSION' && e.data.cache) setBadge(e.data.cache);
-      if (e.data?.type === 'NEW_SW_WAITING') {
-        // Vi har en ny SW som väntar -> be den ta över direkt
-        reg.waiting?.postMessage({ type: 'SKIP_WAITING' });
-      }
     });
 
-    // --- Be aktiv SW om version via MessageChannel (pålitligt)
+    // Be om version via MessageChannel (pålitligt i iOS/Android)
     async function requestVersion() {
       const sw = reg.active || reg.waiting || reg.installing;
       if (!sw) return;
@@ -5421,38 +5416,42 @@ if ('serviceWorker' in navigator) {
       sw.postMessage({ type:'GET_VERSION' }, [ch.port2]);
     }
 
-    if (navigator.serviceWorker.controller) requestVersion();
-    else navigator.serviceWorker.addEventListener('controllerchange', requestVersion, { once:true });
-
-    // --- Update flow: fånga när ny SW hittas och hamnar i "waiting"
+    // Update flow: när ny SW hittas → be den ta över
     reg.addEventListener('updatefound', () => {
       const sw = reg.installing;
       if (!sw) return;
       sw.addEventListener('statechange', () => {
         if (sw.state === 'installed' && reg.waiting) {
-          // Signal till sidan, så vi kan skipWaiting automatiskt (eller visa toast)
-          navigator.serviceWorker.controller && reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          // Har redan en controller? Ta över direkt.
+          if (navigator.serviceWorker.controller) {
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
         }
       });
     });
 
-    // Ny SW tog kontroll: uppdatera badge (och auto-reload om du vill)
+    // När controller byts till den nya SW:n
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       requestVersion();
-      // location.reload(); // valfritt: hård uppfräschning
+      // location.reload(); // valfritt om du vill hård-uppdatera UI:t
     });
 
-    // Fallback som du redan har – låt den vara kvar
+    // Försök få version direkt om vi redan har en controller
+    if (navigator.serviceWorker.controller) requestVersion();
+    else navigator.serviceWorker.addEventListener('controllerchange', requestVersion, { once:true });
+
+    // Din fallback kan vara kvar
     caches.keys().then(keys => {
       const k = keys.find(k => k.startsWith('maxpaint-'));
       if (k) setBadge(k);
     });
 
-    // trigga uppdateringscheck ibland
+    // Peta Chrome/iOS att kolla uppdatering då och då
     reg.update();
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') reg.update();
     });
+    // (valfritt) setInterval(() => reg.update(), 60_000);
   });
 }
   
