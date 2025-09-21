@@ -4995,7 +4995,8 @@ function resetPaletteToDefaults(activateIndex = 0){
 
                 
                 // Draw the document background
-                ctx.fillStyle = "#4D4D4D";
+               // ctx.fillStyle = "#4D4D4D";
+               ctx.fillStyle = "red";
                 ctx.fillRect(0, 0, canvas.width/devicePixelRatio, canvas.height/devicePixelRatio);
                 
  
@@ -5423,9 +5424,9 @@ if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('controllerchange', requestVersion, { once:true });
     }
 
-    // 3) Fallback: läs cache-namn från Window Caches (om SW-svar uteblir)
+    // 3) Fallback: läs cache-namn från Window Caches (om SW-svar uteblir)<----bara den funkar
     caches.keys().then(keys => {
-      const k = keys.find(k => k.startsWith('maxpaint-'));
+      const k = keys.find(k => k.startsWith('maxpaint-')); //
       if (k) setBadge(k);
     });
 
