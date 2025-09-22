@@ -4,21 +4,7 @@
 (function(){
   if (!('serviceWorker' in navigator)) return;
 
-  // --- Version badge hookup
-  const versionEl = document.getElementById('appVersion');
-  const badgeEl = document.querySelector('.version-badge');
 
-  function setVersion(text){
-    if (versionEl) versionEl.textContent = text || '';
-    if (badgeEl) badgeEl.setAttribute('aria-label', 'App version ' + (text || ''));
-  }
-
-  // Listen for SW messages
-  navigator.serviceWorker.addEventListener('message', (ev) => {
-    if (ev.data && ev.data.type === 'VERSION') {
-      setVersion(ev.data.cache);
-    }
-  });
 
   // Helper: ask active/waiting SW for version
   async function requestVersion(reg){
@@ -590,16 +576,7 @@ canvas{
   }
 }
 
-.version-badge{
-  position: fixed; bottom: 8px; right: 8px;
-  background: rgba(0,0,0,.6);
-  color: #fff;
-  padding: 4px 8px;
-  border-radius: 8px;
-  font: 12px/1.2 system-ui, monospace;
-  z-index: 9999;
-  user-select: none;
-}
+
 
 
         </style>
@@ -613,15 +590,15 @@ canvas{
         
 </head>
 <body>  
-<div id="swBadge" style="position:fixed;left:8px;bottom:8px;z-index:99999;background:#111;color:#0f0;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui"></div>
+<div id="swBadge" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:#111;color:#ffffff;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui"></div>
 <script>
 (function(){
   const badge = document.getElementById('swBadge');
-  function show(obj){ badge.textContent = JSON.stringify(obj); }
+  function show(obj){ badge.textContent = obj; }
 
   window.__setAppVersion = (txt)=> {
     const cur = badge.textContent ? JSON.parse(badge.textContent) : {};
-    cur.version = txt; show(cur);
+    cur.version = txt; show(txt);
   };
 
   if ('serviceWorker' in navigator) {
@@ -640,18 +617,7 @@ canvas{
     window.addEventListener('load', async () => {
       const reg = await navigator.serviceWorker.register('sw.js?v='+Date.now(), { updateViaCache:'none' });
 
-      function diag(){
-        const data = {
-          controlled: !!navigator.serviceWorker.controller,
-          page: location.pathname,
-          regScope: reg.scope,
-          active: reg.active?.scriptURL || null
-        };
-        show(data);
-        reg.active || reg.waiting || reg.installing
-          ? (reg.active||reg.waiting||reg.installing).postMessage({type:'__DIAG'})
-          : null;
-      }
+
 
       reg.addEventListener('updatefound', () => {
         const sw = reg.installing;
@@ -672,12 +638,6 @@ canvas{
         ch.port1.onmessage = (e)=>{ if (e.data?.type==='VERSION') window.__setAppVersion(e.data.cache); };
         sw.postMessage({type:'GET_VERSION'}, [ch.port2]);
       }
-
-      // Fallback – läs cache-namn
-      caches?.keys?.().then(keys => {
-        const k = keys.find(k => k.startsWith('maxpaint-'));
-        if (k) window.__setAppVersion(k);
-      });
     });
   } else {
     show({error:'no serviceWorker support'});
@@ -980,9 +940,7 @@ canvas{
 <canvas height="10" id="myCanvas" style="border:0px solid black" width="10"></canvas>
 
     
-<div class="version-badge" aria-label="App version">
-  <span id="appVersion"></span>
-</div>
+
 
 
  
@@ -4457,36 +4415,49 @@ function recalcCanvasSize() {
   }
 }
 
-document.getElementById('mnuNew').addEventListener('click', ()=>{closeAll();
-  if (confirm("Start a new drawing? Unsaved work will be lost.")) {
-    
-    
-    keyState.h=true;
-    drawareax=640;
-    drawareay=640;
-    zoom=1;
-    startan=false;
-    projectBitmaps = [null, null, null];
-    const g = drawingCanvas.getContext('2d');
-    g.fillStyle = "white";
-    g.fillRect(0,0,640,640);
-    btnP1?.click();
-    switchTool("pen");
-    resetPaletteToDefaults(0);
-    
-    (async () => {
-  const regs = await navigator.serviceWorker.getRegistrations?.() || [];
-  const ours = new URL('./', location.href).href; // t.ex. https://quantumstahl.github.io/paint/
-  for (const r of regs) if (r.scope !== ours) { try { await r.unregister(); } catch{} }
-  const keys = await caches.keys?.() || [];
-  await Promise.all(keys.map(k => caches.delete(k)));
-  location.reload();
-})();
-    
-  }
+document.getElementById('mnuNew').addEventListener('click', async ()=> {
+  closeAll();
+  if (!confirm("Start a new drawing? Unsaved work will be lost.")) return;
+
+  // --- Nollställ dokumentet som du gör idag
+  keyState.h = true;
+  drawareax = 640;
+  drawareay = 640;
+  zoom = 1;
+  startan = false;
+  projectBitmaps = [null, null, null];
+  const g = drawingCanvas.getContext('2d');
+  g.fillStyle = "white";
+  g.fillRect(0,0,640,640);
+  btnP1?.click();
+  switchTool("pen");
+  resetPaletteToDefaults(0);
+
+  // --- Endast om online och ny SW väntar → trigga takeover + auto-reload
+  const willReload = await maybeReloadIfNewVersionOnline();
+
+  // Om du även vill hard-reload om takeover uteblev av nån anledning, avkommentera:
+  // if (!willReload && navigator.onLine) location.reload();
 });
 
+async function maybeReloadIfNewVersionOnline() {
+  if (!navigator.onLine || !('serviceWorker' in navigator)) return false;
 
+  const reg = await navigator.serviceWorker.getRegistration();
+  if (!reg) return false;
+
+  // Kolla efter uppdatering
+  try { await reg.update(); } catch (_) {}
+
+  // Ny version finns om den hamnar i waiting
+  if (reg.waiting) {
+    // Ta över direkt – din controllerchange-listener sköter reload
+    reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    return true; // vi triggar reload via controllerchange
+  }
+
+  return false; // ingen ny version
+}
 
 
 
