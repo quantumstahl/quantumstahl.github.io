@@ -55,6 +55,23 @@
   })
   .catch(console.error);
 })();
+
+navigator.serviceWorker?.addEventListener('message', (ev) => {
+  if (ev.data && ev.data.type === 'VERSION') {
+    window.__swVersion = ev.data.cache;           // t.ex. "v1.02"
+    const el = document.getElementById('appVersion');
+    if (el) el.textContent = window.__swVersion || '';
+  }
+});
+
+// Be om version on demand
+async function requestSwVersion() {
+  const reg = await navigator.serviceWorker.getRegistration();
+  const sw = reg?.active || reg?.waiting || reg?.installing || navigator.serviceWorker.controller;
+  if (sw) sw.postMessage({ type: 'GET_VERSION' });
+}
+
+
 </script>
 
 
@@ -4415,11 +4432,11 @@ function recalcCanvasSize() {
   }
 }
 
-document.getElementById('mnuNew').addEventListener('click', async ()=> {
+document.getElementById('mnuNew').addEventListener('click', async () => {
   closeAll();
   if (!confirm("Start a new drawing? Unsaved work will be lost.")) return;
 
-  // --- Nollställ dokumentet som du gör idag
+  // --- Nollställ dokumentet
   keyState.h = true;
   drawareax = 640;
   drawareay = 640;
@@ -4433,10 +4450,10 @@ document.getElementById('mnuNew').addEventListener('click', async ()=> {
   switchTool("pen");
   resetPaletteToDefaults(0);
 
-  // --- Endast om online och ny SW väntar → trigga takeover + auto-reload
+  // --- Kolla ny version (endast online)
   const willReload = await maybeReloadIfNewVersionOnline();
 
-  // Om du även vill hard-reload om takeover uteblev av nån anledning, avkommentera:
+  // Vill du alltid göra en hard-reload om online men ingen auto-reload skedde? (valfritt)
   // if (!willReload && navigator.onLine) location.reload();
 });
 
@@ -4446,14 +4463,42 @@ async function maybeReloadIfNewVersionOnline() {
   const reg = await navigator.serviceWorker.getRegistration();
   if (!reg) return false;
 
-  // Kolla efter uppdatering
+  // Version före
+  const before = window.__swVersion || null;
+
+  // Be om uppdatering av SW
   try { await reg.update(); } catch (_) {}
 
-  // Ny version finns om den hamnar i waiting
+  // Om ny installerades hamnar den ofta i waiting
   if (reg.waiting) {
-    // Ta över direkt – din controllerchange-listener sköter reload
+    // Be den ta över → din befintliga controllerchange-lyssnare gör en (1) reload
     reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-    return true; // vi triggar reload via controllerchange
+    return true;
+  }
+
+  // Race-fall: fråga aktiv SW om version igen efter en liten delay
+  await new Promise(r => setTimeout(r, 300));
+  await requestSwVersion();
+
+  // Vänta in svar (upp till 800 ms)
+  const after = await new Promise(resolve => {
+    let done = false;
+    const t = setTimeout(() => { if (!done) { done = true; resolve(window.__swVersion || null); } }, 800);
+    const handler = (ev) => {
+      if (ev.data && ev.data.type === 'VERSION' && !done) {
+        done = true;
+        clearTimeout(t);
+        navigator.serviceWorker.removeEventListener('message', handler);
+        resolve(ev.data.cache || null);
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', handler, { once: true });
+  });
+
+  if (before && after && before !== after) {
+    // Versionen är annorlunda men ingen waiting (t.ex. redan aktiv) → hard reload
+    location.reload();
+    return true;
   }
 
   return false; // ingen ny version
