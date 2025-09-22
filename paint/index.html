@@ -4,7 +4,29 @@
 (function(){
   if (!('serviceWorker' in navigator)) return;
 
-  // 1) Lyssna på controllerchange och gör EN auto-reload
+  // --- Version badge hookup
+  const versionEl = document.getElementById('appVersion');
+  const badgeEl = document.querySelector('.version-badge');
+
+  function setVersion(text){
+    if (versionEl) versionEl.textContent = text || '';
+    if (badgeEl) badgeEl.setAttribute('aria-label', 'App version ' + (text || ''));
+  }
+
+  // Listen for SW messages
+  navigator.serviceWorker.addEventListener('message', (ev) => {
+    if (ev.data && ev.data.type === 'VERSION') {
+      setVersion(ev.data.cache);
+    }
+  });
+
+  // Helper: ask active/waiting SW for version
+  async function requestVersion(reg){
+    const sw = (reg && (reg.active || reg.waiting || reg.installing)) || navigator.serviceWorker.controller;
+    if (sw) sw.postMessage({ type: 'GET_VERSION' });
+  }
+
+  // Auto-reload once when controller changes (you already had this)
   let didReload = sessionStorage.getItem('sw-reloaded') === '1';
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!didReload) {
@@ -13,29 +35,26 @@
     }
   });
 
-  // 2) Registrera ASAP (inte i window.load)
+  // Register ASAP
   navigator.serviceWorker.register('sw.js?v=' + Date.now(), { updateViaCache: 'none' })
   .then(async (reg) => {
-    // 3) Om vi inte är controlled: be SW att CLAIM:a, annars nudge:a med explicit navigering
+    // If not controlled yet, nudge claim
     const nudge = async () => {
       try {
-        // försök 1: be aktiva (eller väntande) SW att claim:a
         const sw = reg.active || reg.waiting || reg.installing;
         if (sw) sw.postMessage({ type:'CLAIM' });
       } catch(e){}
-      // efter lite tid, fortfarande inte controlled? – gör EN explicit nav till index.html
       setTimeout(() => {
         if (!navigator.serviceWorker.controller && !didReload) {
           sessionStorage.setItem('sw-reloaded','1');
-          // Viktigt: explicit fil-url hjälper vissa webviews jämfört med katalog-url
           location.replace('./index.html?sw=1');
         }
       }, 1200);
     };
-
     if (!navigator.serviceWorker.controller) nudge();
 
-    // 4) Om en ny SW går in i "waiting" -> ta över direkt
+    // Ask for version now and whenever updatefound settles
+    requestVersion(reg);
     reg.addEventListener('updatefound', () => {
       const sw = reg.installing;
       if (!sw) return;
@@ -43,6 +62,8 @@
         if (sw.state === 'installed' && reg.waiting && navigator.serviceWorker.controller) {
           reg.waiting.postMessage({ type:'SKIP_WAITING' });
         }
+        // After state changes, try to get version again
+        requestVersion(reg);
       });
     });
   })
@@ -5137,8 +5158,8 @@ function resetPaletteToDefaults(activateIndex = 0){
 
                 
                 // Draw the document background
-               // ctx.fillStyle = "#4D4D4D";
-               ctx.fillStyle = "yellow";
+                ctx.fillStyle = "#4D4D4D";
+              // ctx.fillStyle = "yellow";
                 ctx.fillRect(0, 0, canvas.width/devicePixelRatio, canvas.height/devicePixelRatio);
                 
  

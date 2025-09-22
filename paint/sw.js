@@ -1,5 +1,4 @@
-// Enkel offline-cache för MaxPaint
-const CACHE_NAME = 'maxpaint-v3.00';
+const CACHE_NAME = 'v1.01'; // <- this is what you'll show in the badge
 const ASSETS = [
   'index.html',
   'app.js',
@@ -9,32 +8,41 @@ const ASSETS = [
   'manifest.webmanifest'
 ];
 
+// Install (optional pre-cache)
 self.addEventListener('install', (e) => {
-  e.waitUntil(/* precache */);
-  self.skipWaiting(); // gå direkt till activate
+  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)).catch(()=>{}));
+  self.skipWaiting();
 });
 
-// i activate
+// Activate: clean old caches + broadcast version
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
-    // rensa gamla caches...
-    await self.clients.claim(); // TA ÖVER alla öppna flikar inom scope
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)));
+    await self.clients.claim();
+
+    // Tell every window what version we are
+    const clis = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const cli of clis) {
+      cli.postMessage({ type: 'VERSION', cache: CACHE_NAME });
+    }
   })());
 });
 
-// lägg till i message-handlaren:
+// Reply on demand
 self.addEventListener('message', (ev) => {
   const t = ev.data && ev.data.type;
   if (t === 'SKIP_WAITING') self.skipWaiting();
-  if (t === 'CLAIM') {        // <- NYTT: explicit claim på begäran
+  if (t === 'CLAIM') {
     self.clients.claim();
-    ev.source && ev.source.postMessage({ type:'CLAIMED' });
+    ev.source && ev.source.postMessage({ type: 'CLAIMED' });
+  }
+  if (t === 'GET_VERSION') {
+    ev.source && ev.source.postMessage({ type: 'VERSION', cache: CACHE_NAME });
   }
 });
 
-
-/*
-// Network-first för allt dynamiskt, fallback till cache offline
+// Network-first with cache fallback
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   e.respondWith(
@@ -44,5 +52,4 @@ self.addEventListener('fetch', (e) => {
       return res;
     }).catch(() => caches.match(req).then(m => m || caches.match('/')))
   );
-});*/
-
+});
