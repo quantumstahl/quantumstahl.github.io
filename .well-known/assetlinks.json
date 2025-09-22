@@ -5,7 +5,8 @@
       "namespace": "android",
       "package_name": "se.dittnamn.maxpaint",
       "sha256_cert_fingerprints": [
-        "47:31:74:23:7F:88:B6:EC:2A:32:A6:28:5A:CE:D9:87:16:37:D8:73:47:A2:F3:36:35:3F:C0:4B:D1:7C:F3:01"
+        "47:31:74:23:7F:88:B6:EC:2A:32:A6:28:5A:CE:D9:87:16:37:D8:73:47:A2:F3:36:35:3F:C0:4B:D1:7C:F3:01",
+	"26:65:00:32:7C:32:DA:AC:A8:7D:ED:E2:06:12:4F:22:B0:EA:1C:F7:D9:48:65:ED:60:55:57:C7:45:87:19:91"
       ]
     }
   }
