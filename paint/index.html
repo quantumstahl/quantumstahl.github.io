@@ -39,6 +39,8 @@
     };
     if (!navigator.serviceWorker.controller) nudge();
 
+
+
     // Ask for version now and whenever updatefound settles
     requestVersion(reg);
     reg.addEventListener('updatefound', () => {
@@ -609,63 +611,58 @@ canvas{
 <body>  
 <div id="swBadge" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:#111;color:#ffffff;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui"></div>
 <script>
-(function(){
+(() => {
   const badge = document.getElementById('swBadge');
-  function show(obj){ badge.textContent = obj; }
+  if (!badge) return;
 
-  window.__setAppVersion = (txt)=> {
-    const cur = badge.textContent ? JSON.parse(badge.textContent) : {};
-    cur.version = txt; show(txt);
+  // Håll all data i ett objekt; rendera text separat.
+  const state = {
+    version: '',   // visas på badgen
+    scope: '',
+    scriptURL: '',
+    keys: null
   };
 
+  function render() {
+    badge.textContent = state.version || '';
+    // Lägg debug-info i title + data-attribut (ingen JSON i texten)
+    badge.title = JSON.stringify(state, null, 2);
+    badge.dataset.scope = state.scope || '';
+    badge.dataset.scripturl = state.scriptURL || '';
+  }
+
+  // Publik helper från app-kod
+  window.__setAppVersion = (txt) => {
+    state.version = String(txt ?? '');
+    render();
+  };
+
+  // Lyssna på SW-meddelanden
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', (e) => {
-      if (e.data?.type === 'VERSION') {
-        window.__setAppVersion(e.data.cache);
-        const cur = badge.textContent ? JSON.parse(badge.textContent) : {};
-        cur.scope = e.data.scope; cur.scriptURL = e.data.scriptURL || cur.scriptURL; show(cur);
-      }
-      if (e.data?.type === '__DIAG_REPLY') {
-        const cur = badge.textContent ? JSON.parse(badge.textContent) : {};
-        cur.keys = e.data.keys; cur.scope = e.data.scope; cur.scriptURL = e.data.scriptURL; show(cur);
-      }
-    });
-
-    window.addEventListener('load', async () => {
-      const reg = await navigator.serviceWorker.register('sw.js?v='+Date.now(), { updateViaCache:'none' });
-
-
-
-      reg.addEventListener('updatefound', () => {
-        const sw = reg.installing;
-        sw && sw.addEventListener('statechange', () => {
-          if (sw.state === 'installed' && reg.waiting && navigator.serviceWorker.controller) {
-            reg.waiting.postMessage({type:'SKIP_WAITING'});
-          }
-        });
-      });
-
-      navigator.serviceWorker.addEventListener('controllerchange', diag);
-      diag();
-
-      // Begär version
-      const sw = reg.active || reg.waiting || reg.installing;
-      if (sw) {
-        const ch = new MessageChannel();
-        ch.port1.onmessage = (e)=>{ if (e.data?.type==='VERSION') window.__setAppVersion(e.data.cache); };
-        sw.postMessage({type:'GET_VERSION'}, [ch.port2]);
+      const d = e.data || {};
+      if (d.type === 'VERSION') {
+        state.version   = d.cache ?? d.version ?? state.version;
+        state.scope     = d.scope ?? state.scope;
+        state.scriptURL = d.scriptURL ?? state.scriptURL;
+        render();
+      } else if (d.type === '__DIAG_REPLY') {
+        state.keys      = d.keys ?? state.keys;
+        state.scope     = d.scope ?? state.scope;
+        state.scriptURL = d.scriptURL ?? state.scriptURL;
+        render();
       }
     });
-  } else {
-    show({error:'no serviceWorker support'});
+
+    // Be aktiv SW om version direkt när den är redo
+    navigator.serviceWorker.ready
+      .then(reg => reg.active && reg.active.postMessage({ type: 'GET_VERSION' }))
+      .catch(()=>{ /* no-op */ });
   }
+
+  render();
 })();
-
-
-
-
-
-</script>    
+</script> 
 <label for="directFileInput" style="position:absolute; top:10px; left:0px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; min-width:90px; text-align:center; font-size:16px;">Open Image</label>
 <input accept="image/*" id="directFileInput" style="position:absolute; left:-200px;" type="file"/>
 <!-- Save Image button, positioned much lower -->
