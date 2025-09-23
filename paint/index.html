@@ -4422,11 +4422,15 @@ document.getElementById('mnuNew').addEventListener('click', async () => {
   if (!confirm("Start a new drawing? Unsaved work will be lost.")) return;
 
   // --- Nollställ dokumentet
+  
+  
+  currentproject=0;
   keyState.h = true;
   drawareax = 640;
   drawareay = 640;
   zoom = 1;
   startan = false;
+  zoomvalue=100;
   projectBitmaps = [null, null, null];
   const g = drawingCanvas.getContext('2d');
   g.fillStyle = "white";
@@ -5131,8 +5135,8 @@ document.addEventListener('visibilitychange', () => {
                     projectdrawareay = [drawareay, drawareay, drawareay];
                     projectdrawstartx = [drawstartx, drawstartx, drawstartx];
                     projectdrawstarty = [drawstarty, drawstarty, drawstarty];
-                     
-                    
+                    projectcamerax =[0,0,0]; 
+                    projectcameray =[0,0,0]; 
                     
                     projectzoom = [zoom, zoom, zoom];
                     if(mobileAndTabletCheck())HANDLE_SIZE_SCR = 24;
