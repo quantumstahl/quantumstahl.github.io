@@ -5096,7 +5096,7 @@ document.addEventListener('visibilitychange', () => {
                     resizeCanvas();
 
                 }
-                if((document.body.clientWidth > 100 && startan == false))zoom=zoom/zomzomzom;
+                if((document.body.clientWidth > 100 && startan == false)){zoom=zoom/zomzomzom;}
                 
                 knäppt=true;
             //    zoom=zoom/zomzomzom;
@@ -5105,7 +5105,7 @@ document.addEventListener('visibilitychange', () => {
                   
                     const oldZoom = zoom;
                     const newZoom = zoomvalue / 100;
-                    setZoomAroundScreenCenter(zoomvalue / 100,zoom);
+                    if(startan)setZoomAroundScreenCenter(zoomvalue / 100,zoom);
                     zoom = newZoom;
                     drawareax = drawareax / oldZoom * newZoom;
                     drawareay = drawareay / oldZoom * newZoom;
