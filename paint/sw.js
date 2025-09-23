@@ -1,4 +1,4 @@
-const CACHE_NAME = 'v1.00'; // <- this is what you'll show in the badge
+const CACHE_NAME = 'v1.01'; // <- this is what you'll show in the badge
 const ASSETS = [
   'index.html',
   'app.js',

@@ -49,8 +49,6 @@
         });
       });
 
-      navigator.serviceWorker.addEventListener('controllerchange', diag);
-      diag();
 
   })
   .catch(console.error);
@@ -4718,7 +4716,7 @@ function beginAction(label = ''){
   const { snap, imgW, imgH } = captureRegionSnapshot();
   
 
-      if(canvasw===0||startansasa){
+      if(savebmp===null||startansasa){
           
         startansasa=false;
         savelabel=label;
@@ -4799,26 +4797,28 @@ function endAction(cowcow){
       
       pruneStack(undoMap.get(currentproject));
       while (redoMap.get(currentproject)?.length) redoMap.get(currentproject)?.pop();
-      canvasw=0;
+      savebmp=null;
       markDirty();
 
   }
 }
 
-
+let stopperus=false;
 function restoreState(state){
   if (!state || !state.bmp) return;
   drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
   if (typeof disableSmoothing === 'function') disableSmoothing(drawingCtx);
   drawingCtx.drawImage(state.bmp, 0, 0);
 
-  zoom = state.zoom;
+  //zoom = state.zoom;
   drawareax = state.w * zoom;
   drawareay = state.h * zoom;
   // Lita på att drawstartx/y redan är rätt preppade (via ko())
+  
+  
   drawstartx = state.drawstartx;
   drawstarty = state.drawstarty;
-
+  stopperus=true;
   if (typeof markDirty === 'function') markDirty();
 }
 function ko(stack){
@@ -4972,14 +4972,14 @@ function cameraHome(){keyState.h=true;}
 function setZoomAroundScreenCenter(newZoom,oldZoom){
   const sx = window.innerWidth  / 2;
   const sy = window.innerHeight / 2;
-  setZoomAroundScreenPoint(newZoom, sx, sy, "shiftDrawstart",oldZoom);
+  setZoomAroundScreenPoint(newZoom, sx, sy, "shiftCamera",oldZoom);
 }
 
 
 
 
 // mode: "shiftDrawstart" (default), "shiftCamera", eller "snapDrawstartInt"
-function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftDrawstart",oldZoom){
+function setZoomAroundScreenPoint(newZoom, sx, sy, mode = "shiftCamera",oldZoom){
   const z0  = _effectiveZoom() ;                     // gamla zoomen (samma som i render)
   const ox0 = drawstartx + camera.x;                // kombinerad offset före zoom
   const oy0 = drawstarty + camera.y;
@@ -5059,6 +5059,12 @@ function resetPaletteToDefaults(activateIndex = 0){
   }
   // om du visar förhandsvisning etc., uppdatera där också vid behov
 }
+
+let running = true;
+document.addEventListener('visibilitychange', () => {
+  running = (document.visibilityState === 'visible');
+});
+
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
@@ -5188,8 +5194,8 @@ function resetPaletteToDefaults(activateIndex = 0){
                 // Use integer coordinates and add 1px buffer to prevent edge artifacts
                 const patternX = Math.floor(drawstartx+1+camera.x);
                 const patternY = Math.floor(drawstarty+1+camera.y);
-                const patternWidth = (Math.ceil(drawareax + (drawstartx+camera.x - patternX)) - 3);
-                const patternHeight = (Math.ceil(drawareay + (drawstarty+camera.y - patternY)) - 3);
+                const patternWidth = (Math.ceil(drawareax + (drawstartx+camera.x - patternX)-1) - 0);
+                const patternHeight = (Math.ceil(drawareay + (drawstarty+camera.y - patternY)-1) - 0);
                 ctx.fillRect(patternX, patternY, patternWidth, patternHeight);
 
 
@@ -5320,7 +5326,7 @@ function resetPaletteToDefaults(activateIndex = 0){
             
             
             
-                window.requestAnimationFrame(check);   
+                if(running)window.requestAnimationFrame(check);   
             }; 
             
             check();
@@ -5567,8 +5573,6 @@ async function saveVisible(){
 
 
 
-
-window.addEventListener('load', wireSwVersionBadge);
   // Enkel iOS-hint (visas bara i Safari när appen EJ är installerad)
   (function showIOSInstallHint(){
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
