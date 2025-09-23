@@ -22,7 +22,7 @@
   });
 
   // Register ASAP
-  navigator.serviceWorker.register('sw.js?v=' + Date.now(), { updateViaCache: 'none' })
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
   .then(async (reg) => {
     // If not controlled yet, nudge claim
     const nudge = async () => {
@@ -40,31 +40,21 @@
     if (!navigator.serviceWorker.controller) nudge();
 
 
-
-    // Ask for version now and whenever updatefound settles
-    requestVersion(reg);
     reg.addEventListener('updatefound', () => {
-      const sw = reg.installing;
-      if (!sw) return;
-      sw.addEventListener('statechange', () => {
-        if (sw.state === 'installed' && reg.waiting && navigator.serviceWorker.controller) {
-          reg.waiting.postMessage({ type:'SKIP_WAITING' });
-        }
-        // After state changes, try to get version again
-        requestVersion(reg);
+        const sw = reg.installing;
+        sw && sw.addEventListener('statechange', () => {
+          if (sw.state === 'installed' && reg.waiting && navigator.serviceWorker.controller) {
+            reg.waiting.postMessage({type:'SKIP_WAITING'});
+          }
+        });
       });
-    });
+
+      navigator.serviceWorker.addEventListener('controllerchange', diag);
+      diag();
+
   })
   .catch(console.error);
 })();
-
-navigator.serviceWorker?.addEventListener('message', (ev) => {
-  if (ev.data && ev.data.type === 'VERSION') {
-    window.__swVersion = ev.data.cache;           // t.ex. "v1.02"
-    const el = document.getElementById('appVersion');
-    if (el) el.textContent = window.__swVersion || '';
-  }
-});
 
 // Be om version on demand
 async function requestSwVersion() {
@@ -662,7 +652,7 @@ canvas{
 
   render();
 })();
-</script> 
+</script>  
 <label for="directFileInput" style="position:absolute; top:10px; left:0px; z-index:1000; display:inline-block; background-color:#4CAF50; color:white; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; min-width:90px; text-align:center; font-size:16px;">Open Image</label>
 <input accept="image/*" id="directFileInput" style="position:absolute; left:-200px;" type="file"/>
 <!-- Save Image button, positioned much lower -->
