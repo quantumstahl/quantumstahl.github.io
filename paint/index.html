@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 
 <script>
+    
 (function(){
   if (!('serviceWorker' in navigator)) return;
-
+  
 
 
   // Helper: ask active/waiting SW for version
@@ -1188,8 +1189,7 @@ canvas{
             // Create an in-memory canvas to store our drawing
             const drawingCanvas = document.createElement('canvas');
             const drawingCtx = drawingCanvas.getContext('2d');
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
+            
             
             const eyedropperCanvas = document.createElement('canvas');
             const eyedropperCtx = eyedropperCanvas.getContext('2d');
@@ -1512,16 +1512,12 @@ confirmResizeBtn.addEventListener('click', async function() {
  
                 drawingCanvas.width = 4000;
                 drawingCanvas.height = 4000;
-                tempCanvas.width = 4000;
-                tempCanvas.height = 4000;
                 
                 
             }
             else{
                 drawingCanvas.width = 10000;
                 drawingCanvas.height = 10000;
-                tempCanvas.width = 10000;
-                tempCanvas.height = 10000;
             }
             
             // Fill the drawing canvas with white initially
@@ -1538,7 +1534,7 @@ confirmResizeBtn.addEventListener('click', async function() {
             
             disableSmoothing(ctx);
             disableSmoothing(drawingCtx);
-            disableSmoothing(tempCtx);
+
     
             let drawareax = 640;
             let drawareay = 640;
@@ -2032,10 +2028,7 @@ function switchTool(newTool, opts = {}) {
                     // Ensure smooth rendering is disabled
                     disableSmoothing(drawingCtx);
 
-                    // Also resize temp canvas
-                    tempCanvas.width = drawingCanvas.width;
-                    tempCanvas.height = drawingCanvas.height;
-                    disableSmoothing(tempCtx);
+
 
                     console.log(`Canvas resized to ${drawingCanvas.width}x${drawingCanvas.height}`);
                 }
@@ -3077,7 +3070,7 @@ function resizeStart(corner){
   rc_baseStartX = Math.round(drawstartx+camera.x);   // <- BASELÄGE
   rc_baseStartY = Math.round(drawstarty+camera.y);   // <- BASELÄGE
   rc_snap = _snapshotDocArea(rc_oldW, rc_oldH);
-  beginAction?.(); // ett undo-steg
+  beginAction(); // ett undo-steg
   rc_active = true;
 }
 
@@ -4787,6 +4780,7 @@ function endAction(cowcow){
         canvasw = curVW;
         canvash = curVH;
         
+        
       } 
       
       
@@ -4814,14 +4808,12 @@ function restoreState(state){
   if (typeof disableSmoothing === 'function') disableSmoothing(drawingCtx);
   drawingCtx.drawImage(state.bmp, 0, 0);
 
-  //zoom = state.zoom;
+  drawstartx += +drawareax-state.w * zoom;
+  drawstarty += +drawareay-state.h * zoom;
+  
   drawareax = state.w * zoom;
   drawareay = state.h * zoom;
-  // Lita på att drawstartx/y redan är rätt preppade (via ko())
   
-  
-  drawstartx = state.drawstartx;
-  drawstarty = state.drawstarty;
   stopperus=true;
   if (typeof markDirty === 'function') markDirty();
 }
@@ -4874,7 +4866,6 @@ function undo(){
 
   const cur = captureRegionSnapshot();
 
-
   // flytta current → redo
   redoMap.get(currentproject)?.push({
     bmp: cur.snap, w: cur.imgW, h: cur.imgH,
@@ -4882,6 +4873,7 @@ function undo(){
     zoom, canvasw:window.innerWidth, canvash:window.innerHeight,
     ox: undoMap.get(currentproject)?.at(-1)?.ox,
     oy: undoMap.get(currentproject)?.at(-1)?.oy
+    
   });
   pruneStack(redoMap.get(currentproject));
   
@@ -4901,7 +4893,6 @@ function redo(){
 
   const cur = captureRegionSnapshot();
 
-
   // flytta current → undo
   undoMap.get(currentproject)?.push({
     bmp: cur.snap, w: cur.imgW, h: cur.imgH,
@@ -4909,6 +4900,7 @@ function redo(){
     zoom, canvasw:window.innerWidth, canvash:window.innerHeight,
     ox: redoMap.get(currentproject)?.at(-1)?.ox,
     oy: redoMap.get(currentproject)?.at(-1)?.oy // <-- fix: inte .ox
+    
   });
   pruneStack(undoMap.get(currentproject));
   const willShow = redoMap.get(currentproject)?.at(-1) ?? null;
@@ -5150,9 +5142,10 @@ document.addEventListener('visibilitychange', () => {
                     redoMap.set(0,[]);
                     redoMap.set(1,[]);
                     redoMap.set(2,[]);
+                    
+                    
                 }
                 
-      
                     if(firstbloodx===null){
         
         firstbloodx=drawstartx;
