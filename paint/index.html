@@ -3106,7 +3106,7 @@ function resizeCommit(){
   if (rc_corner === 'NW' || rc_corner === 'NE'){ drawstarty += (rc_oldH - newH) * z;}
   if (rc_corner === 'NW' || rc_corner === 'SW'){ drawstartx += (rc_oldW - newW) * z;}
 
-  if (typeof endAction === 'function') endAction();
+  if (typeof endAction === 'function') endAction(false,rc_corner);
   rc_active = false; rc_snap = null;
 }
 
@@ -4744,7 +4744,7 @@ function destroyAction(){
     canvasw=0;
     canvash=0;
 }
-function endAction(cowcow){
+function endAction(cowcow,corner){
   if (typeof markDirty === 'function'){
       if(savebmp===null){return;}
       
@@ -4789,7 +4789,7 @@ function endAction(cowcow){
         savelabel,
         bmp: savebmp,         // snapshot canvas av bildytan
         w: savew, h: saveh,  // "logiska" bildmått i px (utan zoom)
-        drawareax:savedrawareax, drawareay:savedrawareay, drawstartx:savedrawstartx, drawstarty:savedrawstarty, zoom:savezoom,canvasw:canvasw,canvash:canvash,ox:savedrawstartx,oy:savedrawstarty
+        drawareax:savedrawareax, drawareay:savedrawareay, drawstartx:savedrawstartx, drawstarty:savedrawstarty, zoom:savezoom,canvasw:canvasw,canvash:canvash,ox:savedrawstartx,oy:savedrawstarty,corner:corner
       });
       ko(undoMap.get(currentproject));
       
@@ -4801,22 +4801,49 @@ function endAction(cowcow){
   }
 }
 
-let stopperus=false;
+function anchorFromCorner(corner){
+  switch(corner){
+    case "NW": return { ax: 1,   ay: 1   }; // fixa SE
+    case "NE": return { ax: 0,   ay: 1   }; // fixa SW
+    case "SW": return { ax: 1,   ay: 0   }; // fixa NE
+    case "SE": return { ax: 0,   ay: 0   }; // fixa NW
+    case "C":  return { ax: 0.5, ay: 0.5 }; // centrera
+    default:   return { ax: 0.5, ay: 0.5 }; // robust fallback
+  }
+}
+
 function restoreState(state){
   if (!state || !state.bmp) return;
+
+  // 1) rita tillbaka
   drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
   if (typeof disableSmoothing === 'function') disableSmoothing(drawingCtx);
   drawingCtx.drawImage(state.bmp, 0, 0);
 
-  drawstartx += +drawareax-state.w * zoom;
-  drawstarty += +drawareay-state.h * zoom;
+  // 2) räkna ankarjustering
+  const oldW = drawareax;
+  const oldH = drawareay;
+  const newW = state.w * zoom;
+  const newH = state.h * zoom;
+
+  const { ax, ay } = anchorFromCorner(state.corner);
+
+  // Håll (ax,ay)-ankaret stilla:
+  drawstartx += ax * (oldW - newW);
+  drawstarty += ay * (oldH - newH);
+
+  // 3) sätt nya drawarea
+  drawareax = newW;
+  drawareay = newH;
+
+  // 4) kvantisera (eliminerar fp-drift vid hög zoom)
+  drawstartx = Math.round(drawstartx);
+  drawstarty = Math.round(drawstarty);
+
   
-  drawareax = state.w * zoom;
-  drawareay = state.h * zoom;
-  
-  stopperus=true;
   if (typeof markDirty === 'function') markDirty();
 }
+
 function ko(stack){
   if (!stack || !stack.length) return;
   
@@ -4872,8 +4899,8 @@ function undo(){
     drawareax, drawareay, drawstartx, drawstarty,
     zoom, canvasw:window.innerWidth, canvash:window.innerHeight,
     ox: undoMap.get(currentproject)?.at(-1)?.ox,
-    oy: undoMap.get(currentproject)?.at(-1)?.oy
-    
+    oy: undoMap.get(currentproject)?.at(-1)?.oy,
+    corner: undoMap.get(currentproject)?.at(-1)?.corner
   });
   pruneStack(redoMap.get(currentproject));
   
@@ -4884,7 +4911,7 @@ function undo(){
   }
 
 
-  restoreState(willShow);
+  restoreState(willShow,true);
   undoMap.get(currentproject)?.pop();
 }
 
@@ -4899,7 +4926,8 @@ function redo(){
     drawareax, drawareay, drawstartx, drawstarty,
     zoom, canvasw:window.innerWidth, canvash:window.innerHeight,
     ox: redoMap.get(currentproject)?.at(-1)?.ox,
-    oy: redoMap.get(currentproject)?.at(-1)?.oy // <-- fix: inte .ox
+    oy: redoMap.get(currentproject)?.at(-1)?.oy, // <-- fix: inte .ox
+    corner: redoMap.get(currentproject)?.at(-1)?.corner
     
   });
   pruneStack(undoMap.get(currentproject));
@@ -4909,7 +4937,7 @@ function redo(){
   }
   
 
-  restoreState(willShow);
+  restoreState(willShow,false);
   redoMap.get(currentproject)?.pop();
 }
 
@@ -5069,7 +5097,7 @@ document.addEventListener('visibilitychange', () => {
                 if(keyState.down)camera.y+=6;
                 if(keyState.left)camera.x-=6;
                 if(keyState.right)camera.x+=6;
-                if(keyState.h){drawstartx = firstbloodx;drawstarty = firstbloody;camera.x=0;camera.y=0;if(hcounter==0){hcounter=3;keyState.h=false;}hcounter--;zoomvalue=100;document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
+                if(keyState.h){camera.x=0;camera.y=0;if(hcounter==0){hcounter=3;keyState.h=false;}hcounter--;zoomvalue=100;document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
                 if(keyState.plus){newzoom = Math.max(0.10, Math.min(zoom*1.01, 50));zoomvalue = Math.ceil(newzoom * 100);document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
                 if(keyState.minus){newzoom = Math.max(0.10, Math.min(zoom*0.99, 50));zoomvalue = Math.floor(newzoom * 100);document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
                 
@@ -5145,22 +5173,7 @@ document.addEventListener('visibilitychange', () => {
                     
                     
                 }
-                
-                    if(firstbloodx===null){
-        
-        firstbloodx=drawstartx;
-        firstbloody=drawstarty;
-    }
-   
-                
-                // Store the old dimensions before any changes
-                const oldDrawStartX = drawstartx;
-                const oldDrawStartY = drawstarty;
-                const oldDrawAreaX = drawareax;
-                const oldDrawAreaY = drawareay;
-                
-                
-                
+
 
                 
                 // Draw the document background
