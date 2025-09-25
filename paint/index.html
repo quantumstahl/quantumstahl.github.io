@@ -3783,7 +3783,7 @@ function _copyViaEditableIMG(dataURL) {
 
 async function copySelectionMobileFriendly() {
   const url = _buildCopyDataURL();
-  if (!url || url === 'data:,') { _toast('Inget att kopiera.'); return; }
+  if (!url || url === 'data:,') { _toast('Nothing to copy.'); return; }
 
   // 1) Riktig bild till urklipp — iOS/Safari vill ha PROMISE direkt i ClipboardItem
   try {
@@ -3791,7 +3791,7 @@ async function copySelectionMobileFriendly() {
       const blobPromise = (async () => (await fetch(url)).blob())(); // <- Promise, inte färdig blob
       const item = new ClipboardItem({ 'image/png': blobPromise });
       await navigator.clipboard.write([item]);
-      _toast('Kopierat (bild).');
+      _toast('copied (image).');
       return;
     }
   } catch (e) {
@@ -3801,7 +3801,7 @@ async function copySelectionMobileFriendly() {
   // 2) iOS-fallback: contenteditable + IMG + execCommand('copy')
   try {
     if (_copyViaEditableIMG(url)) {
-      _toast('Kopierat (iOS-fallback).');
+      _toast('copied (image).');
       return;
     }
   } catch (e2) {
@@ -3812,16 +3812,15 @@ async function copySelectionMobileFriendly() {
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(url);
-      _toast('Kopierat (text-dataURL).');
+      _toast('copied (text-dataURL).');
       return;
     }
   } catch {}
 
   // 4) execCommand (textarea)
-  if (_fallbackTextareaCopy(url)) { _toast('Kopierat.'); return; }
+  if (_fallbackTextareaCopy(url)) { _toast('copied.'); return; }
 
-  // 5) prompt (sista utvägen)
-  try { window.prompt('Tryck Kopiera:', url); } catch {}
+
 }
 //-----NYTT
 // ===== BEGIN PATCH: resize-corners state =====
