@@ -5086,7 +5086,11 @@ function resetPaletteToDefaults(activateIndex = 0){
 
 let running = true;
 document.addEventListener('visibilitychange', () => {
+    
+  if(!running)  window.requestAnimationFrame(check);
+    
   running = (document.visibilityState === 'visible');
+  
 });
 
             //check---------------------------------------------------------------------------------------
