@@ -2,7 +2,7 @@
   {
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
-      "namespace": "android",
+      "namespace": "android_app",
       "package_name": "se.dittnamn.maxpaint",
       "sha256_cert_fingerprints": [
         "47:31:74:23:7F:88:B6:EC:2A:32:A6:28:5A:CE:D9:87:16:37:D8:73:47:A2:F3:36:35:3F:C0:4B:D1:7C:F3:01",
