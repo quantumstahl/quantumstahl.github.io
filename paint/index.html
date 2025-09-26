@@ -477,7 +477,13 @@ canvas{
   .palette-grid .color-swatch{ width:1.8125rem; height:1.8125rem; border-radius:0.3125rem; }
   .edit-btn{ width:1.8125rem; height:1.8125rem; border-radius:0.4375rem; font-size:1.25rem; }
 
-  #brushSizeSlider, #zoomSlider{ max-width:46vw; height:1rem; }
+  #brushSizeSlider, #zoomSlider{ max-width:36vw; height:1rem; }
+  #brushSizeSlider::-webkit-slider-thumb,
+  #zoomSlider::-webkit-slider-thumb{
+      box-shadow: 0 0 0 12px rgba(0,0,0,0); /* ökar hit area */
+  }
+  
+  
   #zoomLabel, #brushSizeLabel{ font-size:0.5625rem; }
 }
 
