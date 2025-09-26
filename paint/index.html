@@ -1187,8 +1187,8 @@ canvas{
             document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
     
             // Create an in-memory canvas to store our drawing
-            const drawingCanvas = document.createElement('canvas');
-            const drawingCtx = drawingCanvas.getContext('2d');
+            let drawingCanvas = document.createElement('canvas');
+            let drawingCtx = drawingCanvas.getContext('2d');
             
             
             const eyedropperCanvas = document.createElement('canvas');
@@ -1357,6 +1357,16 @@ confirmResizeBtn.addEventListener('click', async function() {
 
     // Validate dimensions
     
+    if(mobileAndTabletCheck()){
+        if(newWidth<=4000 && newHeight<=4000)ensureCanvasSize(newWidth, newHeight);
+        
+    }
+    else{
+        if(newWidth<=10000 && newHeight<=10000)ensureCanvasSize(newWidth, newHeight);
+        
+    }
+    
+    
     if (isNaN(newWidth) || newWidth < 1 || isNaN(newHeight) || newHeight < 1 || newWidth>drawingCanvas.width||newHeight>drawingCanvas.height) {
         alert('Invalid dimensions');
         return;
@@ -1510,14 +1520,14 @@ confirmResizeBtn.addEventListener('click', async function() {
             
             if(mobileAndTabletCheck()){
  
-                drawingCanvas.width = 4000;
-                drawingCanvas.height = 4000;
+                drawingCanvas.width = 320;
+                drawingCanvas.height = 320;
                 
                 
             }
             else{
-                drawingCanvas.width = 10000;
-                drawingCanvas.height = 10000;
+                drawingCanvas.width = 640;
+                drawingCanvas.height = 640;
             }
             
             // Fill the drawing canvas with white initially
@@ -2033,6 +2043,7 @@ function switchTool(newTool, opts = {}) {
                     console.log(`Canvas resized to ${drawingCanvas.width}x${drawingCanvas.height}`);
                 }
             }
+            
 function odd(n){ return (n|1); }
 
 drawingCtx.imageSmoothingEnabled = false;
@@ -2996,37 +3007,37 @@ function _snapshotDocArea(docW, docH){
 }
 
 // rita tillbaka utan förlust (oavsett riktning)
-function blitNoLoss(tempCanvas, newW, newH, dx, dy, bgColor = 'transparent'){
-  const oldW = tempCanvas.width, oldH = tempCanvas.height;
+function blitNoLoss(tempCanvas, newW, newH, dx, dy, bgColor='transparent'){
+  const oldW = tempCanvas.width|0, oldH = tempCanvas.height|0;
 
-  const dstX = (dx>0 ? dx : 0) | 0;
-  const dstY = (dy>0 ? dy : 0) | 0;
-  const srcX = (dx<0 ? -dx : 0) | 0;
-  const srcY = (dy<0 ? -dy : 0) | 0;
-
-  const copyW = Math.max(0, Math.min(oldW - srcX, newW - dstX)) | 0;
-  const copyH = Math.max(0, Math.min(oldH - srcY, newH - dstY)) | 0;
-
-  // 1) clearRect gör ytan helt transparent
-  drawingCtx.clearRect(0, 0, Math.max(oldW,newW), Math.max(oldH,newH));
-
-  // 2) Fyll endast om du VILL ha en bakgrundsfärg
-  if (bgColor && bgColor !== 'transparent') {
-    drawingCtx.save();
-    drawingCtx.fillStyle = bgColor; // t.ex. '#ffffff'
-    drawingCtx.fillRect(0, 0, newW, newH);
-    drawingCtx.restore();
+  // ☑️ Resiza målcanvas först
+  if (drawingCanvas.width !== newW || drawingCanvas.height !== newH){
+    drawingCanvas.width  = newW|0;
+    drawingCanvas.height = newH|0;
+    drawingCtx = drawingCanvas.getContext('2d', { alpha:true });
+    drawingCtx.imageSmoothingEnabled = false;
   }
 
-  // 3) Kopiera overlap (förlustfritt)
+  const dstX = dx>0 ? dx|0 : 0;
+  const dstY = dy>0 ? dy|0 : 0;
+  const srcX = dx<0 ? (-dx)|0 : 0;
+  const srcY = dy<0 ? (-dy)|0 : 0;
+
+  const copyW = Math.max(0, Math.min(oldW - srcX, newW - dstX))|0;
+  const copyH = Math.max(0, Math.min(oldH - srcY, newH - dstY))|0;
+
+  if (bgColor && bgColor !== 'transparent') {
+    drawingCtx.fillStyle = bgColor;
+    drawingCtx.fillRect(0,0,newW,newH);
+  } else {
+    drawingCtx.clearRect(0,0,newW,newH);
+  }
+
   if (copyW>0 && copyH>0){
-    drawingCtx.drawImage(
-      tempCanvas,
-      srcX, srcY, copyW, copyH,
-      dstX, dstY, copyW, copyH
-    );
+    drawingCtx.drawImage(tempCanvas, srcX, srcY, copyW, copyH, dstX, dstY, copyW, copyH);
   }
 }
+
 
 // dx,dy beroende på vilket hörn som dras — bevara motsatt hörn
 function offsetForCorner(corner, oldW, oldH, newW, newH){
@@ -3091,22 +3102,45 @@ function resizePreviewFromCanvasXY(sx, sy){
 
 function resizeCommit(){
   if (!rc_active) return;
-  const newW = rc_prevW|0, newH = rc_prevH|0;
-  const {dx,dy} = offsetForCorner(rc_corner, rc_oldW, rc_oldH, newW, newH);
 
-  blitNoLoss(rc_snap, newW, newH, dx, dy, /* bgColor */ null);
+  const oldW = rc_oldW|0, oldH = rc_oldH|0;
+  const newW = rc_prevW|0,   newH = rc_prevH|0;
+  const dW = newW - oldW;    // >0 = expand, <0 = shrink
+  const dH = newH - oldH;
+  const z  = _effectiveZoom();
 
-  // uppdatera drawarea (skärmpixlar)
-  const z = _effectiveZoom();
+  // Börja med dina standard-offsets
+  let { dx, dy } = offsetForCorner(rc_corner, oldW, oldH, newW, newH);
+
+  // 🔧 Justera ENBART när vi FÖRSTORAR (NW/NE/SW)
+  if (dW > 0) {
+    // padding åt vänster endast om växer från W (NW/SW)
+    if (rc_corner === 'NW' || rc_corner === 'SW') dx = dW; else dx = 0;
+  }
+  if (dH > 0) {
+    // padding uppåt endast om växer från N (NW/NE)
+    if (rc_corner === 'NW' || rc_corner === 'NE') dy = dH; else dy = 0;
+  }
+
+  // Kopiera in
+  blitNoLoss(rc_snap, newW, newH, dx, dy, null);
+
+  // Uppdatera visningsyta
   drawareax = newW * z;
   drawareay = newH * z;
 
-  // Håll valfritt hörn visuellt "fast" genom att flytta drawstart* (för NW/NE/SW)
-  // SE: top-left fast → inget att göra
-  if (rc_corner === 'NW' || rc_corner === 'NE'){ drawstarty += (rc_oldH - newH) * z;}
-  if (rc_corner === 'NW' || rc_corner === 'SW'){ drawstartx += (rc_oldW - newW) * z;}
+  // 🧭 Kompensera vy ENBART vid expansion med padding vänster/topp
+  if (dW > 0 && (rc_corner === 'NW' || rc_corner === 'SW')) drawstartx -= dW * z;
+  if (dH > 0 && (rc_corner === 'NW' || rc_corner === 'NE')) drawstarty -= dH * z;
 
-  if (typeof endAction === 'function') endAction(false,rc_corner);
+  // Behåll din gamla logik för krymp (den funkade):
+  if (dW < 0 && (rc_corner === 'NW' || rc_corner === 'SW')) drawstartx += (oldW - newW) * z;
+  if (dH < 0 && (rc_corner === 'NW' || rc_corner === 'NE')) drawstarty += (oldH - newH) * z;
+
+  drawstartx = Math.round(drawstartx);
+  drawstarty = Math.round(drawstarty);
+
+  if (typeof endAction === 'function') endAction(false, rc_corner);
   rc_active = false; rc_snap = null;
 }
 
