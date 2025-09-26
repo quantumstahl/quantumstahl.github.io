@@ -482,7 +482,12 @@ canvas{
   #zoomSlider::-webkit-slider-thumb{
       box-shadow: 0 0 0 12px rgba(0,0,0,0); /* ökar hit area */
   }
-  
+  #brushSizeSlider::-moz-range-thumb,
+  #zoomSlider::-moz-range-thumb{
+  /* Öka träffytan utan att “fylla” den: transparent padding via border */
+  border: 10px solid transparent;      /* total klickyta ≈ 36×36 */
+  background-clip: padding-box;        /* så att vit fyllning stannar i mitten */
+  }
   
   #zoomLabel, #brushSizeLabel{ font-size:0.5625rem; }
 }
