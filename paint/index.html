@@ -3464,7 +3464,15 @@ async function pasteFromClipboard() {
 async function _bitmapFromDataURL(dataURL) {
   const res = await fetch(dataURL);
   const blob = await res.blob();
-  return await createImageBitmap(blob);
+  const ib = await createImageBitmap(blob);
+  try {
+    const c = document.createElement('canvas');
+    c.width = ib.width; c.height = ib.height;
+    c.getContext('2d').drawImage(ib, 0, 0);
+    return c; // returnera canvas istället för ImageBitmap
+  } finally {
+    if (ib && ib.close) ib.close();
+  }
 }
 let cow=false;
 // Aktivera som flyttbar markering (ingen direkt målning på ritytan)
@@ -3478,7 +3486,7 @@ function _activatePastedBitmap(imgBitmap,whole) {
   const cctx = c.getContext('2d');
   if (typeof disableSmoothing === 'function') disableSmoothing(cctx);
   cctx.drawImage(imgBitmap, 0, 0);
-
+  imgBitmap.close();
     // 2) Placera i mitten av vyn (bildkoordinater)
     const z = (typeof _effectiveZoom === 'function') ? _effectiveZoom() : (window.zoom || 1);
 
@@ -4026,7 +4034,6 @@ function _looksLikeImageURL(s) {
   return false;
 }
 async function _loadBitmapFromURL(src) {
-  // försök anonymt först (om CORS finns blir canvas *inte* tainted)
   const img = new Image();
   img.crossOrigin = 'anonymous';
   const done = new Promise((res, rej) => {
@@ -4035,8 +4042,18 @@ async function _loadBitmapFromURL(src) {
   });
   img.src = src;
   const el = await done;
+
+  // Försök via ImageBitmap -> rita in i canvas -> stäng
   try {
-    return await createImageBitmap(el);
+    const ib = await createImageBitmap(el);
+    try {
+      const c = document.createElement('canvas');
+      c.width = ib.width; c.height = ib.height;
+      c.getContext('2d').drawImage(ib, 0, 0);
+      return c;
+    } finally {
+      ib.close && ib.close();
+    }
   } catch {
     // sista utväg: rita till mellan-canvas (kan tainta)
     const c = document.createElement('canvas');
@@ -4045,7 +4062,7 @@ async function _loadBitmapFromURL(src) {
     const cctx = c.getContext('2d');
     if (typeof disableSmoothing === 'function') disableSmoothing(cctx);
     cctx.drawImage(el, 0, 0);
-    return await createImageBitmap(c);
+    return c;
   }
 }
 //NYTT
@@ -4088,11 +4105,15 @@ function _fitViewportToImage(newW, newH) {
 }
 async function _activateLoadedBitmap(imgBitmap) {
   if (!imgBitmap || !imgBitmap.width || !imgBitmap.height) return;
-  beginAction();
-  ensureCanvasSize(imgBitmap.width, imgBitmap.height); // behåll din säkerhetsmarginal
-  _fitViewportToImage(imgBitmap.width, imgBitmap.height);
-  _activatePastedBitmap(imgBitmap,true);                     // in i nya selectTool-flödet
-  if (typeof currentTool !== 'undefined') { switchTool('select'); currentTool = 'select'; }
+  try {
+    beginAction();
+    ensureCanvasSize(imgBitmap.width, imgBitmap.height);
+    _fitViewportToImage(imgBitmap.width, imgBitmap.height);
+    _activatePastedBitmap(imgBitmap, true);
+    if (typeof currentTool !== 'undefined') { switchTool('select'); currentTool = 'select'; }
+  } finally {
+    if (imgBitmap && typeof imgBitmap.close === 'function') imgBitmap.close();
+  }
 }
 //NYTT
 window.addEventListener('load', ()=>{
