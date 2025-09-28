@@ -148,6 +148,9 @@
                 if(canvas.width===10||canvas.width===300){
                     canvas.width=document.body.clientWidth;
                     canvas.height=document.body.clientHeight-8;
+                    canvas.style.width  = canvas.width + "px";
+                    canvas.style.height = canvas.height + "px";
+                    
                     overworldNodes = [
                              {id:0, x:canvas.width/8, y:canvas.height/2.5, type:"level", cleared:false,prereq:[]},
                              {id:1, x:canvas.width/2.2, y:canvas.height/2.3, type:"level",  cleared:false,prereq:[0]},
