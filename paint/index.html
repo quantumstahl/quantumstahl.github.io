@@ -1988,10 +1988,10 @@ drawingCtx.imageSmoothingEnabled = false;
 if (typeof disableSmoothing === 'function') disableSmoothing(drawingCtx);
 
 // Ritar en pixelperfekt linje med kvadratiska stämplar, i EN fill()
-function drawLinePixelArt(x0, y0, x1, y1, size, erase, color){
+function drawLinePixelArt(x0, y0, x1, y1, size){
   // heltal i dokument-pixlar
   x0|=0; y0|=0; x1|=0; y1|=0;
-  size = odd(size);
+  size = (size | 1);             // odd
   const half = size >> 1;
 
   let dx = Math.abs(x1 - x0),
@@ -2001,23 +2001,17 @@ function drawLinePixelArt(x0, y0, x1, y1, size, erase, color){
       err = dx - dy;
 
   const ctx = drawingCtx;
-  ctx.save();
-  ctx.globalCompositeOperation = erase ? 'destination-out' : 'source-over';
-  if (!erase) ctx.fillStyle = color;
-  ctx.beginPath();
 
   for(;;){
-    // stämpla en kvadrat exakt på pixelgrid
-    ctx.rect(x0 - half, y0 - half, size, size);
+    // Direkt stampar – ingen path-bygge
+    ctx.fillRect(x0 - half, y0 - half, size, size);
+
     if (x0 === x1 && y0 === y1) break;
 
     const e2 = err << 1;
     if (e2 > -dy){ err -= dy; x0 += sx; }
     if (e2 <  dx){ err += dx; y0 += sy; }
   }
-
-  ctx.fill();
-  ctx.restore();
 }
 let lastRX = null, lastRY = null;
 const isEraser = () => isTransparentBrush; // din flagga
@@ -2030,21 +2024,46 @@ function toDoc(screenX, screenY){
 }
 
 function penDown(screenX, screenY){
+  // Snap & koordinater
   const [rx, ry] = toDoc(screenX, screenY);
   lastRX = rx; lastRY = ry;
-  // första punkt
-  drawLinePixelArt(rx, ry, rx, ry, brushSize, isEraser(), brushColor);
+
+  // Lås pointer (minskar tapp och extra lyssnare-trafik in i WebView)
+  try { drawingCanvas.setPointerCapture?.(event.pointerId); } catch {}
+
+  // Sätt state EN gång för hela stroken
+  drawingCtx.imageSmoothingEnabled = false;
+  if (typeof disableSmoothing === 'function') disableSmoothing(drawingCtx);
+
+  if (isTransparentBrush) {
+    drawingCtx.globalCompositeOperation = 'destination-out';
+  } else {
+    drawingCtx.globalCompositeOperation = 'source-over';
+    drawingCtx.fillStyle = brushColor;
+  }
+
+  // Första pixeln
+  drawLinePixelArt(rx, ry, rx, ry, brushSize);
 }
 
 function penMove(screenX, screenY){
   const [rx, ry] = toDoc(screenX, screenY);
   if (lastRX === null) { lastRX = rx; lastRY = ry; return; }
   if (rx === lastRX && ry === lastRY) return;
-  drawLinePixelArt(lastRX, lastRY, rx, ry, brushSize, isEraser(), brushColor);
+
+  // Ingen save/restore, ingen fillStyle/gCO här – redan satt i penDown
+  drawLinePixelArt(lastRX, lastRY, rx, ry, brushSize);
   lastRX = rx; lastRY = ry;
 }
 
-function penUp(){ lastRX = lastRY = null; }
+function penUp(){
+  // Släpp pointer capture (bra hygien)
+  try { drawingCanvas.releasePointerCapture?.(event.pointerId); } catch {}
+
+  // Återställ
+  drawingCtx.globalCompositeOperation = 'source-over';
+  lastRX = lastRY = null;
+}
             function ensureIntDimension(value) {
                 // Add a tiny bias (0.001) to prevent rounding down due to floating point errors
                 return Math.round(value + 0.001);
@@ -4482,9 +4501,6 @@ let startxxx=0;
 let startyyy=0;
 let delatare=false;
 let onece=true;
-let ddstart=false;
-let ddmove=false;
-
 function twoPointers() {
   const it = pointers.values();
   const p0 = it.next().value;
@@ -4552,7 +4568,7 @@ canvas.addEventListener('pointerdown', (ev) => {
       } else if (currentTool === 'text') {
         const text = prompt("Enter your text:"); if (text) { beginAction(); drawText(x, y, text); endAction(); }
       } else if (currentTool === 'pen') {
-        beginAction(); _capturePreStroke();delatare=true;isDrawing = true; lastX = 0; lastY = 0;ddstart=true;// penDown(x, y);
+        beginAction(); _capturePreStroke();delatare=true;isDrawing = true; lastX = 0; lastY = 0; penDown(x, y);
       }
     }
   }
@@ -4627,7 +4643,7 @@ canvas.addEventListener('pointermove', (ev) => {
 
 
     if (isDrawing && currentTool === 'pen' ) {
-      ddmove=true;//penMove(x, y);
+      penMove(x, y);
     }
   }
 }, { passive: false });
@@ -4650,8 +4666,6 @@ function endPointer(ev) {
   penUp();
   lastX = 0; lastY = 0;
   isSelecting = false;
-  ddmove=false;
-  ddstart=false;
 
   if (pointers.size === 0 && touchTimer) {
     clearTimeout(touchTimer);
@@ -4669,9 +4683,6 @@ const HIST_MAX = 50;
 let savelabel,savew,savebmp,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom,canvash,ox,oy;
 let canvasw=null;
 let startansasa=true;
-
-
-
 function pruneStack(stack){
   if (!stack) return;
   while (stack.length > HIST_MAX) {
@@ -5088,9 +5099,6 @@ document.addEventListener('visibilitychange', () => {
 
             //check---------------------------------------------------------------------------------------
             var check = function() {
-                
-                if(ddmove)penMove(x, y);
-                else if(ddstart)penDown(x, y);    
                 
                 
                 if(keyState.up)camera.y-=6;
