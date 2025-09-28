@@ -143,7 +143,18 @@
             
             window.addEventListener('keydown', e => { if (e.code==='Space') if(gameState === 'game_over')wantRestart = true; });
             canvas.addEventListener('pointerdown', () => { if(gameState === 'game_over')wantRestart = true; });
-             
+            
+            let owBG = null; // ImageBitmap i canvas-storlek
+            async function buildOverworldBG(){
+              if (!overworldimage.complete) await overworldimage.decode();
+              // Skapa förskalad bitmap i exakt canvas-size (mycket billigare att blita)
+              owBG = await createImageBitmap(
+                overworldimage,
+                { resizeWidth: canvas.width, resizeHeight: canvas.height, resizeQuality: 'low' }
+              );
+            }
+    
+    
             var check = function(){
                 if(canvas.width===10||canvas.width===300){
                     canvas.width=document.body.clientWidth;
@@ -163,6 +174,11 @@
                            ];
 
                    OW = { adj: buildAdjList(overworldNodes, overworldEdges) };
+                   buildOverworldBG();
+                   
+                    
+                   
+                   
               }  
                 ctx.fillStyle = "black";
                 ctx.fillRect(0, 0, canvas.width, canvas.height); 
@@ -907,7 +923,7 @@ function stuff(){
 
 function drawOverworld(ctx){
   
-  ctx.drawImage(overworldimage,0,0,canvas.width,canvas.height);
+  if(owBG)ctx.drawImage(owBG, 0, 0); 
   
   if(game.getobjecttype("abutton")&&mobileAndTabletCheck())ctx.drawImage(game.getobjecttype("abutton").images[0].getimage(),canvas.width-250,canvas.height-250,150,150);
 
