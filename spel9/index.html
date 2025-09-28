@@ -207,8 +207,8 @@
                         bird.objects[0].y=bird.objects[0].y+11;
                         if(keyState.d){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}
                         if(keyState.a){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}
-                        if(keyState.w||abutton.objects[0].mousepressed==true){if(game.collideswith(bird.objects[0],"any","down"))jump=true; }
-
+                        if("ontouchstart" in document.documentElement){if(abutton.objects[0].mousepressed==true){if(game.collideswith(bird.objects[0],"any","down"))jump=true; }}
+                        else{if(keyState.w){if(game.collideswith(bird.objects[0],"any","down"))jump=true; }}
 
                         
                         if(jump==true){
