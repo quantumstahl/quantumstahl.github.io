@@ -4482,6 +4482,7 @@ let startxxx=0;
 let startyyy=0;
 let delatare=false;
 let onece=true;
+let activePointerId = null;
 function twoPointers() {
   const it = pointers.values();
   const p0 = it.next().value;
@@ -4549,7 +4550,13 @@ canvas.addEventListener('pointerdown', (ev) => {
       } else if (currentTool === 'text') {
         const text = prompt("Enter your text:"); if (text) { beginAction(); drawText(x, y, text); endAction(); }
       } else if (currentTool === 'pen') {
-        beginAction(); _capturePreStroke();delatare=true;isDrawing = true; lastX = 0; lastY = 0; penDown(x, y);
+        beginAction();
+        _capturePreStroke();
+        delatare = true;
+        isDrawing = true;
+        activePointerId = ev.pointerId;        // <<— NYTT: lås ritfinger
+        lastX = 0; lastY = 0;
+        penDown(x, y);
       }
     }
   }
@@ -4618,16 +4625,49 @@ canvas.addEventListener('pointermove', (ev) => {
 
   // === 1 finger: rita
   if (ev.target === canvas && pointers.size === 1) {
+  // Endast ägaren får rita när en stroke pågår
+  if (isDrawing && currentTool === 'pen' && ev.pointerId === activePointerId) {
     const rect = canvas.getBoundingClientRect();
-    x = ev.clientX - rect.left-camera.x;
-    y = ev.clientY - rect.top-camera.y;
 
+    // Hämta sammanslagna del-events om tillgängligt
+    const batch = (typeof ev.getCoalescedEvents === 'function')
+      ? ev.getCoalescedEvents()
+      : [ev];
 
-    if (isDrawing && currentTool === 'pen' ) {
-      penMove(x, y);
+    // Ta en snapshot av camera för hela batchen
+    const camX = camera.x, camY = camera.y;
+
+    for (const e of batch) {
+      const px = e.clientX - rect.left - camX;
+      const py = e.clientY - rect.top  - camY;
+      penMove(px, py);
     }
   }
+}
 }, { passive: false });
+
+canvas.addEventListener('pointerrawupdate', (ev) => {
+  if (ev.pointerType === 'touch') ev.preventDefault();
+
+  // Spegla 1-finger-logiken ovan (men undvik dubbletter):
+  if (ev.target === canvas && pointers.size === 1) {
+    if (isDrawing && currentTool === 'pen' && ev.pointerId === activePointerId) {
+      const rect = canvas.getBoundingClientRect();
+      const camX = camera.x, camY = camera.y;
+
+      const batch = (typeof ev.getCoalescedEvents === 'function')
+        ? ev.getCoalescedEvents()
+        : [ev];
+
+      for (const e of batch) {
+        const px = e.clientX - rect.left - camX;
+        const py = e.clientY - rect.top  - camY;
+        penMove(px, py);
+      }
+    }
+  }
+}, { passive:false });
+
 
 function endPointer(ev) {
   if (ev.pointerType === 'touch') ev.preventDefault();
@@ -4645,6 +4685,7 @@ function endPointer(ev) {
   if (isDrawing === true) endAction();
   isDrawing = false;
   penUp();
+  if (ev.pointerId === activePointerId) activePointerId = null; // <<— NYTT
   lastX = 0; lastY = 0;
   isSelecting = false;
 
