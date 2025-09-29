@@ -310,6 +310,7 @@ canvas{
    BOTTOM DOCK (center) + LANDSCAPE-HÖGER
    ========================= */
 #dockWrap{
+
   position:fixed; left:0; right:env(safe-area-inset-right);
   bottom:2.5rem; bottom:max(env(safe-area-inset-bottom), 2.5rem);
   display:flex; justify-content:center;
@@ -318,6 +319,7 @@ canvas{
 #dockWrap > *{ pointer-events:auto; }
 
 #bottomDock{
+   
   max-width:min(47.5rem, 96vw);
   width:max-content;
   display:grid; gap:0.75rem;
@@ -764,7 +766,11 @@ canvas{
 
 <!-- Bottom Dock -->
 <!-- Centered Bottom Dock -->
-
+<div class="control-col" style="position:absolute; left:-800px;">
+        <label for="zoomSlider" id="zoomLabel">Zoom: 100%</label>
+        <input id="zoomSlider" type="range" min="10" max="5000" value="100"
+               style="width:100%;"/>
+      </div>
 
 
 <!-- Flyttad/behållen färg-editor (popup) -->
