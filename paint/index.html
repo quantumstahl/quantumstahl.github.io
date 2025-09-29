@@ -26,6 +26,7 @@
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
   .then(async (reg) => {
     // If not controlled yet, nudge claim
+       try { await requestVersion(reg); } catch(_) {}
     const nudge = async () => {
       try {
         const sw = reg.active || reg.waiting || reg.installing;
@@ -615,29 +616,25 @@ canvas{
   const badge = document.getElementById('swBadge');
   if (!badge) return;
 
-  // Håll all data i ett objekt; rendera text separat.
-  const state = {
-    version: '',   // visas på badgen
-    scope: '',
-    scriptURL: '',
-    keys: null
-  };
+  const state = { version: '', scope: '', scriptURL: '', keys: null };
 
   function render() {
     badge.textContent = state.version || '';
-    // Lägg debug-info i title + data-attribut (ingen JSON i texten)
     badge.title = JSON.stringify(state, null, 2);
     badge.dataset.scope = state.scope || '';
     badge.dataset.scripturl = state.scriptURL || '';
   }
 
-  // Publik helper från app-kod
+  // 🔧 Se till att globala finns
+  window.__swVersion = window.__swVersion || '';
+
   window.__setAppVersion = (txt) => {
     state.version = String(txt ?? '');
+    // 🔧 håll globala i synk
+    window.__swVersion = state.version || '';
     render();
   };
 
-  // Lyssna på SW-meddelanden
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', (e) => {
       const d = e.data || {};
@@ -645,6 +642,8 @@ canvas{
         state.version   = d.cache ?? d.version ?? state.version;
         state.scope     = d.scope ?? state.scope;
         state.scriptURL = d.scriptURL ?? state.scriptURL;
+        // 🔧 håll globala i synk
+        window.__swVersion = state.version || '';
         render();
       } else if (d.type === '__DIAG_REPLY') {
         state.keys      = d.keys ?? state.keys;
@@ -654,15 +653,14 @@ canvas{
       }
     });
 
-    // Be aktiv SW om version direkt när den är redo
     navigator.serviceWorker.ready
       .then(reg => reg.active && reg.active.postMessage({ type: 'GET_VERSION' }))
-      .catch(()=>{ /* no-op */ });
+      .catch(()=>{});
   }
 
   render();
 })();
-</script>  
+</script>
 
 
 <div id="hide">
@@ -4449,45 +4447,33 @@ async function maybeReloadIfNewVersionOnline() {
   const reg = await navigator.serviceWorker.getRegistration();
   if (!reg) return false;
 
-  // Version före
-  const before = window.__swVersion || null;
+  const before = String(window.__swVersion || '');
 
-  // Be om uppdatering av SW
   try { await reg.update(); } catch (_) {}
 
-  // Om ny installerades hamnar den ofta i waiting
   if (reg.waiting) {
-    // Be den ta över → din befintliga controllerchange-lyssnare gör en (1) reload
+    // 🔧 säkerställ att vi fångar controllerchange om den missas
+    let fired = false;
+    const onCC = () => { fired = true; };
+    navigator.serviceWorker.addEventListener('controllerchange', onCC, { once: true });
+
     reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    // vi returnerar true – din globala controllerchange handler gör reloaden
     return true;
   }
 
-  // Race-fall: fråga aktiv SW om version igen efter en liten delay
-  await new Promise(r => setTimeout(r, 300));
+  // Fråga aktiv SW igen
+  await new Promise(r => setTimeout(r, 250));
   await requestSwVersion();
 
-  // Vänta in svar (upp till 800 ms)
-  const after = await new Promise(resolve => {
-    let done = false;
-    const t = setTimeout(() => { if (!done) { done = true; resolve(window.__swVersion || null); } }, 800);
-    const handler = (ev) => {
-      if (ev.data && ev.data.type === 'VERSION' && !done) {
-        done = true;
-        clearTimeout(t);
-        navigator.serviceWorker.removeEventListener('message', handler);
-        resolve(ev.data.cache || null);
-      }
-    };
-    navigator.serviceWorker.addEventListener('message', handler, { once: true });
-  });
-
+  const after = String(window.__swVersion || '');
   if (before && after && before !== after) {
-    // Versionen är annorlunda men ingen waiting (t.ex. redan aktiv) → hard reload
+    // 🔧 version ändrad men ingen waiting – gör hård reload
     location.reload();
     return true;
   }
 
-  return false; // ingen ny version
+  return false;
 }
 
 

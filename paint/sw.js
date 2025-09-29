@@ -1,4 +1,4 @@
-const CACHE_NAME = 'v1.11h'; // <- this is what you'll show in the badge
+const CACHE_NAME = 'v1.11i'; // <- this is what you'll show in the badge
 const ASSETS = [
   'index.html',
   'app.js',
@@ -43,13 +43,55 @@ self.addEventListener('message', (ev) => {
 });
 
 // Network-first with cache fallback
-self.addEventListener('fetch', (e) => {
-  const req = e.request;
-  e.respondWith(
-    fetch(req).then(res => {
-      const copy = res.clone();
-      caches.open(CACHE_NAME).then(c => c.put(req, copy)).catch(()=>{});
-      return res;
-    }).catch(() => caches.match(req).then(m => m || caches.match('/')))
-  );
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+
+  // Bara GET
+  if (req.method !== 'GET') return;
+
+  const url = new URL(req.url);
+  const sameOrigin = url.origin === self.location.origin;
+
+  // 1) Navigationsförfrågningar (SPA)
+  if (event.request.mode === 'navigate') {
+    event.respondWith((async () => {
+      try {
+        const fresh = await fetch(req);
+        // Cacha en kopia om ok
+        if (fresh.ok) {
+          const copy = fresh.clone();
+          caches.open(CACHE_NAME).then(c => c.put('/index.html', copy)).catch(()=>{});
+        }
+        return fresh;
+      } catch {
+        // Offline fallback till cachad index
+        const cached = await caches.match('/index.html');
+        return cached || new Response('Offline', { status: 503, statusText: 'Offline' });
+      }
+    })());
+    return;
+  }
+
+  // 2) Same-origin statik: stale-while-revalidate
+  if (sameOrigin) {
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const cached = await cache.match(req);
+      const fetchPromise = fetch(req).then(res => {
+        // Cacha endast bra svar
+        if (res.ok && res.type === 'basic') {
+          cache.put(req, res.clone()).catch(()=>{});
+        }
+        return res;
+      }).catch(() => null);
+
+      // Ge cache snabbt, uppdatera i bakgrunden
+      return cached || (await fetchPromise) || new Response('Offline', { status: 503 });
+    })());
+    return;
+  }
+
+  // 3) Cross-origin: låt nätet hantera; ingen caching
+  // (Vill du lägga till särskild hantering för CDN-bilder etc, gör en
+  // begränsad stale-while-revalidate här, men default är pass-through.)
 });
