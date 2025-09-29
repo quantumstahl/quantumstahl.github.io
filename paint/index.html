@@ -599,7 +599,7 @@ canvas{
 /*NYTT*/
 :root{
   /* Basstorlek på hjul och UI */
-  --wheel: 140px;
+  --wheel: 120px;
   --hud-pad: 12px;
   --swatch: 32px;
   --corner: 16px;
@@ -609,7 +609,7 @@ canvas{
 /* Telefoner: mindre UI */
 @media (max-width: 480px){
   :root{
-    --wheel: 140px;         /* ~80% */
+    --wheel: 120px;         /* ~80% */
     --hud-pad: 10px;
     --swatch: 28px;
     --corner: 14px;
@@ -5691,9 +5691,9 @@ function drawWheel(){
   wctx.putImageData(img,0,0);
   // indikator – samma vinkelkonvention som i hjulet
 const a = H * Math.PI / 180;       // H i grader → radianer
-const r = S * R;                    // R = hjulradie, S i [0..1]
-const ix = cx + Math.cos(a) * r;
-const iy = cy + Math.sin(a) * r;
+const r = S * Math.min(120/2,120/2)-1;;                    // R = hjulradie, S i [0..1]
+const ix = 120/2 + Math.cos(a) * r;
+const iy = 120/2 + Math.sin(a) * r;
 
 wctx.beginPath();
 wctx.arc(ix, iy, 6, 0, Math.PI * 2);
@@ -5722,7 +5722,7 @@ function pickFromWheel(ev){
   
   
   
-  const cx = wheel.width/2, cy = wheel.height/2;
+  const cx = 120/2, cy = 120/2;
   const dx = x - cx, dy = y - cy;
   const R  = Math.min(cx,cy)-1;
   const sat = Math.min(1, Math.hypot(dx,dy)/R);
