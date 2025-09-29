@@ -310,7 +310,6 @@ canvas{
    BOTTOM DOCK (center) + LANDSCAPE-HÖGER
    ========================= */
 #dockWrap{
-
   position:fixed; left:0; right:env(safe-area-inset-right);
   bottom:2.5rem; bottom:max(env(safe-area-inset-bottom), 2.5rem);
   display:flex; justify-content:center;
@@ -319,7 +318,6 @@ canvas{
 #dockWrap > *{ pointer-events:auto; }
 
 #bottomDock{
-   
   max-width:min(47.5rem, 96vw);
   width:max-content;
   display:grid; gap:0.75rem;
@@ -596,80 +594,8 @@ canvas{
     font-size: 0.9rem;
   }
 }
-/*NYTT*/
-:root{
-  /* Basstorlek på hjul och UI */
-  --wheel: 120px;
-  --hud-pad: 12px;
-  --swatch: 32px;
-  --corner: 16px;
-  --gap: 12px;
-}
 
-/* Telefoner: mindre UI */
-@media (max-width: 480px){
-  :root{
-    --wheel: 120px;         /* ~80% */
-    --hud-pad: 10px;
-    --swatch: 28px;
-    --corner: 14px;
-    --gap: 10px;
-  }
-}
 
-/* FAB */
-.hud-fab{
-  position: fixed;
-  left: 12px;
-  bottom: max(12px, calc(env(safe-area-inset-bottom) + 12px));
-  width: 44px; height: 44px; border-radius: 50%;
-  border:1px solid #333; background:#222; color:#fff; font-size:22px;
-  z-index: 9999;
-}
-
-/* Wrapper som fyller bredden längst ned, utan translateX */
-.hud-wrap{
-  position: fixed; left: 0; right: 0;
-  bottom: max(0px, env(safe-area-inset-bottom));
-  z-index: 9998; pointer-events: none; /* låt bara HUD:en ta events */
-}
-.hud-rail{
-  display: flex; justify-content: center; /* centrerar pixelperfekt */
-  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
-}
-
-/* Själva HUD:en är inline-block → inga subpixeltransforms */
-.hud{
-  display: inline-block;
-  pointer-events: auto;
-  background: #1a1a1acc; backdrop-filter: blur(8px);
-  border: 1px solid #333; border-radius: var(--corner);
-  padding: var(--hud-pad);
-  color: #fff; width: auto; max-width: min(96vw, 560px);
-}
-.hud.hidden{ display:none; }
-
-.hud-row{ display:flex; gap: var(--gap); align-items:center; }
-.sliders{ flex:1; min-width: 140px; }
-.sliders label{ font: 12px/1.2 system-ui; opacity:.85; display:block; margin-top:6px; }
-.sliders input[type="range"]{ width:100%; }
-
-#colorWheel{
-  width: var(--wheel); height: var(--wheel); /* CSS-storlek (device-indep px) */
-  display:block; border-radius: 12px; border:1px solid #333; background:#0000;
-}
-
-.preview{ width: 48px; height: 48px; border-radius: 6px; border:1px solid #444; }
-.row{ display:flex; gap:8px; align-items:center; margin-top:6px; }
-
-.swatches{
-  display:grid; grid-template-columns: repeat(8, 1fr);
-  gap:8px; margin-top:10px;
-}
-.swatches button{
-  width: var(--swatch); height: var(--swatch);
-  border-radius:6px; border:1px solid #444;
-}
 
 
         </style>
@@ -766,12 +692,46 @@ canvas{
 
 <!-- Bottom Dock -->
 <!-- Centered Bottom Dock -->
-<div class="control-col" style="position:absolute; left:-800px;">
+
+<div id="dockWrap">
+<div id="bottomDock" aria-label="Bottom dock controls">
+  <div class="dock-left">
+    <!-- 2 rader färger -->
+    <div class="palette-grid" id="dockPalette">
+      <!-- Rad 1 -->
+      <div class="color-swatch" data-color="black"  style="background:black;"></div>
+      <div class="color-swatch" data-color="white"    style="background:white;"></div>
+      <div class="color-swatch" data-color="blue"   style="background:blue;"></div>
+      <div class="color-swatch" data-color="green"  style="background:green;"></div>
+      <div class="color-swatch" data-color="yellow" style="background:yellow;"></div>
+      <!-- Rad 2 -->
+      <div class="color-swatch" data-color="cyan"   style="background:cyan;"></div>
+      <div class="color-swatch" data-color="red"  style="background:red;"></div>
+      <div class="color-swatch" data-color="purple" style="background:purple;"></div>
+      <div class="color-swatch" data-color="orange" style="background:orange;"></div>
+      <div class="color-swatch" data-color="checkerboard" style="background:repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%);"></div>
+    </div>
+
+    <!-- Kontroller under paletten: två kolumner = Brush (vänster), Zoom (höger) -->
+    <div class="brush-row">
+      <div class="control-col" style="display:grid; gap:6px; align-items:center;">
+        <label for="brushSizeSlider" id="brushSizeLabel">Brush Size: 1px</label>
+        <input id="brushSizeSlider" type="range" min="1" max="10" step="1" value="1"
+               style="width:100%;"/>
+      </div>
+      <div class="control-col" style="display:grid; gap:6px; align-items:center;">
         <label for="zoomSlider" id="zoomLabel">Zoom: 100%</label>
         <input id="zoomSlider" type="range" min="10" max="5000" value="100"
                style="width:100%;"/>
       </div>
-
+    </div>
+  </div>
+  <!-- 🎨-knapp till höger -->
+  <div class="dock-right">
+    <button id="edit-color-btn" class="edit-btn" type="button" title="Edit Color 🎨">🎨</button>
+  </div>
+</div>
+</div>
 
 <!-- Flyttad/behållen färg-editor (popup) -->
 <div id="colorWrap">
@@ -887,30 +847,7 @@ canvas{
 
 
 
-<button id="btnPalette" class="hud-fab" aria-label="Colors">🎨</button>
 
-<!-- Wrapper som täcker nederkanten -->
-<div class="hud-wrap">
-  <div class="hud-rail">
-    <!-- Centreras utan transform — inline-block i flex-rail -->
-    <div id="hud" class="hud hidden" role="dialog" aria-label="Colors and Brush">
-      <div class="hud-row">
-        <canvas id="colorWheel"></canvas>
-        <div class="sliders">
-          <label>Brightness</label>
-          <input id="vSlider" type="range" min="0" max="100" value="100">
-          <label>Brush size</label>
-          <input id="sizeSlider" type="range" min="1" max="64" value="1">
-          <div class="row">
-            <div id="preview" class="preview"></div>
-            <span id="sizeLabel">1 px</span>
-          </div>
-        </div>
-      </div>
-      <div class="swatches" id="swatches"></div>
-    </div>
-  </div>
-</div>
 
 
 
@@ -1179,9 +1116,6 @@ canvas{
 
 })();
 </script>
-
-
-
 
 
 <script>
@@ -1636,8 +1570,20 @@ confirmResizeBtn.addEventListener('click', async function() {
             let currentImagecanvas=currentproject;
             let showGrid = false;
             const camera = {x: 0,y: 0};
-
-
+            // Event listener for zoom slider
+            document.getElementById("zoomSlider").addEventListener("input", (e) => {
+                e.preventDefault();
+                zoomvalue = Number(e.target.value);
+                document.getElementById("zoomLabel").innerText = "Zoom: " + e.target.value + "%";
+            });
+            
+            // Event listener for brush size slider
+            document.getElementById("brushSizeSlider").addEventListener("input", (e) => {
+                e.preventDefault();
+                const sliderVal = Number(e.target.value);
+                brushSize = sliderVal * sliderVal;
+                document.getElementById("brushSizeLabel").innerText = "Brush Size: " + brushSize + "px";
+            });
             
             const toolButtons = document.querySelectorAll('.tool-btn');
 
@@ -4489,8 +4435,6 @@ document.getElementById('mnuNew').addEventListener('click', async () => {
   btnP1?.click();
   switchTool("pen");
   resetPaletteToDefaults(0);
-  if(!isHidden(document.getElementById('hud')))
-  document.getElementById('hud').classList.toggle('hidden');
 
   // --- Kolla ny version (endast online)
   const willReload = await maybeReloadIfNewVersionOnline();
@@ -4498,9 +4442,7 @@ document.getElementById('mnuNew').addEventListener('click', async () => {
   // Vill du alltid göra en hard-reload om online men ingen auto-reload skedde? (valfritt)
   // if (!willReload && navigator.onLine) location.reload();
 });
-function isHidden(el) {
-    return (el.offsetParent === null)
-}
+
 async function maybeReloadIfNewVersionOnline() {
   if (!navigator.onLine || !('serviceWorker' in navigator)) return false;
 
@@ -5630,187 +5572,7 @@ async function saveVisible(){
 
 </script>
 
-<script>
-    
-    
-    // App-variabler som du redan har:
-window.brushColor = window.brushColor || "#000000";
-window.brushSize  = window.brushSize  || 1;
 
-const hud = document.getElementById('hud');
-const btnPalette = document.getElementById('btnPalette');
-const wheel = document.getElementById('colorWheel');
-const vSlider = document.getElementById('vSlider');
-const sizeSlider = document.getElementById('sizeSlider');
-const sizeLabel = document.getElementById('sizeLabel');
-const preview = document.getElementById('preview');
-const swatchesEl = document.getElementById('swatches');
-
-// ==== Utils: RGB/HSL/HSV
-function hsv2rgb(h, s, v){
-  let f = (n, k=(n + h/60) % 6) => v - v*s * Math.max(Math.min(k,4 - k,1),0);
-  return [f(5),f(3),f(1)].map(x=>Math.round(x*255));
-}
-function rgb2hex(r,g,b){ return "#"+[r,g,b].map(x=>x.toString(16).padStart(2,"0")).join(""); }
-
-// ==== State för hjulet
-let H = 0, S = 1, V = 1; // 0–360, 0–1, 0–1
-
-
-function fitHiDPICanvas(c){
-  const css = parseInt(getComputedStyle(c).width); // = var(--wheel) i px
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
-  c.width  = Math.round(css * dpr);
-  c.height = Math.round(css * dpr);
-  const ctx = c.getContext('2d');
-  // Skala så 1 canvas-enhet = 1 CSS-px → inga sudd/subpixlar
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  return ctx;
-}
-let wctx = fitHiDPICanvas(wheel);
-
-// Om orientation/byta storlek → uppdatera
-addEventListener('resize', ()=>{
-  wctx = fitHiDPICanvas(wheel);
-  drawWheel(); // kalla din egen redraw
-});
-function drawWheel(){
-  const {width:W,height:Hh}=wheel; const cx=W/2, cy=Hh/2; const R=Math.min(cx,cy)-1;
-  const img = wctx.createImageData(W, Hh);
-  for(let y=0;y<Hh;y++){
-    for(let x=0;x<W;x++){
-      const dx=x-cx, dy=y-cy;
-      const r=Math.hypot(dx,dy), a=Math.atan2(dy,dx); // -PI..PI
-      const sat = Math.min(1, r/R);
-      const hue = (a*180/Math.PI + 360) % 360;
-      const [rr,gg,bb] = hsv2rgb(hue, sat, V);
-      const i=(y*W+x)*4;
-      img.data[i]=rr; img.data[i+1]=gg; img.data[i+2]=bb; img.data[i+3] = (r<=R)?255:0;
-    }
-  }
-  wctx.putImageData(img,0,0);
-  // indikator – samma vinkelkonvention som i hjulet
-const a = H * Math.PI / 180;       // H i grader → radianer
-const r = S * Math.min(120/2,120/2)-1;;                    // R = hjulradie, S i [0..1]
-const ix = 120/2 + Math.cos(a) * r;
-const iy = 120/2 + Math.sin(a) * r;
-
-wctx.beginPath();
-wctx.arc(ix, iy, 6, 0, Math.PI * 2);
-wctx.strokeStyle = "#fff";
-wctx.lineWidth = 2;
-wctx.stroke();
-}
-function setHSV(h,s,v){ H=h; S=s; V=v; drawWheel(); applyBrush(); updateUI(); }
-
-function applyBrush(){
-  const [r,g,b] = hsv2rgb(H,S,V);
-  brushColor = rgb2hex(r,g,b);
-  preview.style.background = brushColor;
-}
-function updateUI(){
-  sizeSlider.value = brushSize;
-  sizeLabel.textContent = `${brushSize|0} px`;
-}
-
-// ==== Wheel input (touch/mus)
-function pickFromWheel(ev){
-  const rect = wheel.getBoundingClientRect();
-  const x = (ev.touches?ev.touches[0].clientX:ev.clientX) - rect.left;
-  const y = (ev.touches?ev.touches[0].clientY:ev.clientY) - rect.top;
-  
-  
-  
-  
-  const cx = 120/2, cy = 120/2;
-  const dx = x - cx, dy = y - cy;
-  const R  = Math.min(cx,cy)-1;
-  const sat = Math.min(1, Math.hypot(dx,dy)/R);
-  let hue = (Math.atan2(dy,dx)*180/Math.PI + 360) % 360;
-  setHSV(hue, sat, V);
-}
-let picking=false;
-['pointerdown','pointermove'].forEach(type=>{
-  wheel.addEventListener(type,(ev)=>{
-    if (type==='pointerdown') picking=true;
-    if (!picking && type==='pointermove') return;
-    ev.preventDefault();
-    pickFromWheel(ev);
-  },{passive:false});
-});
-['pointerup','pointercancel','pointerleave'].forEach(t=>wheel.addEventListener(t,()=>picking=false));
-
-// ==== Sliders
-vSlider.addEventListener('input', e=>{
-  setHSV(H, S, +e.target.value/100);
-});
-sizeSlider.addEventListener('input', e=>{
-  brushSize = (+e.target.value)|0;
-  updateUI();
-});
-
-// ==== Toggle HUD
-btnPalette.addEventListener('click', ()=>{
-  hud.classList.toggle('hidden');
-});
-
-// ==== Swatches (tap = välj, long-press = ändra)
-const defaultSwatches = ["#000000","#ffffff","#ff0000","#00ff00","#0000ff","#ffff00","#ff7f00","#ff00ff"];
-let swatches = [...defaultSwatches];
-function renderSwatches(){
-  swatchesEl.innerHTML = "";
-  swatches.forEach((c,idx)=>{
-    const btn = document.createElement('button');
-    btn.style.background = c;
-    let pressTimer = null;
-    btn.addEventListener('pointerdown', ()=>{
-      pressTimer = setTimeout(()=>{ // long-press → redigera
-        // öppna färghjulet på swatchens färg
-        const r = parseInt(c.slice(1,3),16), g = parseInt(c.slice(3,5),16), b = parseInt(c.slice(5,7),16);
-        // snabb RGB→HSV approx via max/min
-        const mx=Math.max(r,g,b)/255, mn=Math.min(r,g,b)/255, d=mx-mn;
-        let hh=0;
-        if(d!==0){
-          if(mx===r/255) hh=60*(((g-b)/255)/d%6);
-          else if(mx===g/255) hh=60*(((b-r)/255)/d+2);
-          else hh=60*(((r-g)/255)/d+4);
-        }
-        const v = mx, s = mx===0?0:d/mx;
-        setHSV((hh+360)%360, s, v);
-        brushColor = c;
-        preview.style.background = c;
-        // låt användaren “bekräfta” ny färg genom att dra i hjulet
-      }, 450);
-    });
-    btn.addEventListener('pointerup', ()=>{
-      if (pressTimer){ clearTimeout(pressTimer); pressTimer=null;
-        // kort tryck → välj färg
-        brushColor = c; preview.style.background = c;
-      } else {
-        // long press avslutad → uppdatera swatch med aktuell färg
-        swatches[idx] = brushColor;
-        btn.style.background = brushColor;
-      }
-    });
-    btn.addEventListener('pointercancel', ()=>{ if (pressTimer) clearTimeout(pressTimer); });
-    swatchesEl.appendChild(btn);
-  });
-}
-
-// Init
-renderSwatches();
-setHSV(0,0,1); // vit som start eller sätt från din nuvarande brushColor
-updateUI();
-brushColor="black";    
-    
-    
-    
-    
-    
-    
-    
-    
-</script>
 
 
 
