@@ -4483,6 +4483,8 @@ document.getElementById('mnuNew').addEventListener('click', async () => {
   btnP1?.click();
   switchTool("pen");
   resetPaletteToDefaults(0);
+  if(!isHidden(document.getElementById('hud')))
+  document.getElementById('hud').classList.toggle('hidden');
 
   // --- Kolla ny version (endast online)
   const willReload = await maybeReloadIfNewVersionOnline();
@@ -4490,7 +4492,9 @@ document.getElementById('mnuNew').addEventListener('click', async () => {
   // Vill du alltid göra en hard-reload om online men ingen auto-reload skedde? (valfritt)
   // if (!willReload && navigator.onLine) location.reload();
 });
-
+function isHidden(el) {
+    return (el.offsetParent === null)
+}
 async function maybeReloadIfNewVersionOnline() {
   if (!navigator.onLine || !('serviceWorker' in navigator)) return false;
 
