@@ -594,27 +594,79 @@ canvas{
     font-size: 0.9rem;
   }
 }
+/*NYTT*/
+:root{
+  /* Basstorlek på hjul och UI */
+  --wheel: 220px;
+  --hud-pad: 12px;
+  --swatch: 32px;
+  --corner: 16px;
+  --gap: 12px;
+}
 
-.hud { position: fixed; left: 50%; bottom: max(12px, env(safe-area-inset-bottom));
-  transform: translateX(-50%); background: #1a1a1acc; backdrop-filter: blur(8px);
-  border: 1px solid #333; border-radius: 16px; padding: 12px; color: #fff;
-  z-index: 9999; width: min(96vw, 560px);
+/* Telefoner: mindre UI */
+@media (max-width: 480px){
+  :root{
+    --wheel: 176px;         /* ~80% */
+    --hud-pad: 10px;
+    --swatch: 28px;
+    --corner: 14px;
+    --gap: 10px;
+  }
 }
-.hud.hidden { display:none; }
-.hud-row { display:flex; gap:12px; align-items:center; }
-.sliders { flex:1; min-width: 140px; }
-.sliders label { font: 12px/1.2 system-ui; opacity:.8; display:block; margin-top:6px; }
-.sliders input[type="range"] { width:100%; }
-.preview { width: 60px; height: 60px; border-radius: 6px; border:1px solid #444; margin-right:8px; }
-.row { display:flex; gap:8px; align-items:center; margin-top:6px; }
-.swatches { display:grid; grid-template-columns: repeat(8, 1fr); gap:8px; margin-top:10px; }
-.swatches button { width:32px; height:32px; border-radius:6px; border:1px solid #444; }
-.hud-fab { position: fixed; left: 12px; bottom: max(12px, calc(env(safe-area-inset-bottom) + 12px));
-  width: 44px; height: 44px; border-radius: 50%; border:1px solid #333;
-  background:#222; color:#fff; font-size:22px; z-index:9999;
+
+/* FAB */
+.hud-fab{
+  position: fixed;
+  left: 12px;
+  bottom: max(12px, calc(env(safe-area-inset-bottom) + 12px));
+  width: 44px; height: 44px; border-radius: 50%;
+  border:1px solid #333; background:#222; color:#fff; font-size:22px;
+  z-index: 9999;
 }
-@media (max-width: 480px) {
-  .hud-row { gap:8px; }
+
+/* Wrapper som fyller bredden längst ned, utan translateX */
+.hud-wrap{
+  position: fixed; left: 0; right: 0;
+  bottom: max(0px, env(safe-area-inset-bottom));
+  z-index: 9998; pointer-events: none; /* låt bara HUD:en ta events */
+}
+.hud-rail{
+  display: flex; justify-content: center; /* centrerar pixelperfekt */
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+}
+
+/* Själva HUD:en är inline-block → inga subpixeltransforms */
+.hud{
+  display: inline-block;
+  pointer-events: auto;
+  background: #1a1a1acc; backdrop-filter: blur(8px);
+  border: 1px solid #333; border-radius: var(--corner);
+  padding: var(--hud-pad);
+  color: #fff; width: auto; max-width: min(96vw, 560px);
+}
+.hud.hidden{ display:none; }
+
+.hud-row{ display:flex; gap: var(--gap); align-items:center; }
+.sliders{ flex:1; min-width: 140px; }
+.sliders label{ font: 12px/1.2 system-ui; opacity:.85; display:block; margin-top:6px; }
+.sliders input[type="range"]{ width:100%; }
+
+#colorWheel{
+  width: var(--wheel); height: var(--wheel); /* CSS-storlek (device-indep px) */
+  display:block; border-radius: 12px; border:1px solid #333; background:#0000;
+}
+
+.preview{ width: 28px; height: 28px; border-radius: 6px; border:1px solid #444; }
+.row{ display:flex; gap:8px; align-items:center; margin-top:6px; }
+
+.swatches{
+  display:grid; grid-template-columns: repeat(8, 1fr);
+  gap:8px; margin-top:10px;
+}
+.swatches button{
+  width: var(--swatch); height: var(--swatch);
+  border-radius:6px; border:1px solid #444;
 }
 
 
@@ -831,22 +883,27 @@ canvas{
 
 <button id="btnPalette" class="hud-fab" aria-label="Colors">🎨</button>
 
-<!-- Färg & Pensel-HUD -->
-<div id="hud" class="hud hidden" role="dialog" aria-label="Colors and Brush">
-  <div class="hud-row">
-    <canvas id="colorWheel" width="220" height="220"></canvas>
-    <div class="sliders">
-      <label>Brightness</label>
-      <input id="vSlider" type="range" min="0" max="100" value="100">
-      <label>Brush size</label>
-      <input id="sizeSlider" type="range" min="1" max="64" value="1">
-      <div class="row">
-        <div id="preview" class="preview"></div>
-        <span id="sizeLabel">1 px</span>
+<!-- Wrapper som täcker nederkanten -->
+<div class="hud-wrap">
+  <div class="hud-rail">
+    <!-- Centreras utan transform — inline-block i flex-rail -->
+    <div id="hud" class="hud hidden" role="dialog" aria-label="Colors and Brush">
+      <div class="hud-row">
+        <canvas id="colorWheel"></canvas>
+        <div class="sliders">
+          <label>Brightness</label>
+          <input id="vSlider" type="range" min="0" max="100" value="100">
+          <label>Brush size</label>
+          <input id="sizeSlider" type="range" min="1" max="64" value="1">
+          <div class="row">
+            <div id="preview" class="preview"></div>
+            <span id="sizeLabel">1 px</span>
+          </div>
+        </div>
       </div>
+      <div class="swatches" id="swatches"></div>
     </div>
   </div>
-  <div class="swatches" id="swatches"></div>
 </div>
 
 
@@ -5589,8 +5646,24 @@ function rgb2hex(r,g,b){ return "#"+[r,g,b].map(x=>x.toString(16).padStart(2,"0"
 // ==== State för hjulet
 let H = 0, S = 1, V = 1; // 0–360, 0–1, 0–1
 
-// ==== Rita färghjul (Hue+Sat), brightness styrs separat
-const wctx = wheel.getContext('2d', { willReadFrequently: false });
+
+function fitHiDPICanvas(c){
+  const css = parseInt(getComputedStyle(c).width); // = var(--wheel) i px
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  c.width  = Math.round(css * dpr);
+  c.height = Math.round(css * dpr);
+  const ctx = c.getContext('2d');
+  // Skala så 1 canvas-enhet = 1 CSS-px → inga sudd/subpixlar
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return ctx;
+}
+let wctx = fitHiDPICanvas(wheel);
+
+// Om orientation/byta storlek → uppdatera
+addEventListener('resize', ()=>{
+  wctx = fitHiDPICanvas(wheel);
+  drawWheel(); // kalla din egen redraw
+});
 function drawWheel(){
   const {width:W,height:Hh}=wheel; const cx=W/2, cy=Hh/2; const R=Math.min(cx,cy)-1;
   const img = wctx.createImageData(W, Hh);
