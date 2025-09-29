@@ -1645,8 +1645,8 @@ function __activeRect(){
   // var i bilden som visas på skärmen:
   const x0 = 0;
   const y0 = 0;
-  const vw = Math.max(1, Math.floor(drawareax / z));
-  const vh = Math.max(1, Math.floor(drawareay / z));
+  const vw = drawareax / z;
+  const vh = drawareay / z;
   const x1 = Math.min(W, x0 + vw);
   const y1 = Math.min(H, y0 + vh);
   return {x0, y0, x1, y1, w: (x1-x0)|0, h: (y1-y0)|0};
