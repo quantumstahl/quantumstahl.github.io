@@ -311,7 +311,7 @@ canvas{
    BOTTOM DOCK (center) + LANDSCAPE-HÖGER
    ========================= */
 #dockWrap{
-  position:fixed; left:0; right:env(safe-area-inset-right);
+  position:fixed; left:-200rem; right:env(safe-area-inset-right);
   bottom:2.5rem; bottom:max(env(safe-area-inset-bottom), 2.5rem);
   display:flex; justify-content:center;
   pointer-events:none; z-index:1200;
@@ -597,6 +597,39 @@ canvas{
 }
 
 
+.palettebar{
+  position: fixed; left: 70px; right: 70px;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  padding: 6px; border-radius: 14px; border:1px solid #2a2a2a;
+  background:#111a; backdrop-filter: blur(8px);
+  display:flex; align-items:center; gap:10px; z-index:9999;
+}
+.icon{ width:34px; height:34px; border-radius:10px; background:#222; color:#fff; border:1px solid #333; }
+.swatches{ display:grid; grid-template-columns: repeat(9, 1fr); gap:6px; flex:1; }
+.swatches button{ width:28px; height:28px; border-radius:6px; border:1px solid #444; }
+.tools{ display:flex; gap:6px; }
+.chip{ padding:.25rem .6rem; border-radius:999px; border:1px solid #444; background:#222; color:#fff; font:13px system-ui; }
+
+.popover{
+  position: fixed; padding:10px; border-radius:12px; border:1px solid #333;
+  background:#1a1a1acc; backdrop-filter: blur(8px); z-index:10000;
+}
+.popover.hidden{ display:none; }
+
+#colorWheel{ width: 216px; height: 160px; display:block; border-radius:8px; border:1px solid #333; }
+#vSlider{ width: 216px; margin-top:8px; }
+.row{ display:flex; align-items:center; gap:8px; margin-top:8px; }
+.preview{ width:24px; height:24px; border-radius:6px; border:1px solid #444; }
+.hex{ width:90px; padding:4px 6px; border-radius:6px; border:1px solid #444; background:#222; color:#fff; }
+.primary{ padding:6px 10px; border-radius:8px; border:1px solid #444; background:#2b6; color:#fff; }
+
+.vertical{ writing-mode: bt-lr; -webkit-appearance: slider-vertical; height:160px; }
+@media (max-width:480px){
+  .swatches button{ width:26px; height:26px; }
+  #colorWheel{ width: 200px; height: 148px; }
+  #vSlider{ width: 200px; }
+}
+
 
 
         </style>
@@ -686,7 +719,29 @@ canvas{
 
 </div>
 
+<div class="palettebar">
+  <div class="swatches" id="swatches"></div>
+  <div class="tools">
+    <button id="brushChip" class="chip">brush size: 1 px</button>
+    <button id="zoomLabel" class="chip">100%</button>
+  </div>
+</div>
 
+<!-- Popover för färg (ankras vid swatch) -->
+<div id="colorPopover" class="popover hidden" role="dialog">
+  <canvas id="colorWheel"></canvas>
+  <input id="vSlider" type="range" min="0" max="100" value="100">
+  <div class="row">
+    <div id="preview" class="preview"></div>
+    <input id="hex" class="hex" value="#000000">
+    <button id="saveColor" class="primary">Save</button>
+  </div>
+</div>
+
+<!-- Popover för penselstorlek -->
+<div id="sizePopover" class="popover hidden">
+  <input id="sizeSlider" class="vertical" type="range" min="1" max="64" value="1">
+</div>
 
 <!-- Bottom Dock -->
 <!-- Centered Bottom Dock -->
@@ -5098,7 +5153,7 @@ document.addEventListener('visibilitychange', () => {
                 
             const active = document.querySelector('.color-swatch.active');
                 if (active && active.dataset.color !== brushColor) {
-                   brushColor=active.dataset.color;
+                 //  brushColor=active.dataset.color;
                  
                 }
                 
@@ -5558,7 +5613,287 @@ async function saveVisible(){
 
 </script>
 
+<script>
+let activePopoverEl = null;
+let popoverAnchorEl = null;
+let activePopoverArmed = false; // beväpna click-away efter öppning
 
+function isInside(el, target){
+  if (!el) return false;
+  if (el.contains(target)) return true;
+  const path = (typeof target.composedPath === 'function') ? target.composedPath() : null;
+  return path ? path.includes(el) : false;
+}
+
+document.addEventListener('pointerdown', (ev)=>{
+  if (!activePopoverEl || !activePopoverArmed) return;
+  const insidePop = isInside(activePopoverEl, ev.target);
+  const insideAnchor = isInside(popoverAnchorEl, ev.target);
+  if (!insidePop && !insideAnchor) {
+    closePopovers();
+  }
+}, { passive: true });
+
+document.addEventListener('keydown', (e)=>{
+  if (e.key === 'Escape') closePopovers();
+});
+
+
+
+function openPopoverAt(el, anchor, prefer="up"){
+    closePopovers();
+  const m = 8;                                // marginal mot kanter
+  el.classList.remove('hidden');              // mäta storlek
+  activePopoverEl = el;
+  popoverAnchorEl = anchor;
+  const r = anchor.getBoundingClientRect();
+  const w = el.offsetWidth, h = el.offsetHeight;
+  setTimeout(()=>{ activePopoverArmed = true; }, 0);
+  // centrera horisontellt runt anchor, men kläm inom fönstret
+  let left = Math.round(r.left + r.width/2 - w/2);
+  left = Math.min(Math.max(m, left), window.innerWidth - w - m);
+
+  // försök ovanför; om inte får plats → under; därefter clamp
+  let top = (prefer === "up") ? (r.top - h - m) : (r.bottom + m);
+  if (top < m) top = r.bottom + m;
+  if (top + h > window.innerHeight - m) top = Math.max(m, window.innerHeight - h - m);
+
+  el.style.left = left + "px";
+  el.style.top  = top  + "px";
+}
+
+function closePopovers(){
+  document.getElementById('colorPopover')?.classList.add('hidden');
+  document.getElementById('sizePopover')?.classList.add('hidden');
+  activePopoverEl = null;
+  popoverAnchorEl = null;
+  activePopoverArmed = false;
+}
+const swatchesEl  = document.getElementById('swatches');
+const colorPop    = document.getElementById('colorPopover');
+const wheel       = document.getElementById('colorWheel');
+const vSlider     = document.getElementById('vSlider');
+const preview     = document.getElementById('preview');
+const hexInput    = document.getElementById('hex');
+const saveColor   = document.getElementById('saveColor');
+
+let swatches = ["checkerboard","#000000","#ffffff","#ff0000","#00ff00","#0000ff","#ffff00","#ff7f00","#ff00ff"];
+
+//data-color="checkerboard" style="background:repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%);
+
+function setBrushColor(c){
+  brushColor = c;                 // spegla till din globala state
+  preview.style.background = c;
+  hexInput.value = c.toUpperCase();
+}
+let editingSwatchIndex = -1;
+function renderSwatches(){
+  swatchesEl.innerHTML = "";
+  swatches.forEach((c, idx)=>{
+    const btn = document.createElement('button');
+    btn.type = "button";
+    
+    if(c==="checkerboard")btn.style.background="repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%)";
+    else btn.style.background = c;
+    swatchesEl.appendChild(btn);
+
+    let timer = null, long = false;
+
+    btn.addEventListener('pointerdown', ()=>{
+      long = false;
+      timer = setTimeout(()=>{
+        long = true;
+        editingSwatchIndex = idx;          // <-- kom ihåg vilken
+        setBrushColor(c);
+        if(c!=="checkerboard")openPopoverAt(colorPop, btn, "up");
+        requestAnimationFrame(()=> drawWheelFromColor(c));
+      }, 450);
+    }, {passive:true});
+
+    btn.addEventListener('pointerup', ()=>{
+      if (timer){ clearTimeout(timer); timer = null; }
+      if (!long){ setBrushColor(c);isTransparentBrush = brushColor === "checkerboard"; } 
+      else if(c==="checkerboard"){setBrushColor(c);isTransparentBrush = brushColor === "checkerboard";}
+    });
+
+    btn.addEventListener('pointercancel', ()=>{ if (timer) clearTimeout(timer); });
+  });
+}
+renderSwatches();    
+saveColor.onclick = ()=>{
+  if (editingSwatchIndex < 0) { closePopovers(); return; }
+  swatches[editingSwatchIndex] = brushColor;
+
+  // uppdatera knappen visuellt utan att rendera om allt (eller kalla renderSwatches())
+  const btn = swatchesEl.children[editingSwatchIndex];
+  if (btn) btn.style.background = brushColor;
+
+  editingSwatchIndex = -1;
+  closePopovers();
+};    
+let H=0, S=1, V=1, wctx;
+
+function fitHiDPI(c){
+  const cssW = Math.round(parseFloat(getComputedStyle(c).width));
+  const cssH = Math.round(parseFloat(getComputedStyle(c).height));
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  c.width = cssW * dpr; c.height = cssH * dpr;
+  const ctx = c.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);      // rita i CSS-px
+  return ctx;
+}
+wctx = fitHiDPI(wheel);
+
+function hsv2rgb(h,s,v){ let f=(n,k=(n+h/60)%6)=>v-v*s*Math.max(Math.min(k,4-k,1),0); return [f(5),f(3),f(1)].map(x=>Math.round(x*255)); }
+function rgb2hex(r,g,b){ return "#"+[r,g,b].map(x=>x.toString(16).padStart(2,"0")).join(""); }
+
+function cssSize(el){
+  const cs = getComputedStyle(el);
+  return {
+    w: Math.round(parseFloat(cs.width)  || 0),
+    h: Math.round(parseFloat(cs.height) || 0),
+  };
+}
+
+function ensureWheelCtx(){
+  const {w, h} = cssSize(wheel);
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const needW = w * dpr, needH = h * dpr;
+  if (!wctx || wheel.width !== needW || wheel.height !== needH){
+    wheel.width = needW; wheel.height = needH;
+    wctx = wheel.getContext('2d');
+    wctx.setTransform(dpr, 0, 0, dpr, 0, 0); // rita i CSS-px
+  }
+}
+
+function drawWheel(){
+  ensureWheelCtx();
+  let {w:W, h:Hh} = cssSize(wheel);
+  W=W*window.devicePixelRatio;
+  Hh=Hh*window.devicePixelRatio;
+  
+  const img = wctx.createImageData(W, Hh);
+
+  for (let y=0; y<Hh; y++){
+    for (let x=0; x<W; x++){
+      const hue = (x/W) * 360;
+      const sat = 1 - (y/Hh);
+      const [r,g,b] = hsv2rgb(hue, sat, V);
+      const i = (y*W + x) * 4;
+      img.data[i] = r; img.data[i+1] = g; img.data[i+2] = b; img.data[i+3] = 255;
+    }
+  }
+  wctx.putImageData(img, 0, 0);
+  W=W/window.devicePixelRatio;
+  Hh=Hh/window.devicePixelRatio;
+  // indikator (H,S i globala variabler)
+  const ix = (H/360) * W, iy = (1 - S) * Hh;
+  wctx.beginPath(); wctx.arc(ix, iy, 6, 0, Math.PI*2);
+  wctx.lineWidth = 2; wctx.strokeStyle = "#fff"; wctx.stroke();
+}
+
+function parseColor(c){
+  if (typeof c !== 'string') return null;
+  c = c.trim();
+
+  // #RGB, #RRGGBB eller #RRGGBBAA
+  if (c[0] === '#'){
+    let h = c.slice(1);
+    if (h.length === 3) h = h.split('').map(ch => ch+ch).join('');
+    if (h.length === 6 || h.length === 8){
+      const r = parseInt(h.slice(0,2),16);
+      const g = parseInt(h.slice(2,4),16);
+      const b = parseInt(h.slice(4,6),16);
+      return {r,g,b};
+    }
+  }
+
+  // rgb/rgba(…)
+  const m = c.match(/rgba?\s*\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i);
+  if (m) return { r:+m[1], g:+m[2], b:+m[3] };
+
+  return null;
+}
+
+function rgbToHsv(r,g,b){
+  r/=255; g/=255; b/=255;
+  const max=Math.max(r,g,b), min=Math.min(r,g,b), d=max-min;
+  let h=0;
+  if (d !== 0){
+    if (max===r) h = 60 * (((g-b)/d) % 6);
+    else if (max===g) h = 60 * (((b-r)/d) + 2);
+    else h = 60 * (((r-g)/d) + 4);
+  }
+  const s = max === 0 ? 0 : d / max;
+  return { h:(h+360)%360, s, v:max };
+}
+
+function drawWheelFromColor(c){
+  const rgb = parseColor(c);
+  if (!rgb) return;
+  const {h,s,v} = rgbToHsv(rgb.r, rgb.g, rgb.b);
+  H = h; S = s; V = v;
+  vSlider.value = Math.round(V*100);
+
+  // se till att hjulet är rätt uppsatt och synligt innan ritning
+  ensureWheelCtx();
+  drawWheel();
+}
+
+vSlider.addEventListener('input', e=>{
+  V = +e.target.value/100; drawWheel();
+  const [rr,gg,bb] = hsv2rgb(H,S,V);
+  setBrushColor(rgb2hex(rr,gg,bb));
+});
+
+let picking=false;
+["pointerdown","pointermove"].forEach(t=>{
+  wheel.addEventListener(t, ev=>{
+    if (t==='pointerdown') picking=true;
+    if (!picking && t==='pointermove') return;
+    ev.preventDefault();
+    const r = wheel.getBoundingClientRect();
+    const x = Math.min(Math.max(0, ev.clientX - r.left), r.width);
+    const y = Math.min(Math.max(0, ev.clientY - r.top ), r.height);
+    H = (x/r.width)*360; S = 1 - (y/r.height);
+    const [rr,gg,bb] = hsv2rgb(H,S,V);
+    setBrushColor(rgb2hex(rr,gg,bb));
+    drawWheel();
+  }, {passive:false});
+});
+window.addEventListener('pointerup', ()=> picking=false);
+
+addEventListener('resize', ()=>{ wctx = fitHiDPI(wheel); drawWheel(); });    
+
+const sizePop    = document.getElementById('sizePopover');
+const sizeSlider = document.getElementById('sizeSlider');
+const brushChip  = document.getElementById('brushChip');
+
+function setBrushSize(n){
+  brushSize = n|0; window.brushSize = brushSize;
+  brushChip.textContent = `brush size:${brushSize} px`;
+  sizeSlider.value = brushSize;
+  if (typeof onBrushSizeChanged === 'function') onBrushSizeChanged(brushSize); // valfri hook
+}
+
+brushChip.addEventListener('click', ()=>{
+  // cykla snabbare storlekar
+  const arr = [1,3,6,12,24];
+  const i = (arr.indexOf(brushSize)+1) % arr.length;
+  setBrushSize(arr[i]);
+});
+
+brushChip.addEventListener('pointerdown', ()=>{
+  let held=true; setTimeout(()=>{ if(held){ openPopoverAt(sizePop, brushChip, "up"); }}, 450);
+  const up=()=>{ held=false; window.removeEventListener('pointerup', up); };
+  window.addEventListener('pointerup', up, {once:true});
+});
+
+sizeSlider.addEventListener('input', e=> setBrushSize(+e.target.value));
+
+
+
+</script>
 
 
 
