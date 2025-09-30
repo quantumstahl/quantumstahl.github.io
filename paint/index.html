@@ -492,9 +492,56 @@ canvas{
   
   #zoomLabel, #brushSizeLabel{ font-size:0.5625rem; }
   
-  #lightnessSlider::-webkit-slider-thumb{
-      box-shadow: 0 0 0 12px rgba(0,0,0,0); /* ökar hit area */
-  }
+/* Allmänt reset för att få kontroll */
+#lightnessSlider{
+  -webkit-appearance:none;
+  appearance:none;
+  width:100%;
+  height:40px;              /* större touch-yta runt spåret */
+  background:transparent;
+  touch-action:manipulation;
+}
+
+/* WebKit/Blink: spåret */
+#lightnessSlider::-webkit-slider-runnable-track{
+  height:8px;
+  background:#555;
+  border-radius:999px;
+}
+
+/* WebKit/Blink: tummen = stor hitbox men visuellt “liten” prick */
+#lightnessSlider::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:36px;               /* ↑ riktig träffyta */
+  height:36px;
+  border-radius:50%;
+  border:0;
+  /* rita en liten ljus “prick” i mitten */
+  background:
+    radial-gradient(circle at center, #fff 0 7px, #fff 7px, #fff 7px, transparent 8px) no-repeat;
+  /* centrera tummen vertikalt över 8px-spåret */
+  margin-top:calc((8px - 36px)/2);
+}
+
+/* Firefox */
+#lightnessSlider::-moz-range-track{
+  height:8px;
+  background:#555;
+  border-radius:999px;
+}
+#lightnessSlider::-moz-range-thumb{
+  width:36px;               /* ↑ större hitbox i Firefox */
+  height:36px;
+  border-radius:50%;
+  border:0;
+  background:
+    radial-gradient(circle at center, #fff 0 7px, #fff 7px, #fff 7px, transparent 8px) no-repeat;
+}
+
+/* (valfritt) bara på touch-enheter */
+@media (pointer:coarse){
+  #lightnessSlider{ height:44px; }
+}
   
 }
 
