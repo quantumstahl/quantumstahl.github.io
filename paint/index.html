@@ -714,13 +714,13 @@ canvas{
     <div class="brush-row">
       <div class="control-col" style="display:grid; gap:6px; align-items:center;">
         <label for="brushSizeSlider" id="brushSizeLabel">Brush Size: 1px</label>
-        <input id="brushSizeSlider" type="range" min="1" max="10" step="1" value="1"
+        <input id="brushSizeSlider" type="range" min="1" max="32" step="1" value="1"
                style="width:100%;"/>
       </div>
       <div class="control-col" style="display:grid; gap:6px; align-items:center;">
         <label for="zoomSlider" id="zoomLabel">Zoom: 100%</label>
         <input id="zoomSlider" type="range" min="10" max="5000" value="100"
-               style="width:100%;"/>
+               style="width:100%;visibility:hidden"/>
       </div>
     </div>
   </div>
@@ -739,7 +739,7 @@ canvas{
       <canvas id="rainbowCanvas" width="512" height="300"></canvas>
     </div>
     <label class="row" style="gap:.5rem;align-items:center">
-      Ljushet
+      Brightness
       <input id="lightnessSlider" type="range" min="0" max="100" value="100"/>
       <span id="lightnessVal">100%</span>
     </label>
@@ -909,28 +909,36 @@ canvas{
   }
   function cssColorToRGB(str){
     const ctx = document.createElement('canvas').getContext('2d');
-    ctx.fillStyle = str; // låter browsern parsa
-    const d = ctx.fillStyle;
-    // d blir i formatet #RRGGBB om det är giltigt
+    ctx.fillStyle = str;
+    const d = ctx.fillStyle; // #RRGGBB om giltigt
     return hex2rgb(d);
   }
+  function rgb2hsv(r,g,b){
+    r/=255; g/=255; b/=255;
+    const max=Math.max(r,g,b), min=Math.min(r,g,b);
+    const d=max-min;
+    let h=0, s=max===0?0:d/max, v=max;
+    if (d!==0){
+      switch(max){
+        case r: h=((g-b)/d)+(g<b?6:0); break;
+        case g: h=((b-r)/d)+2; break;
+        case b: h=((r-g)/d)+4; break;
+      }
+      h*=60;
+    }
+    return {h,s,v};
+  }
 
-  // === DOM-hjälpare: hitta aktiv palettknapp ===
+  // === DOM-hjälpare: aktiv swatch ===
   function getActiveSwatch(){
-    // Anpassa vid behov: byt selektor om du använder andra klassnamn/attribut
     const btn = document.querySelector('.color-swatch.active');
     if (!btn) return null;
-    // transparensdetekt
     const isTrans = btn.dataset.transparent === '1' ||
                     (btn.dataset.color || '').toLowerCase()==='transparent' ||
                     (getComputedStyle(btn).backgroundColor.includes('rgba(0, 0, 0, 0)'));
     return { el: btn, isTransparent: isTrans };
   }
-  
-  
-  
   function getButtonColor(btn){
-    // Prioritera data-color (hex), annars beräkna från computed style
     const data = btn.dataset.color;
     if (data && data !== 'transparent') {
       const rgb = hex2rgb(data) || cssColorToRGB(data);
@@ -942,7 +950,6 @@ canvas{
   function setButtonColor(btn, hex){
     btn.dataset.color = hex;
     btn.style.background = hex;
-    // ping till din app om du har central färg:
     if (window.setCurrentColor) window.setCurrentColor(hex);
     document.dispatchEvent(new CustomEvent('palette:colorUpdated', {
       detail: { button: btn, color: hex }
@@ -952,7 +959,7 @@ canvas{
   // === UI-element ===
   const editBtn   = document.getElementById('edit-color-btn');
   const pop       = document.getElementById('color-editor');
-  const canvas    = document.getElementById('rainbowCanvas');
+  const canvas    = document.getElementById('rainbowCanvas'); // återanvänds som hjul
   const ctx       = canvas.getContext('2d', { willReadFrequently:true });
   const slider    = document.getElementById('lightnessSlider');
   const sliderVal = document.getElementById('lightnessVal');
@@ -960,39 +967,68 @@ canvas{
   const hexOut    = document.getElementById('hexOut');
   const btnCancel = document.getElementById('colorCancel');
   const btnApply  = document.getElementById('colorApply');
-  
-  let coloerpickeractive=false;
-  
-  // State för editorn
-  let H = 0, S = 1, V = 1;      // Hue [0..360), Sat [0..1], Val [0..1]
+
+  let colorpickerActive=false;
+
+  // State
+  let H = 0, S = 1, V = 1;        // Hue [0..360), Sat [0..1], Val [0..1]
   let startHex = '#FFFFFF';
   let targetBtn = null;
 
-  function drawRainbow(){
+  // DPR-säker canvas
+  function fitCanvasToDPR(cnv){
+    const dpr = window.devicePixelRatio || 1;
+    const { width:cssW, height:cssH } = cnv.getBoundingClientRect();
+    const w = Math.max(1, Math.round(cssW * dpr));
+    const h = Math.max(1, Math.round(cssH * dpr));
+    if (cnv.width !== w || cnv.height !== h){
+      cnv.width = w; cnv.height = h;
+    }
+    return dpr;
+  }
+
+  // Rita HSV-hjul för givet V
+  function drawWheel(){
+    const dpr = fitCanvasToDPR(canvas);
     const w = canvas.width, h = canvas.height;
+    const cx = Math.floor(w/2), cy = Math.floor(h/2);
+    const radius = Math.floor(Math.min(w,h)/2) - Math.round(6*dpr); // padding för markör
+
     const img = ctx.createImageData(w, h);
+    const data = img.data;
     let i = 0;
-    for (let y=0;y<h;y++){
-      const s = y/(h-1);
-      for (let x=0;x<w;x++){
-        const hdeg = (x/(w-1))*360;
-        const {r,g,b} = hsv2rgb(hdeg, s, V);
-        img.data[i++] = r;
-        img.data[i++] = g;
-        img.data[i++] = b;
-        img.data[i++] = 255;
+
+    for (let y=0; y<h; y++){
+      const dy = y - cy;
+      for (let x=0; x<w; x++){
+        const dx = x - cx;
+        const dist = Math.hypot(dx, dy);
+        if (dist <= radius){
+          let sat = dist / radius;             // [0..1]
+          let ang = Math.atan2(dy, dx) * 180/Math.PI; // [-180..180]
+          if (ang < 0) ang += 360;             // [0..360)
+          const {r,g,b} = hsv2rgb(ang, sat, V);
+          data[i++] = r; data[i++] = g; data[i++] = b; data[i++] = 255;
+        } else {
+          // utanför hjulet = transparent (eller ljus bakgrund)
+          data[i++] = 0; data[i++] = 0; data[i++] = 0; data[i++] = 0;
+        }
       }
     }
     ctx.putImageData(img, 0, 0);
-    // rita markör
-    const mx = Math.round((H/360) * (w-1));
-    const my = Math.round(S * (h-1));
+
+    // Markör
+    const angRad = H * Math.PI/180;
+    const rr = S * radius;
+    const mx = cx + Math.cos(angRad)*rr;
+    const my = cy + Math.sin(angRad)*rr;
+
     ctx.beginPath();
-    ctx.arc(mx+0.5, my+0.5, 6, 0, Math.PI*2);
-    ctx.lineWidth = 2;
+    ctx.arc(mx, my, Math.max(6, 6*dpr), 0, Math.PI*2);
+    ctx.lineWidth = Math.max(2, 2*dpr);
     ctx.strokeStyle = '#000';
     ctx.stroke();
-    ctx.lineWidth = 1;
+    ctx.lineWidth = Math.max(1, 1*dpr);
     ctx.strokeStyle = '#fff';
     ctx.stroke();
   }
@@ -1005,13 +1041,11 @@ canvas{
   }
 
   function openEditor(){
-      
-      if(coloerpickeractive===true){pop.classList.add('hidden');coloerpickeractive=false;return;}
-      
+    if(colorpickerActive){ pop.classList.add('hidden'); colorpickerActive=false; return; }
+
     const active = getActiveSwatch();
     targetBtn = active ? active.el : null;
 
-    // Hantera transparens: disabla knapp och visa tooltip
     if (!targetBtn || (active && active.isTransparent)) {
       editBtn.disabled = true;
       editBtn.title = "Välj en icke-transparent färg först";
@@ -1022,37 +1056,22 @@ canvas{
     }
 
     startHex = getButtonColor(targetBtn);
-
-    // Initiera HSV från startHex (approx: gå via canvas parse)
-    const rgb = hex2rgb(startHex);
-    // snabb rgb->hsv:
-    (function toHSV(r,g,b){
-      r/=255; g/=255; b/=255;
-      const max=Math.max(r,g,b), min=Math.min(r,g,b);
-      const d=max-min;
-      let h=0, s=max===0?0:d/max, v=max;
-      if (d!==0){
-        switch(max){
-          case r: h=((g-b)/d)+(g<b?6:0); break;
-          case g: h=((b-r)/d)+2; break;
-          case b: h=((r-g)/d)+4; break;
-        }
-        h*=60;
-      }
-      H=h; S=s; V=v;
-    })(rgb.r,rgb.g,rgb.b);
+    const rgb = hex2rgb(startHex) || {r:255,g:255,b:255};
+    const hsv = rgb2hsv(rgb.r, rgb.g, rgb.b);
+    H = hsv.h; S = hsv.s; V = hsv.v;
 
     slider.value = Math.round(V*100);
     sliderVal.textContent = slider.value + '%';
-    
-    coloerpickeractive=true;
+
+    colorpickerActive = true;
     pop.classList.remove('hidden');
-    drawRainbow();
+
+    drawWheel();
     updatePreview();
   }
 
   function closeEditor(){
-    coloerpickeractive=false;  
+    colorpickerActive=false;
     pop.classList.add('hidden');
   }
 
@@ -1072,25 +1091,41 @@ canvas{
   slider?.addEventListener('input', ()=>{
     V = Number(slider.value)/100;
     sliderVal.textContent = slider.value + '%';
-    drawRainbow();
+    drawWheel();
     updatePreview();
   });
 
-  // Pick i regnbågsrutan (H,S)
-  function pickAt(evt){
-    const rect = canvas.getBoundingClientRect();
-    const x = clamp((evt.clientX || (evt.touches?.[0]?.clientX||0)) - rect.left, 0, rect.width-1);
-    const y = clamp((evt.clientY || (evt.touches?.[0]?.clientY||0)) - rect.top, 0, rect.height-1);
-    const rx = x/rect.width, ry = y/rect.height;
-    H = rx * 360;
-    S = ry;
-    updatePreview();
-    drawRainbow();
-  }
+  // Pick i hjulet (H,S), clamp för klick utanför cirkeln
   let dragging=false;
-  canvas?.addEventListener('pointerdown', (e)=>{ dragging=true; canvas.setPointerCapture(e.pointerId); pickAt(e); });
-  canvas?.addEventListener('pointermove', (e)=>{ if (dragging) pickAt(e); });
+  canvas?.addEventListener('pointerdown', (e)=>{
+    dragging=true;
+    canvas.setPointerCapture(e.pointerId);
+    pickAt(e, true);
+  });
+  canvas?.addEventListener('pointermove', (e)=>{
+    if (dragging) pickAt(e, false);
+  });
   window.addEventListener('pointerup', ()=>{ dragging=false; });
+
+  function pickAt(evt, fromDown){
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const cx = rect.width/2, cy = rect.height/2;
+    const x = (evt.clientX ?? (evt.touches?.[0]?.clientX ?? 0)) - rect.left;
+    const y = (evt.clientY ?? (evt.touches?.[0]?.clientY ?? 0)) - rect.top;
+    const dx = x - cx, dy = y - cy;
+    const radius = Math.min(rect.width, rect.height)/2 - 6; // CSS px
+    let dist = Math.hypot(dx, dy);
+    let sat = dist / radius;
+    if (sat > 1){ sat = 1; dist = radius; } // clamp utanför hjulet
+    let ang = Math.atan2(dy, dx) * 180/Math.PI;
+    if (ang < 0) ang += 360;
+
+    H = ang;
+    S = sat;
+    updatePreview();
+    drawWheel();
+  }
 
   // Stäng på Escape/klick utanför
   window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeEditor(); });
@@ -1100,7 +1135,7 @@ canvas{
     }
   });
 
-  // Håll edit-knappen i sync med aktiv palett
+  // Håll edit-knappen i sync
   document.addEventListener('click', ()=>{
     const active = getActiveSwatch();
     if (!active || active.isTransparent){
@@ -1111,7 +1146,6 @@ canvas{
       editBtn.title = "Redigera färg 🎨";
     }
   });
-
 })();
 </script>
 
@@ -1579,7 +1613,7 @@ confirmResizeBtn.addEventListener('click', async function() {
             document.getElementById("brushSizeSlider").addEventListener("input", (e) => {
                 e.preventDefault();
                 const sliderVal = Number(e.target.value);
-                brushSize = sliderVal * sliderVal;
+                brushSize = sliderVal ;
                 document.getElementById("brushSizeLabel").innerText = "Brush Size: " + brushSize + "px";
             });
             
