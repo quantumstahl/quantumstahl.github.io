@@ -1,72 +1,5 @@
 <!DOCTYPE html>
 
-<script>
-    
-(function(){
-  if (!('serviceWorker' in navigator)) return;
-  
-
-
-  // Helper: ask active/waiting SW for version
-  async function requestVersion(reg){
-    const sw = (reg && (reg.active || reg.waiting || reg.installing)) || navigator.serviceWorker.controller;
-    if (sw) sw.postMessage({ type: 'GET_VERSION' });
-  }
-
-  // Auto-reload once when controller changes (you already had this)
-  let didReload = sessionStorage.getItem('sw-reloaded') === '1';
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!didReload) {
-      sessionStorage.setItem('sw-reloaded','1');
-      location.reload();
-    }
-  });
-
-  // Register ASAP
-  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
-  .then(async (reg) => {
-    // If not controlled yet, nudge claim
-       try { await requestVersion(reg); } catch(_) {}
-    const nudge = async () => {
-      try {
-        const sw = reg.active || reg.waiting || reg.installing;
-        if (sw) sw.postMessage({ type:'CLAIM' });
-      } catch(e){}
-      setTimeout(() => {
-        if (!navigator.serviceWorker.controller && !didReload) {
-          sessionStorage.setItem('sw-reloaded','1');
-          location.replace('./index.html?sw=1');
-        }
-      }, 1200);
-    };
-    if (!navigator.serviceWorker.controller) nudge();
-
-
-    reg.addEventListener('updatefound', () => {
-        const sw = reg.installing;
-        sw && sw.addEventListener('statechange', () => {
-          if (sw.state === 'installed' && reg.waiting && navigator.serviceWorker.controller) {
-            reg.waiting.postMessage({type:'SKIP_WAITING'});
-          }
-        });
-      });
-
-
-  })
-  .catch(console.error);
-})();
-
-// Be om version on demand
-async function requestSwVersion() {
-  const reg = await navigator.serviceWorker.getRegistration();
-  const sw = reg?.active || reg?.waiting || reg?.installing || navigator.serviceWorker.controller;
-  if (sw) sw.postMessage({ type: 'GET_VERSION' });
-}
-
-
-</script>
-
-
 <html>
 <head>
 <title>MaxPaint</title>
@@ -90,6 +23,9 @@ async function requestSwVersion() {
 
 
 <link href="icons/icon-192.png" rel="icon" type="image/vnd.microsoft.icon"/>
+
+
+
 <style>
             
 
@@ -586,6 +522,11 @@ canvas{
   #dockWrap{ right:env(safe-area-inset-right); }
   
   #dockWrap2{top:2rem;}
+  
+  #transformBtn{
+  right:calc(5.75rem + env(safe-area-inset-right));
+  }
+  
 }
 
 /* =========================
@@ -654,7 +595,18 @@ canvas{
         </style>
 
         
-        
+<script>
+// === 0) Upptäck native (Capacitor) tidigt
+(function () {
+  const isNative = !!(window.Capacitor?.getPlatform && window.Capacitor.getPlatform() !== 'web');
+  window.__IS_NATIVE__ = isNative;                 // global flagga
+  document.documentElement.classList.toggle('is-native', isNative);
+  if (isNative) {
+    // Städa redan existerande PWA-element
+    document.querySelectorAll('.only-pwa,#pwaInstallHint,[data-only="pwa"]').forEach(el => el.remove());
+  }
+})();
+</script>             
         
         
         
@@ -662,58 +614,7 @@ canvas{
         
 </head>
 <body>  
-<div id="swBadge" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:#111;color:#ffffff;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui"></div>
-<script>
-(() => {
-  const badge = document.getElementById('swBadge');
-  if (!badge) return;
-
-  const state = { version: '', scope: '', scriptURL: '', keys: null };
-
-  function render() {
-    badge.textContent = state.version || '';
-    badge.title = JSON.stringify(state, null, 2);
-    badge.dataset.scope = state.scope || '';
-    badge.dataset.scripturl = state.scriptURL || '';
-  }
-
-  // 🔧 Se till att globala finns
-  window.__swVersion = window.__swVersion || '';
-
-  window.__setAppVersion = (txt) => {
-    state.version = String(txt ?? '');
-    // 🔧 håll globala i synk
-    window.__swVersion = state.version || '';
-    render();
-  };
-
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.addEventListener('message', (e) => {
-      const d = e.data || {};
-      if (d.type === 'VERSION') {
-        state.version   = d.cache ?? d.version ?? state.version;
-        state.scope     = d.scope ?? state.scope;
-        state.scriptURL = d.scriptURL ?? state.scriptURL;
-        // 🔧 håll globala i synk
-        window.__swVersion = state.version || '';
-        render();
-      } else if (d.type === '__DIAG_REPLY') {
-        state.keys      = d.keys ?? state.keys;
-        state.scope     = d.scope ?? state.scope;
-        state.scriptURL = d.scriptURL ?? state.scriptURL;
-        render();
-      }
-    });
-
-    navigator.serviceWorker.ready
-      .then(reg => reg.active && reg.active.postMessage({ type: 'GET_VERSION' }))
-      .catch(()=>{});
-  }
-
-  render();
-})();
-</script>
-
+<div id="swBadge" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:#111;color:#ffffff;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui">v1.01</div>
 
 <div id="hide">
 <label for="directFileInput">Open Image</label>
@@ -1553,7 +1454,7 @@ confirmResizeBtn.addEventListener('click', async function() {
             }
             
             // Fill the drawing canvas with white initially
-            drawingCtx.fillStyle = "white";
+            drawingCtx.fillStyle = "black";
             drawingCtx.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
             
             // Disable image smoothing for crisp pixels
@@ -2598,13 +2499,13 @@ const _copyEl  = _byId('copyBtn');
 if (_copyEl) _copyEl.addEventListener('click', () => { copySelectionMobileFriendly(); });
 
 const _pasteEl = _byId('pasteBtn');
-if (_pasteEl) _pasteEl.addEventListener('click', () => { pasteFromClipboard(); });
+if (_pasteEl) _pasteEl.addEventListener('click', () => { pasteFromClipboard2(); });
 
 // tangentbordsgenvägar: R=+90, Shift+R=-90, H=flipH, V=flipV, L=lasso, Ctrl+R=free
 document.addEventListener('keydown', (e)=>{
    const mod = e.ctrlKey || e.metaKey;
    if (mod && e.key.toLowerCase() === 'c') { copySelection(); return; }  
-   if (mod && e.key.toLowerCase() === 'v') {pasteFromClipboard();return;}
+   if (mod && e.key.toLowerCase() === 'v') {pasteFromClipboard2();return;}
    if (e.ctrlKey && (e.key==='r' || e.key==='R')) { e.preventDefault(); rotateSelectionFree(); return; }
    if (e.key==='r' || e.key==='R') { e.preventDefault(); rotateSelection( e.shiftKey? -90 : +90 ); return; }
    if (e.key==='n' || e.key==='N') { e.preventDefault(); flipSelection('h'); return; }
@@ -3496,8 +3397,45 @@ canvas.addEventListener('dblclick', (ev) => {
 
 
 
-async function pasteFromClipboard() {
+async function pasteFromClipboard2() {
   try {
+      
+  const C = window.Capacitor;
+  const IS_NATIVE = !!(C?.isNativePlatform?.() ?? (C?.getPlatform?.() !== 'web'));
+  const Clipboard = C?.Plugins?.Clipboard;
+      
+      
+    if (IS_NATIVE){
+const res = await window.pasteFromClipboard();
+if (res.type === 'image') {
+  const blob = await (await fetch('data:image/png;base64,' + res.base64PNG)).blob();
+  const bmp  = await createImageBitmap(blob);
+  _activatePastedBitmap(bmp);
+      
+      
+  //  const img = new Image();
+  //  img.onload = () => drawingCtx.drawImage(img, 0, 0);
+   // img.src = 'data:image/png;base64,' + res.base64PNG;
+    
+    _toast("Image pasted");
+    
+    return;
+  }
+  else{
+      _toast('Plugins:'+ window.Capacitor?.Plugins +" "+ Object.keys(window.Capacitor.Plugins || {}));
+      return;
+      
+  }
+  
+  
+    }  
+      
+  }catch (err) {
+    console.error(err);
+    
+  }      
+      
+ try {
     // 1) image/* direkt
     if (navigator.clipboard?.read) {
       try {
@@ -3561,6 +3499,8 @@ async function pasteFromClipboard() {
     console.error(err);
     
   }
+    
+
 }
 
 // Hjälpare: dataURL -> ImageBitmap
@@ -3856,11 +3796,23 @@ function _copyViaEditableIMG(dataURL) {
   return ok;
 }
 
+
+
+
 async function copySelectionMobileFriendly() {
   const url = _buildCopyDataURL();
   if (!url || url === 'data:,') { _toast('Nothing to copy.'); return; }
 
   // 1) Riktig bild till urklipp — iOS/Safari vill ha PROMISE direkt i ClipboardItem
+  // Native (Capacitor app)
+    if (window.Capacitor?.isNativePlatform?.()) {
+      const base64 = url.startsWith('data:') ? url.split(',')[1] : url; // <-- viktig rad
+      await Capacitor.nativePromise('ClipboardImages','copyImagePNG', { base64PNG: base64 });
+      _toast('Copied (image).');
+      return;
+    }
+
+  
   try {
     if (navigator.clipboard && window.ClipboardItem) {
       const blobPromise = (async () => (await fetch(url)).blob())(); // <- Promise, inte färdig blob
@@ -5250,8 +5202,9 @@ document.addEventListener('visibilitychange', () => {
                     redoMap.set(0,[]);
                     redoMap.set(1,[]);
                     redoMap.set(2,[]);
-                    
-                    
+                    brushColor="white";
+                    floodFill(drawstartx+1, drawstarty+1);
+                    brushColor="black";
                 }
 
 
@@ -5466,11 +5419,13 @@ function arrayBufferToBase64(buf){
   for (let i=0;i<b.length;i+=CH) s += String.fromCharCode(...b.subarray(i,i+CH));
   return btoa(s);
 }
+function isNative(){ return !!(window.Capacitor?.getPlatform && window.Capacitor.getPlatform() !== 'web'); }
 
 // === SAVE CORE (med debug) ===
 async function saveCanvasAsPng(targetCanvas, suggestedName = 'maxpaint-image.png'){
   const blob = await canvasToBlobPNG(targetCanvas);
   const file = new File([blob], suggestedName, { type:'image/png' });
+  console.log('[save] start', { native: isNative(), hasFS: !!window.Capacitor?.Plugins?.Filesystem, hasShare: !!window.Capacitor?.Plugins?.Share });
 
 try{
     if ('showSaveFilePicker' in window){
@@ -5483,6 +5438,53 @@ try{
     return;
   }
 }catch(e){}
+  
+  // 2) Capacitor: skriv fil → dela
+  const FS = window.Capacitor?.Plugins?.Filesystem;
+  const Share = window.Capacitor?.Plugins?.Share;
+  const Media = window.Capacitor?.Plugins?.Media;
+  const Toast = window.Capacitor?.Plugins?.Toast;
+  if (isNative() && FS){
+      
+   
+      const buf = await blob.arrayBuffer();
+      const b64 = arrayBufferToBase64(buf);
+      const name = `maxpaint-${Date.now()}.png`;
+      
+       const dataUrl = 'data:image/png;base64,' + b64;
+       const albumName = 'MaxPaint';
+       let albumId;
+        try {
+          let { albums } = await Media.getAlbums();
+          let found = albums?.find(a => a.name === albumName);
+          if (!found) {
+            await Media.createAlbum({ name: albumName });
+            ({ albums } = await Media.getAlbums());
+            found = albums?.find(a => a.name === albumName);
+          }
+          albumId = found?.identifier;
+          if (!albumId) throw new Error('albumIdentifier saknas');
+        } catch (e) {
+          return;
+        }
+
+        // 4) Spara till Galleri
+        const fileName = 'maxpaint-' + Date.now(); // utan .png enligt pluginens krav (Android)
+        await Media.savePhoto({ path: dataUrl, albumIdentifier: albumId, fileName });
+        await Toast.show({ text: `Saved to Photos/Gallery — Album: ${albumName}` });
+      }
+      
+      
+      
+      
+
+
+    
+    
+    
+    
+    
+  
 }
 async function saveVisible(){
 
@@ -5495,6 +5497,23 @@ async function saveVisible(){
   
   
   await saveCanvasAsPng(save);
+}
+
+function dumpCapStatus(where=''){
+  const cap = window.Capacitor;
+  const info = {
+    where,
+    hasCap: !!cap,
+    platform: cap?.getPlatform?.(),
+    isNativePlatform: cap?.isNativePlatform?.(),
+    plugins: Object.keys(cap?.Plugins || {}),
+    hasFS: !!cap?.Plugins?.Filesystem,
+    hasShare: !!cap?.Plugins?.Share,
+    hasSavePicker: 'showSaveFilePicker' in window,
+    canWebShareFiles: !!navigator.canShare?.({ files:[new File(['x'],'t.txt',{type:'text/plain'})] })
+  };
+  console.log('[cap]', info);
+  alert(JSON.stringify(info, null, 2)); // tillfälligt – så du ser i appen
 }
 
     
@@ -5640,11 +5659,59 @@ async function saveVisible(){
   
 })();
 
+(function () {
+  const C = window.Capacitor;
+  const App = C?.Plugins?.App ?? C?.App ?? window.CapacitorApp;
 
+  function isNative() {
+    if (!C) return false;
+    if (typeof C.isNativePlatform === 'function') return !!C.isNativePlatform();
+    if (typeof C.getPlatform === 'function') return C.getPlatform() === 'android' || C.getPlatform() === 'ios';
+    return false;
+  }
+
+  const IS_NATIVE = isNative();
+
+  // Show version (native)
+  if (IS_NATIVE && App?.getInfo) {
+    App.getInfo().then(i => {
+      const el = document.getElementById('appVersion');
+      if (el) el.textContent = i?.version ? `${i.version}${i.build ? ' ('+i.build+')' : ''}` : 'native';
+    }).catch(()=>{});
+  } else {
+    const el = document.getElementById('appVersion');
+    if (el) el.textContent = '';
+  }
+
+  // Android hardware back
+  if (IS_NATIVE && App?.addListener) {
+    App.addListener('backButton', (ev) => {
+      console.log('[back]', ev);   // see this in Logcat/console
+      // If WebView has history, go back in-app; otherwise confirm exit
+      if (ev?.canGoBack) {
+        history.back();
+      } else {
+        // Always confirm for now (change to your own dirty-flag later)
+        if (confirm('Exit MaxPaint? Unsaved changes will be lost.')) {
+          App.exitApp?.();
+        }
+      }
+    });
+  }
+  const NavBar = window.Capacitor?.Plugins?.NavigationBar;
+(async () => {
+  // Gör nav-baren transparent och välj ikonfärg (darkButtons = mörka pilar/ikoner)
+  await NavBar?.setTransparency({ isTransparent: true });
+  await NavBar?.setColor({ color: '#00000000', darkButtons: true }); // 8-hex = ARGB, 00 = fullt transparent
+})();
+  
+  
+  
+})();
 
 </script>
 
-
+<script src="native-clipboard.js"></script>
 
 
 
