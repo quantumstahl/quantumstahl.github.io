@@ -614,7 +614,7 @@ canvas{
         
 </head>
 <body>  
-<div id="swBadge" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:#111;color:#ffffff;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui">v1.01</div>
+<div id="swBadge" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:#111;color:#ffffff;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui">v1.02</div>
 
 <div id="hide">
 <label for="directFileInput">Open Image</label>
@@ -1454,7 +1454,7 @@ confirmResizeBtn.addEventListener('click', async function() {
             }
             
             // Fill the drawing canvas with white initially
-            drawingCtx.fillStyle = "black";
+            drawingCtx.fillStyle = "#4D4D4D";
             drawingCtx.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
             
             // Disable image smoothing for crisp pixels
@@ -1632,10 +1632,10 @@ function __activeRect(){
   // var i bilden som visas på skärmen:
   const x0 = 0;
   const y0 = 0;
-  const vw = drawareax / z;
-  const vh = drawareay / z;
-  const x1 = Math.min(W, x0 + vw);
-  const y1 = Math.min(H, y0 + vh);
+  const vw = Math.ceil(drawareax / z);
+  const vh = Math.ceil(drawareay / z);
+  const x1 = Math.ceil(drawareax / z);
+  const y1 = Math.ceil(drawareay / z);
   return {x0, y0, x1, y1, w: (x1-x0)|0, h: (y1-y0)|0};
 }
 
@@ -3091,21 +3091,17 @@ function resizeCancel(){
   if (typeof undo === 'function') undo(); // backa snapshot-start
   rc_active = false; rc_snap = null;
 }
-function quantizeToZoomGrid(screenValue, z) {
-  // Snäpper till närmaste multipel av z (så 1 doc-pixel = exakt z skärmpixlar)
-  return Math.round(screenValue / z) * z;
-}
-//funkar lite
-function drawResizeOverlay() {
+function snapFloor(n, z){ return (n / z) * z; }
+function snapCeil(n,  z){ return (n  / z) * z; }
+
+function drawResizeOverlay(){
   if (!rc_active) return;
   const z = _effectiveZoom();
-  const oldW = rc_oldW, oldH = rc_oldH;
+
+  const oldW = rc_oldW|0, oldH = rc_oldH|0;
   const newW = rc_prevW|0, newH = rc_prevH|0;
 
-  // ... (behåll din offsetForCorner etc)
-
   const { dx, dy } = offsetForCorner(rc_corner, oldW, oldH, newW, newH);
-
   const dstX = (dx > 0 ? dx : 0) | 0;
   const dstY = (dy > 0 ? dy : 0) | 0;
   const srcX = (dx < 0 ? -dx : 0) | 0;
@@ -3113,61 +3109,58 @@ function drawResizeOverlay() {
   const copyW = Math.max(0, Math.min(oldW - srcX, newW - dstX)) | 0;
   const copyH = Math.max(0, Math.min(oldH - srcY, newH - dstY)) | 0;
 
-  // Förhandsvisningens topp-vänster i SKÄRMpixlar (håll motsatt hörn "fast")
-  let previewTLx = drawstartx+camera.x + ((rc_corner==='NW' || rc_corner==='SW') ? (oldW - newW) * z : 0);
-  let previewTLy = drawstarty+camera.y + ((rc_corner==='NW' || rc_corner==='NE') ? (oldH - newH) * z : 0);
+  // --- DOC-ytan i SKÄRMPXL, snap: floor TL, ceil BR (half-open) ---
+  const docX0 = snapFloor(drawstartx + camera.x, z);
+  const docY0 = snapFloor(drawstarty + camera.y, z);
+  const docX1 = snapCeil (docX0 + oldW * z,      z);
+  const docY1 = snapCeil (docY0 + oldH * z,      z);
 
-  // === VIKTIGT: kvantisera skärmpixlar till zoom-rutnätet ===
-  previewTLx = quantizeToZoomGrid(previewTLx, z);
-  previewTLy = quantizeToZoomGrid(previewTLy, z);
+  // --- PREVIEW TL: motsatt hörn "fast" (blir multipel av z per konstruktion) ---
+  let prevX0 = docX0 + ((rc_corner==='NW' || rc_corner==='SW') ? (oldW - newW) * z : 0);
+  let prevY0 = docY0 + ((rc_corner==='NW' || rc_corner==='NE') ? (oldH - newH) * z : 0);
 
-  // Skärm-rektar (kvantisera även storleken)
-  const prevW = quantizeToZoomGrid(newW * z, z);
-  const prevH = quantizeToZoomGrid(newH * z, z);
+  // Snappa TL till grid
+  prevX0 = snapFloor(prevX0, z);
+  prevY0 = snapFloor(prevY0, z);
 
-  const docX0 = drawstartx+camera.x,             docY0 = drawstarty+camera.y;
-  const docX1 = docX0 + quantizeToZoomGrid(oldW * z, z);
-  const docY1 = docY0 + quantizeToZoomGrid(oldH * z, z);
+  // PREVIEW BR: exakt multipel av z (ny storlek i doc-pxl * z) + ceil
+  const prevX1 = snapCeil(prevX0 + newW * z, z);
+  const prevY1 = snapCeil(prevY0 + newH * z, z);
 
-  const prevX0 = Math.floor(previewTLx), prevY0 = Math.floor(previewTLy);
-  const prevX1 = prevX0 + prevW,         prevY1 = prevY0 + prevH;
+  const prevW = Math.max(0, prevX1 - prevX0);
+  const prevH = Math.max(0, prevY1 - prevY0);
 
-  // Destinationspunkt för snapshot i SKÄRMpixlar → kvantisera
-  const dstXs = quantizeToZoomGrid(prevX0 + dstX * z, z);
-  const dstYs = quantizeToZoomGrid(prevY0 + dstY * z, z);
-  const drawW = quantizeToZoomGrid(copyW * z, z);
-  const drawH = quantizeToZoomGrid(copyH * z, z);
+  // Snapshot-destination i skärmpxl (kvantisera med samma policy)
+  const dstXs = snapFloor(prevX0 + dstX * z, z);
+  const dstYs = snapFloor(prevY0 + dstY * z, z);
+  const drawW = snapCeil (dstXs + copyW * z, z) - dstXs;
+  const drawH = snapCeil (dstYs + copyH * z, z) - dstYs;
 
   ctx.save();
   disableSmoothing(ctx);
 
-  ctx.fillStyle = "rgba(32, 45, 21, 0.3)";
-  if(copyW > 0 && copyH > 0){
-      ctx.fillRect(prevX0, prevY0, prevW, prevH);
+  // Inre tint
+  if (copyW > 0 && copyH > 0) {
+    ctx.fillStyle = "rgba(32,45,21,0.30)";
+    ctx.fillRect(prevX0, prevY0, prevW, prevH);
   }
-  
-  
-  /*
-  if (rc_snap && copyW > 0 && copyH > 0) {
-      ctx.drawImage(
-      rc_snap,
-      srcX, srcY, copyW, copyH,        // KÄLLA: orörd i doc-pixlar
-      dstXs,dstYs, drawW, drawH // MÅL: kvantiserade skärmpixlar
-    );
-  }*/
 
-  // 3) Skugga UTANFÖR nya ytan
-  ctx.fillStyle = 'rgba(0,0,0,0.10)';
+  // Yttre skugga – använd samma half-open endpoints
+  ctx.fillStyle = "rgba(0,0,0,0.10)";
+  // vänster
   ctx.fillRect(docX0, docY0, Math.max(0, prevX0 - docX0), docY1 - docY0);
+  // höger
   ctx.fillRect(Math.min(docX1, prevX1), docY0, Math.max(0, docX1 - prevX1), docY1 - docY0);
+  // över
   ctx.fillRect(prevX0, docY0, Math.max(0, prevX1 - prevX0), Math.max(0, prevY0 - docY0));
+  // under
   ctx.fillRect(prevX0, Math.min(docY1, prevY1), Math.max(0, prevX1 - prevX0), Math.max(0, docY1 - prevY1));
 
-  // 4) Ram
+  // 1-px ram exakt innanför (dashed)
   ctx.setLineDash([6,4]);
   ctx.lineWidth = 1;
-  ctx.strokeStyle = 'rgba(0,0,0,0.9)';
-  ctx.strokeRect(prevX0 + 0.5, prevY0 + 0.5, prevW, prevH);
+  ctx.strokeStyle = "rgba(0,0,0,0.9)";
+  ctx.strokeRect(prevX0 + 0.5, prevY0 + 0.5, Math.max(0, prevW - 1), Math.max(0, prevH - 1));
 
   ctx.restore();
 }
@@ -4472,51 +4465,7 @@ document.getElementById('mnuNew').addEventListener('click', async () => {
   switchTool("pen");
   resetPaletteToDefaults(0);
 
-  // --- Kolla ny version (endast online)
-  const willReload = await maybeReloadIfNewVersionOnline();
-
-  // Vill du alltid göra en hard-reload om online men ingen auto-reload skedde? (valfritt)
-  // if (!willReload && navigator.onLine) location.reload();
 });
-
-async function maybeReloadIfNewVersionOnline() {
-  if (!navigator.onLine || !('serviceWorker' in navigator)) return false;
-
-  const reg = await navigator.serviceWorker.getRegistration();
-  if (!reg) return false;
-
-  const before = String(window.__swVersion || '');
-
-  try { await reg.update(); } catch (_) {}
-
-  if (reg.waiting) {
-    // 🔧 säkerställ att vi fångar controllerchange om den missas
-    let fired = false;
-    const onCC = () => { fired = true; };
-    navigator.serviceWorker.addEventListener('controllerchange', onCC, { once: true });
-
-    reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-    // vi returnerar true – din globala controllerchange handler gör reloaden
-    return true;
-  }
-
-  // Fråga aktiv SW igen
-  await new Promise(r => setTimeout(r, 250));
-  await requestSwVersion();
-
-  const after = String(window.__swVersion || '');
-  if (before && after && before !== after) {
-    // 🔧 version ändrad men ingen waiting – gör hård reload
-    location.reload();
-    return true;
-  }
-
-  return false;
-}
-
-
-
-
 
 const pointers = new Map();           // pointerId -> { clientX, clientY, offsetX, offsetY }
 let touchTimer = null;
@@ -5121,6 +5070,58 @@ document.addEventListener('visibilitychange', () => {
   
 });
 
+async function warmUpCanvas(canvas, bg = 'white') {
+  // Ta ut context med rätt flaggor
+  
+  await gogogo(canvas, bg = 'white');
+  
+
+}
+async function gogogo(canvas, bg = 'white'){
+    
+  const ctx = canvas.getContext('2d', {
+    alpha: false,               // opak: undvik svart/transparens
+    desynchronized: true,       // mindre jank på äldre enheter
+    willReadFrequently: true    // om du använder get/putImageData i fill/verktyg
+  });
+
+  // Standardstate
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.imageSmoothingEnabled = false;
+
+  const {width:w, height:h} = canvas;
+
+  // 1) Fyll bakgrunden (snabbare än flood fill och triggar raster)
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+
+  // 2) “JIT/GPU-warmup” – billiga operationer som kompilerar shader/kodvägar
+  //   a) Läs en pixel -> aktiverar readback-path om du använder den senare
+  try { ctx.getImageData(0, 0, 1, 1); } catch(_) {}
+
+  //   b) Skala en 1x1-bild till hela canvas -> kompilerar drawImage/scale-shadern
+  const tiny = document.createElement('canvas');
+  tiny.width = tiny.height = 1;
+  const tctx = tiny.getContext('2d', {alpha:false});
+  tctx.fillStyle = bg; tctx.fillRect(0,0,1,1);
+  ctx.drawImage(tiny, 0, 0, 1, 1, 0, 0, w, h);
+
+  //   c) En minimal bitmap-path (kompilera upload/texture)
+  if (canvas.transferControlToOffscreen) {
+    // inget krav, men ibland räcker detta steg ovan
+  }
+
+  // 3) Första frame stabil – be om en extra rAF så WebView hinner synka
+  return new Promise(r => requestAnimationFrame(() => r(ctx)));
+    
+    
+    
+    
+    
+}
+
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
@@ -5202,9 +5203,7 @@ document.addEventListener('visibilitychange', () => {
                     redoMap.set(0,[]);
                     redoMap.set(1,[]);
                     redoMap.set(2,[]);
-                    brushColor="white";
-                    floodFill(drawstartx+1, drawstarty+1);
-                    brushColor="black";
+                    warmUpCanvas(drawingCanvas);
                 }
 
 
