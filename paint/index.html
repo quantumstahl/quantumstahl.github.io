@@ -564,8 +564,12 @@ canvas{
 /* Extra krymp i landscape på mobil */
 @media (orientation: landscape) and (pointer:coarse){
     
-   #colorWrap{top:5rem;} 
+   #colorWrap{top:0rem;} 
+    
 
+  #rainbowCanvas{
+    height: clamp(14rem, 36vh, 14rem);
+  }
   #hexOut{
     font-size: 0.9rem;
   }
