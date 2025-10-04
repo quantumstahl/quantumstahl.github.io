@@ -377,6 +377,7 @@ canvas{
   #centerTopBar .barbtn:focus-visible{
     background:transparent !important; box-shadow:none !important;
   }
+  @media (orientation:landscape){ #dockWrap3{ left:0; } }
   @media (orientation:landscape){
     #dockWrap3{
 
@@ -391,8 +392,6 @@ canvas{
         width:3rem;
     }
   }
-  @media (orientation:landscape){ #dockWrap3{ left:0; } }
-
   /* Transform-knapp + meny */
   #transformBtn{ width:2.5rem; height:2.5rem; font-size:1rem; }
   #transformMenu{ top:calc(3.625rem + env(safe-area-inset-top)); width:11.25rem; padding:0.4375rem; border-radius:0.6875rem; }
