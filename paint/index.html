@@ -601,26 +601,8 @@ canvas{
 
 
 
-        </style>
+</style>
 
-        
-<script>
-// === 0) Upptäck native (Capacitor) tidigt
-(function () {
-  const isNative = !!(window.Capacitor?.getPlatform && window.Capacitor.getPlatform() !== 'web');
-  window.__IS_NATIVE__ = isNative;                 // global flagga
-  document.documentElement.classList.toggle('is-native', isNative);
-  if (isNative) {
-    // Städa redan existerande PWA-element
-    document.querySelectorAll('.only-pwa,#pwaInstallHint,[data-only="pwa"]').forEach(el => el.remove());
-  }
-})();
-</script>             
-        
-        
-        
-        
-        
 </head>
 <body>  
 <div id="swBadge" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:#111;color:#ffffff;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui">v1.02</div>
