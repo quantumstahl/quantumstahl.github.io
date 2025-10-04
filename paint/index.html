@@ -377,6 +377,20 @@ canvas{
   #centerTopBar .barbtn:focus-visible{
     background:transparent !important; box-shadow:none !important;
   }
+  @media (orientation:landscape){
+    #dockWrap3{
+
+      display:flex;
+      justify-content:normal;
+      align-items:end;
+      left:calc(5rem + env(safe-area-inset-left, 0));
+      height:100%;
+    }
+    #centerTopBar{
+        display:grid;
+        width:3rem;
+    }
+  }
   @media (orientation:landscape){ #dockWrap3{ left:0; } }
 
   /* Transform-knapp + meny */
