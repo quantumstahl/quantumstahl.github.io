@@ -822,55 +822,7 @@ canvas{
 
     
 
-<script>
-// Blockera långtrycks-menyn helt
-window.addEventListener('contextmenu', e => e.preventDefault(), { capture: true });
 
-// Gör touch-listeners non-passive så preventDefault faktiskt fungerar
-const opts = { capture: true, passive: false };
-
-// På din mål-yta (canvas eller #stage)
-const stage = document.getElementById('stage') || document.querySelector('canvas');
-
-stage.addEventListener('pointerdown', e => {
-  // Hindra att webbläsaren startar någon gest alls
-  e.preventDefault();
-  stage.setPointerCapture?.(e.pointerId); // behåll events även om OS “pillar”
-  // ...din start-select-logik...
-}, opts);
-
-stage.addEventListener('pointermove', e => {
-  e.preventDefault();
-  // ...din drag/resize/select-logik...
-}, opts);
-
-stage.addEventListener('pointerup', e => {
-  e.preventDefault();
-  // ...commit/avsluta...
-  stage.releasePointerCapture?.(e.pointerId);
-}, opts);
-
-// Om Android ändå skickar cancel (t.ex. p.g.a. systemgest)
-stage.addEventListener('pointercancel', e => {
-  // Behandla som ett “säkert avslut” så verktyget inte fastnar i halv-state
-  // t.ex. återställ markering, eller commit/rollback beroende på din UX
-  cleanupSelectionState();
-});
-
-// Extra skydd mot spök-menyer/urval
-document.addEventListener('selectstart', e => e.preventDefault(), { capture: true });    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</script>
 
  
 <script>
@@ -2913,12 +2865,13 @@ canvas.addEventListener('contextmenu', (e)=>{
     // (vi har inte skrivit till drawingCanvas under drag, så inget mer behövs)
   }
 }); 
+/*
 canvas.addEventListener('pointercancel', (ev)=>{
     if (ev.pointerType === 'touch') ev.preventDefault(); 
   if (currentTool !== 'lasso') return;
   // Avbryt drag, men rulla inte tillbaka (sessionen lever kvar)
   isDraggingSelection = false;
-});
+});*/
 // Tröska bort halv-alfa → 0/255
 function _binarizeAlpha(canvas, threshold = 128) {
   const w = canvas.width, h = canvas.height;
@@ -3336,7 +3289,7 @@ canvas.addEventListener('pointerup', (ev)=>{
   }
 });
 
-canvas.addEventListener('pointercancel', ()=>{ if (currentTool==='select') { isDraggingSelection=false; isRectSelecting=false; }});
+//canvas.addEventListener('pointercancel', ()=>{ if (currentTool==='select') { isDraggingSelection=false; isRectSelecting=false; }});
 async function copySelection() {
   // Välj källa: aktiv selection → annars hela dokumentytan
   let srcCanvas = null;
@@ -4017,7 +3970,7 @@ function _endResizeCommit(){
 }
 
 canvas.addEventListener('pointerup',    _endResizeCommit);
-canvas.addEventListener('pointercancel',_endResizeCommit);
+//canvas.addEventListener('pointercancel',_endResizeCommit);
 canvas.addEventListener('pointerleave', () => {
   // valfritt: commit även när man drar utanför canvas
   if (isResizingSelection) _endResizeCommit();
@@ -4687,7 +4640,7 @@ function endPointer(ev) {
   
 }
 canvas.addEventListener('pointerup', endPointer, { passive: false });
-canvas.addEventListener('pointercancel', endPointer, { passive: false });
+//canvas.addEventListener('pointercancel', endPointer, { passive: false });
 
 const HIST_MAX = 50;
 let savelabel,savew,savebmp,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom,canvash,ox,oy;
