@@ -660,9 +660,9 @@ canvas{
       <canvas id="rainbowCanvas" width="512" height="300"></canvas>
     </div>
     <label class="row" style="gap:.5rem;align-items:center">
-      Brightness
+      
       <input id="lightnessSlider" type="range" min="0" max="100" value="100"/>
-      <span id="lightnessVal">100%</span>
+      <span id="lightnessVal">Brightness 100%</span>
     </label>
     <div class="row" style="gap:1rem;align-items:center;margin-top:.5rem;display:flex;">
       <!-- tom flex-spacer först -> allt hamnar höger -->
@@ -982,7 +982,7 @@ canvas{
     H = hsv.h; S = hsv.s; V = hsv.v;
 
     slider.value = Math.round(V*100);
-    sliderVal.textContent = slider.value + '%';
+    sliderVal.textContent = "Brightness: "+slider.value + '%';
 
     colorpickerActive = true;
     pop.classList.remove('hidden');
@@ -1011,7 +1011,7 @@ canvas{
   // V (ljushet)
   slider?.addEventListener('input', ()=>{
     V = Number(slider.value)/100;
-    sliderVal.textContent = slider.value + '%';
+    sliderVal.textContent = "Brightness: "+slider.value + '%';
     drawWheel();
     updatePreview();
   });
