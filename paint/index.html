@@ -41,22 +41,17 @@
 /* =========================
    GLOBAL BAS
    ========================= */
-html, body, #app, canvas {
-  -webkit-user-select: none;      /* stäng texturval */
-  user-select: none;
-  -webkit-touch-callout: none;    /* stäng “håll för att visa meny” */
-  -webkit-tap-highlight-color: transparent;
-  touch-action: none;             /* stäng browser-gester på touch (viktigt!) */
-}
+
 html{ background:#000; }
 body{
   overscroll-behavior:none;
   touch-action:none;
   background:#000;
-  -webkit-user-select:none !important;
-          user-select:none !important;
-  -webkit-touch-callout:none !important;
+  -webkit-user-select: none;
+  -webkit-touch-callout:none;
   -webkit-tap-highlight-color:transparent;
+  
+  
 }
 
 /* Canvas – låt gester gå här, inte på UI */
@@ -2665,7 +2660,7 @@ function cancelSelectionSession() {
 let isdragdrag=false;
 
 canvas.addEventListener('pointerdown', (ev)=>{
-    if (ev.pointerType === 'touch') ev.preventDefault(); 
+    ev.preventDefault(); 
     isdragdrag=true;
     markDirty();
   if (currentTool !== 'lasso'||pointers.size === 2) return;
@@ -2734,7 +2729,7 @@ if (selectionImageCanvas || selectionBBox){
 });
 
 canvas.addEventListener('pointermove', (ev)=>{
-    if (ev.pointerType === 'touch') ev.preventDefault(); 
+    ev.preventDefault(); 
   if (currentTool !== 'lasso'||pointers.size === 2) return;
   
   const rect = canvas.getBoundingClientRect();
@@ -2793,7 +2788,7 @@ function _finalizeLasso() {
 }
 
 canvas.addEventListener('pointerup', (ev)=>{
-    if (ev.pointerType === 'touch') ev.preventDefault(); 
+    ev.preventDefault(); 
     isdragdrag=false;
     if(tapedTwice)return;
   if (currentTool !== 'lasso') return;
@@ -2814,15 +2809,16 @@ canvas.addEventListener('pointerup', (ev)=>{
 
 // Högerklick = ångra drag (återställ snapshot)
 canvas.addEventListener('contextmenu', (e)=>{
-  if (selSessionActive) {
     e.preventDefault();
+  if (selSessionActive) {
+    
     cancelSelectionSession();    // återställ hålet och positionen
   }
 });
 
 // även dubbelklick → stäng/avsluta
 canvas.addEventListener('dblclick', (ev)=>{
-  
+  ev.preventDefault();
   if (currentTool!=='lasso') return;
   commitSelectionSession();      
   clearSelection();
@@ -2833,12 +2829,13 @@ canvas.addEventListener("touchstart", tapHandler);
 var tapedTwice = false;
 
 function tapHandler(event) {
+    event.preventDefault();
     if(!tapedTwice) {
         tapedTwice = true;
         setTimeout( function() { tapedTwice = false; }, 300 );
         return false;
     }
-    event.preventDefault();
+    
     if (selSessionActive) {
       commitSelectionSession();  // skriver in urklippet och avslutar
     } else {
@@ -2865,13 +2862,12 @@ canvas.addEventListener('contextmenu', (e)=>{
     // (vi har inte skrivit till drawingCanvas under drag, så inget mer behövs)
   }
 }); 
-/*
 canvas.addEventListener('pointercancel', (ev)=>{
-    if (ev.pointerType === 'touch') ev.preventDefault(); 
+    ev.preventDefault(); 
   if (currentTool !== 'lasso') return;
   // Avbryt drag, men rulla inte tillbaka (sessionen lever kvar)
   isDraggingSelection = false;
-});*/
+});
 // Tröska bort halv-alfa → 0/255
 function _binarizeAlpha(canvas, threshold = 128) {
   const w = canvas.width, h = canvas.height;
@@ -3157,7 +3153,7 @@ function drawResizeOverlay(){
 let isRectSelecting = false;
 
 canvas.addEventListener('pointerdown', (ev)=>{
-    if (ev.pointerType === 'touch') ev.preventDefault();
+    ev.preventDefault();
   if (currentTool !== 'select'||pointers.size === 2) return;
   
   const rect = canvas.getBoundingClientRect();
@@ -3222,7 +3218,7 @@ if (selectionImageCanvas || selectionBBox){
 });
 
 canvas.addEventListener('pointermove', (ev)=>{
-    if (ev.pointerType === 'touch') ev.preventDefault();
+    ev.preventDefault();
   if (currentTool !== 'select'||pointers.size === 2) return;
   
   const rect = canvas.getBoundingClientRect();
@@ -3274,7 +3270,7 @@ function _finalizeRectSelection() {
 }
 
 canvas.addEventListener('pointerup', (ev)=>{
-    if (ev.pointerType === 'touch') ev.preventDefault();
+    ev.preventDefault();
   if (currentTool !== 'select') return;
   
   if (isDraggingSelection && selectionImageCanvas && selectionBBox) {
@@ -3289,7 +3285,7 @@ canvas.addEventListener('pointerup', (ev)=>{
   }
 });
 
-//canvas.addEventListener('pointercancel', ()=>{ if (currentTool==='select') { isDraggingSelection=false; isRectSelecting=false; }});
+canvas.addEventListener('pointercancel', (ev)=>{ ev.preventDefault();if (currentTool==='select') { isDraggingSelection=false; isRectSelecting=false; }});
 async function copySelection() {
   // Välj källa: aktiv selection → annars hela dokumentytan
   let srcCanvas = null;
@@ -3344,8 +3340,9 @@ function _drawSelectOverlay() {
 }
 // === Double-click för SELECT: färdigställ eller commit+clear ===
 canvas.addEventListener('dblclick', (ev) => {
+    ev.preventDefault();
   if (currentTool !== 'select') return;
-  ev.preventDefault();
+  
 
   // 1) Om vi håller på att rita rektangel → färdigställ rutan
   if ((typeof isRectSelecting !== 'undefined' && isRectSelecting) ||
@@ -3890,7 +3887,7 @@ function _commitSelectionResize(oldBBox, newBBox){
 // ===== END PATCH: resize-corners state =====
 // ===== BEGIN PATCH: pointer listeners for corner resize =====
 canvas.addEventListener('pointerdown', (ev) => {
-  if (ev.pointerType === 'touch') ev.preventDefault();  
+  ev.preventDefault();  
   if (!selectionImageCanvas || !selectionBBox) return;
 
   const rect = canvas.getBoundingClientRect();
@@ -3921,7 +3918,7 @@ canvas.addEventListener('pointerdown', (ev) => {
 });
 
 canvas.addEventListener('pointermove', (ev) => {
-    if (ev.pointerType === 'touch') ev.preventDefault();
+    ev.preventDefault();
   // Hover-cursor när inte resizing
   if (!isResizingSelection) {
     if (selectionBBox) {
@@ -3959,7 +3956,8 @@ canvas.addEventListener('pointermove', (ev) => {
   ev.preventDefault();
 });
 
-function _endResizeCommit(){
+function _endResizeCommit(ev){
+    ev.preventDefault();
   if (!isResizingSelection) return;
   _commitSelectionResize(resizeStartBBox, selectionBBox);
 
@@ -3970,10 +3968,11 @@ function _endResizeCommit(){
 }
 
 canvas.addEventListener('pointerup',    _endResizeCommit);
-//canvas.addEventListener('pointercancel',_endResizeCommit);
-canvas.addEventListener('pointerleave', () => {
+canvas.addEventListener('pointercancel',_endResizeCommit);
+canvas.addEventListener('pointerleave', (ev) => {
+    ev.preventDefault();
   // valfritt: commit även när man drar utanför canvas
-  if (isResizingSelection) _endResizeCommit();
+  if (isResizingSelection) _endResizeCommit(ev);
 });
 // ===== END PATCH: pointer listeners for corner resize =====
 function _parseImgSrcFromHTML(html) {
@@ -4472,7 +4471,7 @@ function twoPointers() {
 }
 
 canvas.addEventListener('pointerdown', (ev) => {
-  if (ev.pointerType === 'touch') ev.preventDefault();
+  ev.preventDefault();
   canvas.setPointerCapture(ev.pointerId);
 
   pointers.set(ev.pointerId, {
@@ -4538,7 +4537,7 @@ canvas.addEventListener('pointerdown', (ev) => {
 }, { passive: false });
 
 canvas.addEventListener('pointermove', (ev) => {
-  if (ev.pointerType === 'touch') ev.preventDefault();
+  ev.preventDefault();
   if (!pointers.has(ev.pointerId)) return;
 
   // uppdatera den aktiva pointerns pos
@@ -4612,7 +4611,7 @@ canvas.addEventListener('pointermove', (ev) => {
 }, { passive: false });
 
 function endPointer(ev) {
-  if (ev.pointerType === 'touch') ev.preventDefault();
+   ev.preventDefault();
   pointers.delete(ev.pointerId);
   try { canvas.releasePointerCapture(ev.pointerId); } catch(_) {}
 
@@ -4640,7 +4639,7 @@ function endPointer(ev) {
   
 }
 canvas.addEventListener('pointerup', endPointer, { passive: false });
-//canvas.addEventListener('pointercancel', endPointer, { passive: false });
+canvas.addEventListener('pointercancel', endPointer, { passive: false });
 
 const HIST_MAX = 50;
 let savelabel,savew,savebmp,saveh,savedrawareax,savedrawareay,savedrawstartx,savedrawstarty,savezoom,canvash,ox,oy;
@@ -5703,87 +5702,6 @@ function dumpCapStatus(where=''){
 <script src="native-clipboard.js"></script>
 
 
-
-
-<script id="stage-shield-longpress">
-(function(){
-  if (window.__STAGE_SHIELD__) return;
-  window.__STAGE_SHIELD__ = true;
-
-  var stage = document.getElementById('stage')
-          || document.querySelector('canvas#stage, .drawing-stage, canvas.drawing-surface, canvas');
-
-  if (!stage) return;
-
-  // Enforce touch-action:none on stage at runtime (in case CSS loads late)
-  try { stage.style.touchAction = 'none'; } catch(_) {}
-
-  function within(el, root){
-    try { return el === root || root.contains(el); } catch(_) { return false; }
-  }
-
-  // 1) Absolute top-priority stage shield:
-  //    If event originated inside stage and is touch/pen, we preventDefault and
-  //    stopImmediatePropagation so no "outside click" capture listeners can interfere.
-  var capActive = { capture:true, passive:false };
-  function isTouchLike(e){
-    return e.pointerType === 'touch' || e.pointerType === 'pen' || (e.touches && e.touches.length);
-  }
-
-  // Pointer path
-  document.addEventListener('pointerdown', function(e){
-    if (!within(e.target, stage)) return;
-    if (!isTouchLike(e)) return;
-    if (e.cancelable) e.preventDefault();
-    // Important: stopImmediatePropagation prevents *other capture listeners* from running.
-    if (e.stopImmediatePropagation) e.stopImmediatePropagation(); else e.stopPropagation();
-  }, capActive);
-
-  // Touch legacy path
-  ['touchstart','touchmove','touchend','touchcancel'].forEach(function(t){
-    document.addEventListener(t, function(e){
-      if (!within(e.target, stage)) return;
-      if (e.cancelable) e.preventDefault();
-      if (e.stopImmediatePropagation) e.stopImmediatePropagation(); else e.stopPropagation();
-    }, capActive);
-  });
-
-  // Context menu always off on stage
-  document.addEventListener('contextmenu', function(e){
-    if (!within(e.target, stage)) return;
-    e.preventDefault();
-    if (e.stopImmediatePropagation) e.stopImmediatePropagation(); else e.stopPropagation();
-  }, {capture:true});
-
-  // 2) Safe outside‑click helper for your menus (use this instead of pointerdown capture)
-  //    - runs on 'click' in bubble phase
-  //    - ignores events that were defaultPrevented by the stage shield
-  window.__installSafeOutsideClick = function(rootEl, closeFn){
-    document.addEventListener('click', function(e){
-      if (e.defaultPrevented) return;              // stage consumed it
-      var root = (typeof rootEl === 'function') ? rootEl() : rootEl;
-      if (!root) return;
-      if (within(e.target, root)) return;          // click inside menu -> ignore
-      if (within(e.target, stage)) return;         // click in canvas -> ignore (tool handles it)
-      closeFn && closeFn();
-    }, {capture:false, passive:true});
-  };
-
-  // Example usage (uncomment and adjust selector/close):
-  // __installSafeOutsideClick(document.querySelector('#menu'), () => hideMenu());
-
-  // 3) Pointer capture hardening for selection (lightweight)
-  stage.addEventListener('pointerdown', function(e){
-    if (!isTouchLike(e)) return;
-    try { stage.setPointerCapture(e.pointerId); } catch(_) {}
-  }, {capture:true, passive:false});
-
-  stage.addEventListener('lostpointercapture', function(e){
-    // If your tool needs, you can auto‑end or try to resume on next move.
-    // Keep it no‑op here to avoid changing app logic.
-  }, {capture:true, passive:false});
-})();
-</script>
 
 </body>
 </html>
