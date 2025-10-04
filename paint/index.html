@@ -4,24 +4,8 @@
 <head>
 <title>MaxPaint</title>
 <meta charset="utf-8"/>
-<meta name="viewport"
-  content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta content="maxpaint,paint" name="keywords"/>
-
-
-<!-- PWA -->
-<link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#111111">
-
-<meta name="mobile-web-app-capable" content="yes">
-
-<!-- iOS speciellt -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="apple-touch-icon" href="icons/icon-180.png">
-
-
 <link href="icons/icon-192.png" rel="icon" type="image/vnd.microsoft.icon"/>
 
 
@@ -42,7 +26,7 @@
    GLOBAL BAS
    ========================= */
 
-html{ background:#000; }
+html{ background:#4D4D4D; }
 body{
   overscroll-behavior:none;
   touch-action:none;
@@ -57,7 +41,7 @@ body{
 /* Canvas – låt gester gå här, inte på UI */
 canvas{
   display:block; margin:0 auto; z-index:0;
-  background:#50459b;
+  background:#4D4D4D;
   image-rendering:-moz-crisp-edges;
   image-rendering:-webkit-crisp-edges;
   image-rendering:pixelated;
@@ -1090,9 +1074,12 @@ canvas{
 <script>
             
             const canvas = document.getElementById("myCanvas");
-            const ctx = canvas.getContext('2d', { alpha:false});
+            const ctx = canvas.getContext('2d', {
+  desynchronized: true,      // minskar jank på långsam HW
+  willReadFrequently: true
+});
             document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
-    
+            
             // Create an in-memory canvas to store our drawing
             let drawingCanvas = document.createElement('canvas');
             let drawingCtx = drawingCanvas.getContext('2d');
