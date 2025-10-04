@@ -4534,7 +4534,7 @@ canvas.addEventListener('pointerdown', (ev) => {
         const hexColor = `#${data[0].toString(16).padStart(2,'0')}${data[1].toString(16).padStart(2,'0')}${data[2].toString(16).padStart(2,'0')}`;
         document.querySelector('.color-swatch.active').dataset.color = hexColor;document.querySelector('.color-swatch.active').style.background = hexColor; isTransparentBrush = false; switchTool('pen'); return;
       } else if (currentTool === 'fill') {
-        beginAction(); floodFill(x, y); endAction();
+        beginAction();_capturePreStroke();delatare=true; floodFill(x, y); endAction();
       } else if (currentTool === 'select') {
         isSelecting = true; //selectionStartX = canvasX; selectionStartY = canvasY; selectionEndX = canvasX; selectionEndY = canvasY;
       } else if (currentTool === 'text') {
