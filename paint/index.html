@@ -50,7 +50,7 @@ body{
   -webkit-user-select: none;
   -webkit-touch-callout:none;
   -webkit-tap-highlight-color:transparent;
-  user-select:none;
+  
   
 }
 
@@ -816,73 +816,7 @@ canvas{
 <canvas height="10" id="myCanvas" style="border:0px solid black" width="10"></canvas>
 
     
-<script>
-    
- const stage = document.getElementById('stage') || document.querySelector('canvas');
 
-// 1) Blockera långtryck även i motorer som fortfarande tittar på touch-API:t
-const touchOpts = { capture: true, passive: false };
-['touchstart','touchmove','touchend','touchcancel'].forEach(type => {
-  stage.addEventListener(type, ev => {
-    ev.preventDefault();          // kritiskt: stoppa long-press heuristics
-    ev.stopPropagation();
-  }, touchOpts);
-});
-
-// 2) Pointer Events – som du redan har, men lägg till "lostpointercapture" + defensivt avslut
-let selecting = false;
-let activePointerId = null;
-
-function cleanupSelectionState() {
-  selecting = false;
-  activePointerId = null;
-  // TODO: återställ dina rc_* flaggor/overlay här
-  // ex: rc_active = false; rita om overlay; osv.
-}
-
-const peOpts = { capture: true, passive: false };
-
-stage.addEventListener('pointerdown', e => {
-  e.preventDefault();
-  // Ignorera extra fingrar
-  if (activePointerId !== null && e.pointerId !== activePointerId) return;
-
-  activePointerId = e.pointerId;
-  stage.setPointerCapture?.(e.pointerId);
-  selecting = true;
-  // …starta din select-drag här…
-}, peOpts);
-
-stage.addEventListener('pointermove', e => {
-  if (e.pointerId !== activePointerId) return;
-  e.preventDefault();
-  if (!selecting) return;
-  // …din drag/resize/select-logik…
-}, peOpts);
-
-function endPointer(e){
-  if (e.pointerId !== activePointerId) return;
-  e.preventDefault();
-  // …commit/avsluta…
-  try { stage.releasePointerCapture?.(e.pointerId); } catch {}
-  cleanupSelectionState();
-}
-
-stage.addEventListener('pointerup', endPointer, peOpts);
-stage.addEventListener('pointercancel', endPointer, peOpts);
-stage.addEventListener('lostpointercapture', endPointer, peOpts);
-
-// Blockera ev. textmarkering/kontextmeny globalt (behåll detta)
-window.addEventListener('contextmenu', e => e.preventDefault(), { capture: true });
-document.addEventListener('selectstart', e => e.preventDefault(), { capture: true });   
-    
-    
-    
-    
-    
-    
-    
-</script>
 
 
  
