@@ -601,23 +601,6 @@ canvas{
 
 </style>
 
-
-<style id="stage-subtree-longpress-css">
-/* Suppress long-press heuristics on the drawing subtree ONLY */
-#stage, #stage * {
-  touch-action: none !important;
-  -webkit-touch-callout: none !important;
-  -webkit-user-select: none !important;
-  user-select: none !important;
-  -webkit-tap-highlight-color: transparent !important;
-}
-/* If you use another id for the drawing root, add it here too */
-canvas {
-  -webkit-user-drag: none !important;
-  user-drag: none !important;
-}
-</style>
-
 </head>
 <body>  
 <div id="swBadge" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:#111;color:#ffffff;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui">v1.02</div>
@@ -5769,145 +5752,83 @@ function dumpCapStatus(where=''){
 
 
 
-<script id="stage-subtree-longpress-js">
+<script id="stage-shield-longpress">
 (function(){
-  if (window.__STAGE_SUBTREE_LONGPRESS__) return;
-  window.__STAGE_SUBTREE_LONGPRESS__ = true;
+  if (window.__STAGE_SHIELD__) return;
+  window.__STAGE_SHIELD__ = true;
 
-  // Find stage
-  var stage = document.getElementById('stage') 
+  var stage = document.getElementById('stage')
           || document.querySelector('canvas#stage, .drawing-stage, canvas.drawing-surface, canvas');
 
   if (!stage) return;
 
-  // Ensure viewport disables double-tap zoom
-  (function ensureViewport(){
-    var vp = document.querySelector('meta[name="viewport"]');
-    if (!vp){
-      vp = document.createElement('meta');
-      vp.name = 'viewport';
-      document.head.appendChild(vp);
-    }
-    var c = (vp.content||'').split(',').map(s=>s.trim()).filter(Boolean);
-    function setOrReplace(keyVal){ 
-      var k = keyVal.split('=')[0];
-      var i = c.findIndex(x=>x.split('=')[0]===k);
-      if (i>=0) c[i] = keyVal; else c.push(keyVal);
-    }
-    setOrReplace('width=device-width');
-    setOrReplace('initial-scale=1');
-    setOrReplace('maximum-scale=1');
-    setOrReplace('user-scalable=no');
-    vp.content = c.join(', ');
-  })();
+  // Enforce touch-action:none on stage at runtime (in case CSS loads late)
+  try { stage.style.touchAction = 'none'; } catch(_) {}
 
-  // Guard: no context menus/selections anywhere
-  window.addEventListener('contextmenu', function(e){ e.preventDefault(); }, {capture:true});
-  document.addEventListener('selectstart', function(e){ e.preventDefault(); }, {capture:true});
-
-  // Legacy touch prevention ONLY for events originating inside stage subtree
-  function withinStage(node){
-    try { return stage.contains(node) || node === stage; } catch(_) { return false; }
+  function within(el, root){
+    try { return el === root || root.contains(el); } catch(_) { return false; }
   }
-  var cap = {capture:true, passive:false};
+
+  // 1) Absolute top-priority stage shield:
+  //    If event originated inside stage and is touch/pen, we preventDefault and
+  //    stopImmediatePropagation so no "outside click" capture listeners can interfere.
+  var capActive = { capture:true, passive:false };
+  function isTouchLike(e){
+    return e.pointerType === 'touch' || e.pointerType === 'pen' || (e.touches && e.touches.length);
+  }
+
+  // Pointer path
+  document.addEventListener('pointerdown', function(e){
+    if (!within(e.target, stage)) return;
+    if (!isTouchLike(e)) return;
+    if (e.cancelable) e.preventDefault();
+    // Important: stopImmediatePropagation prevents *other capture listeners* from running.
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation(); else e.stopPropagation();
+  }, capActive);
+
+  // Touch legacy path
   ['touchstart','touchmove','touchend','touchcancel'].forEach(function(t){
     document.addEventListener(t, function(e){
-      if (!withinStage(e.target)) return;
+      if (!within(e.target, stage)) return;
       if (e.cancelable) e.preventDefault();
-      e.stopPropagation();
-    }, cap);
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation(); else e.stopPropagation();
+    }, capActive);
   });
 
-  // Pointer cancel self-healing shim:
-  // If Android cancels a still finger (long-press), keep the selection "armed" and
-  // resume as soon as we see the next move/up from the same pointerType.
-  var active = null; // {id, type, startX, startY, startTS, lastX, lastY, armed}
+  // Context menu always off on stage
+  document.addEventListener('contextmenu', function(e){
+    if (!within(e.target, stage)) return;
+    e.preventDefault();
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation(); else e.stopPropagation();
+  }, {capture:true});
+
+  // 2) Safe outside‑click helper for your menus (use this instead of pointerdown capture)
+  //    - runs on 'click' in bubble phase
+  //    - ignores events that were defaultPrevented by the stage shield
+  window.__installSafeOutsideClick = function(rootEl, closeFn){
+    document.addEventListener('click', function(e){
+      if (e.defaultPrevented) return;              // stage consumed it
+      var root = (typeof rootEl === 'function') ? rootEl() : rootEl;
+      if (!root) return;
+      if (within(e.target, root)) return;          // click inside menu -> ignore
+      if (within(e.target, stage)) return;         // click in canvas -> ignore (tool handles it)
+      closeFn && closeFn();
+    }, {capture:false, passive:true});
+  };
+
+  // Example usage (uncomment and adjust selector/close):
+  // __installSafeOutsideClick(document.querySelector('#menu'), () => hideMenu());
+
+  // 3) Pointer capture hardening for selection (lightweight)
   stage.addEventListener('pointerdown', function(e){
-    if (active) return;
-    if (e.cancelable) e.preventDefault();
-    active = {
-      id: e.pointerId,
-      type: e.pointerType,
-      startX: e.clientX, startY: e.clientY,
-      lastX: e.clientX, lastY: e.clientY,
-      startTS: e.timeStamp,
-      armed: true
-    };
-    try { stage.setPointerCapture(e.pointerId); } catch(_){}
-    // Notify app (optional)
-    window.dispatchEvent(new CustomEvent('mp-select-begin', {detail:{x:e.clientX, y:e.clientY}}));
-  }, cap);
-
-  function move(e){
-    if (!active || e.pointerId !== active.id) return;
-    if (e.cancelable) e.preventDefault();
-    active.lastX = e.clientX; active.lastY = e.clientY;
-    window.dispatchEvent(new CustomEvent('mp-select-move', {detail:{x:e.clientX, y:e.clientY}}));
-  }
-  stage.addEventListener('pointermove', move, cap);
-
-  function end(e){
-    if (!active || e.pointerId !== active.id) return;
-    if (e.cancelable) e.preventDefault();
-    try { stage.releasePointerCapture(e.pointerId); } catch(_){}
-    window.dispatchEvent(new CustomEvent('mp-select-end', {detail:{x:e.clientX, y:e.clientY}}));
-    active = null;
-  }
-  stage.addEventListener('pointerup', end, cap);
-
-  stage.addEventListener('pointercancel', function(e){
-    if (!active || e.pointerId !== active.id) return;
-    if (e.cancelable) e.preventDefault();
-
-    // Detect "long-press cancel": very small movement and >= 300ms hold
-    var dx = Math.abs(e.clientX - active.startX);
-    var dy = Math.abs(e.clientY - active.startY);
-    var hold = e.timeStamp - active.startTS;
-    var tiny = dx <= 4 && dy <= 4;
-
-    if (tiny && hold >= 300) {
-      // Keep active state, do NOT end. We'll resume on next move/up.
-      // Fire a synthetic move to keep overlay alive
-      window.dispatchEvent(new CustomEvent('mp-select-move', {detail:{x:e.clientX, y:e.clientY}}));
-      // Attempt to re-capture if possible (some browsers allow after cancel)
-      try { stage.setPointerCapture(e.pointerId); } catch(_){}
-    } else {
-      // Treat as a real cancel/end
-      end(e);
-    }
-  }, cap);
+    if (!isTouchLike(e)) return;
+    try { stage.setPointerCapture(e.pointerId); } catch(_) {}
+  }, {capture:true, passive:false});
 
   stage.addEventListener('lostpointercapture', function(e){
-    // If we lost capture during a long-press, attempt to continue on next move
-    // If nothing happens within 1000ms, end gracefully.
-    if (!active) return;
-    var saved = active;
-    setTimeout(function(){
-      if (active === saved) { // no further moves
-        window.dispatchEvent(new CustomEvent('mp-select-end', {detail:{x:saved.lastX, y:saved.lastY}}));
-        active = null;
-      }
-    }, 1000);
-  }, cap);
-
-  // Prevent synthetic mouse events inside stage following recent pointer activity
-  var lastPE = 0;
-  ['pointerdown','pointermove','pointerup','pointercancel'].forEach(function(t){
-    stage.addEventListener(t, function(e){ lastPE = e.timeStamp; }, cap);
-  });
-  ['mousedown','mousemove','mouseup','click','dblclick','auxclick'].forEach(function(t){
-    stage.addEventListener(t, function(e){
-      if (lastPE > (e.timeStamp - 1200)) {
-        if (e.cancelable) e.preventDefault();
-        e.stopPropagation();
-      }
-    }, cap);
-  });
-
-  // NOTE: Hook these custom events into your existing selection tool:
-  // window.addEventListener('mp-select-begin', ({detail:{x,y}})=>{ ...start... })
-  // window.addEventListener('mp-select-move',  ({detail:{x,y}})=>{ ...drag... })
-  // window.addEventListener('mp-select-end',   ({detail:{x,y}})=>{ ...finish... })
+    // If your tool needs, you can auto‑end or try to resume on next move.
+    // Keep it no‑op here to avoid changing app logic.
+  }, {capture:true, passive:false});
 })();
 </script>
 
