@@ -41,14 +41,6 @@
 /* =========================
    GLOBAL BAS
    ========================= */
-html, body, #app, canvas {
-  -webkit-user-select: none;      /* stäng texturval */
-  user-select: none;
-  -webkit-touch-callout: none;    /* stäng “håll för att visa meny” */
-  -webkit-tap-highlight-color: transparent;
-  touch-action: none;             /* stäng browser-gester på touch (viktigt!) */
-}
-
 
 html{ background:#000; }
 body{
@@ -824,7 +816,55 @@ canvas{
 
     
 
+<script>
+// Blockera långtrycks-menyn helt
+window.addEventListener('contextmenu', e => e.preventDefault(), { capture: true });
 
+// Gör touch-listeners non-passive så preventDefault faktiskt fungerar
+const opts = { capture: true, passive: false };
+
+// På din mål-yta (canvas eller #stage)
+const stage = document.getElementById('stage') || document.querySelector('canvas');
+
+stage.addEventListener('pointerdown', e => {
+  // Hindra att webbläsaren startar någon gest alls
+  e.preventDefault();
+  stage.setPointerCapture?.(e.pointerId); // behåll events även om OS “pillar”
+  // ...din start-select-logik...
+}, opts);
+
+stage.addEventListener('pointermove', e => {
+  e.preventDefault();
+  // ...din drag/resize/select-logik...
+}, opts);
+
+stage.addEventListener('pointerup', e => {
+  e.preventDefault();
+  // ...commit/avsluta...
+  stage.releasePointerCapture?.(e.pointerId);
+}, opts);
+
+// Om Android ändå skickar cancel (t.ex. p.g.a. systemgest)
+stage.addEventListener('pointercancel', e => {
+  // Behandla som ett “säkert avslut” så verktyget inte fastnar i halv-state
+  // t.ex. återställ markering, eller commit/rollback beroende på din UX
+  cleanupSelectionState();
+});
+
+// Extra skydd mot spök-menyer/urval
+document.addEventListener('selectstart', e => e.preventDefault(), { capture: true });    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+</script>
 
  
 <script>
