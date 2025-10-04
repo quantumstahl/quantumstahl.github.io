@@ -203,7 +203,7 @@ canvas{
    SIDEBAR – MAIN TOOL BAR
    ========================= */
 #dockWrap2{
-  position:fixed; top:0; left:env(safe-area-inset-left, 0);
+  position:fixed;  left:env(safe-area-inset-left, 0);
   height:100%; display:flex; align-items:center;
   pointer-events:none;
 }
@@ -385,7 +385,8 @@ canvas{
   #transformMenu .item{ padding:0.5625rem 0.6875rem; font-size:0.78rem; border-radius:0.5625rem; }
 
   /* Sidebar */
-  #mainToolBar{ gap:0.4rem; padding:0.4rem; border-radius:0.6875rem; }
+  #dockWrap2{align-items:end;}
+  #mainToolBar{ gap:0.4rem; padding:0.4rem; border-radius:0.6875rem;grid-auto-flow:column;grid-template-rows:repeat(2, 3.375rem); }
   #mainToolBar .tool-btn{
     width:2.4rem; height:2.4rem; font-size:1.15rem; border-radius:0.5625rem;
   }
