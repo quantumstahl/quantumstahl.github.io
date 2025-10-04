@@ -582,7 +582,7 @@ canvas{
 
 </head>
 <body>  
-<div id="swBadge" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:#111;color:#ffffff;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui">v1.03</div>
+<div id="swBadge" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:#111;color:#ffffff;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui">v1.04</div>
 
 <div id="hide">
 <label for="directFileInput">Open Image</label>
@@ -1074,10 +1074,7 @@ canvas{
 <script>
             
             const canvas = document.getElementById("myCanvas");
-            const ctx = canvas.getContext('2d', {
-  desynchronized: true,      // minskar jank på långsam HW
-  willReadFrequently: true
-});
+            const ctx = canvas.getContext('2d');
             document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
             
             // Create an in-memory canvas to store our drawing
