@@ -602,22 +602,24 @@ canvas{
 </style>
 
 
-<style id="nuclear-longpress-css">
-/* NUCLEAR TEST MODE: blanket touch-action none across the doc to see if OS haptics/context kicks in anyway */
-* { touch-action: none !important; }
-html, body {
+<style id="scoped-longpress-css">
+/* Scope gesture suppression ONLY to the drawing surface */
+#stage, canvas.drawing-surface, canvas#stage, .drawing-stage {
+  touch-action: none !important;            /* disable browser gestures */
+  -webkit-touch-callout: none !important;   /* disable long-press callout */
   -webkit-user-select: none !important;
   user-select: none !important;
+}
+
+/* Selection overlays/handles that sit above the canvas should also suppress gestures */
+.selection-overlay, .resize-overlay, .marquee-overlay {
+  touch-action: none !important;
   -webkit-touch-callout: none !important;
-  -webkit-tap-highlight-color: transparent !important;
-}
-canvas, #stage, .overlay, .ui, .toolbar, .selection-overlay, .drawing-surface {
-  -webkit-user-drag: none !important;
-  user-drag: none !important;
   -webkit-user-select: none !important;
   user-select: none !important;
-  pointer-events: auto !important;
 }
+
+/* Keep the rest of the UI NORMAL so buttons/menus work as expected */
 </style>
 
 </head>
@@ -5771,86 +5773,71 @@ function dumpCapStatus(where=''){
 
 
 
-<script id="nuclear-longpress-js">
+<script id="scoped-longpress-js">
 (function(){
-  if (window.__NUCLEAR_LONGPRESS__) return;
-  window.__NUCLEAR_LONGPRESS__ = true;
+  if (window.__SCOPED_LONGPRESS__) return;
+  window.__SCOPED_LONGPRESS__ = true;
 
-  // Simple on-screen logger to verify which events fire on device
-  var box = document.createElement('div');
-  box.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:38vh;overflow:auto;font:12px monospace;'
-    +'background:rgba(0,0,0,.7);color:#0f0;z-index:999999;padding:6px;pointer-events:none;';
-  document.documentElement.appendChild(box);
-  function log(s){
-    var el = document.createElement('div');
-    el.textContent = s;
-    box.appendChild(el);
-    while (box.childNodes.length > 50) box.removeChild(box.firstChild);
-    box.scrollTop = box.scrollHeight;
-    console.log('[NUCLEAR]', s);
-  }
-  function pp(e){
-    return e.type + ' pt='+(e.pointerType||'')+' id='+(e.pointerId||'')
-      +' canc='+e.cancelable+' ts='+(Math.round(e.timeStamp));
+  // Resolve the drawing "stage" element (prefer #stage, then first canvas)
+  var stage = document.getElementById('stage')
+          || document.querySelector('canvas.drawing-surface, canvas#stage')
+          || document.querySelector('canvas')
+          || document.querySelector('.drawing-stage');
+
+  if (!stage) return;
+
+  function withinStage(target){
+    try { return stage.contains(target) || target === stage; }
+    catch(_) { return false; }
   }
 
-  // Global preventers
-  var capFalse = {capture:true, passive:false};
-  ['contextmenu','selectstart','gesturestart','gesturechange','gestureend'].forEach(function(t){
-    document.addEventListener(t, function(e){ if (e.cancelable) e.preventDefault(); log('prevent '+t); }, capFalse);
-  });
-
-  // Prevent legacy touch across the doc
+  // 1) Block legacy touch events ONLY when they originate within the stage.
+  var capFalse = { capture: true, passive: false };
   ['touchstart','touchmove','touchend','touchcancel'].forEach(function(t){
-    document.addEventListener(t, function(e){ if (e.cancelable) e.preventDefault(); e.stopPropagation(); log('touch '+t); }, capFalse);
+    document.addEventListener(t, function(e){
+      if (!withinStage(e.target)) return;
+      if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
+    }, capFalse);
   });
 
-  // Guard against synthetic mouse events generated after touch
+  // 2) Prevent context menu/text selection ONLY when within stage.
+  document.addEventListener('contextmenu', function(e){
+    if (!withinStage(e.target)) return;
+    e.preventDefault();
+  }, { capture:true });
+
+  document.addEventListener('selectstart', function(e){
+    if (!withinStage(e.target)) return;
+    e.preventDefault();
+  }, { capture:true });
+
+  // 3) Pointer path hardening ONLY within stage (keeps UI outside untouched).
+  var lastPointerTs = 0;
+  ['pointerdown','pointermove','pointerup','pointercancel','lostpointercapture'].forEach(function(t){
+    document.addEventListener(t, function(e){
+      if (!withinStage(e.target)) return;
+      lastPointerTs = e.timeStamp;
+      if (e.cancelable) e.preventDefault();
+      // do NOT stopPropagation here to allow your own handlers to run after this
+    }, capFalse);
+  });
+
+  // 4) Guard against synthetic mouse events after touch, but only inside stage.
   ['mousedown','mousemove','mouseup','click','auxclick','dblclick'].forEach(function(t){
     document.addEventListener(t, function(e){
-      // If a touch/pointer recently happened, kill mouse synthesis
-      if ((window.__LAST_POINTER_TS||0) > (e.timeStamp - 1500)) {
+      if (!withinStage(e.target)) return;
+      if (lastPointerTs > (e.timeStamp - 1200)) {
+        // Likely a synthetic mouse event following touch — kill it
         if (e.cancelable) e.preventDefault();
         e.stopPropagation();
-        log('blocked mouse '+t);
-      } else {
-        log('mouse '+t);
       }
     }, capFalse);
   });
 
-  // Pointer path: always prevent defaults to avoid browser gestures
-  ['pointerdown','pointermove','pointerup','pointercancel','lostpointercapture'].forEach(function(t){
-    document.addEventListener(t, function(e){
-      window.__LAST_POINTER_TS = e.timeStamp;
-      if (e.cancelable) e.preventDefault();
-      e.stopPropagation();
-      log(pp(e));
-    }, capFalse);
-  });
-
-  // Meta: ensure viewport doesn't allow zoom (double-tap etc.)
-  (function ensureViewport(){
-    var vp = document.querySelector('meta[name="viewport"]');
-    if (!vp){
-      vp = document.createElement('meta');
-      vp.name = 'viewport';
-      document.head.appendChild(vp);
-    }
-    if (!/user-scalable=no/.test(vp.content||'')){
-      var c = (vp.content||'').split(',').map(s=>s.trim()).filter(Boolean);
-      ['width=device-width','initial-scale=1','maximum-scale=1','user-scalable=no'].forEach(k=>{
-        if (!c.some(x=>x.startsWith(k.split('=')[0]))) c.push(k);
-      });
-      vp.content = c.join(', ');
-      log('viewport set: '+vp.content);
-    }
-  })();
-
-  // Mark all images/canvas non-draggable
-  document.querySelectorAll('img,canvas').forEach(function(el){
-    el.setAttribute('draggable','false');
-  });
+  // 5) Ensure stage itself is non-draggable
+  try { stage.setAttribute('draggable','false'); } catch(_){}
+  try { stage.style.webkitUserDrag = 'none'; } catch(_){}
 })();
 </script>
 
