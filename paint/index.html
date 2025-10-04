@@ -598,29 +598,27 @@ canvas{
 
 
 
-/* Remove global touch-action:none effects on the entire document (if any) */
-html, body, #app {
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-  -webkit-tap-highlight-color: transparent;
-  /* Do not set touch-action here to avoid browser-level gesture conflicts */
-  touch-action: auto !important;
-}
-
-/* Only the drawing surface should suppress gestures */
-canvas, #stage, .drawing-surface {
-  touch-action: none !important;
-  -webkit-touch-callout: none !important;
-  -webkit-user-select: none !important;
-  user-select: none !important;
-}
-
 
 </style>
 
 
-
+<style id="nuclear-longpress-css">
+/* NUCLEAR TEST MODE: blanket touch-action none across the doc to see if OS haptics/context kicks in anyway */
+* { touch-action: none !important; }
+html, body {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+canvas, #stage, .overlay, .ui, .toolbar, .selection-overlay, .drawing-surface {
+  -webkit-user-drag: none !important;
+  user-drag: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  pointer-events: auto !important;
+}
+</style>
 
 </head>
 <body>  
@@ -5773,93 +5771,86 @@ function dumpCapStatus(where=''){
 
 
 
-<!-- === Long-press fix script (web-only, no Capacitor needed) === -->
-<script id="longpress-fix-js">
+<script id="nuclear-longpress-js">
 (function(){
-  // Avoid double-injecting
-  if (window.__LONGPRESS_FIX_INSTALLED__) return;
-  window.__LONGPRESS_FIX_INSTALLED__ = true;
+  if (window.__NUCLEAR_LONGPRESS__) return;
+  window.__NUCLEAR_LONGPRESS__ = true;
 
-  // Choose the drawing stage: prefer #stage, then first <canvas>, then .drawing-surface
-  var stage = document.getElementById('stage') 
-           || document.querySelector('canvas') 
-           || document.querySelector('.drawing-surface');
+  // Simple on-screen logger to verify which events fire on device
+  var box = document.createElement('div');
+  box.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:38vh;overflow:auto;font:12px monospace;'
+    +'background:rgba(0,0,0,.7);color:#0f0;z-index:999999;padding:6px;pointer-events:none;';
+  document.documentElement.appendChild(box);
+  function log(s){
+    var el = document.createElement('div');
+    el.textContent = s;
+    box.appendChild(el);
+    while (box.childNodes.length > 50) box.removeChild(box.firstChild);
+    box.scrollTop = box.scrollHeight;
+    console.log('[NUCLEAR]', s);
+  }
+  function pp(e){
+    return e.type + ' pt='+(e.pointerType||'')+' id='+(e.pointerId||'')
+      +' canc='+e.cancelable+' ts='+(Math.round(e.timeStamp));
+  }
 
-  if (!stage) return; // nothing to do
-
-  // --- Block legacy touch heuristics that can trigger Android long-press vibration ---
-  var touchOpts = { capture: true, passive: false };
-  ['touchstart','touchmove','touchend','touchcancel'].forEach(function(type){
-    stage.addEventListener(type, function(ev){
-      try { ev.preventDefault(); } catch(_) {}
-      ev.stopPropagation();
-    }, touchOpts);
+  // Global preventers
+  var capFalse = {capture:true, passive:false};
+  ['contextmenu','selectstart','gesturestart','gesturechange','gestureend'].forEach(function(t){
+    document.addEventListener(t, function(e){ if (e.cancelable) e.preventDefault(); log('prevent '+t); }, capFalse);
   });
 
-  // --- Harden Pointer Events path ---
-  var peOpts = { capture: true, passive: false };
-  var selecting = false;
-  var activePointerId = null;
+  // Prevent legacy touch across the doc
+  ['touchstart','touchmove','touchend','touchcancel'].forEach(function(t){
+    document.addEventListener(t, function(e){ if (e.cancelable) e.preventDefault(); e.stopPropagation(); log('touch '+t); }, capFalse);
+  });
 
-  function cleanupSelectionState(){
-    selecting = false;
-    activePointerId = null;
-    // If your app exposes a cleanup, call it here:
-    try { 
-      if (typeof window.cleanupSelectionState === 'function') window.cleanupSelectionState();
-      // Fallback: dispatch a custom event that your app can listen for
-      var evt = new CustomEvent('selection-cleanup');
-      window.dispatchEvent(evt);
-    } catch(_) {}
-  }
+  // Guard against synthetic mouse events generated after touch
+  ['mousedown','mousemove','mouseup','click','auxclick','dblclick'].forEach(function(t){
+    document.addEventListener(t, function(e){
+      // If a touch/pointer recently happened, kill mouse synthesis
+      if ((window.__LAST_POINTER_TS||0) > (e.timeStamp - 1500)) {
+        if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
+        log('blocked mouse '+t);
+      } else {
+        log('mouse '+t);
+      }
+    }, capFalse);
+  });
 
-  function beginSelection(e){
-    // If another pointer is active, ignore subsequent fingers
-    if (activePointerId !== null && e.pointerId !== activePointerId) return;
-    activePointerId = e.pointerId;
-    selecting = true;
-    try { stage.setPointerCapture(e.pointerId); } catch(_) {}
-  }
+  // Pointer path: always prevent defaults to avoid browser gestures
+  ['pointerdown','pointermove','pointerup','pointercancel','lostpointercapture'].forEach(function(t){
+    document.addEventListener(t, function(e){
+      window.__LAST_POINTER_TS = e.timeStamp;
+      if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
+      log(pp(e));
+    }, capFalse);
+  });
 
-  function updateSelection(e){
-    if (e.pointerId !== activePointerId || !selecting) return;
-    // App-specific move logic should already be in your code;
-    // we only ensure default is prevented so browser never starts a gesture.
-  }
+  // Meta: ensure viewport doesn't allow zoom (double-tap etc.)
+  (function ensureViewport(){
+    var vp = document.querySelector('meta[name="viewport"]');
+    if (!vp){
+      vp = document.createElement('meta');
+      vp.name = 'viewport';
+      document.head.appendChild(vp);
+    }
+    if (!/user-scalable=no/.test(vp.content||'')){
+      var c = (vp.content||'').split(',').map(s=>s.trim()).filter(Boolean);
+      ['width=device-width','initial-scale=1','maximum-scale=1','user-scalable=no'].forEach(k=>{
+        if (!c.some(x=>x.startsWith(k.split('=')[0]))) c.push(k);
+      });
+      vp.content = c.join(', ');
+      log('viewport set: '+vp.content);
+    }
+  })();
 
-  function endSelection(e){
-    if (e.pointerId !== activePointerId) return;
-    try { stage.releasePointerCapture(e.pointerId); } catch(_) {}
-    cleanupSelectionState();
-  }
-
-  stage.addEventListener('pointerdown', function(e){
-    try { e.preventDefault(); } catch(_) {}
-    beginSelection(e);
-  }, peOpts);
-
-  stage.addEventListener('pointermove', function(e){
-    try { e.preventDefault(); } catch(_) {}
-    updateSelection(e);
-  }, peOpts);
-
-  stage.addEventListener('pointerup', function(e){
-    try { e.preventDefault(); } catch(_) {}
-    endSelection(e);
-  }, peOpts);
-
-  stage.addEventListener('pointercancel', function(e){
-    try { e.preventDefault(); } catch(_) {}
-    endSelection(e);
-  }, peOpts);
-
-  stage.addEventListener('lostpointercapture', function(e){
-    endSelection(e);
-  }, peOpts);
-
-  // Extra global guards against context menu and text selection
-  window.addEventListener('contextmenu', function(e){ e.preventDefault(); }, { capture:true });
-  document.addEventListener('selectstart', function(e){ e.preventDefault(); }, { capture:true });
+  // Mark all images/canvas non-draggable
+  document.querySelectorAll('img,canvas').forEach(function(el){
+    el.setAttribute('draggable','false');
+  });
 })();
 </script>
 
