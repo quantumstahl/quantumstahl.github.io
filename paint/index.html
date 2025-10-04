@@ -4239,7 +4239,7 @@ window.addEventListener('load', ()=>{
   // Fånga interaktioner INUTI menyerna så de inte bubbler upp till backdrop
   [hamburgerBtn, projectsBtn, mainMenu, projectsDrop].forEach(el=>{
     el?.addEventListener('pointerdown', e=> e.stopPropagation());
-    el?.addEventListener('touchstart',  e=> e.stopPropagation(), {passive:true});
+    el?.addEventListener('touchstart',  e=> e.stopPropagation(), {passive:false});
     el?.addEventListener('mousedown',   e=> e.stopPropagation());
   });
 
@@ -4247,7 +4247,7 @@ window.addEventListener('load', ()=>{
   function closeOnOutside(){ closeAll(); }
   backdrop.addEventListener('pointerdown', closeOnOutside);
   backdrop.addEventListener('mousedown',   closeOnOutside);
-  backdrop.addEventListener('touchstart',  closeOnOutside, {passive:true});
+  backdrop.addEventListener('touchstart',  closeOnOutside, {passive:false});
 
   // Som extra säkerhet – ESC stänger
   window.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') closeAll(); });
@@ -4302,7 +4302,7 @@ window.addEventListener('load', ()=>{
   // Stoppa bubblering inuti menyn så backdrop inte stänger direkt
   [trBtn, trMenu].forEach(el=>{
     el?.addEventListener('pointerdown', e=> e.stopPropagation());
-    el?.addEventListener('touchstart',  e=> e.stopPropagation(), {passive:true});
+    el?.addEventListener('touchstart',  e=> e.stopPropagation(), {passive:false});
     el?.addEventListener('mousedown',   e=> e.stopPropagation());
   });
 
@@ -4310,7 +4310,7 @@ window.addEventListener('load', ()=>{
   const closeOnOutside2 = ()=> closeTransform();
   backdrop?.addEventListener('pointerdown', closeOnOutside2);
   backdrop?.addEventListener('mousedown',   closeOnOutside2);
-  backdrop?.addEventListener('touchstart',  closeOnOutside2, {passive:true});
+  backdrop?.addEventListener('touchstart',  closeOnOutside2, {passive:false});
 
 function proxy(btn){
     // säkrare proxy: trigga både pointerup/click-vägen
