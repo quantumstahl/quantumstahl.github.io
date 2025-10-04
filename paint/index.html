@@ -41,17 +41,22 @@
 /* =========================
    GLOBAL BAS
    ========================= */
-
+html, body, #app, canvas {
+  -webkit-user-select: none;      /* stäng texturval */
+  user-select: none;
+  -webkit-touch-callout: none;    /* stäng “håll för att visa meny” */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;             /* stäng browser-gester på touch (viktigt!) */
+}
 html{ background:#000; }
 body{
   overscroll-behavior:none;
   touch-action:none;
   background:#000;
-  -webkit-user-select: none;
-  -webkit-touch-callout:none;
+  -webkit-user-select:none !important;
+          user-select:none !important;
+  -webkit-touch-callout:none !important;
   -webkit-tap-highlight-color:transparent;
-  
-  
 }
 
 /* Canvas – låt gester gå här, inte på UI */
@@ -593,8 +598,29 @@ canvas{
 
 
 
+/* Remove global touch-action:none effects on the entire document (if any) */
+html, body, #app {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  /* Do not set touch-action here to avoid browser-level gesture conflicts */
+  touch-action: auto !important;
+}
+
+/* Only the drawing surface should suppress gestures */
+canvas, #stage, .drawing-surface {
+  touch-action: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
 
 </style>
+
+
+
 
 </head>
 <body>  
@@ -817,7 +843,55 @@ canvas{
 
     
 
+<script>
+// Blockera långtrycks-menyn helt
+window.addEventListener('contextmenu', e => e.preventDefault(), { capture: true });
 
+// Gör touch-listeners non-passive så preventDefault faktiskt fungerar
+const opts = { capture: true, passive: false };
+
+// På din mål-yta (canvas eller #stage)
+const stage = document.getElementById('stage') || document.querySelector('canvas');
+
+stage.addEventListener('pointerdown', e => {
+  // Hindra att webbläsaren startar någon gest alls
+  e.preventDefault();
+  stage.setPointerCapture?.(e.pointerId); // behåll events även om OS “pillar”
+  // ...din start-select-logik...
+}, opts);
+
+stage.addEventListener('pointermove', e => {
+  e.preventDefault();
+  // ...din drag/resize/select-logik...
+}, opts);
+
+stage.addEventListener('pointerup', e => {
+  e.preventDefault();
+  // ...commit/avsluta...
+  stage.releasePointerCapture?.(e.pointerId);
+}, opts);
+
+// Om Android ändå skickar cancel (t.ex. p.g.a. systemgest)
+stage.addEventListener('pointercancel', e => {
+  // Behandla som ett “säkert avslut” så verktyget inte fastnar i halv-state
+  // t.ex. återställ markering, eller commit/rollback beroende på din UX
+  cleanupSelectionState();
+});
+
+// Extra skydd mot spök-menyer/urval
+document.addEventListener('selectstart', e => e.preventDefault(), { capture: true });    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+</script>
 
  
 <script>
@@ -5697,6 +5771,97 @@ function dumpCapStatus(where=''){
 <script src="native-clipboard.js"></script>
 
 
+
+
+<!-- === Long-press fix script (web-only, no Capacitor needed) === -->
+<script id="longpress-fix-js">
+(function(){
+  // Avoid double-injecting
+  if (window.__LONGPRESS_FIX_INSTALLED__) return;
+  window.__LONGPRESS_FIX_INSTALLED__ = true;
+
+  // Choose the drawing stage: prefer #stage, then first <canvas>, then .drawing-surface
+  var stage = document.getElementById('stage') 
+           || document.querySelector('canvas') 
+           || document.querySelector('.drawing-surface');
+
+  if (!stage) return; // nothing to do
+
+  // --- Block legacy touch heuristics that can trigger Android long-press vibration ---
+  var touchOpts = { capture: true, passive: false };
+  ['touchstart','touchmove','touchend','touchcancel'].forEach(function(type){
+    stage.addEventListener(type, function(ev){
+      try { ev.preventDefault(); } catch(_) {}
+      ev.stopPropagation();
+    }, touchOpts);
+  });
+
+  // --- Harden Pointer Events path ---
+  var peOpts = { capture: true, passive: false };
+  var selecting = false;
+  var activePointerId = null;
+
+  function cleanupSelectionState(){
+    selecting = false;
+    activePointerId = null;
+    // If your app exposes a cleanup, call it here:
+    try { 
+      if (typeof window.cleanupSelectionState === 'function') window.cleanupSelectionState();
+      // Fallback: dispatch a custom event that your app can listen for
+      var evt = new CustomEvent('selection-cleanup');
+      window.dispatchEvent(evt);
+    } catch(_) {}
+  }
+
+  function beginSelection(e){
+    // If another pointer is active, ignore subsequent fingers
+    if (activePointerId !== null && e.pointerId !== activePointerId) return;
+    activePointerId = e.pointerId;
+    selecting = true;
+    try { stage.setPointerCapture(e.pointerId); } catch(_) {}
+  }
+
+  function updateSelection(e){
+    if (e.pointerId !== activePointerId || !selecting) return;
+    // App-specific move logic should already be in your code;
+    // we only ensure default is prevented so browser never starts a gesture.
+  }
+
+  function endSelection(e){
+    if (e.pointerId !== activePointerId) return;
+    try { stage.releasePointerCapture(e.pointerId); } catch(_) {}
+    cleanupSelectionState();
+  }
+
+  stage.addEventListener('pointerdown', function(e){
+    try { e.preventDefault(); } catch(_) {}
+    beginSelection(e);
+  }, peOpts);
+
+  stage.addEventListener('pointermove', function(e){
+    try { e.preventDefault(); } catch(_) {}
+    updateSelection(e);
+  }, peOpts);
+
+  stage.addEventListener('pointerup', function(e){
+    try { e.preventDefault(); } catch(_) {}
+    endSelection(e);
+  }, peOpts);
+
+  stage.addEventListener('pointercancel', function(e){
+    try { e.preventDefault(); } catch(_) {}
+    endSelection(e);
+  }, peOpts);
+
+  stage.addEventListener('lostpointercapture', function(e){
+    endSelection(e);
+  }, peOpts);
+
+  // Extra global guards against context menu and text selection
+  window.addEventListener('contextmenu', function(e){ e.preventDefault(); }, { capture:true });
+  document.addEventListener('selectstart', function(e){ e.preventDefault(); }, { capture:true });
+})();
+</script>
 
 </body>
 </html>
