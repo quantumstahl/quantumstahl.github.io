@@ -608,7 +608,7 @@ canvas{
 
 </head>
 <body>  
-<div id="swBadge" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:#111;color:#ffffff;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui">v1.05</div>
+<div id="swBadge" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:#111;color:#ffffff;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui">v1.06</div>
 
 <div id="hide">
 <label for="directFileInput">Open Image</label>
@@ -5129,7 +5129,7 @@ async function gogogo(canvas, bg = 'white'){
                 if(keyState.down)camera.y+=6;
                 if(keyState.left)camera.x-=6;
                 if(keyState.right)camera.x+=6;
-                if(keyState.h){camera.x=0;camera.y=0;if(hcounter==0){hcounter=3;keyState.h=false;}hcounter--;zoomvalue=100;document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
+                if(keyState.h){drawstartx = (canvas.width/devicePixelRatio)/2 - drawareax/2;drawstarty = (canvas.height/devicePixelRatio)/2 - drawareay/2;camera.x=0;camera.y=0;if(hcounter==0){hcounter=3;keyState.h=false;}hcounter--;zoomvalue=100;document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
                 if(keyState.plus){newzoom = Math.max(0.10, Math.min(zoom*1.01, 50));zoomvalue = Math.ceil(newzoom * 100);document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
                 if(keyState.minus){newzoom = Math.max(0.10, Math.min(zoom*0.99, 50));zoomvalue = Math.floor(newzoom * 100);document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
                 
