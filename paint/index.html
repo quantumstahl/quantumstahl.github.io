@@ -1268,6 +1268,9 @@ canvas{
             });
       
             // Confirm resize button event
+            
+            
+let savedresize=100;           
 confirmResizeBtn.addEventListener('click', async function() {
     let newWidth = parseInt(widthInput.value);
     let newHeight = parseInt(heightInput.value);
@@ -1335,6 +1338,7 @@ confirmResizeBtn.addEventListener('click', async function() {
                     
                     
                     zoom = newZoom;
+                    savedresize=Math.round(newZoom * 100);
                     zoomvalue = Math.round(newZoom * 100);
                     document.getElementById("zoomSlider").value = zoomvalue;
                     document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
@@ -5129,7 +5133,7 @@ async function gogogo(canvas, bg = 'white'){
                 if(keyState.down)camera.y+=6;
                 if(keyState.left)camera.x-=6;
                 if(keyState.right)camera.x+=6;
-                if(keyState.h){drawstartx = (canvas.width/devicePixelRatio)/2 - drawareax/2;drawstarty = (canvas.height/devicePixelRatio)/2 - drawareay/2;camera.x=0;camera.y=0;if(hcounter==0){hcounter=3;keyState.h=false;}hcounter--;zoomvalue=100;document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
+                if(keyState.h){drawstartx = (canvas.width/devicePixelRatio)/2 - drawareax/2;drawstarty = (canvas.height/devicePixelRatio)/2 - drawareay/2;camera.x=0;camera.y=0;if(hcounter==0){hcounter=3;keyState.h=false;}hcounter--;zoomvalue=savedresize;document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
                 if(keyState.plus){newzoom = Math.max(0.10, Math.min(zoom*1.01, 50));zoomvalue = Math.ceil(newzoom * 100);document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
                 if(keyState.minus){newzoom = Math.max(0.10, Math.min(zoom*0.99, 50));zoomvalue = Math.floor(newzoom * 100);document.getElementById("zoomSlider").value = String(zoomvalue);document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
                 
