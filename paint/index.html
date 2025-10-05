@@ -4493,6 +4493,9 @@ document.getElementById('mnuNew').addEventListener('click', async () => {
   switchTool("pen");
   resetPaletteToDefaults(0);
   savedresize=100;
+  brushSize = 1;
+  document.getElementById("brushSizeLabel").innerText = "Brush Size: " + 1 + "px";
+  document.getElementById("brushSizeSlider").value=1;
 
 });
 
