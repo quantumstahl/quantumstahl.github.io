@@ -5456,8 +5456,6 @@ function isNative(){ return !!(window.Capacitor?.getPlatform && window.Capacitor
 async function saveCanvasAsPng(targetCanvas, suggestedName = 'maxpaint-image.png'){
   const blob = await canvasToBlobPNG(targetCanvas);
   const file = new File([blob], suggestedName, { type:'image/png' });
-  console.log('[save] start', { native: isNative(), hasFS: !!window.Capacitor?.Plugins?.Filesystem, hasShare: !!window.Capacitor?.Plugins?.Share });
-  alert("TEST");
 try{
     if ('showSaveFilePicker' in window){
     const handle = await showSaveFilePicker({
@@ -5466,10 +5464,21 @@ try{
     });
     const w = await handle.createWritable();
     await w.write(blob); await w.close();
-    return;
+    if(handle)return;
   }
-}catch(e){alert(e);}
-  
+}catch(e){}
+if (!isNative()){
+try {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = suggestedName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return true;
+} catch (_) {}
+}
+
+
   // 2) Capacitor: skriv fil → dela
   const FS = window.Capacitor?.Plugins?.Filesystem;
   const Share = window.Capacitor?.Plugins?.Share;
