@@ -240,52 +240,90 @@ canvas{
 }
 #dockWrap > *{ pointer-events:auto; }
 
-#bottomDock{
-  max-width:min(47.5rem, 96vw);
-  width:max-content;
-  display:grid; gap:0.75rem;
-  grid-template-columns:1fr auto; /* vänster: palett/brush, höger: 🎨 */
-  padding:0.625rem 0.75rem; border-radius:0.875rem;
-  background:rgba(30,30,30,.88);
-  border:1px solid rgba(255,255,255,.09);
-  box-shadow:0 0.625rem 1.875rem rgba(0,0,0,.35);
+:root{
+  --dock-scale: 1;                 /* 1.00 = 100% (4K) */
 }
 
-/* Vänsterkolumn */
-.dock-left{ display:grid; gap:0.625rem; }
+/* < 4K (t.ex. 1440p/1080p) – fintrimma nivåerna här */
+@media (max-width: 3739px){ :root{ --dock-scale: 1.00; } }  /* under 4K */
+@media (max-width: 2460px){ :root{ --dock-scale: 0.75; } }  /* under 1440p bredd */
+@media (max-width: 1820px){ :root{ --dock-scale: 0.68; } }  /* under 1080p bredd */
 
-/* Palett (2 rader default) */
+/* ====== Docken ====== */
+#bottomDock{
+  /* OBS: skala max-bredd, gap, padding, radie */
+  max-width: min(calc(47.5rem * var(--dock-scale)), 96vw);
+  width: max-content;
+  display: grid;
+  gap: calc(.75rem * var(--dock-scale));
+  grid-template-columns: 1fr auto; /* vänster: palett/brush, höger: 🎨 */
+  padding: calc(.625rem * var(--dock-scale)) calc(.75rem * var(--dock-scale));
+  border-radius: calc(.875rem * var(--dock-scale));
+  background: rgba(30,30,30,.88);
+  border: 1px solid rgba(255,255,255,.09);
+  box-shadow: 0 calc(.625rem * var(--dock-scale)) calc(1.875rem * var(--dock-scale)) rgba(0,0,0,.35);
+}
+
+/* ====== Vänsterkolumn ====== */
+.dock-left{ 
+  display:grid; 
+  gap: calc(.625rem * var(--dock-scale)); 
+}
+
+/* ====== Palett ====== */
 .palette-grid{
   display:grid;
-  grid-auto-flow:column;
-  grid-auto-columns:4.375rem;               /* 70px */
-  grid-template-rows:repeat(2, 4.375rem);   /* 70px */
-  gap:0.375rem;                             /* 6px */
+  grid-auto-flow: column;
+  grid-auto-columns: calc(4.375rem * var(--dock-scale));          /* 70px */
+  grid-template-rows: repeat(2, calc(4.375rem * var(--dock-scale))); /* 70px */
+  gap: calc(.375rem * var(--dock-scale));                          /* 6px */
 }
+
 .palette-grid .color-swatch{
-  width:4.3125rem; height:4.3125rem;        /* 69px */
-  border-radius:0.4375rem;                  /* 7px */
-  border:0.125rem solid transparent;        /* 2px */
-  transition:transform .1s;
+  width:  calc(4.3125rem * var(--dock-scale)); /* 69px */
+  height: calc(4.3125rem * var(--dock-scale));
+  border-radius: calc(.4375rem * var(--dock-scale)); /* 7px */
+  border: calc(.125rem * var(--dock-scale)) solid transparent; /* 2px */
+  transition: transform .1s;
 }
-.palette-grid .color-swatch:hover{ transform:scale(1.1); }
-.palette-grid .color-swatch.active{ border-color:#fff; box-shadow:0 0 0 0.0625rem #000; }
 
-/* Brush row */
+.palette-grid .color-swatch:hover{ transform: scale(1.08); }
+.palette-grid .color-swatch.active{ 
+  border-color:#fff; 
+  box-shadow: 0 0 0 calc(.0625rem * var(--dock-scale)) #000;        /* 1px */
+}
+
+/* ====== Brush-raden ====== */
 .brush-row{
-  display:grid; grid-template-columns:1fr 1fr; gap:0.625rem; align-items:center;
+  display:grid; 
+  grid-template-columns:1fr 1fr; 
+  gap: calc(.625rem * var(--dock-scale));
+  align-items:center;
 }
-#brushSizeSlider{ width:20rem; max-width:56vw; }
-.brush-row label{ color:#fff; font-size:0.9rem; }
 
-/* 🎨-knapp höger */
+/* Skala sliderns bredd + max-bredd */
+#brushSizeSlider{ 
+  width: calc(20rem * var(--dock-scale)); 
+  max-width: calc(56vw * var(--dock-scale));
+}
+
+/* Textstorlek skalar med */
+.brush-row label{ 
+  color:#fff; 
+  font-size: calc(.9rem * var(--dock-scale)); 
+}
+
+/* ====== Höger (🎨) ====== */
 .dock-right{ display:flex; align-items:center; }
-.edit-btn{
-  width:4.3125rem; height:4.3125rem; border-radius:0.4375rem;
-  font-size:3.25rem;
-}
-.edit-btn:hover{ transform:scale(1.1); }
 
+.edit-btn{
+  width:  calc(4.3125rem * var(--dock-scale));
+  height: calc(4.3125rem * var(--dock-scale));
+  border-radius: calc(.4375rem * var(--dock-scale));
+  font-size: calc(3.25rem * var(--dock-scale));
+  transition: transform .1s;
+}
+.edit-btn:hover{ transform: scale(1.08); }
 /* Landscape + touch: docken längs HÖGER kant, centrerad på höjden */
 @media (orientation:landscape) and (pointer:coarse){
   #dockWrap{
@@ -4496,6 +4534,7 @@ document.getElementById('mnuNew').addEventListener('click', async () => {
   brushSize = 1;
   document.getElementById("brushSizeLabel").innerText = "Brush Size: " + 1 + "px";
   document.getElementById("brushSizeSlider").value=1;
+  showGrid=false;
 
 });
 
@@ -5174,6 +5213,8 @@ async function gogogo(canvas, bg = 'white'){
                 }
                 
                 zomzomzom=1;
+
+                if(window.innerWidth<2000)zomzomzom=0.8;
                 if(mobileAndTabletCheck()){
                     zomzomzom=0.5;
                 }
