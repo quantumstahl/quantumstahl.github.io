@@ -1335,8 +1335,7 @@ confirmResizeBtn.addEventListener('click', async function() {
                         
                         
                     }
-                    
-                    newZoom=newZoom/zomzomzom;
+                    if(mobileAndTabletCheck())newZoom=newZoom/(zomzomzom*1.2);
                     zoom = newZoom;
                     savedresize=Math.round(newZoom * 100);
                     zoomvalue = Math.round(newZoom * 100);
