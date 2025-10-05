@@ -1316,6 +1316,7 @@ confirmResizeBtn.addEventListener('click', async function() {
 
                     // Reset zoom to 1 after resizing
                     let newZoom = zoom; // Start with current zoom
+                    if(mobileAndTabletCheck()){
                     if (newWidth * newZoom > window.innerWidth * 0.8 || 
                         newHeight * newZoom > (window.innerHeight - 100) * 0.8) {
                         // Image is too large at current zoom, recalculate
@@ -1324,6 +1325,24 @@ confirmResizeBtn.addEventListener('click', async function() {
            
                         newZoom = Math.min(zoomX, zoomY);
                     }
+                    else if(((newWidth * newZoom < window.innerWidth * 0.8 ||newHeight * newZoom < (window.innerHeight - 100) * 0.8 ))){
+                        
+     
+                        const zoomX = Math.round(((window.innerWidth * 0.8) / newWidth)*10)/10;
+                        const zoomY = Math.round((((window.innerHeight - 100) * 0.8) / newHeight)*10)/10;
+           
+                        newZoom = Math.min(zoomX, zoomY);
+                    }
+                    }
+                    else{
+                    if (newWidth * newZoom > window.innerWidth * 0.8 || 
+                     newHeight * newZoom > (window.innerHeight - 100) * 0.8) {
+                     // Image is too large at current zoom, recalculate
+                     const zoomX = Math.round(((window.innerWidth * 0.8) / newWidth)*10)/10;
+                     const zoomY = Math.round((((window.innerHeight - 100) * 0.8) / newHeight)*10)/10;
+
+                     newZoom = Math.min(zoomX, zoomY);
+                    }
                     else if(((newWidth * newZoom < window.innerWidth * 0.5 ||newHeight * newZoom < (window.innerHeight - 100) * 0.5 ))){
                         
      
@@ -1331,11 +1350,18 @@ confirmResizeBtn.addEventListener('click', async function() {
                         const zoomY = Math.round((((window.innerHeight - 100) * 0.5) / newHeight)*10)/10;
            
                         newZoom = Math.min(zoomX, zoomY);
+                    } 
+                        
+                        
+                        
+                        
+                        
+                        
                         
                         
                         
                     }
-                    if(mobileAndTabletCheck())newZoom=newZoom/(zomzomzom*1.2);
+                    
                     zoom = newZoom;
                     savedresize=Math.round(newZoom * 100);
                     zoomvalue = Math.round(newZoom * 100);
