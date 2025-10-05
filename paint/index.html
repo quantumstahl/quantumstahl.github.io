@@ -608,7 +608,7 @@ canvas{
 
 </head>
 <body>  
-<div id="swBadge" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:#111;color:#ffffff;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui">v1.06</div>
+<div id="swBadge" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:#111;color:#ffffff;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui">v1.07</div>
 
 <div id="hide">
 <label for="directFileInput">Open Image</label>
@@ -5457,7 +5457,7 @@ async function saveCanvasAsPng(targetCanvas, suggestedName = 'maxpaint-image.png
   const blob = await canvasToBlobPNG(targetCanvas);
   const file = new File([blob], suggestedName, { type:'image/png' });
   console.log('[save] start', { native: isNative(), hasFS: !!window.Capacitor?.Plugins?.Filesystem, hasShare: !!window.Capacitor?.Plugins?.Share });
-
+  alert("TEST");
 try{
     if ('showSaveFilePicker' in window){
     const handle = await showSaveFilePicker({
@@ -5468,7 +5468,7 @@ try{
     await w.write(blob); await w.close();
     return;
   }
-}catch(e){}
+}catch(e){alert(e);}
   
   // 2) Capacitor: skriv fil → dela
   const FS = window.Capacitor?.Plugins?.Filesystem;
