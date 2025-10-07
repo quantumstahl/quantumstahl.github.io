@@ -646,7 +646,7 @@ canvas{
 
 </head>
 <body>  
-<div id="swBadge" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:#111;color:#ffffff;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui">v1.07</div>
+<div id="swBadge" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:#111;color:#ffffff;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui">v1.09</div>
 
 <div id="hide">
 <label for="directFileInput">Open Image</label>
@@ -698,8 +698,8 @@ canvas{
     <!-- Kontroller under paletten: två kolumner = Brush (vänster), Zoom (höger) -->
     <div class="brush-row">
       <div class="control-col" style="display:grid; gap:6px; align-items:center;">
-        <label for="brushSizeSlider" id="brushSizeLabel">Brush Size: 1px</label>
-        <input id="brushSizeSlider" type="range" min="1" max="32" step="1" value="1"
+        <label for="brushSizeSlider" id="brushSizeLabel">Brush Size: 2px</label>
+        <input id="brushSizeSlider" type="range" min="1" max="32" step="1" value="2"
                style="width:100%;"/>
       </div>
       <div class="control-col" style="display:grid; gap:6px; align-items:center;">
@@ -1549,7 +1549,7 @@ confirmResizeBtn.addEventListener('click', async function() {
             
             // Variables for drawing
             let isDrawing = false;
-            let brushSize = 1; // Default brush size
+            let brushSize = 2; // Default brush size
             let brushColor = "black"; // Default brush color
             
             // Function to draw at a specific point with pixel perfect precision
@@ -3468,7 +3468,7 @@ if (res.type === 'image') {
   const blob = await (await fetch('data:image/png;base64,' + res.base64PNG)).blob();
   const bmp  = await createImageBitmap(blob);
   _activatePastedBitmap(bmp);
-      
+      bmp.close();
       
   //  const img = new Image();
   //  img.onload = () => drawingCtx.drawImage(img, 0, 0);
@@ -3503,6 +3503,7 @@ if (res.type === 'image') {
             const blob = await item.getType(t);
             const bmp  = await createImageBitmap(blob);
             _activatePastedBitmap(bmp);
+            bmp.close();
             return;
           }
         }
@@ -3514,6 +3515,7 @@ if (res.type === 'image') {
             if (src && _looksLikeImageURL(src)) {
               const bmp = await _loadBitmapFromURL(src);
               _activatePastedBitmap(bmp);
+              bmp.close();
               return;
             }
           }
@@ -3529,6 +3531,7 @@ if (res.type === 'image') {
                 ? await _bitmapFromDataURL(norm)
                 : await _loadBitmapFromURL(norm);
               _activatePastedBitmap(bmp);
+              bmp.close();
               return;
             }
           }
@@ -3547,6 +3550,7 @@ if (res.type === 'image') {
           ? await _bitmapFromDataURL(norm)
           : await _loadBitmapFromURL(norm);
         _activatePastedBitmap(bmp);
+        bmp.close();
         return;
       }
     }
@@ -3642,6 +3646,7 @@ window.addEventListener('paste', async (e) => {
       e.preventDefault();
       const bmp = await createImageBitmap(file);
       _activatePastedBitmap(bmp);
+      bmp.close();
       return;
     }
   }
@@ -3653,6 +3658,7 @@ window.addEventListener('paste', async (e) => {
       const blob = it.getAsFile();
       const bmp = await createImageBitmap(blob);
       _activatePastedBitmap(bmp);
+      bmp.close();
       return;
     }
   }
@@ -3662,6 +3668,7 @@ window.addEventListener('paste', async (e) => {
     e.preventDefault();
     const bmp = await _bitmapFromDataURL(txt);
     _activatePastedBitmap(bmp);
+    bmp.close();
   }
 });
 // === COPY: skriv data-URL till urklipp via copy-event (funkar utan HTTPS) ===
@@ -4498,13 +4505,11 @@ function recalcCanvasSize() {
 document.getElementById('mnuNew').addEventListener('click', async () => {
   closeAll();
   if (!confirm("Start a new drawing? Unsaved work will be lost.")) return;
-
+  location.reload();
   // --- Nollställ dokumentet
-  
-  
+  /*
   currentproject=0;
   keyState.h = true;
-  
   drawareax = 640;
   drawareay = 640;
   
@@ -4519,7 +4524,6 @@ document.getElementById('mnuNew').addEventListener('click', async () => {
         drawingCanvas.width = 640;
         drawingCanvas.height = 640;
     }
-  
   zoom = 1;
   startan = false;
   zoomvalue=100;
@@ -4531,11 +4535,11 @@ document.getElementById('mnuNew').addEventListener('click', async () => {
   switchTool("pen");
   resetPaletteToDefaults(0);
   savedresize=100;
-  brushSize = 1;
-  document.getElementById("brushSizeLabel").innerText = "Brush Size: " + 1 + "px";
-  document.getElementById("brushSizeSlider").value=1;
+  brushSize = 2;
+  document.getElementById("brushSizeLabel").innerText = "Brush Size: " + 2 + "px";
+  document.getElementById("brushSizeSlider").value=2;
   showGrid=false;
-
+  */
 });
 
 const pointers = new Map();           // pointerId -> { clientX, clientY, offsetX, offsetY }
@@ -5464,6 +5468,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (typeof beginAction === 'function') beginAction('paste/load');  
       const bmp = await createImageBitmap(file);
       await _activateLoadedBitmap(bmp);
+      bmp.close();
     } catch (err) {
       console.error(err);
       alert('Kunde inte läsa bilden.');
@@ -5476,8 +5481,36 @@ document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('DOMContentLoaded', function() {
     // Get the save button
     
-    
-    
+const Media = window.Capacitor?.Plugins?.Media;   
+const { Filesystem, Directory } = window.Capacitor.Plugins;
+
+
+const DIR = {
+  DATA: (Filesystem?.Directory?.Data) || 'DATA',
+  CACHE: (Filesystem?.Directory?.Cache) || 'CACHE',
+  EXT: (Filesystem?.Directory?.ExternalStorage) || 'EXTERNAL_STORAGE',
+};
+
+let _albumId = null;
+const ALBUM_NAME = 'MaxPaint';
+ensureAlbumId();
+async function ensureAlbumId() {
+  if (_albumId) return _albumId;
+  _albumId = localStorage.getItem('mp_album_id');
+  if (_albumId) return _albumId;
+
+  const Media = window.Capacitor?.Plugins?.Media;
+  let { albums } = await Media.getAlbums();
+  let found = albums?.find(a => a.name === ALBUM_NAME);
+  if (!found) {
+    await Media.createAlbum({ name: ALBUM_NAME });
+    ({ albums } = await Media.getAlbums());
+    found = albums?.find(a => a.name === ALBUM_NAME);
+  }
+  _albumId = found?.identifier || null;
+  if (_albumId) localStorage.setItem('mp_album_id', _albumId);
+  return _albumId;
+}    
 
 
 // Hjälpare
@@ -5495,8 +5528,9 @@ function isNative(){ return !!(window.Capacitor?.getPlatform && window.Capacitor
 
 // === SAVE CORE (med debug) ===
 async function saveCanvasAsPng(targetCanvas, suggestedName = 'maxpaint-image.png'){
-  const blob = await canvasToBlobPNG(targetCanvas);
-  const file = new File([blob], suggestedName, { type:'image/png' });
+
+if (!isNative()){
+    const blob = await canvasToBlobPNG(targetCanvas);
 try{
     if ('showSaveFilePicker' in window){
     const handle = await showSaveFilePicker({
@@ -5508,7 +5542,6 @@ try{
     if(handle)return;
   }
 }catch(e){}
-if (!isNative()){
 try {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -5518,54 +5551,47 @@ try {
     return true;
 } catch (_) {}
 }
+if (isNative()){
+      saveToSharedPictures(targetCanvas);
+}
+}
+
+async function saveToSharedPictures(targetCanvas){
+     
+  const png = true;
+  const fileName = `maxpaint-${Date.now()}.png`;        // här med .png då Filesystem behöver en filändelse
+  const path = `Pictures/MaxPaint/${fileName}`;
+
+  // 1) Hämta dataURL och strippa prefixet
+  const dataUrl = targetCanvas.toDataURL('image/png');  // snabb nog om du redan använder denna
+  const base64 = dataUrl.split(',')[1];
 
 
-  // 2) Capacitor: skriv fil → dela
-  const FS = window.Capacitor?.Plugins?.Filesystem;
-  const Share = window.Capacitor?.Plugins?.Share;
-  const Media = window.Capacitor?.Plugins?.Media;
-  const Toast = window.Capacitor?.Plugins?.Toast;
-  if (isNative() && FS){
-      
-   
-      const buf = await blob.arrayBuffer();
-      const b64 = arrayBufferToBase64(buf);
-      const name = `maxpaint-${Date.now()}.png`;
-      
-       const dataUrl = 'data:image/png;base64,' + b64;
-       const albumName = 'MaxPaint';
-       let albumId;
-        try {
-          let { albums } = await Media.getAlbums();
-          let found = albums?.find(a => a.name === albumName);
-          if (!found) {
-            await Media.createAlbum({ name: albumName });
-            ({ albums } = await Media.getAlbums());
-            found = albums?.find(a => a.name === albumName);
-          }
-          albumId = found?.identifier;
-          if (!albumId) throw new Error('albumIdentifier saknas');
-        } catch (e) {
-          return;
-        }
+  // 2) Skriv till delad lagring (överlever uninstall)
+  await Filesystem.writeFile({
+    path,
+    data: base64,
+    directory: DIR.EXT,  // Viktigt: delad lagring (inte External/App)
+    recursive: true
+  });
 
-        // 4) Spara till Galleri
-        const fileName = 'maxpaint-' + Date.now(); // utan .png enligt pluginens krav (Android)
-        await Media.savePhoto({ path: dataUrl, albumIdentifier: albumId, fileName });
-        await Toast.show({ text: `Saved to Photos/Gallery — Album: ${albumName}` });
-      }
-      
-      
-      
-      
+  // 3) Trigga mediascan så bilden dyker upp direkt i Galleri/Photos
+  if (Filesystem?.scanFile) {
+    // Nyare Filesystem-versioner har scanFile – annars kan du hoppa över detta steg
+    await Filesystem.scanFile({ uri: path });
+  }
 
+  _toast(`Sparad: ${path}`);
+}
 
-    
-    
-    
-    
-    
-  
+function saveNativeFast(){
+    const png=true;
+    const fileName = 'maxpaint-' + Date.now(); // utan .png enligt pluginens krav (Android)
+    Media.savePhoto({ path: canvasToDataURLFast(targetCanvas, { png }), albumIdentifier: _albumId, fileName });
+    _toast("Saved to Photos/Gallery — Album:"+ALBUM_NAME);
+}
+function canvasToDataURLFast(canvas, { png=false } = {}){
+  return canvas.toDataURL(png ? 'image/png' : 'image/webp', png ? undefined : 0.95);
 }
 async function saveVisible(){
 
@@ -5789,6 +5815,12 @@ function dumpCapStatus(where=''){
   
   
 })();
+
+
+
+
+
+
 
 </script>
 
