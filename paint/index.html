@@ -5525,12 +5525,25 @@ function arrayBufferToBase64(buf){
   return btoa(s);
 }
 function isNative(){ return !!(window.Capacitor?.getPlatform && window.Capacitor.getPlatform() !== 'web'); }
-
+function iOS() {
+  return [
+    'iPad Simulator',
+    'iPhone Simulator',
+    'iPod Simulator',
+    'iPad',
+    'iPhone',
+    'iPod'
+  ].includes(navigator.platform)
+  // iPad on iOS 13 detection
+  || (navigator.userAgent.includes("Mac") && "ontouchend" in document)
+}
 // === SAVE CORE (med debug) ===
 async function saveCanvasAsPng(targetCanvas, suggestedName = 'maxpaint-image.png'){
 
 if (!isNative()){
     const blob = await canvasToBlobPNG(targetCanvas);
+    
+if(!iOS()){    
 try{
     if ('showSaveFilePicker' in window){
     const handle = await showSaveFilePicker({
@@ -5542,6 +5555,7 @@ try{
     if(handle)return;
   }
 }catch(e){}
+}
 try {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
