@@ -2,10 +2,10 @@
 
 <html>
 <head>
-<title>MaxAnimate</title>
+<title>MaxPaint</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta content="maxanimate,animate" name="keywords"/>
+<meta content="maxpaint,paint" name="keywords"/>
 <link href="icons/icon-192.png" rel="icon" type="image/vnd.microsoft.icon"/>
 
 
@@ -640,10 +640,7 @@ canvas{
 }
 
 
-    /* === Top frame strip === */
-    #frameBar{position:fixed;left:0px;right:0px;top:110px;display:flex;gap:10px;align-items:center;z-index:50}
-    .fbtns{display:flex;gap:8px}
-    .fbtns button{background:#2b2d33;color:#fff;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:.45rem .7rem}
+
 
 </style>
 
@@ -673,17 +670,6 @@ canvas{
 <button class="tool-btn" id="rotateFreeBtn" title="Rotate Free… (Ctrl+R)"></button>
 
 </div>
-
-
-<div id="frameBar">
-    <div class="fbtns">
-      <button id="btnAdd" title="Lägg till ny bild (N)">＋</button>
-      <button id="btnDup" title="Duplicera bild (D)">⧉</button>
-      <button id="btnDel" title="Ta bort bild (Delete)">🗑</button>
-      <button id="btnPlay" title="Spela/pausa (Space)">▶︎</button>
-      <label class="label" style="display:flex;align-items:center;gap:6px">FPS <input id="fps" type="range" min="1" max="24" value="8"/></label>
-    </div>
-  </div>
 
 
 
@@ -881,8 +867,6 @@ canvas{
 
 
 
-    
-    
  
 <script>
 (function(){
@@ -1186,7 +1170,7 @@ canvas{
             let canvasPools = new Map();
             let projectBitmaps = [null, null, null];     // ImageBitmap per projekt (RAM)
             let projectBlobURLs = [null, null, null];    // Fallback om bitmap inte går
-            let projectDirty = [false, false, false]; 
+            let projectDirty = [true, true, true]; 
             
             let projectstopper=false;
             let tvfirst=[false, false, false];
@@ -4615,6 +4599,13 @@ canvas.addEventListener('pointerdown', (ev) => {
         if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty+drawareay && y < drawstarty-10+drawareay+30) { movecorners = true; resizeStart('SW'); return; }
         if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty+drawareay-10 && y < drawstarty+drawareay+30) { movecorners = true; resizeStart('SE'); return; }
     }
+    
+    if(x>=10&& x<60 && y>=60 && y<110){setActiveProject(1);loadProject(0);loadProject(0);}
+    if(x>=60&& x<110 && y>=60 && y<110){setActiveProject(2);loadProject(1);loadProject(1);}
+    if(x>=110&& x<160 && y>=60 && y<110){setActiveProject(3);loadProject(2);loadProject(2);}
+    
+    
+    
 
     // Tools
     if (x >= drawstartx && x < drawstartx + drawareax && y >= drawstarty && y < drawstarty + drawareay) {
@@ -5206,9 +5197,12 @@ async function gogogo(canvas, bg = 'white'){
 
   // 3) Första frame stabil – be om en extra rAF så WebView hinner synka
   return new Promise(r => requestAnimationFrame(() => r(ctx)));
+    
+    
+    
+    
+    
 }
-
-
 
             //check---------------------------------------------------------------------------------------
             var check = function() {
@@ -5294,7 +5288,9 @@ async function gogogo(canvas, bg = 'white'){
                     redoMap.set(1,[]);
                     redoMap.set(2,[]);
                     warmUpCanvas(drawingCanvas);
-                    
+                    saveCurrentProject(0);
+                    saveCurrentProject(1);
+                    saveCurrentProject(2);
                 }
 
 
@@ -5458,12 +5454,15 @@ async function gogogo(canvas, bg = 'white'){
                 drawResizeOverlay();
                 
                 
+                
                 saveCurrentProject(currentproject);
-                try{if (projectBitmaps[0]) {ctx.drawImage(projectBitmaps[0], 350, 100,50,50);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(350, 100,50,50);}
-                try{if (projectBitmaps[1]) {ctx.drawImage(projectBitmaps[1], 410, 100,50,50);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(410, 100,50,50);}
-                try{if (projectBitmaps[2]) {ctx.drawImage(projectBitmaps[2], 470, 100,50,50);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(470, 100,50,50);}
-                
-                
+                try{if (projectBitmaps[0]) {ctx.drawImage(projectBitmaps[0], 10, 60,50,50);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(10,60,50,50)}
+                try{if (projectBitmaps[1]) {ctx.drawImage(projectBitmaps[1], 60, 60,50,50);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(60,60,50,50)}
+                try{if (projectBitmaps[2]) {ctx.drawImage(projectBitmaps[2], 110, 60,50,50);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(110,60,50,50)}
+                ctx.fillStyle = 'black';
+                if(0===currentproject){ctx.strokeRect(10, 60,50,50);}
+                if(1===currentproject){ctx.strokeRect(60, 60,50,50);}
+                if(2===currentproject){ctx.strokeRect(110, 60,50,50);}
                 
                 if(running)window.requestAnimationFrame(check);   
             }; 
@@ -5513,11 +5512,8 @@ const DIR = {
 
 let _albumId = null;
 const ALBUM_NAME = 'MaxPaint';
-
 ensureAlbumId();
-
 async function ensureAlbumId() {
-  try{  
   if (_albumId) return _albumId;
   _albumId = localStorage.getItem('mp_album_id');
   if (_albumId) return _albumId;
@@ -5533,7 +5529,6 @@ async function ensureAlbumId() {
   _albumId = found?.identifier || null;
   if (_albumId) localStorage.setItem('mp_album_id', _albumId);
   return _albumId;
-  }catch(e){}
 }    
 
 
