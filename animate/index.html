@@ -5527,7 +5527,7 @@ async function openProject(){
                     drawareax = drawareax / oldZoom * newZoom;
                     drawareay = drawareay / oldZoom * newZoom;
                     
-                    _toast(ensureIntDimension(drawareax/zoom));
+                    //_toast(ensureIntDimension(drawareax/zoom));
                 
                 // --- Räkna om start så att samma bildpunkt ligger kvar i mitten
                 
@@ -5626,8 +5626,8 @@ async function openProject(){
                 // Use integer coordinates and add 1px buffer to prevent edge artifacts
                 const patternX = Math.floor(drawstartx+1+camera.x);
                 const patternY = Math.floor(drawstarty+1+camera.y);
-                const patternWidth = (Math.ceil(drawareax + (drawstartx+camera.x - patternX)-1) - 0);
-                const patternHeight = (Math.ceil(drawareay + (drawstarty+camera.y - patternY)-1) - 0);
+                const patternWidth = (ensureIntDimension(drawareax + (drawstartx+camera.x - patternX)-1) - 0);
+                const patternHeight = (ensureIntDimension(drawareay + (drawstarty+camera.y - patternY)-1) - 0);
                 ctx.fillRect(patternX, patternY, patternWidth, patternHeight);
 
 
