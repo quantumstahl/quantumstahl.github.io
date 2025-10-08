@@ -796,9 +796,10 @@ canvas{
       Animation
     </button>
     <div id="projectsDrop" class="dropdown" role="menu" aria-label="Projects">
-      <button class="item" id="mnuProj1" role="menuitem">play</button>
-      <button class="item" id="mnuProj2" role="menuitem">hide</button>
+      <button class="item" id="mnuProj1" role="menuitem">play/stop</button>
+      <button class="item" id="mnuProj2" role="menuitem">hide/show</button>
       <button class="item" id="mnuProj3" role="menuitem">speed</button>
+      <button class="item" id="mnuProj4" role="menuitem">frames</button>
     </div>
   </div>
 </div>
@@ -4294,10 +4295,12 @@ window.addEventListener('load', ()=>{
   let play=false;
   let hide=false;
   let speed=5;
+  let frames=12;
+  
   document.getElementById('mnuProj1')?.addEventListener('click', ()=>{ closeAll(); if(!play)play=true;else {play=false;currentproject=savedcurrentproject;;drawingCtx.drawImage(projectBitmaps[currentproject],0,0,drawareax,drawareay);}});
   document.getElementById('mnuProj2')?.addEventListener('click', ()=>{ closeAll(); if(!hide)hide=true;else hide=false;});
   document.getElementById('mnuProj3')?.addEventListener('click', ()=>{ closeAll(); let promt = window.prompt("Change animation speed.. lower is faster", speed);if (promt != null && isNaN(promt) == false)speed = Number(promt); });
-
+  document.getElementById('mnuProj4')?.addEventListener('click', ()=>{ closeAll(); let promt = window.prompt("How many animation frames", frames);if (promt != null && isNaN(promt) == false)frames = Number(promt); });
 
 
 
@@ -5461,7 +5464,7 @@ let savedcurrentproject=0;
                             
                     
                     //loadProject(playcunter);
-                    if(playcunter==12)playcunter=0;
+                    if(playcunter==frames)playcunter=0;
                     
                     drawingCtx.drawImage(projectBitmaps[playcunter],0,0,drawareax,drawareay);
                     currentproject=playcunter;
