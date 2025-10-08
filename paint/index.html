@@ -2,10 +2,10 @@
 
 <html>
 <head>
-<title>MaxPaint</title>
+<title>MaxAnimate</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta content="maxpaint,paint" name="keywords"/>
+<meta content="MaxAnimate,paint,animate" name="keywords"/>
 <link href="icons/icon-192.png" rel="icon" type="image/vnd.microsoft.icon"/>
 
 
@@ -653,9 +653,6 @@ canvas{
 <input accept="image/*" id="directFileInput" style="position:absolute; left:-200px;" type="file"/>
 <!-- Save Image button, positioned much lower -->
 <button id="saveImageBtn" >Save Image</button>
-<button id="project1Btn">Canvas 1</button>
-<button id="project2Btn" >Canvas 2</button>
-<button id="project3Btn" >Canvas 3</button>
 <button id="ResizeBtn" >Resize</button>
 
 <button class="tool-btn" id="copyBtn" title="Copy selection (Ctrl/Cmd+C)"></button>
@@ -790,18 +787,21 @@ canvas{
       <button class="item" id="mnuResize" role="menuitem">Resize canvas…</button>
       <button class="item" id="mnuGrid"   role="menuitem">Toggle grid</button>
       <button class="item" id="mnuCameraCenter"   role="menuitem">Center camera</button>
+      <button class="item" id="mnuSprites"   role="menuitem">Save Spritesheet</button>
     </div>
   </div>
 
   <!-- Projects direkt till vänster (bredvid hamburgern) -->
   <div class="topbar-group" style="position:relative">
     <button id="projectsBtn" class="topbtn" aria-haspopup="true" aria-expanded="false" title="Projects">
-      Canvas 1 ▾
+      Animation
     </button>
     <div id="projectsDrop" class="dropdown" role="menu" aria-label="Projects">
-      <button class="item" id="mnuProj1" role="menuitem">Canvas 1</button>
-      <button class="item" id="mnuProj2" role="menuitem">Canvas 2</button>
-      <button class="item" id="mnuProj3" role="menuitem">Canvas 3</button>
+      <button class="item" id="mnuProj1" role="menuitem">play/stop</button>
+      <button class="item" id="mnuProj2" role="menuitem">hide/show</button>
+      <button class="item" id="mnuProj3" role="menuitem">speed</button>
+      <button class="item" id="mnuProj4" role="menuitem">frames</button>
+      <button class="item" id="mnuProj5" role="menuitem">Onion on/off</button>
     </div>
   </div>
 </div>
@@ -1138,7 +1138,7 @@ canvas{
 <script>
             
             const canvas = document.getElementById("myCanvas");
-            const ctx = canvas.getContext('2d');
+            const ctx= canvas.getContext('2d', {alpha:true});
             document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
             
             // Create an in-memory canvas to store our drawing
@@ -1157,7 +1157,6 @@ canvas{
             
                         
                         
-            const projectImages = [null, null, null];
             let currentproject=0;
             
             
@@ -1168,21 +1167,31 @@ canvas{
             let undoStack = [];
             let redoStack = [];
             let canvasPools = new Map();
-            let projectBitmaps = [null, null, null];     // ImageBitmap per projekt (RAM)
-            let projectBlobURLs = [null, null, null];    // Fallback om bitmap inte går
-            let projectDirty = [false, false, false]; 
+            let projectBitmaps = [null, null, null,null, null, null,null, null, null,null, null, null];     // ImageBitmap per projekt (RAM)
+            let projectBlobURLs = [null, null, null,null, null, null,null, null, null,null, null, null];    // Fallback om bitmap inte går
+            let projectDirty = [true, true, true,true, true, true,true, true, true,true, true, true]; 
             
             let projectstopper=false;
-            let tvfirst=[false, false, false];
+            let tvfirst=[false, false, false,false, false, false,false, false, false,false, false, false];
             
             tvaaaa=false;
             treeee=false;
+            fyraaa=false;
+            femmmm=false;
+            sexxxx=false;
+            sjuuuu=false;
+            åttaaa=false;
+            nioooo=false;
+            tioooo=false;
+            elvaaa=false;
+            tolvvv=false;
             
             let koko=false;
             function markDirty(){ projectDirty[currentproject] = true; }
             // Function to save the current drawing to the selected project
             async function saveCurrentProject(index) {
                 // Spara vy/zoom mm som innan
+                if (!projectDirty[index]) return; // ingenting att spara
                 projectdrawareax[index] = drawareax;
                 projectdrawareay[index] = drawareay;
                 projectdrawstartx[index] = drawstartx;
@@ -1191,7 +1200,7 @@ canvas{
                 projectcamerax[index]=camera.x;
                 projectcameray[index]=camera.y;
                 
-                if (!projectDirty[index]) return; // ingenting att spara
+                
 
                 // Rensa tidigare cache
                 if (projectBitmaps[index] && projectBitmaps[index].close) {
@@ -1230,24 +1239,24 @@ canvas{
             drawstarty  = projectdrawstarty[index] ?? drawstarty;
             camera.x     = projectcamerax[index];
             camera.y     = projectcameray[index];
-            
             zoom        = projectzoom[index] ?? zoom;
             
-            if(currentproject===1&&tvfirst[1]===false){
-             //   zoomvalue = 100;
-              //  document.getElementById("zoomSlider").value = zoomvalue;document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
-               // 
-                tvaaaa=true;
-                tvfirst[1]=true;
-                
-            }
-            else if(currentproject===2&&tvfirst[2]===false){
-               // zoomvalue = 100;
-              //  document.getElementById("zoomSlider").value = zoomvalue;
-              //  document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";
-                treeee=true;
-                tvfirst[2]=true;
-            }
+            drawingCanvas.width=Math.round(drawareax/zoom);
+            drawingCanvas.height=Math.round(drawareay/zoom);
+            
+            if(currentproject===1&&tvfirst[1]===false){tvaaaa=true;tvfirst[1]=true;}
+            else if(currentproject===2&&tvfirst[2]===false){treeee=true;tvfirst[2]=true;}
+            else if(currentproject===3&&tvfirst[3]===false){fyraaa=true;tvfirst[3]=true;}
+            else if(currentproject===4&&tvfirst[4]===false){femmmm=true;tvfirst[4]=true;}
+            else if(currentproject===5&&tvfirst[5]===false){sexxxx=true;tvfirst[5]=true;}
+            
+            else if(currentproject===6&&tvfirst[6]===false){sjuuuu=true;tvfirst[6]=true;}
+            else if(currentproject===7&&tvfirst[7]===false){åttaaa=true;tvfirst[7]=true;}
+            else if(currentproject===8&&tvfirst[8]===false){nioooo=true;tvfirst[8]=true;}
+            else if(currentproject===9&&tvfirst[9]===false){tioooo=true;tvfirst[9]=true;}
+            else if(currentproject===10&&tvfirst[10]===false){elvaaa=true;tvfirst[10]=true;}
+            else if(currentproject===11&&tvfirst[11]===false){tolvvv=true;tvfirst[11]=true;}
+            
             else{
                zoomvalue = Math.round(zoom* 100);
                document.getElementById("zoomSlider").value = zoomvalue;
@@ -1277,9 +1286,6 @@ canvas{
       
             projectDirty[index] = false;
           }
-            document.getElementById('project1Btn').addEventListener('click', () => loadProject(0));
-            document.getElementById('project2Btn').addEventListener('click', () => loadProject(1));
-            document.getElementById('project3Btn').addEventListener('click', () => loadProject(2));
             
             document.getElementById('ResizeBtn').addEventListener('click', () => resizecanvas());
             
@@ -1603,13 +1609,13 @@ confirmResizeBtn.addEventListener('click', async function() {
             let selectionNeedsClick = false; 
             let isInteractingWithToolbar = false;
             
-            let projectdrawareax = [drawareax, drawareax, drawareax];
-            let projectdrawareay = [drawareay, drawareay, drawareay];
-            let projectdrawstartx = [drawstartx, drawstartx, drawstartx];
-            let projectdrawstarty = [drawstarty, drawstarty, drawstarty];
-            let projectzoom = [0,0,0];
-            let projectcamerax=[0, 0, 0];
-            let projectcameray=[0, 0, 0];
+            let projectdrawareax = [drawareax, drawareax, drawareax,drawareax, drawareax, drawareax,drawareax, drawareax, drawareax,drawareax, drawareax, drawareax];
+            let projectdrawareay = [drawareay, drawareay, drawareay,drawareay, drawareay, drawareay,drawareay, drawareay, drawareay,drawareay, drawareay, drawareay];
+            let projectdrawstartx = [drawstartx, drawstartx, drawstartx,drawstartx, drawstartx, drawstartx,drawstartx, drawstartx, drawstartx,drawstartx, drawstartx, drawstartx];
+            let projectdrawstarty = [drawstarty, drawstarty, drawstarty,drawstarty, drawstarty, drawstarty,drawstarty, drawstarty, drawstarty,drawstarty, drawstarty, drawstarty];
+            let projectzoom = [0,0,0,0,0,0,0,0,0,0,0,0];
+            let projectcamerax=[0, 0, 0,0, 0, 0,0, 0, 0,0, 0, 0];
+            let projectcameray=[0, 0, 0,0, 0, 0,0, 0, 0,0, 0, 0];
             
             let prevzoom=1;
             let isTextToolActive = false;
@@ -2002,7 +2008,7 @@ function switchTool(newTool, opts = {}) {
             // Ensure the drawing canvas is big enough for the image
             function ensureCanvasSize(width, height) {
                 // Resize the drawing canvas if the new dimensions are larger
-                if (width > drawingCanvas.width || height > drawingCanvas.height) {
+                if (width !== drawingCanvas.width || height !== drawingCanvas.height) {
                     // Save current content
                     const oldContent = document.createElement('canvas');
                     oldContent.width = drawingCanvas.width;
@@ -2011,8 +2017,8 @@ function switchTool(newTool, opts = {}) {
                     oldCtx.drawImage(drawingCanvas, 0, 0);
 
                     // Resize the canvas
-                    drawingCanvas.width = Math.max(width, drawingCanvas.width);
-                    drawingCanvas.height = Math.max(height, drawingCanvas.height);
+                    drawingCanvas.width = width;
+                    drawingCanvas.height = height;
 
                     // Fill with white and restore content
                     drawingCtx.fillStyle = "white";
@@ -2145,6 +2151,34 @@ function penUp(){
                   cximage[2]=(-projectdrawstartx[2] + prevVW/2) / z;
                   cyimage[2]=(-projectdrawstarty[2] + prevVH/2) / z;
                   
+                  cximage[3]=(-projectdrawstartx[3] + prevVW/2) / z;
+                  cyimage[3]=(-projectdrawstarty[3] + prevVH/2) / z;
+                  
+                  cximage[4]=(-projectdrawstartx[4] + prevVW/2) / z;
+                  cyimage[4]=(-projectdrawstarty[4] + prevVH/2) / z;
+                  
+                  cximage[5]=(-projectdrawstartx[5] + prevVW/2) / z;
+                  cyimage[5]=(-projectdrawstarty[5] + prevVH/2) / z;
+                  
+                  cximage[6]=(-projectdrawstartx[6] + prevVW/2) / z;
+                  cyimage[6]=(-projectdrawstarty[6] + prevVH/2) / z;
+                  
+                  cximage[7]=(-projectdrawstartx[7] + prevVW/2) / z;
+                  cyimage[7]=(-projectdrawstarty[7] + prevVH/2) / z;
+                  
+                  cximage[8]=(-projectdrawstartx[8] + prevVW/2) / z;
+                  cyimage[8]=(-projectdrawstarty[8] + prevVH/2) / z;
+                  
+                  cximage[9]=(-projectdrawstartx[9] + prevVW/2) / z;
+                  cyimage[9]=(-projectdrawstarty[9] + prevVH/2) / z;
+                  
+                  cximage[10]=(-projectdrawstartx[10] + prevVW/2) / z;
+                  cyimage[10]=(-projectdrawstarty[10] + prevVH/2) / z;
+                  
+                  cximage[11]=(-projectdrawstartx[11] + prevVW/2) / z;
+                  cyimage[11]=(-projectdrawstarty[11] + prevVH/2) / z;
+
+                  
                 }
                 
                 
@@ -2178,7 +2212,7 @@ function penUp(){
                 drawstartx = Math.round(curVW/2 - z * cxImg);
                 drawstarty = Math.round(curVH/2 - z * cyImg);
                 
-                for (let i=0;i<3;i++){
+                for (let i=0;i<11;i++){
                     if(i!==currentproject){
                         
                         projectdrawstartx[i]=Math.round(curVW/2 - z * cximage[i]);
@@ -4228,18 +4262,12 @@ window.addEventListener('load', ()=>{
   const btnSave     = document.getElementById('saveImageBtn');
   const btnResize   = document.getElementById('ResizeBtn');
   const btnGrid     = document.getElementById('gridBtn');
-  const btnP1       = document.getElementById('project1Btn');
-  const btnP2       = document.getElementById('project2Btn');
-  const btnP3       = document.getElementById('project3Btn');
 
   // Dölj original (vi proxy-klickar dem)
   if (lblOpen)   lblOpen.style.display = 'none';
   if (btnSave)   btnSave.style.display = 'none';
   if (btnResize) btnResize.style.display = 'none';
   if (btnGrid)   btnGrid.style.display = 'none';
-  if (btnP1) btnP1.style.display = 'none';
-  if (btnP2) btnP2.style.display = 'none';
-  if (btnP3) btnP3.style.display = 'none';
 
   // Top-meny element
   const hamburgerBtn = document.getElementById('hamburgerBtn');
@@ -4293,12 +4321,18 @@ window.addEventListener('load', ()=>{
   document.getElementById('mnuSave') ?.addEventListener('click', ()=>{ closeAll(); btnSave?.click(); });
   document.getElementById('mnuResize')?.addEventListener('click', ()=>{ closeAll(); btnResize?.click(); });
   document.getElementById('mnuGrid')  ?.addEventListener('click', ()=>{ closeAll(); btnGrid?.click(); });
-
-  document.getElementById('mnuProj1')?.addEventListener('click', ()=>{ closeAll(); btnP1?.click(); });
-  document.getElementById('mnuProj2')?.addEventListener('click', ()=>{ closeAll(); btnP2?.click(); });
-  document.getElementById('mnuProj3')?.addEventListener('click', ()=>{ closeAll(); btnP3?.click(); });
-
-
+  
+  let play=false;
+  let hide=false;
+  let speed=5;
+  let frames=12;
+  let union=false;
+  
+  document.getElementById('mnuProj1')?.addEventListener('click', ()=>{ closeAll(); if(!play)play=true;else {play=false;currentproject=savedcurrentproject;;drawingCtx.drawImage(projectBitmaps[currentproject],0,0,drawareax/zoom,drawareay/zoom);}});
+  document.getElementById('mnuProj2')?.addEventListener('click', ()=>{ closeAll(); if(!hide)hide=true;else hide=false;});
+  document.getElementById('mnuProj3')?.addEventListener('click', ()=>{ closeAll(); let promt = window.prompt("Change animation speed.. lower is faster", speed);if (promt != null && isNaN(promt) == false && Number(promt)>0)speed = Number(promt); });
+  document.getElementById('mnuProj4')?.addEventListener('click', ()=>{ closeAll(); let promt = window.prompt("How many animation frames. 1-12", frames);if (promt != null && isNaN(promt) == false &&Number(promt)<=12 &&Number(promt)>0 )frames = Number(promt); });
+  document.getElementById('mnuProj5')?.addEventListener('click', ()=>{ closeAll(); if(!union)union=true;else union=false;});
 
 
 // Hämta originalknapparna
@@ -4377,57 +4411,6 @@ function proxy(btn){
   document.getElementById('barRedo') ?.addEventListener('click', ()=> proxyClick(redoBtn));
 
 
-const btnProjects = document.getElementById('projectsBtn');
-  const item1 = document.getElementById('mnuProj1');
-  const item2 = document.getElementById('mnuProj2');
-  const item3 = document.getElementById('mnuProj3');
-
-  const projItems = { 1:item1, 2:item2, 3:item3 };
-
-  const origP1 = document.getElementById('project1Btn');
-  const origP2 = document.getElementById('project2Btn');
-  const origP3 = document.getElementById('project3Btn');
-
-  // 1) Säkerställ att knappen har en separat label-span
-  function ensureLabelSpan(){
-    if (!btnProjects) return null;
-    let label = document.getElementById('projectsLabel');
-    if (!label){
-      // Plocka nuvarande text (utan pilen) och bygg om knappen
-      const raw = (btnProjects.textContent || '').replace('▾','').trim();
-      const txt = raw || 'Canvas 1';
-      btnProjects.innerHTML = `<span id="projectsLabel">${txt}</span> ▾`;
-      label = document.getElementById('projectsLabel');
-    }
-    return label;
-  }
-  const labelSpan = ensureLabelSpan();
-
-  // 2) Sätt aktiv canvas (uppdatera knapp + highlight)
-  function setActiveProject(n){
-    if (labelSpan) labelSpan.textContent = `Canvas ${n}`;
-    Object.values(projItems).forEach(el => el?.classList.remove('active'));
-    projItems[n]?.classList.add('active');
-  }
-
-  // 3) Initiera från knappens befintliga text (t.ex. "Canvas 1 ▾")
-  function initialIndex(){
-    const base = (labelSpan?.textContent || btnProjects?.textContent || '').replace('▾','').trim();
-    const m = base.match(/(\d+)/);
-    return m ? parseInt(m[1],10) : 1;
-  }
-  setActiveProject(initialIndex());
-
-  // 4) Koppla klick i dropdownen → proxya originalknappar + uppdatera label/highlight
-  item1?.addEventListener('click', ()=>{ origP1?.click(); setActiveProject(1); });
-  item2?.addEventListener('click', ()=>{ origP2?.click(); setActiveProject(2); });
-  item3?.addEventListener('click', ()=>{ origP3?.click(); setActiveProject(3); });
-
-  // 5) Om du byter canvas på annat sätt (t.ex. programatiskt),
-  //    lyssna även på originalknapparna:
-  origP1?.addEventListener('click', ()=> setActiveProject(1));
-  origP2?.addEventListener('click', ()=> setActiveProject(2));
-  origP3?.addEventListener('click', ()=> setActiveProject(3));
 let zomzomzom=1;
 
 function hitCornerPrecise(x, y, { radius = 28, safeInner = 14 } = {}) {
@@ -4599,6 +4582,43 @@ canvas.addEventListener('pointerdown', (ev) => {
         if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty+drawareay && y < drawstarty-10+drawareay+30) { movecorners = true; resizeStart('SW'); return; }
         if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty+drawareay-10 && y < drawstarty+drawareay+30) { movecorners = true; resizeStart('SE'); return; }
     }
+    if(!hide){
+        
+        if(window.innerWidth>window.innerHeight&& mobileAndTabletCheck()){
+            if(ev.clientY>=10&& ev.clientY<40 && ev.clientX>=170 && ev.clientX<200){loadProject(0);loadProject(0);}
+            if(ev.clientY>=40&& ev.clientY<70 && ev.clientX>=170 && ev.clientX<200){loadProject(1);loadProject(1);}
+            if(ev.clientY>=70&& ev.clientY<100 && ev.clientX>=170 && ev.clientX<200){loadProject(2);loadProject(2);}
+            if(ev.clientY>=100&& ev.clientY<130 && ev.clientX>=170 && ev.clientX<200){loadProject(3);loadProject(3);}
+            if(ev.clientY>=130&& ev.clientY<160 && ev.clientX>=170 && ev.clientX<200){loadProject(4);loadProject(4);}
+            if(ev.clientY>=160&& ev.clientY<190 && ev.clientX>=170 && ev.clientX<200){loadProject(5);loadProject(5);}
+
+            if(ev.clientY>=190&& ev.clientY<220 && ev.clientX>=170 && ev.clientX<200){loadProject(6);loadProject(6);}
+            if(ev.clientY>=220&& ev.clientY<250 && ev.clientX>=170 && ev.clientX<200){loadProject(7);loadProject(7);}
+            if(ev.clientY>=250&& ev.clientY<280 && ev.clientX>=170 && ev.clientX<200){loadProject(8);loadProject(8);}
+            if(ev.clientY>=280&& ev.clientY<310 && ev.clientX>=170 && ev.clientX<200){loadProject(9);loadProject(9);}
+            if(ev.clientY>=310&& ev.clientY<340 && ev.clientX>=170 && ev.clientX<200){loadProject(10);loadProject(10);}
+            if(ev.clientY>=340&& ev.clientY<370 && ev.clientX>=170 && ev.clientX<200){loadProject(11);loadProject(11);}
+            
+            
+        }
+        else{
+            if(ev.clientX>=10&& ev.clientX<40 && ev.clientY>=60 && ev.clientY<110){loadProject(0);loadProject(0);}
+            if(ev.clientX>=40&& ev.clientX<70 && ev.clientY>=60 && ev.clientY<110){loadProject(1);loadProject(1);}
+            if(ev.clientX>=70&& ev.clientX<100 && ev.clientY>=60 && ev.clientY<110){loadProject(2);loadProject(2);}
+            if(ev.clientX>=100&& ev.clientX<130 && ev.clientY>=60 && ev.clientY<110){loadProject(3);loadProject(3);}
+            if(ev.clientX>=130&& ev.clientX<160 && ev.clientY>=60 && ev.clientY<110){loadProject(4);loadProject(4);}
+            if(ev.clientX>=160&& ev.clientX<190 && ev.clientY>=60 && ev.clientY<110){loadProject(5);loadProject(5);}
+
+            if(ev.clientX>=190&& ev.clientX<220 && ev.clientY>=60 && ev.clientY<110){loadProject(6);loadProject(6);}
+            if(ev.clientX>=220&& ev.clientX<250 && ev.clientY>=60 && ev.clientY<110){loadProject(7);loadProject(7);}
+            if(ev.clientX>=250&& ev.clientX<280 && ev.clientY>=60 && ev.clientY<110){loadProject(8);loadProject(8);}
+            if(ev.clientX>=280&& ev.clientX<310 && ev.clientY>=60 && ev.clientY<110){loadProject(9);loadProject(9);}
+            if(ev.clientX>=310&& ev.clientX<340 && ev.clientY>=60 && ev.clientY<110){loadProject(10);loadProject(10);}
+            if(ev.clientX>=340&& ev.clientX<370 && ev.clientY>=60 && ev.clientY<110){loadProject(11);loadProject(11);}
+        }
+    }
+    
+    
 
     // Tools
     if (x >= drawstartx && x < drawstartx + drawareax && y >= drawstarty && y < drawstarty + drawareay) {
@@ -5020,7 +5040,6 @@ let knäppt=false;
 
 let keyState = {up: false,down: false,left: false,right: false,h: false,plus:false,minus:false};         
 document.addEventListener("keydown", function(e) {
-    try{if(audio.paused&&gameState!=='game_over'){ audio.play();}}catch(error){};
     if (e.key === "w") keyState.up = true;
     if (e.key === "a") keyState.left = true;
     if (e.key === "s") keyState.down = true;
@@ -5043,6 +5062,8 @@ let firstbloodx=null;
 let firstbloody=null;
 
 document.getElementById('mnuCameraCenter')  ?.addEventListener('click', ()=>{ closeAll(); cameraHome(); });
+document.getElementById('mnuSprites')  ?.addEventListener('click', ()=>{ closeAll(); saveSpritesheet({ layout:'auto', maxWidth:10000, padding:0, extrude:1, fit:'contain' }); });
+
 function cameraHome(){keyState.h=true;}
 
 function setZoomAroundScreenCenter(newZoom,oldZoom){
@@ -5197,6 +5218,131 @@ async function gogogo(canvas, bg = 'white'){
     
 }
 
+let playcunter=0;
+let fpscounter=0;
+let savedcurrentproject=0;
+
+//NYTT
+// --- Hjälpare ---
+function asCanvas(src){
+  if (!src) return null;
+  if (src instanceof HTMLCanvasElement) return src;
+  const c = document.createElement('canvas');
+  c.width = src.width; c.height = src.height;
+  c.getContext('2d').drawImage(src, 0, 0);
+  return c;
+}
+
+function makeSlotCanvas(W, H, src, {fit='contain'} = {}){
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  g.clearRect(0,0,W,H);
+  if(!src) return c; // tom, transparent slot
+
+  const sw = src.width, sh = src.height;
+  if (fit === 'stretch'){
+    g.drawImage(src, 0,0, sw,sh, 0,0, W,H);
+  } else {
+    // contain + center
+    const ar = sw/sh, tar = W/H;
+    let dw=W, dh=H;
+    if (ar > tar) dh = Math.floor(W/ar); else dw = Math.floor(H*ar);
+    const dx = Math.floor((W-dw)/2), dy = Math.floor((H-dh)/2);
+    g.drawImage(src, 0,0, sw,sh, dx,dy, dw,dh);
+  }
+  return c;
+}
+
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  setTimeout(()=> URL.revokeObjectURL(url), 900);
+}
+
+// --- Huvud: bygga spritesheet (rad eller auto-grid) ---
+async function saveSpritesheet({layout='auto', padding=0, extrude=0, maxWidth=1024, fit='contain'} = {}){
+  // 1) Plocka in frames från projectBitmaps[0..frames-1]
+  const items = [];
+  for(let i=0;i<frames;i++){
+    const src = asCanvas(projectBitmaps[i]); // kan vara null
+    items.push(src);
+  }
+  // Hitta en referensstorlek (första icke-null)
+  const ref = items.find(c => !!c);
+  if(!ref){ alert('no images to export.'); return; }
+  const W0 = ref.width, H0 = ref.height;
+
+  // 2) Gör slots (alla blir W0×H0) – tomma blir transparenta
+  const slotCanvases = items.map(src => makeSlotCanvas(W0, H0, src, {fit}));
+
+  // 3) Välj layout
+  let cols, rows;
+  if(layout === 'row'){
+    cols = slotCanvases.length; rows = 1;
+  } else if(layout === 'grid'){
+    cols = Math.min(slotCanvases.length, Math.max(1, Math.floor((maxWidth + padding + 2*extrude) / (W0 + padding + 2*extrude))));
+    rows = Math.ceil(slotCanvases.length / cols);
+  } else {
+    // auto: rad om det får plats inom maxWidth, annars grid
+    const stepX = W0 + padding + 2*extrude;
+    if (slotCanvases.length * stepX <= maxWidth) { cols = slotCanvases.length; rows = 1; }
+    else { cols = Math.min(slotCanvases.length, Math.max(1, Math.floor((maxWidth + padding + 2*extrude) / stepX))); rows = Math.ceil(slotCanvases.length / cols); }
+  }
+
+  // 4) Rita ut sheet
+  const stepX = W0 + padding + 2*extrude;
+  const stepY = H0 + padding + 2*extrude;
+  const S = document.createElement('canvas');
+  S.width  = cols * stepX - (padding + 2*extrude);
+  S.height = rows * stepY - (padding + 2*extrude);
+  const g = S.getContext('2d'); g.imageSmoothingEnabled = false;
+
+  // 5) Metadata
+  const holds = (window.holds && window.holds.length===slotCanvases.length)
+    ? window.holds.slice(0, slotCanvases.length)
+    : Array(slotCanvases.length).fill(1);
+  const meta = {
+    width: W0, height: H0,
+    frames: slotCanvases.length,
+    columns: cols, rows,
+    layout: rows===1 ? 'row' : 'grid',
+    padding, extrude,
+    fps: +document.getElementById('fps')?.value || 8,
+    holds,
+    loopIn: window.loopIn ?? 0,
+    loopOut: window.loopOut ?? (slotCanvases.length-1),
+    rects: [] // per-frame positioner
+  };
+
+  // 6) Lägg in varje slot och skriv pos i meta
+  slotCanvases.forEach((f,i)=>{
+    const cx = i % cols, cy = Math.floor(i / cols);
+    const x = cx * stepX, y = cy * stepY;
+
+    if (extrude){
+      // hörn
+      g.drawImage(f,0,0,1,1, x, y, extrude,extrude);
+      g.drawImage(f,W0-1,0,1,1, x+extrude+W0, y, extrude,extrude);
+      g.drawImage(f,0,H0-1,1,1, x, y+extrude+H0, extrude,extrude);
+      g.drawImage(f,W0-1,H0-1,1,1, x+extrude+W0, y+extrude+H0, extrude,extrude);
+      // kanter
+      g.drawImage(f,0,0,1,H0, x, y+extrude, extrude,H0);
+      g.drawImage(f,W0-1,0,1,H0, x+extrude+W0, y+extrude, extrude,H0);
+      g.drawImage(f,0,0,W0,1, x+extrude, y, W0,extrude);
+      g.drawImage(f,0,H0-1,W0,1, x+extrude, y+extrude+H0, W0,extrude);
+    }
+
+    g.drawImage(f,0,0,W0,H0, x+extrude, y+extrude, W0,H0);
+
+    meta.rects.push({ i, x: x+extrude, y: y+extrude, w: W0, h: H0, col: cx, row: cy, duration: holds[i] });
+  });
+  await saveCanvasAsPng(S,suggestedName = 'maxpaint-spritesheet.png');
+  // 7) Spara PNG + JSON
+  //S.toBlob(b => downloadBlob(b, "spritesheet.png"), "image/png");
+ // downloadBlob(new Blob([JSON.stringify(meta,null,2)], {type:"application/json"}), "spritesheet.json");
+}
+
+
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
@@ -5236,6 +5382,18 @@ async function gogogo(canvas, bg = 'white'){
             //    zoom=zoom/zomzomzom;
                     if(tvaaaa===true){tvaaaa=false;zoomvalue=100;document.getElementById("zoomSlider").value = zoomvalue;document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
                     else if(treeee===true){treeee=false;zoomvalue=100;document.getElementById("zoomSlider").value = zoomvalue;document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
+                    else if(fyraaa===true){fyraaa=false;zoomvalue=100;document.getElementById("zoomSlider").value = zoomvalue;document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
+                    else if(femmmm===true){femmmm=false;zoomvalue=100;document.getElementById("zoomSlider").value = zoomvalue;document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
+                    else if(sexxxx===true){sexxxx=false;zoomvalue=100;document.getElementById("zoomSlider").value = zoomvalue;document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
+
+                    else if(sjuuuu===true){sjuuuu=false;zoomvalue=100;document.getElementById("zoomSlider").value = zoomvalue;document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
+                    else if(åttaaa===true){åttaaa=false;zoomvalue=100;document.getElementById("zoomSlider").value = zoomvalue;document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
+                    else if(nioooo===true){nioooo=false;zoomvalue=100;document.getElementById("zoomSlider").value = zoomvalue;document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
+                    else if(tioooo===true){tioooo=false;zoomvalue=100;document.getElementById("zoomSlider").value = zoomvalue;document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
+                    else if(elvaaa===true){elvaaa=false;zoomvalue=100;document.getElementById("zoomSlider").value = zoomvalue;document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
+                    else if(tolvvv===true){tolvvv=false;zoomvalue=100;document.getElementById("zoomSlider").value = zoomvalue;document.getElementById("zoomLabel").innerText = "Zoom: " + zoomvalue + "%";}
+                  
+
                   
                     const oldZoom = zoom;
                     const newZoom = zoomvalue / 100;
@@ -5244,7 +5402,7 @@ async function gogogo(canvas, bg = 'white'){
                     drawareax = drawareax / oldZoom * newZoom;
                     drawareay = drawareay / oldZoom * newZoom;
                     
-                    
+
                 
                 // --- Räkna om start så att samma bildpunkt ligger kvar i mitten
                 
@@ -5261,14 +5419,14 @@ async function gogogo(canvas, bg = 'white'){
                     prevDrawAreaY = drawareay;
                     prevDrawStartX = drawstartx;
                     prevDrawStartY = drawstarty;
-                    projectdrawareax = [drawareax, drawareax, drawareax];
-                    projectdrawareay = [drawareay, drawareay, drawareay];
-                    projectdrawstartx = [drawstartx, drawstartx, drawstartx];
-                    projectdrawstarty = [drawstarty, drawstarty, drawstarty];
-                    projectcamerax =[0,0,0]; 
-                    projectcameray =[0,0,0]; 
+                    projectdrawareax = [drawareax, drawareax, drawareax,drawareax, drawareax, drawareax,drawareax, drawareax, drawareax,drawareax, drawareax, drawareax];
+                    projectdrawareay = [drawareay, drawareay, drawareay,drawareay, drawareay, drawareay,drawareay, drawareay, drawareay,drawareay, drawareay, drawareay];
+                    projectdrawstartx = [drawstartx, drawstartx, drawstartx,drawstartx, drawstartx, drawstartx,drawstartx, drawstartx, drawstartx,drawstartx, drawstartx, drawstartx];
+                    projectdrawstarty = [drawstarty, drawstarty, drawstarty,drawstarty, drawstarty, drawstarty,drawstarty, drawstarty, drawstarty,drawstarty, drawstarty, drawstarty];
+                    projectcamerax =[0,0,0,0,0,0,0,0,0,0,0,0]; 
+                    projectcameray =[0,0,0,0,0,0,0,0,0,0,0,0]; 
                     
-                    projectzoom = [zoom, zoom, zoom];
+                    projectzoom = [zoom, zoom, zoom,zoom, zoom, zoom,zoom, zoom, zoom,zoom, zoom, zoom];
                     if(mobileAndTabletCheck())HANDLE_SIZE_SCR = 24;
                    
                     resizeCanvas();
@@ -5276,11 +5434,41 @@ async function gogogo(canvas, bg = 'white'){
                     undoMap.set(0,[]);
                     undoMap.set(1,[]);
                     undoMap.set(2,[]);
+                    undoMap.set(3,[]);
+                    undoMap.set(4,[]);
+                    undoMap.set(5,[]);
+                    undoMap.set(6,[]);
+                    undoMap.set(7,[]);
+                    undoMap.set(8,[]);
+                    undoMap.set(9,[]);
+                    undoMap.set(10,[]);
+                    undoMap.set(11,[]);
                     
                     redoMap.set(0,[]);
                     redoMap.set(1,[]);
                     redoMap.set(2,[]);
+                    redoMap.set(3,[]);
+                    redoMap.set(4,[]);
+                    redoMap.set(5,[]);
+                    redoMap.set(6,[]);
+                    redoMap.set(7,[]);
+                    redoMap.set(8,[]);
+                    redoMap.set(9,[]);
+                    redoMap.set(10,[]);
+                    redoMap.set(11,[]);
                     warmUpCanvas(drawingCanvas);
+                    saveCurrentProject(0);
+                    saveCurrentProject(1);
+                    saveCurrentProject(2);
+                    saveCurrentProject(3);
+                    saveCurrentProject(4);
+                    saveCurrentProject(5);
+                    saveCurrentProject(6);
+                    saveCurrentProject(7);
+                    saveCurrentProject(8);
+                    saveCurrentProject(9);
+                    saveCurrentProject(10);
+                    saveCurrentProject(11);
                 }
 
 
@@ -5438,13 +5626,103 @@ async function gogogo(canvas, bg = 'white'){
                     }
                     ctx.restore();
                 }
-
+                
+                if(union&&currentproject>0){
+                    ctx.save();
+                    ctx.globalAlpha = 0.1;
+                    ctx.drawImage(projectBitmaps[currentproject-1],drawstartx+camera.x,drawstarty+camera.y,drawareax,drawareay);
+                    ctx.restore();
+                }
+                
+                
+                
                 if(isdragdrag&&currentTool === 'lasso')_drawLassoOverlay();
                 if(isdragdrag&&isRectSelecting&&currentTool === 'select')_drawSelectOverlay();
                 drawResizeOverlay();
-            
-            
-            
+                if(hide){play=false;currentproject=savedcurrentproject;drawingCtx.drawImage(projectBitmaps[currentproject],0,0,drawareax/zoom,drawareay/zoom);}
+                if(play){
+                    
+                    
+                    fpscounter++;
+                    if(fpscounter>speed){playcunter++;fpscounter=0;}        
+                            
+                    
+                    //loadProject(playcunter);
+                    if(playcunter==frames)playcunter=0;
+                    
+                    drawingCtx.drawImage(projectBitmaps[playcunter],0,0,drawareax/zoom,drawareay/zoom);
+                    currentproject=playcunter;
+                    
+                    
+                    
+                }
+                else{
+                    savedcurrentproject=currentproject;
+                    
+                }
+                saveCurrentProject(currentproject);
+                if(!hide){
+                    
+                    if(window.innerWidth>window.innerHeight&& mobileAndTabletCheck()){
+                        try{if (projectBitmaps[0]) {ctx.drawImage(projectBitmaps[0], 170, 10,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,10,30,30);}
+                        try{if (projectBitmaps[1]) {ctx.drawImage(projectBitmaps[1], 170, 40,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,40,30,30);}
+                        try{if (projectBitmaps[2]) {ctx.drawImage(projectBitmaps[2], 170, 70,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,70,30,30);}
+                        try{if (projectBitmaps[3]) {ctx.drawImage(projectBitmaps[3], 170, 100,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,100,30,30);}
+                        try{if (projectBitmaps[4]) {ctx.drawImage(projectBitmaps[4], 170, 130,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,130,30,30);}
+                        try{if (projectBitmaps[5]) {ctx.drawImage(projectBitmaps[5], 170, 160,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,160,30,30);}
+
+                        try{if (projectBitmaps[6]) {ctx.drawImage(projectBitmaps[6], 170, 190,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,190,30,30);}
+                        try{if (projectBitmaps[7]) {ctx.drawImage(projectBitmaps[7], 170, 220,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,220,30,30);}
+                        try{if (projectBitmaps[8]) {ctx.drawImage(projectBitmaps[8], 170, 250,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,250,30,30);}
+                        try{if (projectBitmaps[9]) {ctx.drawImage(projectBitmaps[9], 170, 280,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,280,30,30);}
+                        try{if (projectBitmaps[10]) {ctx.drawImage(projectBitmaps[10], 170, 310,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,310,30,30);}
+                        try{if (projectBitmaps[11]) {ctx.drawImage(projectBitmaps[11], 170, 340,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,340,30,30);}
+                        ctx.fillStyle = 'black';
+                        if(0===currentproject){ctx.strokeRect(170, 10,30,30);}
+                        if(1===currentproject){ctx.strokeRect(170, 40,30,30);}
+                        if(2===currentproject){ctx.strokeRect(170, 70,30,30);}
+                        if(3===currentproject){ctx.strokeRect(170, 100,30,30);}
+                        if(4===currentproject){ctx.strokeRect(170, 130,30,30);}
+                        if(5===currentproject){ctx.strokeRect(170, 160,30,30);}
+
+                        if(6===currentproject){ctx.strokeRect(170, 190,30,30);}
+                        if(7===currentproject){ctx.strokeRect(170, 220,30,30);}
+                        if(8===currentproject){ctx.strokeRect(170, 250,30,30);}
+                        if(9===currentproject){ctx.strokeRect(170, 280,30,30);}
+                        if(10===currentproject){ctx.strokeRect(170, 310,30,30);}
+                        if(11===currentproject){ctx.strokeRect(170, 340,30,30);}
+                        
+                    }
+                    else{
+                        try{if (projectBitmaps[0]) {ctx.drawImage(projectBitmaps[0], 10, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(10,60,30,30);}
+                        try{if (projectBitmaps[1]) {ctx.drawImage(projectBitmaps[1], 40, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(40,60,30,30);}
+                        try{if (projectBitmaps[2]) {ctx.drawImage(projectBitmaps[2], 70, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(70,60,30,30);}
+                        try{if (projectBitmaps[3]) {ctx.drawImage(projectBitmaps[3], 100, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(100,60,30,30);}
+                        try{if (projectBitmaps[4]) {ctx.drawImage(projectBitmaps[4], 130, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(130,60,30,30);}
+                        try{if (projectBitmaps[5]) {ctx.drawImage(projectBitmaps[5], 160, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(160,60,30,30);}
+
+                        try{if (projectBitmaps[6]) {ctx.drawImage(projectBitmaps[6], 190, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(190,60,30,30);}
+                        try{if (projectBitmaps[7]) {ctx.drawImage(projectBitmaps[7], 220, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(220,60,30,30);}
+                        try{if (projectBitmaps[8]) {ctx.drawImage(projectBitmaps[8], 250, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(250,60,30,30);}
+                        try{if (projectBitmaps[9]) {ctx.drawImage(projectBitmaps[9], 280, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(280,60,30,30);}
+                        try{if (projectBitmaps[10]) {ctx.drawImage(projectBitmaps[10], 310, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(310,60,30,30);}
+                        try{if (projectBitmaps[11]) {ctx.drawImage(projectBitmaps[11], 340, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(340,60,30,30);}
+                        ctx.fillStyle = 'black';
+                        if(0===currentproject){ctx.strokeRect(10, 60,30,30);}
+                        if(1===currentproject){ctx.strokeRect(40, 60,30,30);}
+                        if(2===currentproject){ctx.strokeRect(70, 60,30,30);}
+                        if(3===currentproject){ctx.strokeRect(100, 60,30,30);}
+                        if(4===currentproject){ctx.strokeRect(130, 60,30,30);}
+                        if(5===currentproject){ctx.strokeRect(160, 60,30,30);}
+
+                        if(6===currentproject){ctx.strokeRect(190, 60,30,30);}
+                        if(7===currentproject){ctx.strokeRect(220, 60,30,30);}
+                        if(8===currentproject){ctx.strokeRect(250, 60,30,30);}
+                        if(9===currentproject){ctx.strokeRect(280, 60,30,30);}
+                        if(10===currentproject){ctx.strokeRect(310, 60,30,30);}
+                        if(11===currentproject){ctx.strokeRect(340, 60,30,30);}
+                    }
+                }
                 if(running)window.requestAnimationFrame(check);   
             }; 
             
@@ -5461,7 +5739,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     if (!file.type || !file.type.startsWith('image/')) {
-      alert('Filen är inte en bild.');
+      alert('Not a image.');
       return;
     }
     try {
@@ -5471,14 +5749,14 @@ document.addEventListener('DOMContentLoaded', function () {
       bmp.close();
     } catch (err) {
       console.error(err);
-      alert('Kunde inte läsa bilden.');
+      alert('Cannot not read image.');
     } finally {
       // Nollställ inputen så samma fil kan väljas igen
       directInput.value = '';
     }
   });
 });
-    document.addEventListener('DOMContentLoaded', function() {
+   
     // Get the save button
     
 const Media = window.Capacitor?.Plugins?.Media;   
@@ -5495,6 +5773,8 @@ let _albumId = null;
 const ALBUM_NAME = 'MaxPaint';
 ensureAlbumId();
 async function ensureAlbumId() {
+    
+  try{
   if (_albumId) return _albumId;
   _albumId = localStorage.getItem('mp_album_id');
   if (_albumId) return _albumId;
@@ -5510,6 +5790,7 @@ async function ensureAlbumId() {
   _albumId = found?.identifier || null;
   if (_albumId) localStorage.setItem('mp_album_id', _albumId);
   return _albumId;
+  }catch(e){}
 }    
 
 
@@ -5640,27 +5921,27 @@ function dumpCapStatus(where=''){
 
     
     
-    const saveBtn = document.getElementById('saveImageBtn');
+    const saveBtn2 = document.getElementById('saveImageBtn');
     
     // Add click event handler for save button
-    if (saveBtn) {
-        saveBtn.addEventListener('click', function() {
+    if (saveBtn2) {
+        saveBtn2.addEventListener('click', function() {
             saveVisible().catch(console.error);
         });
     }
     
     // Mobile-specific adjustments for the save button
     function adjustButtonsForMobile() {
-        const saveBtn = document.getElementById('saveImageBtn');
+        const saveBtn2 = document.getElementById('saveImageBtn');
         const openLabel = document.querySelector('label[for="directFileInput"]');
         
         if (mobileAndTabletCheck()) {
             // Mobile styling - keep the buttons the same size and font
-            if (saveBtn) {
-                saveBtn.style.padding = "15px 25px";
-                saveBtn.style.fontSize = "22px";
-                saveBtn.style.top = "80px"; // Positioned much lower
-                saveBtn.style.minWidth = "120px";
+            if (saveBtn2) {
+                saveBtn2.style.padding = "15px 25px";
+                saveBtn2.style.fontSize = "22px";
+                saveBtn2.style.top = "80px"; // Positioned much lower
+                saveBtn2.style.minWidth = "120px";
             }
             if (openLabel) {
                 openLabel.style.padding = "15px 25px";
@@ -5670,11 +5951,11 @@ function dumpCapStatus(where=''){
             }
         } else {
             // Desktop styling - keep the buttons the same size and font
-            if (saveBtn) {
-                saveBtn.style.padding = "8px 15px";
-                saveBtn.style.fontSize = "16px"; // Exact same font size
-                saveBtn.style.top = "80px"; // Positioned much lower
-                saveBtn.style.minWidth = "90px";
+            if (saveBtn2) {
+                saveBtn2.style.padding = "8px 15px";
+                saveBtn2.style.fontSize = "16px"; // Exact same font size
+                saveBtn2.style.top = "80px"; // Positioned much lower
+                saveBtn2.style.minWidth = "90px";
             }
             if (openLabel) {
                 openLabel.style.padding = "8px 15px";
@@ -5690,7 +5971,7 @@ function dumpCapStatus(where=''){
     
     // Also adjust when window is resized
     window.addEventListener('resize', adjustButtonsForMobile);
-});
+
 
 
 
