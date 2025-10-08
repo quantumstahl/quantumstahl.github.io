@@ -4294,7 +4294,7 @@ window.addEventListener('load', ()=>{
   let play=false;
   let hide=false;
   let speed=5;
-  document.getElementById('mnuProj1')?.addEventListener('click', ()=>{ closeAll(); if(!play)play=true;else play=false;});
+  document.getElementById('mnuProj1')?.addEventListener('click', ()=>{ closeAll(); if(!play)play=true;else {play=false;currentproject=savedcurrentproject;;drawingCtx.drawImage(projectBitmaps[currentproject],0,0,drawareax,drawareay);}});
   document.getElementById('mnuProj2')?.addEventListener('click', ()=>{ closeAll(); if(!hide)hide=true;else hide=false;});
   document.getElementById('mnuProj3')?.addEventListener('click', ()=>{ closeAll(); let promt = window.prompt("Change animation speed.. lower is faster", speed);if (promt != null && isNaN(promt) == false)speed = Number(promt); });
 
@@ -4986,7 +4986,6 @@ let knäppt=false;
 
 let keyState = {up: false,down: false,left: false,right: false,h: false,plus:false,minus:false};         
 document.addEventListener("keydown", function(e) {
-    try{if(audio.paused&&gameState!=='game_over'){ audio.play();}}catch(error){};
     if (e.key === "w") keyState.up = true;
     if (e.key === "a") keyState.left = true;
     if (e.key === "s") keyState.down = true;
@@ -5165,7 +5164,7 @@ async function gogogo(canvas, bg = 'white'){
 
 let playcunter=0;
 let fpscounter=0;
-
+let savedcurrentproject=0;
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
@@ -5453,7 +5452,7 @@ let fpscounter=0;
                 if(isdragdrag&&currentTool === 'lasso')_drawLassoOverlay();
                 if(isdragdrag&&isRectSelecting&&currentTool === 'select')_drawSelectOverlay();
                 drawResizeOverlay();
-                if(hide)play=false;
+                if(hide){play=false;currentproject=savedcurrentproject;drawingCtx.drawImage(projectBitmaps[currentproject],0,0,drawareax,drawareay);}
                 if(play){
                     
                     
@@ -5461,9 +5460,17 @@ let fpscounter=0;
                     if(fpscounter>speed){playcunter++;fpscounter=0;}        
                             
                     
-                    loadProject(playcunter);
-                    
+                    //loadProject(playcunter);
                     if(playcunter==12)playcunter=0;
+                    
+                    drawingCtx.drawImage(projectBitmaps[playcunter],0,0,drawareax,drawareay);
+                    currentproject=playcunter;
+                    
+                    
+                    
+                }
+                else{
+                    savedcurrentproject=currentproject;
                     
                 }
                 
