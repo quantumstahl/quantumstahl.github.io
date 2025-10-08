@@ -1245,8 +1245,8 @@ canvas{
             camera.y     = projectcameray[index];
             zoom        = projectzoom[index] ?? zoom;
             
-            drawingCanvas.width=Math.round(drawareax/zoom);
-            drawingCanvas.height=Math.round(drawareay/zoom);
+            drawingCanvas.width=Math.ceil(drawareax/zoom);
+            drawingCanvas.height=Math.ceil(drawareay/zoom);
             
             if(currentproject===1&&tvfirst[1]===false){tvaaaa=true;tvfirst[1]=true;}
             else if(currentproject===2&&tvfirst[2]===false){treeee=true;tvfirst[2]=true;}
