@@ -1303,8 +1303,8 @@ canvas{
             function resizecanvas(){
                 
                 
-                widthInput.value = drawareax/zoom ;
-               heightInput.value = drawareay/zoom;
+                widthInput.value = ensureIntDimension(drawareax/zoom) ;
+               heightInput.value = ensureIntDimension(drawareay/zoom);
                
         
             // Show the modal
@@ -4772,8 +4772,8 @@ function ensureStacks(pid){
 function captureRegionSnapshot() {
   // Snapshot av aktuella bildmått (w,h) – inte hela backing-canvas
   const z = _effectiveZoom();
-  const imgW = Math.max(1, Math.floor(drawareax / z)) | 0;
-  const imgH = Math.max(1, Math.floor(drawareay / z)) | 0;
+  const imgW = Math.max(1, ensureIntDimension(drawareax / z)) | 0;
+  const imgH = Math.max(1, ensureIntDimension(drawareay / z)) | 0;
 
   const snap = document.createElement('canvas');
   snap.width = imgW; snap.height = imgH;
@@ -5524,10 +5524,10 @@ async function openProject(){
                     const newZoom = zoomvalue / 100;
                     if(startan)setZoomAroundScreenCenter(zoomvalue / 100,zoom);
                     zoom = newZoom;
-                    drawareax = Math.ceil(drawareax / oldZoom * newZoom);
-                    drawareay = Math.ceil(drawareay / oldZoom * newZoom);
+                    drawareax = drawareax / oldZoom * newZoom;
+                    drawareay = drawareay / oldZoom * newZoom;
                     
-                    _toast(drawareax);
+                    _toast(ensureIntDimension(drawareax/zoom));
                 
                 // --- Räkna om start så att samma bildpunkt ligger kvar i mitten
                 
