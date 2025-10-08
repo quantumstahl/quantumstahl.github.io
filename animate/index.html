@@ -800,6 +800,7 @@ canvas{
       <button class="item" id="mnuProj2" role="menuitem">hide/show</button>
       <button class="item" id="mnuProj3" role="menuitem">speed</button>
       <button class="item" id="mnuProj4" role="menuitem">frames</button>
+      <button class="item" id="mnuProj5" role="menuitem">Onion on/off</button>
     </div>
   </div>
 </div>
@@ -1136,7 +1137,7 @@ canvas{
 <script>
             
             const canvas = document.getElementById("myCanvas");
-            const ctx = canvas.getContext('2d');
+            const ctx= canvas.getContext('2d', {alpha:true});
             document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
             
             // Create an in-memory canvas to store our drawing
@@ -4296,12 +4297,13 @@ window.addEventListener('load', ()=>{
   let hide=false;
   let speed=5;
   let frames=12;
+  let union=false;
   
   document.getElementById('mnuProj1')?.addEventListener('click', ()=>{ closeAll(); if(!play)play=true;else {play=false;currentproject=savedcurrentproject;;drawingCtx.drawImage(projectBitmaps[currentproject],0,0,drawareax/zoom,drawareay/zoom);}});
   document.getElementById('mnuProj2')?.addEventListener('click', ()=>{ closeAll(); if(!hide)hide=true;else hide=false;});
   document.getElementById('mnuProj3')?.addEventListener('click', ()=>{ closeAll(); let promt = window.prompt("Change animation speed.. lower is faster", speed);if (promt != null && isNaN(promt) == false)speed = Number(promt); });
   document.getElementById('mnuProj4')?.addEventListener('click', ()=>{ closeAll(); let promt = window.prompt("How many animation frames", frames);if (promt != null && isNaN(promt) == false)frames = Number(promt); });
-
+  document.getElementById('mnuProj5')?.addEventListener('click', ()=>{ closeAll(); if(!union)union=true;else union=false;});
 
 
 // Hämta originalknapparna
@@ -5451,7 +5453,16 @@ let savedcurrentproject=0;
                     }
                     ctx.restore();
                 }
-
+                
+                if(union&&currentproject>0){
+                    ctx.save();
+                    ctx.globalAlpha = 0.1;
+                    ctx.drawImage(projectBitmaps[currentproject-1],drawstartx+camera.x,drawstarty+camera.y,drawareax,drawareay);
+                    ctx.restore();
+                }
+                
+                
+                
                 if(isdragdrag&&currentTool === 'lasso')_drawLassoOverlay();
                 if(isdragdrag&&isRectSelecting&&currentTool === 'select')_drawSelectOverlay();
                 drawResizeOverlay();
@@ -5476,7 +5487,6 @@ let savedcurrentproject=0;
                     savedcurrentproject=currentproject;
                     
                 }
-                
                 saveCurrentProject(currentproject);
                 if(!hide){
                 
