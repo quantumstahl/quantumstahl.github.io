@@ -790,6 +790,8 @@ canvas{
       <button class="item" id="mnuSprites"   role="menuitem">Save Spritesheet</button>
       <button class="item" id="mnuGIF"   role="menuitem">Save as animated GIF</button>
       <button class="item" id="mnuGIF2"   role="menuitem">Share animated GIF</button>
+      <button class="item" id="mnuOpenProject"   role="menuitem">📂Open project</button>
+      <button class="item" id="mnuSaveProject"   role="menuitem">💾Save project</button>
     </div>
   </div>
 
@@ -5089,14 +5091,15 @@ try{
       }
     }
   }catch(e){ alert('Dela GIF misslyckades: '+e.message); }
-
-
-
-
-
-
-
 });
+
+document.getElementById('mnuOpenProject')  ?.addEventListener('click', ()=>{ closeAll(); openProject(); });
+document.getElementById('mnuSaveProject')  ?.addEventListener('click', ()=>{ closeAll(); saveProject(); });
+
+
+
+
+
 
 function cameraHome(){keyState.h=true;}
 
@@ -5376,6 +5379,94 @@ async function saveSpritesheet({layout='auto', padding=0, extrude=0, maxWidth=10
  // downloadBlob(new Blob([JSON.stringify(meta,null,2)], {type:"application/json"}), "spritesheet.json");
 }
 
+async function saveProject(){
+  const data = {
+    app: "MaxAnimate",
+    ver: 1,
+    fps: speed,
+    frames,
+    bitmaps: []
+  };
+
+  for(let i=0;i<12;i++){
+    const bmp = projectBitmaps[i];
+    if (bmp){
+      const c = document.createElement('canvas');
+      c.width = bmp.width; c.height = bmp.height;
+      c.getContext('2d').drawImage(bmp,0,0);
+      data.bitmaps.push(c.toDataURL('image/png'));
+    } else data.bitmaps.push(null);
+  }
+
+  const json = JSON.stringify(data,null,2);
+  // --- Spara via Capacitor/web ---
+  if (window.Capacitor?.isNativePlatform?.()){
+    const { Filesystem, Directory, Encoding } = window.Capacitor.Plugins;
+    await Filesystem.writeFile({
+      path: `animation_${Date.now()}.maxanim`,
+      data: json,
+      directory: Directory.Documents,
+      encoding: Encoding.UTF8
+    });
+    _toast('Projekt saved in Dokuments');
+  } else {
+    const blob = new Blob([json], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'project.maxanim';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 800);
+  }
+}
+async function openProject(){
+  try{
+    let text;
+    if (window.Capacitor?.isNativePlatform?.()){
+      const { Filesystem, Directory } = window.Capacitor.Plugins;
+      const file = await Filesystem.pickFiles({ types: ['application/json'], multiple:false });
+      const path = file.files[0].path;
+      const read = await Filesystem.readFile({ path });
+      text = read.data;
+    } else {
+      const [file] = await new Promise(res=>{
+        const inp = document.createElement('input');
+        inp.type = 'file'; inp.accept = '.maxanim,application/json';
+        inp.onchange = () => res(inp.files);
+        inp.click();
+      });
+      text = await file.text();
+    }
+
+    const data = JSON.parse(text);
+    if (!data.bitmaps) throw new Error("Ogiltig fil");
+
+    frames = data.frames ;
+    projectBitmaps = Array(12).fill(null);
+
+    for(let i=0;i<12;i++){
+      const b64 = data.bitmaps[i];
+      if (!b64) continue;
+      const img = new Image();
+      await new Promise(ok=>{ img.onload=ok; img.src=b64; });
+      const c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height;
+      
+      projectdrawareax[i]=c.width;
+      projectdrawareay[i]=c.height;
+      
+      c.getContext('2d').drawImage(img,0,0);
+      projectBitmaps[i] = c;
+    }
+
+    speed = data.fps;
+    currentproject=0;
+    drawingCtx.drawImage(projectBitmaps[0],0,0,drawareax/zoom,drawareay/zoom);
+    _toast('Projekt loaded!');
+    // Du kan sedan kalla render() / draw() igen
+  }catch(e){
+    _toast('Could not open project: '+e.message);
+  }
+}
 
             //check---------------------------------------------------------------------------------------
             var check = function() {
