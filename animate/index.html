@@ -5156,7 +5156,7 @@ function resetPaletteToDefaults(activateIndex = 0){
   }
   // om du visar förhandsvisning etc., uppdatera där också vid behov
 }
-
+/*
 let running = true;
 document.addEventListener('visibilitychange', () => {
     
@@ -5165,7 +5165,7 @@ document.addEventListener('visibilitychange', () => {
   running = (document.visibilityState === 'visible');
   
 });
-
+*/
 async function warmUpCanvas(canvas, bg = 'white') {
   // Ta ut context med rätt flaggor
   
@@ -5723,7 +5723,7 @@ async function saveSpritesheet({layout='auto', padding=0, extrude=0, maxWidth=10
                         if(11===currentproject){ctx.strokeRect(340, 60,30,30);}
                     }
                 }
-                if(running)window.requestAnimationFrame(check);   
+                window.requestAnimationFrame(check);   
             }; 
             
             check();
