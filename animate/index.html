@@ -2151,6 +2151,34 @@ function penUp(){
                   cximage[2]=(-projectdrawstartx[2] + prevVW/2) / z;
                   cyimage[2]=(-projectdrawstarty[2] + prevVH/2) / z;
                   
+                  cximage[3]=(-projectdrawstartx[3] + prevVW/2) / z;
+                  cyimage[3]=(-projectdrawstarty[3] + prevVH/2) / z;
+                  
+                  cximage[4]=(-projectdrawstartx[4] + prevVW/2) / z;
+                  cyimage[4]=(-projectdrawstarty[4] + prevVH/2) / z;
+                  
+                  cximage[5]=(-projectdrawstartx[5] + prevVW/2) / z;
+                  cyimage[5]=(-projectdrawstarty[5] + prevVH/2) / z;
+                  
+                  cximage[6]=(-projectdrawstartx[6] + prevVW/2) / z;
+                  cyimage[6]=(-projectdrawstarty[6] + prevVH/2) / z;
+                  
+                  cximage[7]=(-projectdrawstartx[7] + prevVW/2) / z;
+                  cyimage[7]=(-projectdrawstarty[7] + prevVH/2) / z;
+                  
+                  cximage[8]=(-projectdrawstartx[8] + prevVW/2) / z;
+                  cyimage[8]=(-projectdrawstarty[8] + prevVH/2) / z;
+                  
+                  cximage[9]=(-projectdrawstartx[9] + prevVW/2) / z;
+                  cyimage[9]=(-projectdrawstarty[9] + prevVH/2) / z;
+                  
+                  cximage[10]=(-projectdrawstartx[10] + prevVW/2) / z;
+                  cyimage[10]=(-projectdrawstarty[10] + prevVH/2) / z;
+                  
+                  cximage[11]=(-projectdrawstartx[11] + prevVW/2) / z;
+                  cyimage[11]=(-projectdrawstarty[11] + prevVH/2) / z;
+
+                  
                 }
                 
                 
@@ -2183,15 +2211,15 @@ function penUp(){
                 const curVH = cssH;
                 drawstartx = Math.round(curVW/2 - z * cxImg);
                 drawstarty = Math.round(curVH/2 - z * cyImg);
-                /*
-                for (let i=0;i<3;i++){
+                
+                for (let i=0;i<11;i++){
                     if(i!==currentproject){
                         
                         projectdrawstartx[i]=Math.round(curVW/2 - z * cximage[i]);
                         projectdrawstarty[i]=Math.round(curVH/2 - z * cyimage[i]);
                         
                     }
-                }*/
+                }
                 
 
   // 6) Uppdatera sparade viewportmått och re-mappa stackar via din ko()
@@ -4557,19 +4585,19 @@ canvas.addEventListener('pointerdown', (ev) => {
     if(!hide){
         
         if(window.innerWidth>window.innerHeight&& mobileAndTabletCheck()){
-            if(ev.clientY>=10&& ev.clientY<40 && ev.clientX>=200 && ev.clientX<230){loadProject(0);loadProject(0);}
-            if(ev.clientY>=40&& ev.clientY<70 && ev.clientX>=200 && ev.clientX<230){loadProject(1);loadProject(1);}
-            if(ev.clientY>=70&& ev.clientY<100 && ev.clientX>=200 && ev.clientX<230){loadProject(2);loadProject(2);}
-            if(ev.clientY>=100&& ev.clientY<130 && ev.clientX>=200 && ev.clientX<230){loadProject(3);loadProject(3);}
-            if(ev.clientY>=130&& ev.clientY<160 && ev.clientX>=200 && ev.clientX<230){loadProject(4);loadProject(4);}
-            if(ev.clientY>=160&& ev.clientY<190 && ev.clientX>=200 && ev.clientX<230){loadProject(5);loadProject(5);}
+            if(ev.clientY>=10&& ev.clientY<40 && ev.clientX>=160 && ev.clientX<190){loadProject(0);loadProject(0);}
+            if(ev.clientY>=40&& ev.clientY<70 && ev.clientX>=160 && ev.clientX<190){loadProject(1);loadProject(1);}
+            if(ev.clientY>=70&& ev.clientY<100 && ev.clientX>=160 && ev.clientX<190){loadProject(2);loadProject(2);}
+            if(ev.clientY>=100&& ev.clientY<130 && ev.clientX>=160 && ev.clientX<190){loadProject(3);loadProject(3);}
+            if(ev.clientY>=130&& ev.clientY<160 && ev.clientX>=160 && ev.clientX<190){loadProject(4);loadProject(4);}
+            if(ev.clientY>=160&& ev.clientY<190 && ev.clientX>=160 && ev.clientX<190){loadProject(5);loadProject(5);}
 
-            if(ev.clientY>=190&& ev.clientY<220 && ev.clientX>=200 && ev.clientX<230){loadProject(6);loadProject(6);}
-            if(ev.clientY>=220&& ev.clientY<250 && ev.clientX>=200 && ev.clientX<230){loadProject(7);loadProject(7);}
-            if(ev.clientY>=250&& ev.clientY<280 && ev.clientX>=200 && ev.clientX<230){loadProject(8);loadProject(8);}
-            if(ev.clientY>=280&& ev.clientY<310 && ev.clientX>=200 && ev.clientX<230){loadProject(9);loadProject(9);}
-            if(ev.clientY>=310&& ev.clientY<340 && ev.clientX>=200 && ev.clientX<230){loadProject(10);loadProject(10);}
-            if(ev.clientY>=340&& ev.clientY<370 && ev.clientX>=200 && ev.clientX<230){loadProject(11);loadProject(11);}
+            if(ev.clientY>=190&& ev.clientY<220 && ev.clientX>=160 && ev.clientX<190){loadProject(6);loadProject(6);}
+            if(ev.clientY>=220&& ev.clientY<250 && ev.clientX>=160 && ev.clientX<190){loadProject(7);loadProject(7);}
+            if(ev.clientY>=250&& ev.clientY<280 && ev.clientX>=160 && ev.clientX<190){loadProject(8);loadProject(8);}
+            if(ev.clientY>=280&& ev.clientY<310 && ev.clientX>=160 && ev.clientX<190){loadProject(9);loadProject(9);}
+            if(ev.clientY>=310&& ev.clientY<340 && ev.clientX>=160 && ev.clientX<190){loadProject(10);loadProject(10);}
+            if(ev.clientY>=340&& ev.clientY<370 && ev.clientX>=160 && ev.clientX<190){loadProject(11);loadProject(11);}
             
             
         }
@@ -5636,33 +5664,33 @@ async function saveSpritesheet({layout='auto', padding=0, extrude=0, maxWidth=10
                 if(!hide){
                     
                     if(window.innerWidth>window.innerHeight&& mobileAndTabletCheck()){
-                        try{if (projectBitmaps[0]) {ctx.drawImage(projectBitmaps[0], 200, 10,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,10,30,30);}
-                        try{if (projectBitmaps[1]) {ctx.drawImage(projectBitmaps[1], 200, 40,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,40,30,30);}
-                        try{if (projectBitmaps[2]) {ctx.drawImage(projectBitmaps[2], 200, 70,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,70,30,30);}
-                        try{if (projectBitmaps[3]) {ctx.drawImage(projectBitmaps[3], 200, 100,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,100,30,30);}
-                        try{if (projectBitmaps[4]) {ctx.drawImage(projectBitmaps[4], 200, 130,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,130,30,30);}
-                        try{if (projectBitmaps[5]) {ctx.drawImage(projectBitmaps[5], 200, 160,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,160,30,30);}
+                        try{if (projectBitmaps[0]) {ctx.drawImage(projectBitmaps[0], 160, 10,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(160,10,30,30);}
+                        try{if (projectBitmaps[1]) {ctx.drawImage(projectBitmaps[1], 160, 40,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(160,40,30,30);}
+                        try{if (projectBitmaps[2]) {ctx.drawImage(projectBitmaps[2], 160, 70,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(160,70,30,30);}
+                        try{if (projectBitmaps[3]) {ctx.drawImage(projectBitmaps[3], 160, 100,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(160,100,30,30);}
+                        try{if (projectBitmaps[4]) {ctx.drawImage(projectBitmaps[4], 160, 130,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(160,130,30,30);}
+                        try{if (projectBitmaps[5]) {ctx.drawImage(projectBitmaps[5], 160, 160,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(160,160,30,30);}
 
-                        try{if (projectBitmaps[6]) {ctx.drawImage(projectBitmaps[6], 200, 190,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,190,30,30);}
-                        try{if (projectBitmaps[7]) {ctx.drawImage(projectBitmaps[7], 200, 220,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,220,30,30);}
-                        try{if (projectBitmaps[8]) {ctx.drawImage(projectBitmaps[8], 200, 250,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,250,30,30);}
-                        try{if (projectBitmaps[9]) {ctx.drawImage(projectBitmaps[9], 200, 280,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,280,30,30);}
-                        try{if (projectBitmaps[10]) {ctx.drawImage(projectBitmaps[10], 200, 310,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,310,30,30);}
-                        try{if (projectBitmaps[11]) {ctx.drawImage(projectBitmaps[11], 200, 340,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,340,30,30);}
+                        try{if (projectBitmaps[6]) {ctx.drawImage(projectBitmaps[6], 160, 190,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(160,190,30,30);}
+                        try{if (projectBitmaps[7]) {ctx.drawImage(projectBitmaps[7], 160, 220,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(160,220,30,30);}
+                        try{if (projectBitmaps[8]) {ctx.drawImage(projectBitmaps[8], 160, 250,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(160,250,30,30);}
+                        try{if (projectBitmaps[9]) {ctx.drawImage(projectBitmaps[9], 160, 280,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(160,280,30,30);}
+                        try{if (projectBitmaps[10]) {ctx.drawImage(projectBitmaps[10], 160, 310,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(160,310,30,30);}
+                        try{if (projectBitmaps[11]) {ctx.drawImage(projectBitmaps[11], 160, 340,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(160,340,30,30);}
                         ctx.fillStyle = 'black';
-                        if(0===currentproject){ctx.strokeRect(200, 10,30,30);}
-                        if(1===currentproject){ctx.strokeRect(200, 40,30,30);}
-                        if(2===currentproject){ctx.strokeRect(200, 70,30,30);}
-                        if(3===currentproject){ctx.strokeRect(200, 100,30,30);}
-                        if(4===currentproject){ctx.strokeRect(200, 130,30,30);}
-                        if(5===currentproject){ctx.strokeRect(200, 160,30,30);}
+                        if(0===currentproject){ctx.strokeRect(160, 10,30,30);}
+                        if(1===currentproject){ctx.strokeRect(160, 40,30,30);}
+                        if(2===currentproject){ctx.strokeRect(160, 70,30,30);}
+                        if(3===currentproject){ctx.strokeRect(160, 100,30,30);}
+                        if(4===currentproject){ctx.strokeRect(160, 130,30,30);}
+                        if(5===currentproject){ctx.strokeRect(160, 160,30,30);}
 
-                        if(6===currentproject){ctx.strokeRect(200, 190,30,30);}
-                        if(7===currentproject){ctx.strokeRect(200, 220,30,30);}
-                        if(8===currentproject){ctx.strokeRect(200, 250,30,30);}
-                        if(9===currentproject){ctx.strokeRect(200, 280,30,30);}
-                        if(10===currentproject){ctx.strokeRect(200, 310,30,30);}
-                        if(11===currentproject){ctx.strokeRect(200, 340,30,30);}
+                        if(6===currentproject){ctx.strokeRect(160, 190,30,30);}
+                        if(7===currentproject){ctx.strokeRect(160, 220,30,30);}
+                        if(8===currentproject){ctx.strokeRect(160, 250,30,30);}
+                        if(9===currentproject){ctx.strokeRect(160, 280,30,30);}
+                        if(10===currentproject){ctx.strokeRect(160, 310,30,30);}
+                        if(11===currentproject){ctx.strokeRect(160, 340,30,30);}
                         
                     }
                     else{
