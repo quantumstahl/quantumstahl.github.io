@@ -787,6 +787,7 @@ canvas{
       <button class="item" id="mnuResize" role="menuitem">Resize canvas…</button>
       <button class="item" id="mnuGrid"   role="menuitem">Toggle grid</button>
       <button class="item" id="mnuCameraCenter"   role="menuitem">Center camera</button>
+      <button class="item" id="mnuSprites"   role="menuitem">Save Spritesheet</button>
     </div>
   </div>
 
@@ -5013,6 +5014,8 @@ let firstbloodx=null;
 let firstbloody=null;
 
 document.getElementById('mnuCameraCenter')  ?.addEventListener('click', ()=>{ closeAll(); cameraHome(); });
+document.getElementById('mnuSprites')  ?.addEventListener('click', ()=>{ closeAll(); saveSpritesheet({ layout:'auto', maxWidth:10000, padding:0, extrude:1, fit:'contain' }); });
+
 function cameraHome(){keyState.h=true;}
 
 function setZoomAroundScreenCenter(newZoom,oldZoom){
@@ -5170,6 +5173,128 @@ async function gogogo(canvas, bg = 'white'){
 let playcunter=0;
 let fpscounter=0;
 let savedcurrentproject=0;
+
+//NYTT
+// --- Hjälpare ---
+function asCanvas(src){
+  if (!src) return null;
+  if (src instanceof HTMLCanvasElement) return src;
+  const c = document.createElement('canvas');
+  c.width = src.width; c.height = src.height;
+  c.getContext('2d').drawImage(src, 0, 0);
+  return c;
+}
+
+function makeSlotCanvas(W, H, src, {fit='contain'} = {}){
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  g.clearRect(0,0,W,H);
+  if(!src) return c; // tom, transparent slot
+
+  const sw = src.width, sh = src.height;
+  if (fit === 'stretch'){
+    g.drawImage(src, 0,0, sw,sh, 0,0, W,H);
+  } else {
+    // contain + center
+    const ar = sw/sh, tar = W/H;
+    let dw=W, dh=H;
+    if (ar > tar) dh = Math.floor(W/ar); else dw = Math.floor(H*ar);
+    const dx = Math.floor((W-dw)/2), dy = Math.floor((H-dh)/2);
+    g.drawImage(src, 0,0, sw,sh, dx,dy, dw,dh);
+  }
+  return c;
+}
+
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  setTimeout(()=> URL.revokeObjectURL(url), 900);
+}
+
+// --- Huvud: bygga spritesheet (rad eller auto-grid) ---
+async function saveSpritesheet({layout='auto', padding=0, extrude=0, maxWidth=1024, fit='contain'} = {}){
+  // 1) Plocka in frames från projectBitmaps[0..frames-1]
+  const items = [];
+  for(let i=0;i<frames;i++){
+    const src = asCanvas(projectBitmaps[i]); // kan vara null
+    items.push(src);
+  }
+  // Hitta en referensstorlek (första icke-null)
+  const ref = items.find(c => !!c);
+  if(!ref){ alert('no images to export.'); return; }
+  const W0 = ref.width, H0 = ref.height;
+
+  // 2) Gör slots (alla blir W0×H0) – tomma blir transparenta
+  const slotCanvases = items.map(src => makeSlotCanvas(W0, H0, src, {fit}));
+
+  // 3) Välj layout
+  let cols, rows;
+  if(layout === 'row'){
+    cols = slotCanvases.length; rows = 1;
+  } else if(layout === 'grid'){
+    cols = Math.min(slotCanvases.length, Math.max(1, Math.floor((maxWidth + padding + 2*extrude) / (W0 + padding + 2*extrude))));
+    rows = Math.ceil(slotCanvases.length / cols);
+  } else {
+    // auto: rad om det får plats inom maxWidth, annars grid
+    const stepX = W0 + padding + 2*extrude;
+    if (slotCanvases.length * stepX <= maxWidth) { cols = slotCanvases.length; rows = 1; }
+    else { cols = Math.min(slotCanvases.length, Math.max(1, Math.floor((maxWidth + padding + 2*extrude) / stepX))); rows = Math.ceil(slotCanvases.length / cols); }
+  }
+
+  // 4) Rita ut sheet
+  const stepX = W0 + padding + 2*extrude;
+  const stepY = H0 + padding + 2*extrude;
+  const S = document.createElement('canvas');
+  S.width  = cols * stepX - (padding + 2*extrude);
+  S.height = rows * stepY - (padding + 2*extrude);
+  const g = S.getContext('2d'); g.imageSmoothingEnabled = false;
+
+  // 5) Metadata
+  const holds = (window.holds && window.holds.length===slotCanvases.length)
+    ? window.holds.slice(0, slotCanvases.length)
+    : Array(slotCanvases.length).fill(1);
+  const meta = {
+    width: W0, height: H0,
+    frames: slotCanvases.length,
+    columns: cols, rows,
+    layout: rows===1 ? 'row' : 'grid',
+    padding, extrude,
+    fps: +document.getElementById('fps')?.value || 8,
+    holds,
+    loopIn: window.loopIn ?? 0,
+    loopOut: window.loopOut ?? (slotCanvases.length-1),
+    rects: [] // per-frame positioner
+  };
+
+  // 6) Lägg in varje slot och skriv pos i meta
+  slotCanvases.forEach((f,i)=>{
+    const cx = i % cols, cy = Math.floor(i / cols);
+    const x = cx * stepX, y = cy * stepY;
+
+    if (extrude){
+      // hörn
+      g.drawImage(f,0,0,1,1, x, y, extrude,extrude);
+      g.drawImage(f,W0-1,0,1,1, x+extrude+W0, y, extrude,extrude);
+      g.drawImage(f,0,H0-1,1,1, x, y+extrude+H0, extrude,extrude);
+      g.drawImage(f,W0-1,H0-1,1,1, x+extrude+W0, y+extrude+H0, extrude,extrude);
+      // kanter
+      g.drawImage(f,0,0,1,H0, x, y+extrude, extrude,H0);
+      g.drawImage(f,W0-1,0,1,H0, x+extrude+W0, y+extrude, extrude,H0);
+      g.drawImage(f,0,0,W0,1, x+extrude, y, W0,extrude);
+      g.drawImage(f,0,H0-1,W0,1, x+extrude, y+extrude+H0, W0,extrude);
+    }
+
+    g.drawImage(f,0,0,W0,H0, x+extrude, y+extrude, W0,H0);
+
+    meta.rects.push({ i, x: x+extrude, y: y+extrude, w: W0, h: H0, col: cx, row: cy, duration: holds[i] });
+  });
+  await saveCanvasAsPng(S,'maxpaint-spritesheet.png');
+  // 7) Spara PNG + JSON
+  //S.toBlob(b => downloadBlob(b, "spritesheet.png"), "image/png");
+ // downloadBlob(new Blob([JSON.stringify(meta,null,2)], {type:"application/json"}), "spritesheet.json");
+}
+
+
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
@@ -5551,7 +5676,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 });
-    document.addEventListener('DOMContentLoaded', function() {
+   
     // Get the save button
     
 const Media = window.Capacitor?.Plugins?.Media;   
@@ -5716,27 +5841,27 @@ function dumpCapStatus(where=''){
 
     
     
-    const saveBtn = document.getElementById('saveImageBtn');
+    const saveBtn2 = document.getElementById('saveImageBtn');
     
     // Add click event handler for save button
-    if (saveBtn) {
-        saveBtn.addEventListener('click', function() {
+    if (saveBtn2) {
+        saveBtn2.addEventListener('click', function() {
             saveVisible().catch(console.error);
         });
     }
     
     // Mobile-specific adjustments for the save button
     function adjustButtonsForMobile() {
-        const saveBtn = document.getElementById('saveImageBtn');
+        const saveBtn2 = document.getElementById('saveImageBtn');
         const openLabel = document.querySelector('label[for="directFileInput"]');
         
         if (mobileAndTabletCheck()) {
             // Mobile styling - keep the buttons the same size and font
-            if (saveBtn) {
-                saveBtn.style.padding = "15px 25px";
-                saveBtn.style.fontSize = "22px";
-                saveBtn.style.top = "80px"; // Positioned much lower
-                saveBtn.style.minWidth = "120px";
+            if (saveBtn2) {
+                saveBtn2.style.padding = "15px 25px";
+                saveBtn2.style.fontSize = "22px";
+                saveBtn2.style.top = "80px"; // Positioned much lower
+                saveBtn2.style.minWidth = "120px";
             }
             if (openLabel) {
                 openLabel.style.padding = "15px 25px";
@@ -5746,11 +5871,11 @@ function dumpCapStatus(where=''){
             }
         } else {
             // Desktop styling - keep the buttons the same size and font
-            if (saveBtn) {
-                saveBtn.style.padding = "8px 15px";
-                saveBtn.style.fontSize = "16px"; // Exact same font size
-                saveBtn.style.top = "80px"; // Positioned much lower
-                saveBtn.style.minWidth = "90px";
+            if (saveBtn2) {
+                saveBtn2.style.padding = "8px 15px";
+                saveBtn2.style.fontSize = "16px"; // Exact same font size
+                saveBtn2.style.top = "80px"; // Positioned much lower
+                saveBtn2.style.minWidth = "90px";
             }
             if (openLabel) {
                 openLabel.style.padding = "8px 15px";
@@ -5766,7 +5891,7 @@ function dumpCapStatus(where=''){
     
     // Also adjust when window is resized
     window.addEventListener('resize', adjustButtonsForMobile);
-});
+
 
 
 
