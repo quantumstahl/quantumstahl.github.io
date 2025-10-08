@@ -4302,8 +4302,8 @@ window.addEventListener('load', ()=>{
   
   document.getElementById('mnuProj1')?.addEventListener('click', ()=>{ closeAll(); if(!play)play=true;else {play=false;currentproject=savedcurrentproject;;drawingCtx.drawImage(projectBitmaps[currentproject],0,0,drawareax/zoom,drawareay/zoom);}});
   document.getElementById('mnuProj2')?.addEventListener('click', ()=>{ closeAll(); if(!hide)hide=true;else hide=false;});
-  document.getElementById('mnuProj3')?.addEventListener('click', ()=>{ closeAll(); let promt = window.prompt("Change animation speed.. lower is faster", speed);if (promt != null && isNaN(promt) == false)speed = Number(promt); });
-  document.getElementById('mnuProj4')?.addEventListener('click', ()=>{ closeAll(); let promt = window.prompt("How many animation frames", frames);if (promt != null && isNaN(promt) == false)frames = Number(promt); });
+  document.getElementById('mnuProj3')?.addEventListener('click', ()=>{ closeAll(); let promt = window.prompt("Change animation speed.. lower is faster", speed);if (promt != null && isNaN(promt) == false && Number(promt)>0)speed = Number(promt); });
+  document.getElementById('mnuProj4')?.addEventListener('click', ()=>{ closeAll(); let promt = window.prompt("How many animation frames. 1-12", frames);if (promt != null && isNaN(promt) == false &&Number(promt)<=12 &&Number(promt)>0 )frames = Number(promt); });
   document.getElementById('mnuProj5')?.addEventListener('click', ()=>{ closeAll(); if(!union)union=true;else union=false;});
 
 
