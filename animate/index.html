@@ -2,10 +2,10 @@
 
 <html>
 <head>
-<title>MaxPaint</title>
+<title>MaxAnimate</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta content="maxpaint,paint" name="keywords"/>
+<meta content="MaxAnimate,paint,animate" name="keywords"/>
 <link href="icons/icon-192.png" rel="icon" type="image/vnd.microsoft.icon"/>
 
 
@@ -4555,19 +4555,39 @@ canvas.addEventListener('pointerdown', (ev) => {
         if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty+drawareay-10 && y < drawstarty+drawareay+30) { movecorners = true; resizeStart('SE'); return; }
     }
     if(!hide){
-        if(ev.clientX>=10&& ev.clientX<40 && ev.clientY>=60 && ev.clientY<110){loadProject(0);loadProject(0);}
-        if(ev.clientX>=40&& ev.clientX<70 && ev.clientY>=60 && ev.clientY<110){loadProject(1);loadProject(1);}
-        if(ev.clientX>=70&& ev.clientX<100 && ev.clientY>=60 && ev.clientY<110){loadProject(2);loadProject(2);}
-        if(ev.clientX>=100&& ev.clientX<130 && ev.clientY>=60 && ev.clientY<110){loadProject(3);loadProject(3);}
-        if(ev.clientX>=130&& ev.clientX<160 && ev.clientY>=60 && ev.clientY<110){loadProject(4);loadProject(4);}
-        if(ev.clientX>=160&& ev.clientX<190 && ev.clientY>=60 && ev.clientY<110){loadProject(5);loadProject(5);}
+        
+        if(window.innerWidth>window.innerHeight&& mobileAndTabletCheck()){
+            if(ev.clientY>=10&& ev.clientY<40 && ev.clientX>=200 && ev.clientX<230){loadProject(0);loadProject(0);}
+            if(ev.clientY>=40&& ev.clientY<70 && ev.clientX>=200 && ev.clientX<230){loadProject(1);loadProject(1);}
+            if(ev.clientY>=70&& ev.clientY<100 && ev.clientX>=200 && ev.clientX<230){loadProject(2);loadProject(2);}
+            if(ev.clientY>=100&& ev.clientY<130 && ev.clientX>=200 && ev.clientX<230){loadProject(3);loadProject(3);}
+            if(ev.clientY>=130&& ev.clientY<160 && ev.clientX>=200 && ev.clientX<230){loadProject(4);loadProject(4);}
+            if(ev.clientY>=160&& ev.clientY<190 && ev.clientX>=200 && ev.clientX<230){loadProject(5);loadProject(5);}
 
-        if(ev.clientX>=190&& ev.clientX<220 && ev.clientY>=60 && ev.clientY<110){loadProject(6);loadProject(6);}
-        if(ev.clientX>=220&& ev.clientX<250 && ev.clientY>=60 && ev.clientY<110){loadProject(7);loadProject(7);}
-        if(ev.clientX>=250&& ev.clientX<280 && ev.clientY>=60 && ev.clientY<110){loadProject(8);loadProject(8);}
-        if(ev.clientX>=280&& ev.clientX<310 && ev.clientY>=60 && ev.clientY<110){loadProject(9);loadProject(9);}
-        if(ev.clientX>=310&& ev.clientX<340 && ev.clientY>=60 && ev.clientY<110){loadProject(10);loadProject(10);}
-        if(ev.clientX>=340&& ev.clientX<370 && ev.clientY>=60 && ev.clientY<110){loadProject(11);loadProject(11);}
+            if(ev.clientY>=190&& ev.clientY<220 && ev.clientX>=200 && ev.clientX<230){loadProject(6);loadProject(6);}
+            if(ev.clientY>=220&& ev.clientY<250 && ev.clientX>=200 && ev.clientX<230){loadProject(7);loadProject(7);}
+            if(ev.clientY>=250&& ev.clientY<280 && ev.clientX>=200 && ev.clientX<230){loadProject(8);loadProject(8);}
+            if(ev.clientY>=280&& ev.clientY<310 && ev.clientX>=200 && ev.clientX<230){loadProject(9);loadProject(9);}
+            if(ev.clientY>=310&& ev.clientY<340 && ev.clientX>=200 && ev.clientX<230){loadProject(10);loadProject(10);}
+            if(ev.clientY>=340&& ev.clientY<370 && ev.clientX>=200 && ev.clientX<230){loadProject(11);loadProject(11);}
+            
+            
+        }
+        else{
+            if(ev.clientX>=10&& ev.clientX<40 && ev.clientY>=60 && ev.clientY<110){loadProject(0);loadProject(0);}
+            if(ev.clientX>=40&& ev.clientX<70 && ev.clientY>=60 && ev.clientY<110){loadProject(1);loadProject(1);}
+            if(ev.clientX>=70&& ev.clientX<100 && ev.clientY>=60 && ev.clientY<110){loadProject(2);loadProject(2);}
+            if(ev.clientX>=100&& ev.clientX<130 && ev.clientY>=60 && ev.clientY<110){loadProject(3);loadProject(3);}
+            if(ev.clientX>=130&& ev.clientX<160 && ev.clientY>=60 && ev.clientY<110){loadProject(4);loadProject(4);}
+            if(ev.clientX>=160&& ev.clientX<190 && ev.clientY>=60 && ev.clientY<110){loadProject(5);loadProject(5);}
+
+            if(ev.clientX>=190&& ev.clientX<220 && ev.clientY>=60 && ev.clientY<110){loadProject(6);loadProject(6);}
+            if(ev.clientX>=220&& ev.clientX<250 && ev.clientY>=60 && ev.clientY<110){loadProject(7);loadProject(7);}
+            if(ev.clientX>=250&& ev.clientX<280 && ev.clientY>=60 && ev.clientY<110){loadProject(8);loadProject(8);}
+            if(ev.clientX>=280&& ev.clientX<310 && ev.clientY>=60 && ev.clientY<110){loadProject(9);loadProject(9);}
+            if(ev.clientX>=310&& ev.clientX<340 && ev.clientY>=60 && ev.clientY<110){loadProject(10);loadProject(10);}
+            if(ev.clientX>=340&& ev.clientX<370 && ev.clientY>=60 && ev.clientY<110){loadProject(11);loadProject(11);}
+        }
     }
     
     
@@ -5288,7 +5308,7 @@ async function saveSpritesheet({layout='auto', padding=0, extrude=0, maxWidth=10
 
     meta.rects.push({ i, x: x+extrude, y: y+extrude, w: W0, h: H0, col: cx, row: cy, duration: holds[i] });
   });
-  await saveCanvasAsPng(S,'maxpaint-spritesheet.png');
+  await saveCanvasAsPng(S,suggestedName = 'maxpaint-spritesheet.png');
   // 7) Spara PNG + JSON
   //S.toBlob(b => downloadBlob(b, "spritesheet.png"), "image/png");
  // downloadBlob(new Blob([JSON.stringify(meta,null,2)], {type:"application/json"}), "spritesheet.json");
@@ -5614,34 +5634,66 @@ async function saveSpritesheet({layout='auto', padding=0, extrude=0, maxWidth=10
                 }
                 saveCurrentProject(currentproject);
                 if(!hide){
-                
-                    try{if (projectBitmaps[0]) {ctx.drawImage(projectBitmaps[0], 10, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(10,60,30,30)}
-                    try{if (projectBitmaps[1]) {ctx.drawImage(projectBitmaps[1], 40, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(40,60,30,30)}
-                    try{if (projectBitmaps[2]) {ctx.drawImage(projectBitmaps[2], 70, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(70,60,30,30)}
-                    try{if (projectBitmaps[3]) {ctx.drawImage(projectBitmaps[3], 100, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(100,60,30,30)}
-                    try{if (projectBitmaps[4]) {ctx.drawImage(projectBitmaps[4], 130, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(130,60,30,30)}
-                    try{if (projectBitmaps[5]) {ctx.drawImage(projectBitmaps[5], 160, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(160,60,30,30)}
+                    
+                    if(window.innerWidth>window.innerHeight&& mobileAndTabletCheck()){
+                        try{if (projectBitmaps[0]) {ctx.drawImage(projectBitmaps[0], 200, 10,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,10,30,30);}
+                        try{if (projectBitmaps[1]) {ctx.drawImage(projectBitmaps[1], 200, 40,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,40,30,30);}
+                        try{if (projectBitmaps[2]) {ctx.drawImage(projectBitmaps[2], 200, 70,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,70,30,30);}
+                        try{if (projectBitmaps[3]) {ctx.drawImage(projectBitmaps[3], 200, 100,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,100,30,30);}
+                        try{if (projectBitmaps[4]) {ctx.drawImage(projectBitmaps[4], 200, 130,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,130,30,30);}
+                        try{if (projectBitmaps[5]) {ctx.drawImage(projectBitmaps[5], 200, 160,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,160,30,30);}
 
-                    try{if (projectBitmaps[6]) {ctx.drawImage(projectBitmaps[6], 190, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(190,60,30,30)}
-                    try{if (projectBitmaps[7]) {ctx.drawImage(projectBitmaps[7], 220, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(220,60,30,30)}
-                    try{if (projectBitmaps[8]) {ctx.drawImage(projectBitmaps[8], 250, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(250,60,30,30)}
-                    try{if (projectBitmaps[9]) {ctx.drawImage(projectBitmaps[9], 280, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(280,60,30,30)}
-                    try{if (projectBitmaps[10]) {ctx.drawImage(projectBitmaps[10], 310, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(310,60,30,30)}
-                    try{if (projectBitmaps[11]) {ctx.drawImage(projectBitmaps[11], 340, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(340,60,30,30)}
-                    ctx.fillStyle = 'black';
-                    if(0===currentproject){ctx.strokeRect(10, 60,30,30);}
-                    if(1===currentproject){ctx.strokeRect(40, 60,30,30);}
-                    if(2===currentproject){ctx.strokeRect(70, 60,30,30);}
-                    if(3===currentproject){ctx.strokeRect(100, 60,30,30);}
-                    if(4===currentproject){ctx.strokeRect(130, 60,30,30);}
-                    if(5===currentproject){ctx.strokeRect(160, 60,30,30);}
+                        try{if (projectBitmaps[6]) {ctx.drawImage(projectBitmaps[6], 200, 190,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,190,30,30);}
+                        try{if (projectBitmaps[7]) {ctx.drawImage(projectBitmaps[7], 200, 220,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,220,30,30);}
+                        try{if (projectBitmaps[8]) {ctx.drawImage(projectBitmaps[8], 200, 250,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,250,30,30);}
+                        try{if (projectBitmaps[9]) {ctx.drawImage(projectBitmaps[9], 200, 280,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,280,30,30);}
+                        try{if (projectBitmaps[10]) {ctx.drawImage(projectBitmaps[10], 200, 310,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,310,30,30);}
+                        try{if (projectBitmaps[11]) {ctx.drawImage(projectBitmaps[11], 200, 340,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(200,340,30,30);}
+                        ctx.fillStyle = 'black';
+                        if(0===currentproject){ctx.strokeRect(200, 10,30,30);}
+                        if(1===currentproject){ctx.strokeRect(200, 40,30,30);}
+                        if(2===currentproject){ctx.strokeRect(200, 70,30,30);}
+                        if(3===currentproject){ctx.strokeRect(200, 100,30,30);}
+                        if(4===currentproject){ctx.strokeRect(200, 130,30,30);}
+                        if(5===currentproject){ctx.strokeRect(200, 160,30,30);}
 
-                    if(6===currentproject){ctx.strokeRect(190, 60,30,30);}
-                    if(7===currentproject){ctx.strokeRect(220, 60,30,30);}
-                    if(8===currentproject){ctx.strokeRect(250, 60,30,30);}
-                    if(9===currentproject){ctx.strokeRect(280, 60,30,30);}
-                    if(10===currentproject){ctx.strokeRect(310, 60,30,30);}
-                    if(11===currentproject){ctx.strokeRect(340, 60,30,30);}
+                        if(6===currentproject){ctx.strokeRect(200, 190,30,30);}
+                        if(7===currentproject){ctx.strokeRect(200, 220,30,30);}
+                        if(8===currentproject){ctx.strokeRect(200, 250,30,30);}
+                        if(9===currentproject){ctx.strokeRect(200, 280,30,30);}
+                        if(10===currentproject){ctx.strokeRect(200, 310,30,30);}
+                        if(11===currentproject){ctx.strokeRect(200, 340,30,30);}
+                        
+                    }
+                    else{
+                        try{if (projectBitmaps[0]) {ctx.drawImage(projectBitmaps[0], 10, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(10,60,30,30);}
+                        try{if (projectBitmaps[1]) {ctx.drawImage(projectBitmaps[1], 40, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(40,60,30,30);}
+                        try{if (projectBitmaps[2]) {ctx.drawImage(projectBitmaps[2], 70, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(70,60,30,30);}
+                        try{if (projectBitmaps[3]) {ctx.drawImage(projectBitmaps[3], 100, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(100,60,30,30);}
+                        try{if (projectBitmaps[4]) {ctx.drawImage(projectBitmaps[4], 130, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(130,60,30,30);}
+                        try{if (projectBitmaps[5]) {ctx.drawImage(projectBitmaps[5], 160, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(160,60,30,30);}
+
+                        try{if (projectBitmaps[6]) {ctx.drawImage(projectBitmaps[6], 190, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(190,60,30,30);}
+                        try{if (projectBitmaps[7]) {ctx.drawImage(projectBitmaps[7], 220, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(220,60,30,30);}
+                        try{if (projectBitmaps[8]) {ctx.drawImage(projectBitmaps[8], 250, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(250,60,30,30);}
+                        try{if (projectBitmaps[9]) {ctx.drawImage(projectBitmaps[9], 280, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(280,60,30,30);}
+                        try{if (projectBitmaps[10]) {ctx.drawImage(projectBitmaps[10], 310, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(310,60,30,30);}
+                        try{if (projectBitmaps[11]) {ctx.drawImage(projectBitmaps[11], 340, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(340,60,30,30);}
+                        ctx.fillStyle = 'black';
+                        if(0===currentproject){ctx.strokeRect(10, 60,30,30);}
+                        if(1===currentproject){ctx.strokeRect(40, 60,30,30);}
+                        if(2===currentproject){ctx.strokeRect(70, 60,30,30);}
+                        if(3===currentproject){ctx.strokeRect(100, 60,30,30);}
+                        if(4===currentproject){ctx.strokeRect(130, 60,30,30);}
+                        if(5===currentproject){ctx.strokeRect(160, 60,30,30);}
+
+                        if(6===currentproject){ctx.strokeRect(190, 60,30,30);}
+                        if(7===currentproject){ctx.strokeRect(220, 60,30,30);}
+                        if(8===currentproject){ctx.strokeRect(250, 60,30,30);}
+                        if(9===currentproject){ctx.strokeRect(280, 60,30,30);}
+                        if(10===currentproject){ctx.strokeRect(310, 60,30,30);}
+                        if(11===currentproject){ctx.strokeRect(340, 60,30,30);}
+                    }
                 }
                 if(running)window.requestAnimationFrame(check);   
             }; 
