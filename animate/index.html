@@ -8,7 +8,7 @@
 <meta content="MaxAnimate,paint,animate" name="keywords"/>
 <link href="icons/icon-192.png" rel="icon" type="image/vnd.microsoft.icon"/>
 
-
+<script src="gif.js"></script>
 
 <style>
             
@@ -788,6 +788,8 @@ canvas{
       <button class="item" id="mnuGrid"   role="menuitem">Toggle grid</button>
       <button class="item" id="mnuCameraCenter"   role="menuitem">Center camera</button>
       <button class="item" id="mnuSprites"   role="menuitem">Save Spritesheet</button>
+      <button class="item" id="mnuGIF"   role="menuitem">Save as animated GIF</button>
+      <button class="item" id="mnuGIF2"   role="menuitem">Share animated GIF</button>
     </div>
   </div>
 
@@ -4330,7 +4332,7 @@ window.addEventListener('load', ()=>{
   
   document.getElementById('mnuProj1')?.addEventListener('click', ()=>{ closeAll(); if(!play)play=true;else {play=false;currentproject=savedcurrentproject;;drawingCtx.drawImage(projectBitmaps[currentproject],0,0,drawareax/zoom,drawareay/zoom);}});
   document.getElementById('mnuProj2')?.addEventListener('click', ()=>{ closeAll(); if(!hide)hide=true;else hide=false;});
-  document.getElementById('mnuProj3')?.addEventListener('click', ()=>{ closeAll(); let promt = window.prompt("Change animation speed.. lower is faster", speed);if (promt != null && isNaN(promt) == false && Number(promt)>0)speed = Number(promt); });
+  document.getElementById('mnuProj3')?.addEventListener('click', ()=>{ closeAll(); let promt = window.prompt("Change animation speed.. lower is faster. 1-60", speed);if (promt != null && isNaN(promt) == false && Number(promt)>0&&Number(promt)<=60)speed = Number(promt); });
   document.getElementById('mnuProj4')?.addEventListener('click', ()=>{ closeAll(); let promt = window.prompt("How many animation frames. 1-12", frames);if (promt != null && isNaN(promt) == false &&Number(promt)<=12 &&Number(promt)>0 )frames = Number(promt); });
   document.getElementById('mnuProj5')?.addEventListener('click', ()=>{ closeAll(); if(!union)union=true;else union=false;});
 
@@ -5063,6 +5065,38 @@ let firstbloody=null;
 
 document.getElementById('mnuCameraCenter')  ?.addEventListener('click', ()=>{ closeAll(); cameraHome(); });
 document.getElementById('mnuSprites')  ?.addEventListener('click', ()=>{ closeAll(); saveSpritesheet({ layout:'auto', maxWidth:10000, padding:0, extrude:1, fit:'contain' }); });
+document.getElementById('mnuGIF')  ?.addEventListener('click', async ()=>{ 
+    closeAll();
+try{
+    const blob = await buildGIFBlob({ projectBitmaps, framesCount: frames, fps: 60/speed || 8 });
+    await saveGIFBlob(blob, 'maxanimate.gif');
+    _toast('GIF saved!');
+  }catch(e){ _toast('GIF-export failed: '+e.message); }
+   });  
+
+document.getElementById('mnuGIF2')  ?.addEventListener('click', async ()=>{ 
+    closeAll(); 
+
+try{
+    const blob = await buildGIFBlob({ projectBitmaps, framesCount: frames, fps: 60/speed || 8 });
+    if (window.Capacitor?.isNativePlatform?.()) {
+      await shareGIFNative(blob, 'maxanimate.gif');
+    } else {
+      const ok = await shareGIFWeb(blob, 'maxanimate.gif');
+      if (!ok) {
+        // fallback: spara istället (om web share inte stöds)
+        await saveGIFBlob(blob, 'maxanimate.gif');
+      }
+    }
+  }catch(e){ alert('Dela GIF misslyckades: '+e.message); }
+
+
+
+
+
+
+
+});
 
 function cameraHome(){keyState.h=true;}
 
@@ -5978,7 +6012,111 @@ function dumpCapStatus(where=''){
     
            // ===== END MOBILE DEVICE SUPPORT =====
             resizeCanvas();
-            
+
+// ==== Helpers ====
+async function blobToBase64(blob){
+  const buf = await blob.arrayBuffer();
+  let binary=''; const bytes=new Uint8Array(buf);
+  for (let i=0;i<bytes.length;i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+function asCanvas(src){
+  if (!src) return null;
+  if (src instanceof HTMLCanvasElement) return src;
+  const c = document.createElement('canvas');
+  c.width = src.width; c.height = src.height;
+  c.getContext('2d').drawImage(src, 0, 0);
+  return c;
+}
+function makeSlotCanvas(W,H, src){ // contain + center
+  const c = document.createElement('canvas'); c.width=W; c.height=H;
+  const g = c.getContext('2d'); g.imageSmoothingEnabled=false; g.clearRect(0,0,W,H);
+  if (!src) return c;
+  const sw=src.width, sh=src.height, ar=sw/sh, tar=W/H;
+  let dw=W, dh=H; if(ar>tar) dh=Math.floor(W/ar); else dw=Math.floor(H*ar);
+  const dx=Math.floor((W-dw)/2), dy=Math.floor((H-dh)/2);
+  g.drawImage(src,0,0,sw,sh, dx,dy,dw,dh);
+  return c;
+}
+
+// === 1) Bygg GIF och returnera Blob ===
+async function buildGIFBlob({
+  projectBitmaps,
+  framesCount,
+  fps = +document.getElementById('fps')?.value || 8,
+  loop = 0,
+  quality = 10,
+  workerScript = 'gif.worker.js'
+} = {}) {
+  const items = Array.from({length: framesCount}, (_,i)=> asCanvas(projectBitmaps[i])).map(c=>c||null);
+  const ref = items.find(Boolean);
+  if (!ref) throw new Error('no frames');
+  const W = ref.width, H = ref.height;
+  const slots = items.map(c => makeSlotCanvas(W,H,c));
+
+  const holds = (window.holds && window.holds.length===slots.length) ? window.holds : Array(slots.length).fill(1);
+  const msPerTick = 1000 / fps;
+
+  const gif = new GIF({ workers: 2, quality, width: W, height: H, workerScript, repeat: loop });
+  slots.forEach((canvas, i) => gif.addFrame(canvas, { copy:true, delay: Math.max(20, Math.round(holds[i] * msPerTick)) }));
+
+  const blob = await new Promise(resolve => { gif.on('finished', resolve); gif.render(); });
+  return blob; // image/gif
+}
+
+// === 2) Spara GIF med din befintliga canvas-saver (web+Capacitor)
+async function saveGIFBlob(gifBlob, suggestedName='maxanimate.gif'){
+  if (window.Capacitor?.isNativePlatform?.()) {
+    // Spara via Filesystem
+    const { Filesystem, Directory } = window.Capacitor.Plugins;
+    const b64 = await blobToBase64(gifBlob);
+    await Filesystem.writeFile({ path: suggestedName, data: b64, directory: Directory.Documents });
+  } else {
+    // Web: ladda ner
+    const url = URL.createObjectURL(gifBlob);
+    const a = document.createElement('a'); a.href=url; a.download=suggestedName; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),800);
+  }
+}
+
+// === 3) DELA GIF ===
+// 3a) Web Share API (Chrome/Android, iOS Safari 15+)
+async function shareGIFWeb(gifBlob, suggestedName='maxanimate.gif'){
+  if (navigator.canShare && navigator.canShare({ files: [new File([gifBlob], suggestedName, {type:'image/gif'})] })) {
+    const file = new File([gifBlob], suggestedName, { type: 'image/gif' });
+    await navigator.share({ files: [file], title: 'MaxAnimate GIF', text: 'Skapad i MaxAnimate' });
+    return true;
+  }
+  return false; // fall back
+}
+
+// 3b) Capacitor Share (Android/iOS app)
+async function shareGIFNative(gifBlob, suggestedName='maxanimate.gif'){
+  const { Share, Filesystem, Directory } = window.Capacitor.Plugins;
+  // Spara temporärt till Documents (eller Cache)
+  const b64 = await blobToBase64(gifBlob);
+  await Filesystem.writeFile({ path: suggestedName, data: b64, directory: Directory.Documents });
+  const { uri } = await Filesystem.getUri({ path: suggestedName, directory: Directory.Documents });
+  await Share.share({
+    title: 'MaxAnimate GIF',
+    text: 'Skapad i MaxAnimate',
+    url: uri,                 // native fil-URI
+    dialogTitle: 'Dela GIF'
+  });
+}
+
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
         </script>
 
 
