@@ -1236,8 +1236,10 @@ canvas{
             drawstarty  = projectdrawstarty[index] ?? drawstarty;
             camera.x     = projectcamerax[index];
             camera.y     = projectcameray[index];
-            
             zoom        = projectzoom[index] ?? zoom;
+            
+            drawingCanvas.width=Math.round(drawareax/zoom);
+            drawingCanvas.height=Math.round(drawareay/zoom);
             
             if(currentproject===1&&tvfirst[1]===false){tvaaaa=true;tvfirst[1]=true;}
             else if(currentproject===2&&tvfirst[2]===false){treeee=true;tvfirst[2]=true;}
@@ -2003,7 +2005,7 @@ function switchTool(newTool, opts = {}) {
             // Ensure the drawing canvas is big enough for the image
             function ensureCanvasSize(width, height) {
                 // Resize the drawing canvas if the new dimensions are larger
-                if (width > drawingCanvas.width || height > drawingCanvas.height) {
+                if (width !== drawingCanvas.width || height !== drawingCanvas.height) {
                     // Save current content
                     const oldContent = document.createElement('canvas');
                     oldContent.width = drawingCanvas.width;
@@ -2012,8 +2014,8 @@ function switchTool(newTool, opts = {}) {
                     oldCtx.drawImage(drawingCanvas, 0, 0);
 
                     // Resize the canvas
-                    drawingCanvas.width = Math.max(width, drawingCanvas.width);
-                    drawingCanvas.height = Math.max(height, drawingCanvas.height);
+                    drawingCanvas.width = width;
+                    drawingCanvas.height = height;
 
                     // Fill with white and restore content
                     drawingCtx.fillStyle = "white";
@@ -2178,7 +2180,7 @@ function penUp(){
                 const curVH = cssH;
                 drawstartx = Math.round(curVW/2 - z * cxImg);
                 drawstarty = Math.round(curVH/2 - z * cyImg);
-                
+                /*
                 for (let i=0;i<3;i++){
                     if(i!==currentproject){
                         
@@ -2186,7 +2188,7 @@ function penUp(){
                         projectdrawstarty[i]=Math.round(curVH/2 - z * cyimage[i]);
                         
                     }
-                }
+                }*/
                 
 
   // 6) Uppdatera sparade viewportmått och re-mappa stackar via din ko()
@@ -5217,7 +5219,7 @@ async function gogogo(canvas, bg = 'white'){
                     drawareax = drawareax / oldZoom * newZoom;
                     drawareay = drawareay / oldZoom * newZoom;
                     
-                    
+
                 
                 // --- Räkna om start så att samma bildpunkt ligger kvar i mitten
                 
