@@ -793,12 +793,12 @@ canvas{
   <!-- Projects direkt till vänster (bredvid hamburgern) -->
   <div class="topbar-group" style="position:relative">
     <button id="projectsBtn" class="topbtn" aria-haspopup="true" aria-expanded="false" title="Projects">
-      Canvas 1 ▾
+      Animation
     </button>
     <div id="projectsDrop" class="dropdown" role="menu" aria-label="Projects">
-      <button class="item" id="mnuProj1" role="menuitem">Canvas 1</button>
-      <button class="item" id="mnuProj2" role="menuitem">Canvas 2</button>
-      <button class="item" id="mnuProj3" role="menuitem">Canvas 3</button>
+      <button class="item" id="mnuProj1" role="menuitem">play</button>
+      <button class="item" id="mnuProj2" role="menuitem">hide</button>
+      <button class="item" id="mnuProj3" role="menuitem">speed</button>
     </div>
   </div>
 </div>
@@ -4290,10 +4290,13 @@ window.addEventListener('load', ()=>{
   document.getElementById('mnuSave') ?.addEventListener('click', ()=>{ closeAll(); btnSave?.click(); });
   document.getElementById('mnuResize')?.addEventListener('click', ()=>{ closeAll(); btnResize?.click(); });
   document.getElementById('mnuGrid')  ?.addEventListener('click', ()=>{ closeAll(); btnGrid?.click(); });
-
-  document.getElementById('mnuProj1')?.addEventListener('click', ()=>{ closeAll(); btnP1?.click(); });
-  document.getElementById('mnuProj2')?.addEventListener('click', ()=>{ closeAll(); btnP2?.click(); });
-  document.getElementById('mnuProj3')?.addEventListener('click', ()=>{ closeAll(); btnP3?.click(); });
+  
+  let play=false;
+  let hide=false;
+  let speed=5;
+  document.getElementById('mnuProj1')?.addEventListener('click', ()=>{ closeAll(); if(!play)play=true;else play=false;});
+  document.getElementById('mnuProj2')?.addEventListener('click', ()=>{ closeAll(); if(!hide)hide=true;else hide=false;});
+  document.getElementById('mnuProj3')?.addEventListener('click', ()=>{ closeAll(); let promt = window.prompt("Change animation speed.. lower is faster", speed);if (promt != null && isNaN(promt) == false)speed = Number(promt); });
 
 
 
@@ -4545,21 +4548,21 @@ canvas.addEventListener('pointerdown', (ev) => {
         if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty+drawareay && y < drawstarty-10+drawareay+30) { movecorners = true; resizeStart('SW'); return; }
         if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty+drawareay-10 && y < drawstarty+drawareay+30) { movecorners = true; resizeStart('SE'); return; }
     }
-    
-    if(ev.clientX>=10&& ev.clientX<40 && ev.clientY>=60 && ev.clientY<110){loadProject(0);loadProject(0);}
-    if(ev.clientX>=40&& ev.clientX<70 && ev.clientY>=60 && ev.clientY<110){loadProject(1);loadProject(1);}
-    if(ev.clientX>=70&& ev.clientX<100 && ev.clientY>=60 && ev.clientY<110){loadProject(2);loadProject(2);}
-    if(ev.clientX>=100&& ev.clientX<130 && ev.clientY>=60 && ev.clientY<110){loadProject(3);loadProject(3);}
-    if(ev.clientX>=130&& ev.clientX<160 && ev.clientY>=60 && ev.clientY<110){loadProject(4);loadProject(4);}
-    if(ev.clientX>=160&& ev.clientX<190 && ev.clientY>=60 && ev.clientY<110){loadProject(5);loadProject(5);}
-    
-    if(ev.clientX>=190&& ev.clientX<220 && ev.clientY>=60 && ev.clientY<110){loadProject(6);loadProject(6);}
-    if(ev.clientX>=220&& ev.clientX<250 && ev.clientY>=60 && ev.clientY<110){loadProject(7);loadProject(7);}
-    if(ev.clientX>=250&& ev.clientX<280 && ev.clientY>=60 && ev.clientY<110){loadProject(8);loadProject(8);}
-    if(ev.clientX>=280&& ev.clientX<310 && ev.clientY>=60 && ev.clientY<110){loadProject(9);loadProject(9);}
-    if(ev.clientX>=310&& ev.clientX<340 && ev.clientY>=60 && ev.clientY<110){loadProject(10);loadProject(10);}
-    if(ev.clientX>=340&& ev.clientX<370 && ev.clientY>=60 && ev.clientY<110){loadProject(11);loadProject(11);}
-    
+    if(!hide){
+        if(ev.clientX>=10&& ev.clientX<40 && ev.clientY>=60 && ev.clientY<110){loadProject(0);loadProject(0);}
+        if(ev.clientX>=40&& ev.clientX<70 && ev.clientY>=60 && ev.clientY<110){loadProject(1);loadProject(1);}
+        if(ev.clientX>=70&& ev.clientX<100 && ev.clientY>=60 && ev.clientY<110){loadProject(2);loadProject(2);}
+        if(ev.clientX>=100&& ev.clientX<130 && ev.clientY>=60 && ev.clientY<110){loadProject(3);loadProject(3);}
+        if(ev.clientX>=130&& ev.clientX<160 && ev.clientY>=60 && ev.clientY<110){loadProject(4);loadProject(4);}
+        if(ev.clientX>=160&& ev.clientX<190 && ev.clientY>=60 && ev.clientY<110){loadProject(5);loadProject(5);}
+
+        if(ev.clientX>=190&& ev.clientX<220 && ev.clientY>=60 && ev.clientY<110){loadProject(6);loadProject(6);}
+        if(ev.clientX>=220&& ev.clientX<250 && ev.clientY>=60 && ev.clientY<110){loadProject(7);loadProject(7);}
+        if(ev.clientX>=250&& ev.clientX<280 && ev.clientY>=60 && ev.clientY<110){loadProject(8);loadProject(8);}
+        if(ev.clientX>=280&& ev.clientX<310 && ev.clientY>=60 && ev.clientY<110){loadProject(9);loadProject(9);}
+        if(ev.clientX>=310&& ev.clientX<340 && ev.clientY>=60 && ev.clientY<110){loadProject(10);loadProject(10);}
+        if(ev.clientX>=340&& ev.clientX<370 && ev.clientY>=60 && ev.clientY<110){loadProject(11);loadProject(11);}
+    }
     
     
 
@@ -5160,6 +5163,9 @@ async function gogogo(canvas, bg = 'white'){
     
 }
 
+let playcunter=0;
+let fpscounter=0;
+
             //check---------------------------------------------------------------------------------------
             var check = function() {
                 
@@ -5447,38 +5453,51 @@ async function gogogo(canvas, bg = 'white'){
                 if(isdragdrag&&currentTool === 'lasso')_drawLassoOverlay();
                 if(isdragdrag&&isRectSelecting&&currentTool === 'select')_drawSelectOverlay();
                 drawResizeOverlay();
-                
-                
+                if(hide)play=false;
+                if(play){
+                    
+                    
+                    fpscounter++;
+                    if(fpscounter>speed){playcunter++;fpscounter=0;}        
+                            
+                    
+                    loadProject(playcunter);
+                    
+                    if(playcunter==12)playcunter=0;
+                    
+                }
                 
                 saveCurrentProject(currentproject);
-                try{if (projectBitmaps[0]) {ctx.drawImage(projectBitmaps[0], 10, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(10,60,30,30)}
-                try{if (projectBitmaps[1]) {ctx.drawImage(projectBitmaps[1], 40, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(40,60,30,30)}
-                try{if (projectBitmaps[2]) {ctx.drawImage(projectBitmaps[2], 70, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(70,60,30,30)}
-                try{if (projectBitmaps[3]) {ctx.drawImage(projectBitmaps[3], 100, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(100,60,30,30)}
-                try{if (projectBitmaps[4]) {ctx.drawImage(projectBitmaps[4], 130, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(130,60,30,30)}
-                try{if (projectBitmaps[5]) {ctx.drawImage(projectBitmaps[5], 160, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(160,60,30,30)}
+                if(!hide){
                 
-                try{if (projectBitmaps[6]) {ctx.drawImage(projectBitmaps[6], 190, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(190,60,30,30)}
-                try{if (projectBitmaps[7]) {ctx.drawImage(projectBitmaps[7], 220, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(220,60,30,30)}
-                try{if (projectBitmaps[8]) {ctx.drawImage(projectBitmaps[8], 250, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(250,60,30,30)}
-                try{if (projectBitmaps[9]) {ctx.drawImage(projectBitmaps[9], 280, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(280,60,30,30)}
-                try{if (projectBitmaps[10]) {ctx.drawImage(projectBitmaps[10], 310, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(310,60,30,30)}
-                try{if (projectBitmaps[11]) {ctx.drawImage(projectBitmaps[11], 340, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(340,60,30,30)}
-                ctx.fillStyle = 'black';
-                if(0===currentproject){ctx.strokeRect(10, 60,30,30);}
-                if(1===currentproject){ctx.strokeRect(40, 60,30,30);}
-                if(2===currentproject){ctx.strokeRect(70, 60,30,30);}
-                if(3===currentproject){ctx.strokeRect(100, 60,30,30);}
-                if(4===currentproject){ctx.strokeRect(130, 60,30,30);}
-                if(5===currentproject){ctx.strokeRect(160, 60,30,30);}
-                
-                if(6===currentproject){ctx.strokeRect(190, 60,30,30);}
-                if(7===currentproject){ctx.strokeRect(220, 60,30,30);}
-                if(8===currentproject){ctx.strokeRect(250, 60,30,30);}
-                if(9===currentproject){ctx.strokeRect(280, 60,30,30);}
-                if(10===currentproject){ctx.strokeRect(310, 60,30,30);}
-                if(11===currentproject){ctx.strokeRect(340, 60,30,30);}
-                
+                    try{if (projectBitmaps[0]) {ctx.drawImage(projectBitmaps[0], 10, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(10,60,30,30)}
+                    try{if (projectBitmaps[1]) {ctx.drawImage(projectBitmaps[1], 40, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(40,60,30,30)}
+                    try{if (projectBitmaps[2]) {ctx.drawImage(projectBitmaps[2], 70, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(70,60,30,30)}
+                    try{if (projectBitmaps[3]) {ctx.drawImage(projectBitmaps[3], 100, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(100,60,30,30)}
+                    try{if (projectBitmaps[4]) {ctx.drawImage(projectBitmaps[4], 130, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(130,60,30,30)}
+                    try{if (projectBitmaps[5]) {ctx.drawImage(projectBitmaps[5], 160, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(160,60,30,30)}
+
+                    try{if (projectBitmaps[6]) {ctx.drawImage(projectBitmaps[6], 190, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(190,60,30,30)}
+                    try{if (projectBitmaps[7]) {ctx.drawImage(projectBitmaps[7], 220, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(220,60,30,30)}
+                    try{if (projectBitmaps[8]) {ctx.drawImage(projectBitmaps[8], 250, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(250,60,30,30)}
+                    try{if (projectBitmaps[9]) {ctx.drawImage(projectBitmaps[9], 280, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(280,60,30,30)}
+                    try{if (projectBitmaps[10]) {ctx.drawImage(projectBitmaps[10], 310, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(310,60,30,30)}
+                    try{if (projectBitmaps[11]) {ctx.drawImage(projectBitmaps[11], 340, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(340,60,30,30)}
+                    ctx.fillStyle = 'black';
+                    if(0===currentproject){ctx.strokeRect(10, 60,30,30);}
+                    if(1===currentproject){ctx.strokeRect(40, 60,30,30);}
+                    if(2===currentproject){ctx.strokeRect(70, 60,30,30);}
+                    if(3===currentproject){ctx.strokeRect(100, 60,30,30);}
+                    if(4===currentproject){ctx.strokeRect(130, 60,30,30);}
+                    if(5===currentproject){ctx.strokeRect(160, 60,30,30);}
+
+                    if(6===currentproject){ctx.strokeRect(190, 60,30,30);}
+                    if(7===currentproject){ctx.strokeRect(220, 60,30,30);}
+                    if(8===currentproject){ctx.strokeRect(250, 60,30,30);}
+                    if(9===currentproject){ctx.strokeRect(280, 60,30,30);}
+                    if(10===currentproject){ctx.strokeRect(310, 60,30,30);}
+                    if(11===currentproject){ctx.strokeRect(340, 60,30,30);}
+                }
                 if(running)window.requestAnimationFrame(check);   
             }; 
             
