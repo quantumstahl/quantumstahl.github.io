@@ -5524,10 +5524,10 @@ async function openProject(){
                     const newZoom = zoomvalue / 100;
                     if(startan)setZoomAroundScreenCenter(zoomvalue / 100,zoom);
                     zoom = newZoom;
-                    drawareax = drawareax / oldZoom * newZoom;
-                    drawareay = drawareay / oldZoom * newZoom;
+                    drawareax = Math.ceil(drawareax / oldZoom * newZoom);
+                    drawareay = Math.ceil(drawareay / oldZoom * newZoom);
                     
-
+                    _toast(drawareax);
                 
                 // --- Räkna om start så att samma bildpunkt ligger kvar i mitten
                 
