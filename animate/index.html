@@ -6084,7 +6084,7 @@ async function saveGIFBlob(gifBlob, suggestedName='maxanimate.gif'){
 async function shareGIFWeb(gifBlob, suggestedName='maxanimate.gif'){
   if (navigator.canShare && navigator.canShare({ files: [new File([gifBlob], suggestedName, {type:'image/gif'})] })) {
     const file = new File([gifBlob], suggestedName, { type: 'image/gif' });
-    await navigator.share({ files: [file], title: 'MaxAnimate GIF', text: 'Skapad i MaxAnimate' });
+    await navigator.share({ files: [file], title: 'MaxAnimate GIF', text: '' });
     return true;
   }
   return false; // fall back
@@ -6099,9 +6099,9 @@ async function shareGIFNative(gifBlob, suggestedName='maxanimate.gif'){
   const { uri } = await Filesystem.getUri({ path: suggestedName, directory: Directory.Documents });
   await Share.share({
     title: 'MaxAnimate GIF',
-    text: 'Skapad i MaxAnimate',
+    text: '',
     url: uri,                 // native fil-URI
-    dialogTitle: 'Dela GIF'
+    dialogTitle: 'Share GIF'
   });
 }
 
