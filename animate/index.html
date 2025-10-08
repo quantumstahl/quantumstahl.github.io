@@ -4297,7 +4297,7 @@ window.addEventListener('load', ()=>{
   let speed=5;
   let frames=12;
   
-  document.getElementById('mnuProj1')?.addEventListener('click', ()=>{ closeAll(); if(!play)play=true;else {play=false;currentproject=savedcurrentproject;;drawingCtx.drawImage(projectBitmaps[currentproject],0,0,drawareax,drawareay);}});
+  document.getElementById('mnuProj1')?.addEventListener('click', ()=>{ closeAll(); if(!play)play=true;else {play=false;currentproject=savedcurrentproject;;drawingCtx.drawImage(projectBitmaps[currentproject],0,0,drawareax/zoom,drawareay/zoom);}});
   document.getElementById('mnuProj2')?.addEventListener('click', ()=>{ closeAll(); if(!hide)hide=true;else hide=false;});
   document.getElementById('mnuProj3')?.addEventListener('click', ()=>{ closeAll(); let promt = window.prompt("Change animation speed.. lower is faster", speed);if (promt != null && isNaN(promt) == false)speed = Number(promt); });
   document.getElementById('mnuProj4')?.addEventListener('click', ()=>{ closeAll(); let promt = window.prompt("How many animation frames", frames);if (promt != null && isNaN(promt) == false)frames = Number(promt); });
@@ -5455,7 +5455,7 @@ let savedcurrentproject=0;
                 if(isdragdrag&&currentTool === 'lasso')_drawLassoOverlay();
                 if(isdragdrag&&isRectSelecting&&currentTool === 'select')_drawSelectOverlay();
                 drawResizeOverlay();
-                if(hide){play=false;currentproject=savedcurrentproject;drawingCtx.drawImage(projectBitmaps[currentproject],0,0,drawareax,drawareay);}
+                if(hide){play=false;currentproject=savedcurrentproject;drawingCtx.drawImage(projectBitmaps[currentproject],0,0,drawareax/zoom,drawareay/zoom);}
                 if(play){
                     
                     
