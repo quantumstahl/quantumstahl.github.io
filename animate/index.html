@@ -4588,37 +4588,32 @@ canvas.addEventListener('pointerdown', (ev) => {
     }
     if(!hide&&!delatare){
         
-        if(window.innerWidth>window.innerHeight&& mobileAndTabletCheck()){
-            if(ev.clientY>=10&& ev.clientY<40 && ev.clientX>=170 && ev.clientX<200){loadProject(0);loadProject(0);}
-            if(ev.clientY>=40&& ev.clientY<70 && ev.clientX>=170 && ev.clientX<200){loadProject(1);loadProject(1);}
-            if(ev.clientY>=70&& ev.clientY<100 && ev.clientX>=170 && ev.clientX<200){loadProject(2);loadProject(2);}
-            if(ev.clientY>=100&& ev.clientY<130 && ev.clientX>=170 && ev.clientX<200){loadProject(3);loadProject(3);}
-            if(ev.clientY>=130&& ev.clientY<160 && ev.clientX>=170 && ev.clientX<200){loadProject(4);loadProject(4);}
-            if(ev.clientY>=160&& ev.clientY<190 && ev.clientX>=170 && ev.clientX<200){loadProject(5);loadProject(5);}
+        const isMobile = typeof mobileAndTabletCheck === 'function' ? mobileAndTabletCheck() : false;
+        const isLandscapeMobile = isMobile && (window.innerWidth > window.innerHeight);
+        const islarge=window.innerWidth >= 1024;
+        const S = islarge ? 60 : 30;        // samma storlek som i riten
 
-            if(ev.clientY>=190&& ev.clientY<220 && ev.clientX>=170 && ev.clientX<200){loadProject(6);loadProject(6);}
-            if(ev.clientY>=220&& ev.clientY<250 && ev.clientX>=170 && ev.clientX<200){loadProject(7);loadProject(7);}
-            if(ev.clientY>=250&& ev.clientY<280 && ev.clientX>=170 && ev.clientX<200){loadProject(8);loadProject(8);}
-            if(ev.clientY>=280&& ev.clientY<310 && ev.clientX>=170 && ev.clientX<200){loadProject(9);loadProject(9);}
-            if(ev.clientY>=310&& ev.clientY<340 && ev.clientX>=170 && ev.clientX<200){loadProject(10);loadProject(10);}
-            if(ev.clientY>=340&& ev.clientY<370 && ev.clientX>=170 && ev.clientX<200){loadProject(11);loadProject(11);}
-            
-            
+        const startX_col = 170, startY_col = 10;   // mobil-landskap (kolumn)
+        const startX_row = 10,  startY_row = 60;   // övrigt (rad)
+
+        let i = -1;
+
+        if (isLandscapeMobile) {
+          // kolumn: fast x, varierande y
+          if (ev.clientX >= startX_col && ev.clientX < startX_col + S) {
+            const relY = ev.clientY - startY_col;
+            i = Math.floor(relY / S);
+          }
+        } else {
+          // rad: fast y, varierande x
+          if (ev.clientY >= startY_row && ev.clientY < startY_row + S) {
+            const relX = ev.clientX - startX_row;
+            i = Math.floor(relX / S);
+          }
         }
-        else{
-            if(ev.clientX>=10&& ev.clientX<40 && ev.clientY>=60 && ev.clientY<110){loadProject(0);loadProject(0);}
-            if(ev.clientX>=40&& ev.clientX<70 && ev.clientY>=60 && ev.clientY<110){loadProject(1);loadProject(1);}
-            if(ev.clientX>=70&& ev.clientX<100 && ev.clientY>=60 && ev.clientY<110){loadProject(2);loadProject(2);}
-            if(ev.clientX>=100&& ev.clientX<130 && ev.clientY>=60 && ev.clientY<110){loadProject(3);loadProject(3);}
-            if(ev.clientX>=130&& ev.clientX<160 && ev.clientY>=60 && ev.clientY<110){loadProject(4);loadProject(4);}
-            if(ev.clientX>=160&& ev.clientX<190 && ev.clientY>=60 && ev.clientY<110){loadProject(5);loadProject(5);}
 
-            if(ev.clientX>=190&& ev.clientX<220 && ev.clientY>=60 && ev.clientY<110){loadProject(6);loadProject(6);}
-            if(ev.clientX>=220&& ev.clientX<250 && ev.clientY>=60 && ev.clientY<110){loadProject(7);loadProject(7);}
-            if(ev.clientX>=250&& ev.clientX<280 && ev.clientY>=60 && ev.clientY<110){loadProject(8);loadProject(8);}
-            if(ev.clientX>=280&& ev.clientX<310 && ev.clientY>=60 && ev.clientY<110){loadProject(9);loadProject(9);}
-            if(ev.clientX>=310&& ev.clientX<340 && ev.clientY>=60 && ev.clientY<110){loadProject(10);loadProject(10);}
-            if(ev.clientX>=340&& ev.clientX<370 && ev.clientY>=60 && ev.clientY<110){loadProject(11);loadProject(11);}
+        if (i >= 0 && i < 12) {
+          loadProject(i); loadProject(i);   // dubbelkörning pga din spärr
         }
     }
     
@@ -5788,65 +5783,56 @@ async function openProject(){
                 saveCurrentProject(currentproject);
                 if(!hide){
                     
-                    if(window.innerWidth>window.innerHeight&& mobileAndTabletCheck()){
-                        try{if (projectBitmaps[0]) {ctx.drawImage(projectBitmaps[0], 170, 10,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,10,30,30);}
-                        try{if (projectBitmaps[1]) {ctx.drawImage(projectBitmaps[1], 170, 40,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,40,30,30);}
-                        try{if (projectBitmaps[2]) {ctx.drawImage(projectBitmaps[2], 170, 70,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,70,30,30);}
-                        try{if (projectBitmaps[3]) {ctx.drawImage(projectBitmaps[3], 170, 100,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,100,30,30);}
-                        try{if (projectBitmaps[4]) {ctx.drawImage(projectBitmaps[4], 170, 130,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,130,30,30);}
-                        try{if (projectBitmaps[5]) {ctx.drawImage(projectBitmaps[5], 170, 160,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,160,30,30);}
+                    const isMobile = typeof mobileAndTabletCheck === 'function' ? mobileAndTabletCheck() : false;
+                    const isLandscapeMobile = isMobile && (window.innerWidth > window.innerHeight);
+                    const isLargeScreen = window.innerWidth >= 1024;          // räknas som "stor skärm"
+                    const S = isLargeScreen ? 60 : 30;        // storlek på miniatyr (kant = S)
+                    const COUNT = Math.min(12, projectBitmaps?.length || 0);
 
-                        try{if (projectBitmaps[6]) {ctx.drawImage(projectBitmaps[6], 170, 190,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,190,30,30);}
-                        try{if (projectBitmaps[7]) {ctx.drawImage(projectBitmaps[7], 170, 220,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,220,30,30);}
-                        try{if (projectBitmaps[8]) {ctx.drawImage(projectBitmaps[8], 170, 250,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,250,30,30);}
-                        try{if (projectBitmaps[9]) {ctx.drawImage(projectBitmaps[9], 170, 280,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,280,30,30);}
-                        try{if (projectBitmaps[10]) {ctx.drawImage(projectBitmaps[10], 170, 310,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,310,30,30);}
-                        try{if (projectBitmaps[11]) {ctx.drawImage(projectBitmaps[11], 170, 340,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(170,340,30,30);}
-                        ctx.fillStyle = 'black';
-                        if(0===currentproject){ctx.strokeRect(170, 10,30,30);}
-                        if(1===currentproject){ctx.strokeRect(170, 40,30,30);}
-                        if(2===currentproject){ctx.strokeRect(170, 70,30,30);}
-                        if(3===currentproject){ctx.strokeRect(170, 100,30,30);}
-                        if(4===currentproject){ctx.strokeRect(170, 130,30,30);}
-                        if(5===currentproject){ctx.strokeRect(170, 160,30,30);}
+                    // Startpositioner (behåll dina tidigare offsets)
+                    const startX_landscape = 170;             // fast x-kolumn för landscape på mobil/platta
+                    const startY_landscape = 10;              // y-utmarsch
+                    const startX_row = 10;                    // start x för radlayout
+                    const startY_row = 60;                    // fast y-rad
 
-                        if(6===currentproject){ctx.strokeRect(170, 190,30,30);}
-                        if(7===currentproject){ctx.strokeRect(170, 220,30,30);}
-                        if(8===currentproject){ctx.strokeRect(170, 250,30,30);}
-                        if(9===currentproject){ctx.strokeRect(170, 280,30,30);}
-                        if(10===currentproject){ctx.strokeRect(170, 310,30,30);}
-                        if(11===currentproject){ctx.strokeRect(170, 340,30,30);}
-                        
+                    for (let i = 0; i < 12; i++) {
+                      let x, y;
+                      if (isLandscapeMobile) {
+                        x = startX_landscape;
+                        y = startY_landscape + i * S;
+                      } else {
+                        x = startX_row + i * S;
+                        y = startY_row;
+                      }
+
+                      // Rita miniatyren eller fallback-vitt
+                      try {
+                        if (projectBitmaps[i]) {
+                          ctx.drawImage(projectBitmaps[i], x, y, S, S);
+                        } else {
+                          ctx.fillStyle = 'white';
+                          ctx.fillRect(x, y, S, S);
+                        }
+                      } catch (e) {
+                        ctx.fillStyle = 'white';
+                        ctx.fillRect(x, y, S, S);
+                      }
                     }
-                    else{
-                        try{if (projectBitmaps[0]) {ctx.drawImage(projectBitmaps[0], 10, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(10,60,30,30);}
-                        try{if (projectBitmaps[1]) {ctx.drawImage(projectBitmaps[1], 40, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(40,60,30,30);}
-                        try{if (projectBitmaps[2]) {ctx.drawImage(projectBitmaps[2], 70, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(70,60,30,30);}
-                        try{if (projectBitmaps[3]) {ctx.drawImage(projectBitmaps[3], 100, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(100,60,30,30);}
-                        try{if (projectBitmaps[4]) {ctx.drawImage(projectBitmaps[4], 130, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(130,60,30,30);}
-                        try{if (projectBitmaps[5]) {ctx.drawImage(projectBitmaps[5], 160, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(160,60,30,30);}
 
-                        try{if (projectBitmaps[6]) {ctx.drawImage(projectBitmaps[6], 190, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(190,60,30,30);}
-                        try{if (projectBitmaps[7]) {ctx.drawImage(projectBitmaps[7], 220, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(220,60,30,30);}
-                        try{if (projectBitmaps[8]) {ctx.drawImage(projectBitmaps[8], 250, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(250,60,30,30);}
-                        try{if (projectBitmaps[9]) {ctx.drawImage(projectBitmaps[9], 280, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(280,60,30,30);}
-                        try{if (projectBitmaps[10]) {ctx.drawImage(projectBitmaps[10], 310, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(310,60,30,30);}
-                        try{if (projectBitmaps[11]) {ctx.drawImage(projectBitmaps[11], 340, 60,30,30);}}catch(e){ctx.fillStyle = 'white';ctx.fillRect(340,60,30,30);}
-                        ctx.fillStyle = 'black';
-                        if(0===currentproject){ctx.strokeRect(10, 60,30,30);}
-                        if(1===currentproject){ctx.strokeRect(40, 60,30,30);}
-                        if(2===currentproject){ctx.strokeRect(70, 60,30,30);}
-                        if(3===currentproject){ctx.strokeRect(100, 60,30,30);}
-                        if(4===currentproject){ctx.strokeRect(130, 60,30,30);}
-                        if(5===currentproject){ctx.strokeRect(160, 60,30,30);}
-
-                        if(6===currentproject){ctx.strokeRect(190, 60,30,30);}
-                        if(7===currentproject){ctx.strokeRect(220, 60,30,30);}
-                        if(8===currentproject){ctx.strokeRect(250, 60,30,30);}
-                        if(9===currentproject){ctx.strokeRect(280, 60,30,30);}
-                        if(10===currentproject){ctx.strokeRect(310, 60,30,30);}
-                        if(11===currentproject){ctx.strokeRect(340, 60,30,30);}
+                    // Markera aktivt projekt
+                    ctx.strokeStyle = 'black';
+                    if (currentproject >= 0 && currentproject < 12) {
+                      let sx, sy;
+                      if (isLandscapeMobile) {
+                        sx = startX_landscape;
+                        sy = startY_landscape + currentproject * S;
+                      } else {
+                        sx = startX_row + currentproject * S;
+                        sy = startY_row;
+                      }
+                      ctx.strokeRect(sx, sy, S, S);
                     }
+
                 }
                 window.requestAnimationFrame(check);   
             }; 
