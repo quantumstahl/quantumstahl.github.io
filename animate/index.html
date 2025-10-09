@@ -5451,8 +5451,8 @@ async function openProject(){
       const c = document.createElement('canvas');
       c.width = img.width; c.height = img.height;
       
-      projectdrawareax[i]=c.width/projectzoom[i];
-      projectdrawareay[i]=c.height/projectzoom[i];
+      projectdrawareax[i]=c.width*projectzoom[i];
+      projectdrawareay[i]=c.height*projectzoom[i];
       
       c.getContext('2d').drawImage(img,0,0);
       projectBitmaps[i] = c;
