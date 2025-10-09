@@ -4586,7 +4586,7 @@ canvas.addEventListener('pointerdown', (ev) => {
         if (x >= drawstartx-30 && x < drawstartx && y >= drawstarty+drawareay && y < drawstarty-10+drawareay+30) { movecorners = true; resizeStart('SW'); return; }
         if (x >= drawstartx+drawareax-10 && x < drawstartx+drawareax+30 && y >= drawstarty+drawareay-10 && y < drawstarty+drawareay+30) { movecorners = true; resizeStart('SE'); return; }
     }
-    if(!hide){
+    if(!hide&&!delatare){
         
         if(window.innerWidth>window.innerHeight&& mobileAndTabletCheck()){
             if(ev.clientY>=10&& ev.clientY<40 && ev.clientX>=170 && ev.clientX<200){loadProject(0);loadProject(0);}
