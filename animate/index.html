@@ -6175,7 +6175,7 @@ async function saveGIFBlob(gifBlob, suggestedName='maxanimate.gif'){
 async function shareGIFWeb(gifBlob, suggestedName='maxanimate.gif'){
   if (navigator.canShare && navigator.canShare({ files: [new File([gifBlob], suggestedName, {type:'image/gif'})] })) {
     const file = new File([gifBlob], suggestedName, { type: 'image/gif' });
-    await navigator.share({ files: [file], title: 'MaxAnimate GIF', text: '' });
+    await navigator.share({ files: [file], title: '', text: '' });
     return true;
   }
   return false; // fall back
@@ -6189,7 +6189,7 @@ async function shareGIFNative(gifBlob, suggestedName='maxanimate.gif'){
   await Filesystem.writeFile({ path: suggestedName, data: b64, directory: Directory.Documents });
   const { uri } = await Filesystem.getUri({ path: suggestedName, directory: Directory.Documents });
   await Share.share({
-    title: 'MaxAnimate GIF',
+    title: '',
     text: '',
     url: uri,                 // native fil-URI
     dialogTitle: 'Share GIF'
