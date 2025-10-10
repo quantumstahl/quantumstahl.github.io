@@ -7,143 +7,72 @@
 	    <title>Golv</title>
     
             
-                        <style>
-/* CSS */
-button {
-  background-image: linear-gradient(#42A1EC, #0070C9);
-  border: 1px solid #0077CC;
-  border-radius: 4px;
-  box-sizing: border-box;
-  color: #FFFFFF;
-  cursor: pointer;
-  direction: ltr;
-  display: block;
-  font-family: "SF Pro Text","SF Pro Icons","AOS Icons","Helvetica Neue","Helvetica","Arial","sans-serif";
-  font-size: 17px;
-  font-weight: 400;
-  letter-spacing: -.022em;
-  line-height: 1.47059;
-  min-width: 30px;
-  overflow: visible;
-  padding: 4px 15px;
-  text-align: center;
-  vertical-align: baseline;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-  white-space: nowrap;
-}
+<style>
 
-button:disabled {
-  cursor: default;
-  opacity: .3;
-}
-
-button:hover {
-  background-image: linear-gradient(#51A9EE, #147BCD);
-  border-color: #1482D0;
-  text-decoration: none;
-}
-
-button:active {
-  background-image: linear-gradient(#3D94D9, #0067B9);
-  border-color: #006DBC;
-  outline: none;
-}
-
-button:focus {
-  box-shadow: rgba(131, 192, 253, 0.5) 0 0 0 3px;
-  outline: none;
-}
-
-
-.form__group {
-  position: relative;
-  padding: 15px 0 0;
-  margin-top: 10px;
-  width: 50%;
-}
-
-input {
-  font-family: inherit;
-  width: 200px;
-  border: 0;
-  border-bottom: 2px solid #1482D0;
-  outline: 0;
-  font-size: 1.3rem;
-  color: #000000;
-  padding: 7px 0;
-  background: transparent;
-  transition: border-color 0.2s;
-
-  &::placeholder {
-    color: transparent;
-  }
-
-  &:placeholder-shown ~ label {
-    font-size: 1.3rem;
-    cursor: text;
-    top: 20px;
-  }
-}
-
-label {
-  position: absolute;
-  top: 0;
-  display: block;
-  transition: 0.2s;
-  font-size: 1rem;
-  color: #9b9b9b;
-}
-
-input:focus {
-  ~ label {
-    position: absolute;
-    top: 0;
-    display: block;
-    transition: 0.2s;
-    font-size: 1rem;
-    color: #11998e;
-    font-weight:700;    
-  }
-  padding-bottom: 6px;  
-  font-weight: 700;
-  border-width: 3px;
-  border-image: linear-gradient(to right, #11998e,#38ef7d);
-  border-image-slice: 1;
-}
-/* reset input */
-input{
-  &:required,&:invalid { box-shadow:none; }
-}
-
-
-html {background-color: lightgray}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+html, body { background:#121417; }
 
 </style>
             
+<style>
+  :root{
+    --ui-bg: rgba(28,28,30,.96);
+    --ui-fg: #fff;
+    --ui-accent:#3b82f6;
+    --ui-muted: rgba(255,255,255,.7);
+    --ui-border: rgba(255,255,255,.12);
+    --safe-bottom: env(safe-area-inset-bottom,12px);
+  }
+  #floor-ui{ position:fixed; left:50%; bottom:var(--safe-bottom); transform:translateX(-50%);
+    width:min(880px,96vw); background:var(--ui-bg); color:var(--ui-fg);
+    border:1px solid var(--ui-border); border-radius:16px; padding:12px; z-index:1000;
+    box-shadow:0 18px 45px rgba(0,0,0,.35); }
+  #floor-ui *{ box-sizing:border-box; }
+  #floor-ui .title{ font-weight:600; letter-spacing:.2px; }
+  #floor-ui .bar{ display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+  
+  #floor-ui .actions{ display:flex; gap:10px; align-items:center; }
+  #floor-ui .grid{ display:grid; gap:10px; margin-top:8px; }
+  #floor-ui .cols-2{ grid-template-columns:1fr 1fr; }
+  #floor-ui .cols-3{ grid-template-columns:1fr 1fr 1fr; }
+  #floor-ui label{ font-size:12px; color:var(--ui-muted); display:block; margin:2px 2px 6px; }
+  #floor-ui input[type="number"]{
+    width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--ui-border);
+    background:rgba(255,255,255,.08); color:var(--ui-fg); font-size:14px; outline:none;
+  }
+  #floor-ui .seg{ display:grid; grid-auto-flow:column; gap:6px; background:rgba(255,255,255,.06);
+    padding:6px; border-radius:10px; }
+  #floor-ui .seg button{ border:1px solid var(--ui-border); border-radius:8px;
+    background:rgba(255,255,255,.06); color:var(--ui-fg); padding:8px 10px; font-size:13px; }
+  #floor-ui .seg button.active{ background:var(--ui-accent); border-color:var(--ui-accent); }
+  #ui-tiles{ display:none; } /* visas bara när programmnummer=1 */
+  /* Dölj gamla DOM-kontroller helt */
+  .legacy-hide{ display:none !important; visibility:hidden !important; pointer-events:none !important; }
+</style>
+            
+<style>
+  /* Tillåt skroll */
+  html, body { overflow: auto; height: auto; }
 
-            
-            
+  /* Reservyta underst = panelens höjd */
+  :root { --floor-ui-h: 140px; }            /* default tills JS mäter */
+  body { padding-bottom: var(--floor-ui-h); }
+
+  /* Collapse-läge för panelen */
+  #floor-ui.collapsed{
+    transform: translateY(calc(100% - 38px));  /* lämna kvar en flik */
+    transition: transform .22s ease;
+  }
+  #floor-ui:not(.collapsed){ transition: transform .22s ease; }
+
+  /* Liten flik/knapp i panelens topp-rad */
+  #floor-ui .toggle {
+    border:1px solid var(--ui-border);
+    border-radius:8px;
+    background:rgba(255,255,255,.08);
+    color:#fff; padding:6px 10px; font-size:12px;
+    cursor:pointer;
+  }
+</style>            
             
             
             
@@ -1422,7 +1351,7 @@ html {background-color: lightgray}
                         ctx.fillStyle = "blue";
                         ctx.fillRect((canvas.width/2),+(input2.value-input.value)/20+450,1,capy/10);
                         ctx.restore();
-                        ctx.fillStyle = "lightgray";
+                        ctx.fillStyle = "#121417";
                         ctx.fillRect(0,0, 5000, 450);
                         ctx.fillRect(0,450+(input2.value/10), 5000, 5000);
                         ctx.fillRect(0,450+(input2.value/10), 5000, 5000);
@@ -1447,7 +1376,7 @@ html {background-color: lightgray}
                         
                         ctx.fillStyle = "blue";
                         ctx.fillRect((canvas.width/2),450,1,capy/10);
-                        ctx.fillStyle = "lightgray";
+                        ctx.fillStyle = "#121417";
                         ctx.fillRect(0,0, 5000, 450);
                         ctx.fillRect(0,-5000, (canvas.width/2)-(capx/20), 10000);
                         ctx.fillRect((canvas.width/2)+(capx/20),0, 5000, 5000);
@@ -3169,23 +3098,243 @@ function calcbottomfloor(xroom, yroom, floox, floory, offsetToRight, numberofwid
 ////GAMMALT--------------------------------------------------------------------------------------------------------------------- 
 ////GAMMALT--------------------------------------------------------------------------------------------------------------------- 
          
-    async function NYTT(){
+    // === On-canvas report helpers ===
+function patternLabel(p, v){
+  switch(Number(p)){
+    case 0: return 'Planks (random lengths)';
+    case 1: {
+      const map = ['1/2','1/3','2/3','3/3'];
+      const tag = map[Number(v)|0] ?? '1/2';
+      return `Tiles ${tag}`;
+    }
+    case 2: return 'Whole boards';
+    case 3: return 'Herringbone';
+    default: return `Program ${p}`;
+  }
+}
+function safeStr(val, def=''){ return (val==null||val==='') ? def : String(val); }
+function safeNum(val, def=0){
+  const n = parseFloat(String(val||'').replace(',','.'));
+  return Number.isFinite(n) ? n : def;
+}
+function drawRoundedRect(ctx, x, y, w, h, r){
+  const rr = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+rr, y);
+  ctx.arcTo(x+w, y,   x+w, y+h, rr);
+  ctx.arcTo(x+w, y+h, x,   y+h, rr);
+  ctx.arcTo(x,   y+h, x,   y,   rr);
+  ctx.arcTo(x,   y,   x+w, y,   rr);
+  ctx.closePath();
+}
+function drawKVGrid(ctx, x, y, colW, lineH, items){
+  // items: [{k:'Room width', v:'5000 mm'}, ...]
+  ctx.save();
+  ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+  items.forEach((row, i)=>{
+    const yy = y + i*lineH;
+    ctx.fillStyle = 'rgba(17,24,39,.65)'; // muted
+    ctx.fillText(row.k, x, yy);
+    ctx.fillStyle = '#111827';
+    ctx.textAlign = 'right';
+    ctx.fillText(row.v, x + colW, yy);
+    ctx.textAlign = 'left';
+  });
+  ctx.restore();
+}
+function drawReportOnCanvas(ctx, planBitmap){
+  const W = canvas.width, H = canvas.height;
 
+  // 1) Mörk bakgrund (du har redan fyllt #121417 i NYTT, så hoppa om du vill)
+  // ctx.fillStyle = '#121417'; ctx.fillRect(0,0,W,H);
 
-        if (PLAN_BITMAP) PLAN_BITMAP.close();
-        const { sx, sy, sw, sh } = getPlanBounds();
-        PLAN_BITMAP = await createImageBitmap(canvas, sx, sy, sw, sh);
-        ctx.fillStyle="lightgray";
-        ctx.fillRect(0,0,canvas.width,canvas.height);
-        ctx.fillStyle="black";
-        drawPlanBitmapAt(ctx, 500, 500, 1, 0, true);
-        //kaprader
-        //kapraderdata
-        //harringbone
-        ctx.fillText(harringbone.end[harringbone.end.length-2],50,50);
-        
+  // 2) Vitt "papper" med skugga
+  const margin = Math.round(Math.min(W,H) * 0.04);       // ~4% marginal
+  const sheetW = Math.min(W - margin*2, 1100);
+  const sheetH = Math.min(H - margin*2, Math.max(720, H - margin*2));
+  const sx = Math.floor((W - sheetW)/2);
+  const sy = Math.floor((H - sheetH)/2);
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,.35)';
+  ctx.shadowBlur = 24;
+  ctx.shadowOffsetY = 8;
+  ctx.fillStyle = '#ffffff';
+  drawRoundedRect(ctx, sx, sy, sheetW, sheetH, 14);
+  ctx.fill();
+  ctx.restore();
 
-    }   
+  // 3) Inre paddings och typografi
+  const pad = 20;
+  const gx = sx + pad;
+  let gy = sy + pad;
+
+  ctx.save();
+  ctx.fillStyle = '#111827';
+  ctx.font = '600 20px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+  ctx.fillText('Floor plan', gx, gy + 18);
+  gy += 36;
+
+  ctx.fillStyle = 'rgba(17,24,39,.6)';
+  ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+  ctx.fillText('Automatically generated report', gx, gy);
+  gy += 12 + 8;
+  ctx.restore();
+
+  // 4) Hero-bild (ritningen)
+  const heroW = sheetW - pad*2;
+  const heroH = Math.round(sheetH * 0.42); // ~övre halvan
+  if(planBitmap){
+    const scale = Math.min(heroW / planBitmap.width, heroH / planBitmap.height);
+    const drawW = Math.floor(planBitmap.width * scale);
+    const drawH = Math.floor(planBitmap.height * scale);
+    const hx = gx;
+    const hy = gy;
+
+    // ram
+    ctx.save();
+    ctx.fillStyle = '#f9fafb';
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1;
+    drawRoundedRect(ctx, hx, hy, heroW, heroH, 8);
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+
+    // centerat i ramen
+    const ix = hx + Math.floor((heroW - drawW)/2);
+    const iy = hy + Math.floor((heroH - drawH)/2);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(planBitmap, ix, iy, drawW, drawH);
+    ctx.restore();
+  }
+  gy += heroH + 14;
+
+  // 5) Samla data
+  const roomW  = safeStr(window.input?.value ?? 5000);
+  const roomH  = safeStr(window.input2?.value ?? 4000);
+  const boardL = safeStr(window.input3?.value ?? 1000);
+  const boardW = safeStr(window.input4?.value ?? 200);
+  const gapMMm = safeStr(window.input5?.value ?? '1,5'); // visa som användaren skriver
+  const rot    = !!window.rotateroom;
+  const p      = Number(window.programmnummer|0);
+  const v      = Number(window.programmnummer2|0);
+
+  const stats = {};
+  try{
+    if(Array.isArray(window.kaprader))      stats.kaprader = window.kaprader.length;
+    if(Array.isArray(window.kapraderdata))  stats.kapraderdata = window.kapraderdata.length;
+    const hb = window.harringbone || window.herringbone;
+    if(hb){
+      if(Array.isArray(hb.bits)) stats.hbBits = hb.bits.length;
+      if(typeof hb.end === 'number') stats.hbEnd = hb.end;
+      if(Array.isArray(hb.end))      stats.hbEnd = hb.end[hb.end.length-1];
+    }
+  }catch(_){}
+
+  // 6) Två kort i grid (Room/Boards + Pattern)
+  const colGap = 14;
+  const colW = Math.floor((sheetW - pad*2 - colGap) / 2);
+
+  // Kort 1
+  (function(){
+    const x = gx, y = gy, w = colW, h = 140;
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1;
+    drawRoundedRect(ctx, x, y, w, h, 10);
+    ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle = '#111827';
+    ctx.font = '600 13px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+    ctx.fillText('Room & boards', x+10, y+18);
+
+    drawKVGrid(ctx, x+10, y+38, w-20, 18, [
+      {k:'Room width',    v: `${roomW} mm`},
+      {k:'Room depth',    v: `${roomH} mm`},
+      {k:'Board length',  v: `${boardL} mm`},
+      {k:'Board width',   v: `${boardW} mm`},
+      {k:'Expansion gap', v: `${gapMMm} mm/m`},
+    ]);
+    ctx.restore();
+  })();
+
+  // Kort 2
+  (function(){
+    const x = gx + colW + colGap, y = gy, w = colW, h = 140;
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1;
+    drawRoundedRect(ctx, x, y, w, h, 10);
+    ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle = '#111827';
+    ctx.font = '600 13px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+    ctx.fillText('Pattern', x+10, y+18);
+
+    drawKVGrid(ctx, x+10, y+38, w-20, 18, [
+      {k:'Type',        v: patternLabel(p, v)},
+      {k:'Rotate room', v: rot ? 'Yes' : 'No'},
+      {k:'Generated',   v: new Date().toLocaleString()},
+    ]);
+    ctx.restore();
+  })();
+
+  gy += 140 + 12;
+
+  // 7) Computed totals (frivillig sektion om vi har siffror)
+  const haveTotals = Object.keys(stats).length > 0;
+  if(haveTotals){
+    const x = gx, y = gy, w = sheetW - pad*2, h = 90;
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1;
+    drawRoundedRect(ctx, x, y, w, h, 10);
+    ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle = '#111827';
+    ctx.font = '600 13px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+    ctx.fillText('Computed totals', x+10, y+18);
+
+    // Rada upp nyckel-värden i två kolumner om många
+    const rows = [];
+    if(stats.kaprader!=null)      rows.push({k:'kaprader (rows)',      v:String(stats.kaprader)});
+    if(stats.kapraderdata!=null)  rows.push({k:'kapraderdata (items)', v:String(stats.kapraderdata)});
+    if(stats.hbBits!=null)        rows.push({k:'herringbone bits',     v:String(stats.hbBits)});
+    if(stats.hbEnd!=null)         rows.push({k:'herringbone end',      v:String(stats.hbEnd)});
+
+    const left = rows.slice(0, Math.ceil(rows.length/2));
+    const right= rows.slice(Math.ceil(rows.length/2));
+
+    drawKVGrid(ctx, x+10, y+38, Math.floor((w-30)/2), 18, left);
+    ctx.save(); ctx.textAlign='left'; // drawKVGrid återställer själv
+    drawKVGrid(ctx, x+Math.floor(w/2), y+38, Math.floor((w-30)/2), 18, right);
+    ctx.restore();
+
+    ctx.restore();
+  }
+}
+
+// === Din NYTT() – lägg till anropet i slutet ===
+async function NYTT(){
+  if (PLAN_BITMAP) PLAN_BITMAP.close();
+
+  const { sx, sy, sw, sh } = getPlanBounds();
+  PLAN_BITMAP = await createImageBitmap(canvas, sx, sy, sw, sh);
+
+  // Bakgrund till rapport
+  ctx.fillStyle = "#121417";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Rita rapporten på canvas
+  drawReportOnCanvas(ctx, PLAN_BITMAP);
+
+  // (om du vill: rita debug-värden överst)
+  // ctx.fillStyle = "black";
+  // ctx.fillText(`hb end: ${ (harringbone?.end ?? []).slice(-1)[0] ?? '-' }`, 50, 50);
+} 
          
     function drawPlanBitmapAt(ctx2d, x, y, scale = 1, rotationRad = 0, center = true) {
       if (!PLAN_BITMAP) return;
@@ -3226,5 +3375,228 @@ function calcbottomfloor(xroom, yroom, floox, floory, offsetToRight, numberofwid
          
          
          </script>
+         
+<!-- === Mobile/Capacitor UI bridge (v2) === -->
+
+
+<div id="floor-ui" role="group" aria-label="Floor controls">
+  <div class="bar">
+    <div class="title">Floor planner</div>
+    <div class="actions">
+      <label class="switch" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ui-muted);">
+        <input id="ui-rotate" type="checkbox" style="width:20px;height:20px;accent-color:var(--ui-accent)">
+        Rotate room
+      </label>
+    </div>
+  </div>
+
+  <div class="grid cols-2">
+    <div>
+      <label>Room width (mm)</label>
+      <input id="ui-room-w" type="number" min="200" step="10" inputmode="numeric">
+    </div>
+    <div>
+      <label>Room depth (mm)</label>
+      <input id="ui-room-h" type="number" min="200" step="10" inputmode="numeric">
+    </div>
+  </div>
+
+  <div class="grid cols-3">
+    <div>
+      <label>Board length (mm)</label>
+      <input id="ui-board-l" type="number" min="260" step="10">
+    </div>
+    <div>
+      <label>Board width (mm)</label>
+      <input id="ui-board-w" type="number" min="50" step="1">
+    </div>
+    <div>
+      <label>Expansion gap mm/m</label>
+      <input id="ui-gap" type="number" min="0" step="0.1">
+    </div>
+  </div>
+
+  <div class="grid">
+    <label>Pattern</label>
+    <div class="seg" id="ui-program">
+      <button data-p="0">Planks</button>
+      <button data-p="1">Tiles</button>
+      <button data-p="2">Whole boards</button>
+      <button data-p="3">Herringbone</button>
+    </div>
+  </div>
+
+  <div class="grid" id="ui-tiles">
+    <label>Tiles variant</label>
+    <div class="seg" id="ui-tiles-variants">
+      <button data-v="0">1/2</button>
+      <button data-v="1">1/3</button>
+      <button data-v="2">2/3</button>
+      <button data-v="3">3/3</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+  const ui = {
+    w:  $('#ui-room-w'),
+    h:  $('#ui-room-h'),
+    bl: $('#ui-board-l'),
+    bw: $('#ui-board-w'),
+    gap:$('#ui-gap'),
+    rot:$('#ui-rotate'),
+    progWrap: $('#ui-program'),
+    tilesWrap: $('#ui-tiles'),
+    tilesSeg:  $('#ui-tiles-variants'),
+  };
+
+  // --- Dölj legacy-kontroller helt (de skapas i din fil) ---
+  [
+    window.input, window.input2, window.input3, window.input4, window.input5,
+    window.button, window.button3, window.button4, window.button5, window.button6,
+    window.button7, window.button8, window.button9
+  ].forEach(el => { if(el){ el.classList?.add('legacy-hide'); el.tabIndex=-1; } });
+
+  // --- Hjälpare ---
+  const V = (val, lo=-Infinity, hi=Infinity) => {
+    // Tar både "1.5" och "1,5"
+    const n = parseFloat(String(val ?? '').replace(',', '.'));
+    const x = isFinite(n) ? n : 0;
+    return Math.min(Math.max(x, lo), hi);
+  };
+  let t=null;
+  const scheduleRender = () => { clearTimeout(t); t=setTimeout(()=>{ try{ syncToLegacy(); window.check && window.check(); }catch(_){} }, 60); };
+  const setActive = (wrap, test) => wrap.querySelectorAll('button').forEach(b => b.classList.toggle('active', test(b)));
+
+  // --- Sync från legacy -> UI ---
+  function syncFromLegacy(){
+    if (window.input)  ui.w.value  = V(window.input.value, 0, 1e6);
+    if (window.input2) ui.h.value  = V(window.input2.value, 0, 1e6);
+    if (window.input3) ui.bl.value = V(window.input3.value, 0, 1e6);
+    if (window.input4) ui.bw.value = V(window.input4.value,  0, 1e6);
+    if (window.input5) ui.gap.value= V(window.input5.value,  0, 1e6); // visa med komma om du vill
+
+    ui.rot.checked = !!window.rotateroom;
+
+    const p = Number(programmnummer|0);
+    const v = Number(programmnummer2|0);
+    setActive(ui.progWrap, b => Number(b.dataset.p)===p);
+    ui.tilesWrap.style.display = (p===1) ? 'block' : 'none';
+    setActive(ui.tilesSeg, b => Number(b.dataset.v)===v);
+  }
+
+  // --- Sync från UI -> legacy ---
+  function syncToLegacy(){
+    if (window.input)  window.input.value  = V(ui.w.value,  0, 1e6);
+    if (window.input2) window.input2.value = V(ui.h.value,  0, 1e6);
+    if (window.input3) window.input3.value = V(ui.bl.value, 0, 1e6);
+    if (window.input4) window.input4.value = V(ui.bw.value,  0, 1e6);
+    if (window.input5) window.input5.value = V(ui.gap.value, 0,   100);
+    rotateroom = !!ui.rot.checked;
+  }
+
+  // Inmatning
+  [ui.w, ui.h, ui.bl, ui.bw, ui.gap].forEach(inp=>{
+    inp.addEventListener('input', scheduleRender, {passive:true});
+    inp.addEventListener('change', scheduleRender, {passive:true});
+  });
+  ui.rot.addEventListener('change', scheduleRender, {passive:true});
+
+  // Programval
+  ui.progWrap.addEventListener('click', (ev)=>{
+    const btn = ev.target.closest('button[data-p]');
+    if(!btn) return;
+    const p = Number(btn.dataset.p);
+    programmnummer = p;                            // 0,1,2,3  (se legacy) :contentReference[oaicite:2]{index=2}
+    if(p!==1) programmnummer2 = 0;                 // reset tiles-variant när man lämnar Tiles
+    syncFromLegacy();
+    scheduleRender();
+  });
+
+  // Tiles-varianter -> programmnummer2 (0..3)
+  ui.tilesSeg.addEventListener('click', (ev)=>{
+    const btn = ev.target.closest('button[data-v]');
+    if(!btn) return;
+    programmnummer = 1;                            // säkerställ Tiles-läge
+    programmnummer2 = Number(btn.dataset.v);       // 0..3 (1/2,1/3,2/3,3/3) :contentReference[oaicite:3]{index=3}
+    syncFromLegacy();
+    scheduleRender();
+  });
+
+  // Om något utanför UI råkar ändra legacy-värden (skulle vara ovanligt
+  // nu när vi gömmer dem), håll UI i synk.
+  const moTargets = [window.input, window.input2, window.input3, window.input4, window.input5].filter(Boolean);
+  if(moTargets.length){
+    const mo = new MutationObserver(()=> syncFromLegacy());
+    moTargets.forEach(el=> mo.observe(el, {attributes:true, attributeFilter:['value']}));
+  }
+
+  // Init
+  syncFromLegacy();
+  scheduleRender();
+  window.addEventListener('resize', scheduleRender, {passive:true});
+})();
+</script>
+<script>
+(function(){
+  const ui = document.getElementById('floor-ui');
+
+  // 1) Lägg till collapse/expand-knapp i actions-raden
+  const actions = ui?.querySelector('.actions');
+  if (actions && !document.getElementById('ui-collapse')){
+    const t = document.createElement('button');
+    t.id = 'ui-collapse';
+    t.type = 'button';
+    t.className = 'toggle';
+    t.textContent = 'Hide panel';
+    t.addEventListener('click', ()=>{
+      ui.classList.toggle('collapsed');
+      t.textContent = ui.classList.contains('collapsed') ? 'Show panel' : 'Hide panel';
+      measureAndPad();             // uppdatera bottenspace efter state
+    });
+    actions.prepend(t);
+  }
+
+  // 2) Mät panelhöjden och sätt body padding-bottom så inget döljs bakom
+  function measureAndPad(){
+    if(!ui) return;
+    // höjd som antingen är full panel eller bara fliken om collapsed
+    const h = ui.classList.contains('collapsed') ? 42 : Math.ceil(ui.getBoundingClientRect().height);
+    document.documentElement.style.setProperty('--floor-ui-h', h + 'px');
+  }
+
+  // Mät vid start, resize och om panelens storlek ändras (t.ex. tiles-variant visas)
+  measureAndPad();
+  window.addEventListener('resize', measureAndPad, {passive:true});
+  if (window.ResizeObserver){
+    const ro = new ResizeObserver(measureAndPad);
+    ro.observe(ui);
+  }
+
+  // 3) Bonus: auto-minimera på scroll (valfritt, kommentera bort om du inte vill)
+  let scT;
+  window.addEventListener('scroll', ()=>{
+    clearTimeout(scT);
+    if(!ui.classList.contains('collapsed')){
+      ui.classList.add('collapsed');
+      const btn = document.getElementById('ui-collapse');
+      if(btn) btn.textContent = 'Show panel';
+      measureAndPad();
+    }
+    // öppna igen efter 1.5s inaktivitet
+    scT = setTimeout(()=>{
+      // lämna panelen stängd om användaren hellre vill ha den dold
+      // (ta bort följande fyra rader om du inte vill auto-öppna)
+      // ui.classList.remove('collapsed');
+      // const btn = document.getElementById('ui-collapse');
+      // if(btn) btn.textContent = 'Hide panel';
+      // measureAndPad();
+    }, 1500);
+  }, {passive:true});
+})();
+</script>         
+         
     </body>
 </html>
