@@ -157,7 +157,36 @@ html {background-color: lightgray}
         
         
         <script>
-        
+            
+
+            
+            
+            let PLAN_BITMAP = null; 
+            const kaprader = {Första1: 0,Sista1: 0,antal1:0,Första2: 0,Sista2: 0,antal2:0,Första3: 0,Sista3: 0,antal3:0,Första4: 0,Sista4: 0,antal4:0,Första5: 0,Sista5: 0,antal5:0};
+            const kapraderdata={FörstaSistaKap:0,HelaBrädor:0,Brädor:0,M2BrädorKöpa:0,Totalyta:0,Golvyta:0,utnyttjande:0};
+            
+            
+            const harringbone = {
+                starttrianglar: 0,
+                högertriangeln: 0,
+                vänstertriangeln: 0,
+                helabrädor:0,
+                brädor:0,
+                M2brädor:0,
+                end: [],
+                bits: {
+                  höger1:  { long:0, short:0, color:"", count:0 },
+                  höger2:  { long:0, short:0, color:"", count:0 },
+                  vänster1:{ long:0, short:0, color:"", count:0 },
+                  vänster2:{ long:0, short:0, color:"", count:0 }
+                }
+              };
+            
+                    
+            
+            
+////GAMMALT---------------------------------------------------------------------------------------------------------------------   
+////GAMMALT--------------------------------------------------------------------------------------------------------------------- 
             const canvas = document.getElementById("myCanvas");
             const ctx = canvas.getContext("2d");
             document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
@@ -257,7 +286,41 @@ html {background-color: lightgray}
                 
                 try{
                 
-        
+                kaprader.Första1=0;
+                kaprader.Första2=0;
+                kaprader.Första3=0;
+                kaprader.Första4=0;
+                kaprader.Första5=0;
+                kaprader.Sista1=0;
+                kaprader.Sista2=0;
+                kaprader.Sista3=0;
+                kaprader.Sista4=0;
+                kaprader.Sista5=0;
+                kaprader.antal1=0;
+                kaprader.antal2=0;
+                kaprader.antal3=0;
+                kaprader.antal4=0;
+                kaprader.antal5=0;
+                
+                kapraderdata.FörstaSistaKap=0;
+                kapraderdata.HelaBrädor=0;
+                kapraderdata.Brädor=0;
+                kapraderdata.M2BrädorKöpa=0;
+                kapraderdata.Golvyta=0;
+                kapraderdata.Totalyta=0;
+                kapraderdata.utnyttjande=0;
+                
+                harringbone.starttrianglar=0;
+                harringbone.högertriangeln=0;
+                harringbone.vänstertriangeln=0;
+                harringbone.bits.höger1.count=0;
+                harringbone.bits.höger2.count=0;
+                harringbone.bits.vänster1.count=0;
+                harringbone.bits.vänster2.count=0;
+
+                harringbone.end=[];
+                
+                
                 
                 canvas.width=document.body.clientWidth-8;
                 canvas.height=document.body.clientHeight-8;
@@ -309,9 +372,7 @@ html {background-color: lightgray}
                         capx=input2.value-((input5.value*input2.value)/1000);
                         
                     }
-                    
-                    
-                    
+
                 
                     
                     
@@ -484,16 +545,16 @@ html {background-color: lightgray}
                             element=array[i];
                             element2=array[i-1];
                             if(rowcontertext==0||element.row>element2.row){
-                                if(rowcontertext==0)
-                                    ctx.fillText("Rad1:Första brädans längd:"+element.lenght +" X:"+antalförsta1, canvas.width/2+80, 40);
-                                if(rowcontertext==1)
-                                    ctx.fillText("Rad2:Första brädans längd:"+element.lenght+" X:"+antalförsta2, canvas.width/2+80, 110);
-                                if(rowcontertext==2)    
-                                   ctx.fillText("Rad3:Första brädans längd:"+element.lenght+" X:"+antalförsta3, canvas.width/2+80, 180);
-                                if(rowcontertext==3) 
-                                    ctx.fillText("Rad4:Första brädans längd:"+element.lenght+" X:"+antalförsta4, canvas.width/2+80, 250);
-                                if(rowcontertext==4)
-                                    ctx.fillText("Rad5:Första brädans längd:"+element.lenght+" X:"+antalförsta5, canvas.width/2+80, 320);
+                                if(rowcontertext==0){kaprader.Första1=element.lenght;kaprader.antal1=antalförsta1;}
+                                    ///ctx.fillText("Rad1:Första brädans längd:"+element.lenght +" X:"+antalförsta1, canvas.width/2+80, 40);
+                                if(rowcontertext==1){kaprader.Första2=element.lenght;kaprader.antal2=antalförsta2;}
+                                   // ctx.fillText("Rad2:Första brädans längd:"+element.lenght+" X:"+antalförsta2, canvas.width/2+80, 110);
+                                if(rowcontertext==2){kaprader.Första3=element.lenght;kaprader.antal3=antalförsta3;}    
+                                  // ctx.fillText("Rad3:Första brädans längd:"+element.lenght+" X:"+antalförsta3, canvas.width/2+80, 180);
+                                if(rowcontertext==3){kaprader.Första4=element.lenght;kaprader.antal4=antalförsta4;} 
+                                  //  ctx.fillText("Rad4:Första brädans längd:"+element.lenght+" X:"+antalförsta4, canvas.width/2+80, 250);
+                                if(rowcontertext==4){kaprader.Första5=element.lenght;kaprader.antal5=antalförsta5;}
+                                   // ctx.fillText("Rad5:Första brädans längd:"+element.lenght+" X:"+antalförsta5, canvas.width/2+80, 320);
                                 rowcontertext++;
                             }
                         }
@@ -508,16 +569,16 @@ html {background-color: lightgray}
                                 element=array[i];
                                 element2=array[i+1];
                                 if(i==array.length-1||element.row<element2.row){
-                                    if(rowcontertext==0)
-                                        ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta1, canvas.width/2+140, 70);
-                                    if(rowcontertext==1)
-                                        ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta2, canvas.width/2+140, 140);
-                                    if(rowcontertext==2)    
-                                       ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta3, canvas.width/2+140, 210);
-                                    if(rowcontertext==3) 
-                                        ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta4, canvas.width/2+140, 280);
-                                    if(rowcontertext==4)
-                                        ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta5, canvas.width/2+140, 350);
+                                    if(rowcontertext==0)kaprader.Sista1=element.lenght;
+                                        //ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta1, canvas.width/2+140, 70);
+                                    if(rowcontertext==1)kaprader.Sista2=element.lenght;
+                                      //  ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta2, canvas.width/2+140, 140);
+                                    if(rowcontertext==2)kaprader.Sista3=element.lenght;    
+                                      // ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta3, canvas.width/2+140, 210);
+                                    if(rowcontertext==3)kaprader.Sista4=element.lenght; 
+                                      //  ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta4, canvas.width/2+140, 280);
+                                    if(rowcontertext==4)kaprader.Sista5=element.lenght;
+                                      //  ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta5, canvas.width/2+140, 350);
                                     rowcontertext++;
                                 }
                             }
@@ -534,17 +595,20 @@ html {background-color: lightgray}
                             
                         }
                         ctx.fillStyle = "black";
-                        ctx.fillText("Första/sista radens kap:"+breddkapad, canvas.width/2+200, 400);
-                        ctx.fillText("Hela brädor:"+antalförsta1, canvas.width/2+200, 430);
-                        
+                       // ctx.fillText("Första/sista radens kap:"+breddkapad, canvas.width/2+200, 400);
+                       kapraderdata.FörstaSistaKap=breddkapad;
+                       
+                       
+                       // ctx.fillText("Hela brädor:"+antalförsta1, canvas.width/2+200, 430);
+                        kapraderdata.HelaBrädor=antalförsta1;
                         
                         
                         
                         ctx.font = "25px serif";
                         ctx.fillStyle = "black";
-                        ctx.fillText("Brädor:" + (antalbrädorrr) +" M2:"+Math.round(((((antalbrädorrr))*input3.value*input4.value/1000000)+ Number.EPSILON) * 100)/100, canvas.width/2-200, 390);
-                        
-                        
+                        //ctx.fillText("Brädor:" + (antalbrädorrr) +" M2:"+Math.round(((((antalbrädorrr))*input3.value*input4.value/1000000)+ Number.EPSILON) * 100)/100, canvas.width/2-200, 390);
+                        kapraderdata.Brädor=antalbrädorrr;
+                        kapraderdata.M2BrädorKöpa=Math.round(((((antalbrädorrr))*input3.value*input4.value/1000000)+ Number.EPSILON) * 100)/100;
                         
                         
                 }
@@ -711,10 +775,10 @@ html {background-color: lightgray}
                             element=array[i];
                             element2=array[i-1];
                             if(rowcontertext==0||element.row>element2.row){
-                                if(rowcontertext==0)
-                                    ctx.fillText("Rad1:Första brädans längd:"+element.lenght+" X:"+antalförsta12, canvas.width/2+80, 40);
-                                if(rowcontertext==1&&programmnummer2 !=3)
-                                    ctx.fillText("Rad2:Första brädans längd:"+element.lenght+" X:"+antalförsta22, canvas.width/2+80, 110);       
+                                if(rowcontertext==0){kaprader.Första1=element.lenght;kaprader.antal1=antalförsta12;}
+                                   // ctx.fillText("Rad1:Första brädans längd:"+element.lenght+" X:"+antalförsta12, canvas.width/2+80, 40);
+                                if(rowcontertext==1&&programmnummer2 !=3){kaprader.Första2=element.lenght;kaprader.antal2=antalförsta22;}
+                                   // ctx.fillText("Rad2:Första brädans längd:"+element.lenght+" X:"+antalförsta22, canvas.width/2+80, 110);       
                                 rowcontertext++;
                             }
                         }
@@ -729,10 +793,10 @@ html {background-color: lightgray}
                                 element=array[i];
                                 element2=array[i+1];
                                 if(i==array.length-1||element.row<element2.row){
-                                    if(rowcontertext==0)
-                                        ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta12, canvas.width/2+140, 70);
-                                    if(rowcontertext==1&&programmnummer2 !=3)
-                                        ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta22, canvas.width/2+140, 140);
+                                    if(rowcontertext==0)kaprader.Sista1=element.lenght;
+                                       // ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta12, canvas.width/2+140, 70);
+                                    if(rowcontertext==1&&programmnummer2 !=3)kaprader.Sista2=element.lenght;
+                                       // ctx.fillText("Sista brädans längd:"+element.lenght+" X:"+antalförsta22, canvas.width/2+140, 140);
                                     rowcontertext++;
                                 }
                             }
@@ -749,9 +813,15 @@ html {background-color: lightgray}
                              }
                             
                         }         
-                        ctx.fillText("Första/sista radens kap:"+breddkapad, canvas.width/2+140, 190);
-                        ctx.fillText("Hela brädor:"+antalförsta12, canvas.width/2+140, 220);
                         
+                        kapraderdata.FörstaSistaKap=breddkapad;
+                        kapraderdata.HelaBrädor=antalförsta12;
+                        
+                        //ctx.fillText("Första/sista radens kap:"+breddkapad, canvas.width/2+140, 190);
+                        //ctx.fillText("Hela brädor:"+antalförsta12, canvas.width/2+140, 220);
+                      
+                      kapraderdata.Brädor=(antalbrädorrr);
+                      kapraderdata.M2BrädorKöpa=Math.round(((((antalbrädorrr))*input3.value*input4.value/1000000)+ Number.EPSILON) * 100)/100;
                         
                       ctx.font = "25px serif";
                       ctx.fillStyle = "black";
@@ -873,8 +943,8 @@ html {background-color: lightgray}
                        
                         ctx.font = "25px serif";
                         ctx.fillStyle = "black";
-                        ctx.fillText("Antal: "+array.length, canvas.width/2+250, 340);
-                        
+                        //ctx.fillText("Antal: "+array.length, canvas.width/2+250, 340);
+                        kapraderdata.HelaBrädor=array.length;
                         
                     let golvytans=0;
                     for(let i = 0; i < array.length; i++){
@@ -891,8 +961,8 @@ html {background-color: lightgray}
                     
                     
                     
-                    ctx.fillText("Utnyttjande grad:"+Math.round(((((golvytans*100)))+ Number.EPSILON) * 100)/100+"%", canvas.width/2+159, 280);
-         
+                    //ctx.fillText("Utnyttjande grad:"+Math.round(((((golvytans*100)))+ Number.EPSILON) * 100)/100+"%", canvas.width/2+159, 280);
+                    kapraderdata.utnyttjande=Math.round(((((golvytans*100)))+ Number.EPSILON) * 100)/100;
                 
                     
                     
@@ -1406,13 +1476,15 @@ html {background-color: lightgray}
                     ctx.drawImage(base_image, 0, 0,200,200);
                     
                     ctx.font = "20px serif";
-                    ctx.fillText("Start trianglar:"+((((Math.ceil(antalsansa)+Math.ceil(antalsansa2))))-1), canvas.width/2+80, 20);
+                   // ctx.fillText("Start trianglar:"+((((Math.ceil(antalsansa)+Math.ceil(antalsansa2))))-1), canvas.width/2+80, 20);
                     
-                    
+                    harringbone.starttrianglar=((((Math.ceil(antalsansa)+Math.ceil(antalsansa2))))-1);
                     
                     if(((((Math.ceil(antalsansa)+Math.ceil(antalsansa2))))-1)>1){
-                        ctx.fillText("Höger triangeln:"+Math.round((kapvänster + Number.EPSILON) * 1) / 1, canvas.width/2+80, 40);
-                        ctx.fillText("Vänster triangeln:"+Math.round((kaphöger + Number.EPSILON) * 1) / 1, canvas.width/2+80, 60);
+                       // ctx.fillText("Höger triangeln:"+Math.round((kapvänster + Number.EPSILON) * 1) / 1, canvas.width/2+80, 40);
+                       // ctx.fillText("Vänster triangeln:"+Math.round((kaphöger + Number.EPSILON) * 1) / 1, canvas.width/2+80, 60);
+                        harringbone.högertriangeln=Math.round((kapvänster + Number.EPSILON) * 1) / 1;
+                        harringbone.vänstertriangeln=Math.round((kaphöger + Number.EPSILON) * 1) / 1;
                     }
                     
                     let högervänsterbitar=0;
@@ -1431,27 +1503,66 @@ html {background-color: lightgray}
                     if(vänstersmåsmå<0)vänstersmåsmå =0;
                     
                     
+
+                    
+                    
+                    
                     if(högersmåbit2!=högersmåbit){
-                        ctx.fillText("Höger bit:  "+Math.round((högersmåbit + Number.EPSILON) * 1) / 1+ "/" + Math.round((högersmåsmå + Number.EPSILON) * 1) / 1+ " "+ishögerbitred  +" X:" + Math.floor(fisklängd2), canvas.width/2+80, 80);
-                        ctx.fillText("Höger bit2:  "+Math.round((högersmåbit2 + Number.EPSILON) * 1) / 1 + "/" + Math.round((högerlängdansa + Number.EPSILON) * 1) / 1+ " "+ishögerbitgray +" X:" + Math.floor(fisklängd3), canvas.width/2+80, 100);
+                        
+                        harringbone.bits.höger1.long=Math.round((högersmåbit + Number.EPSILON) * 1) / 1;
+                        harringbone.bits.höger1.short=Math.round((högersmåsmå + Number.EPSILON) * 1) / 1;
+                        harringbone.bits.höger1.color = ishögerbitred;
+                        harringbone.bits.höger1.count = Math.floor(fisklängd2);
+                        
+                        harringbone.bits.höger2.long=Math.round((högersmåbit2 + Number.EPSILON) * 1) / 1;
+                        harringbone.bits.höger2.short=Math.round((högerlängdansa + Number.EPSILON) * 1) / 1;
+                        harringbone.bits.höger2.color = ishögerbitgray;
+                        harringbone.bits.höger2.count = Math.floor(fisklängd3);
+                        
+                        //ctx.fillText("Höger bit:  "+Math.round((högersmåbit + Number.EPSILON) * 1) / 1+ "/" + Math.round((högersmåsmå + Number.EPSILON) * 1) / 1+ " "+ishögerbitred  +" X:" + Math.floor(fisklängd2), canvas.width/2+80, 80);
+                        //ctx.fillText("Höger bit2:  "+Math.round((högersmåbit2 + Number.EPSILON) * 1) / 1 + "/" + Math.round((högerlängdansa + Number.EPSILON) * 1) / 1+ " "+ishögerbitgray +" X:" + Math.floor(fisklängd3), canvas.width/2+80, 100);
                         högervänsterbitar=högervänsterbitar+Math.floor(fisklängd2)+Math.floor(fisklängd3);
                     }
-                    else{ ctx.fillText("Höger bit:  "+Math.round((högersmåbit + Number.EPSILON) * 1) / 1+ "/" + Math.round((högersmåbitlängd + Number.EPSILON) * 1) / 1 + " "+ishögerbitred  + " X:" + Math.floor(fisklängd2), canvas.width/2+80, 80);
+                    else{ 
+                        
+                        harringbone.bits.höger1.long=Math.round((högersmåbit + Number.EPSILON) * 1) / 1;
+                        harringbone.bits.höger1.short=Math.round((högersmåbitlängd + Number.EPSILON) * 1) / 1;
+                        harringbone.bits.höger1.color = ishögerbitred;
+                        harringbone.bits.höger1.count = Math.floor(fisklängd2);
+                        //ctx.fillText("Höger bit:  "+Math.round((högersmåbit + Number.EPSILON) * 1) / 1+ "/" + Math.round((högersmåbitlängd + Number.EPSILON) * 1) / 1 + " "+ishögerbitred  + " X:" + Math.floor(fisklängd2), canvas.width/2+80, 80);
                         högervänsterbitar=högervänsterbitar+Math.floor(fisklängd2);
                     }
                     if(Math.round((väntersmåbit2 + Number.EPSILON) * 1) / 1!=Math.round((väntersmåbit + Number.EPSILON) * 1) / 1){
-                        ctx.fillText("Vänster bit:"+Math.round((väntersmåbit + Number.EPSILON) * 1) / 1 + "/" + Math.round((vänstersmåsmå + Number.EPSILON) * 1) / 1 + " "+ishögerbitgray +" X:" + Math.floor(fisklängd4), canvas.width/2+80, 120);
-                        ctx.fillText("Vänster bit2:"+Math.round((väntersmåbit2 + Number.EPSILON) * 1) / 1+ "/" + Math.round((vänsterlängdansa + Number.EPSILON) * 1) / 1 + " "+ishögerbitred + " X:" + Math.floor(fisklängd5), canvas.width/2+80, 140);
+                        
+                        harringbone.bits.vänster1.long  = Math.round((väntersmåbit + Number.EPSILON) * 1) / 1;
+                        harringbone.bits.vänster1.short = Math.round((vänstersmåsmå + Number.EPSILON) * 1) / 1 ;
+                        harringbone.bits.vänster1.color = ishögerbitgray;
+                        harringbone.bits.vänster1.count = Math.floor(fisklängd4);
+                        
+                        harringbone.bits.vänster2.long  = Math.round((väntersmåbit2 + Number.EPSILON) * 1) / 1;
+                        harringbone.bits.vänster2.short = Math.round((vänsterlängdansa + Number.EPSILON) * 1) / 1;
+                        harringbone.bits.vänster2.color = ishögerbitred;
+                        harringbone.bits.vänster2.count = Math.floor(fisklängd5);
+                        
+                       // ctx.fillText("Vänster bit:"+Math.round((väntersmåbit + Number.EPSILON) * 1) / 1 + "/" + Math.round((vänstersmåsmå + Number.EPSILON) * 1) / 1 + " "+ishögerbitgray +" X:" + Math.floor(fisklängd4), canvas.width/2+80, 120);
+                       // ctx.fillText("Vänster bit2:"+Math.round((väntersmåbit2 + Number.EPSILON) * 1) / 1+ "/" + Math.round((vänsterlängdansa + Number.EPSILON) * 1) / 1 + " "+ishögerbitred + " X:" + Math.floor(fisklängd5), canvas.width/2+80, 140);
                         högervänsterbitar=högervänsterbitar+Math.floor(fisklängd4)+Math.floor(fisklängd5);
                     }
-                    else{ ctx.fillText("Vänster bit:"+Math.round((väntersmåbit + Number.EPSILON) * 1) / 1+ "/" + Math.round((vänstersmåbitlängd + Number.EPSILON) * 1) / 1 + " "+ishögerbitgray +" X:" + Math.floor(fisklängd4), canvas.width/2+80, 120);
+                    else{ 
+                        
+                        harringbone.bits.vänster1.long  = Math.round((väntersmåbit + Number.EPSILON) * 1) / 1;
+                        harringbone.bits.vänster1.short = Math.round((vänstersmåbitlängd + Number.EPSILON) * 1) / 1 ;
+                        harringbone.bits.vänster1.color = ishögerbitgray;
+                        harringbone.bits.vänster1.count = Math.floor(fisklängd4);
+        
+                       // ctx.fillText("Vänster bit:"+Math.round((väntersmåbit + Number.EPSILON) * 1) / 1+ "/" + Math.round((vänstersmåbitlängd + Number.EPSILON) * 1) / 1 + " "+ishögerbitgray +" X:" + Math.floor(fisklängd4), canvas.width/2+80, 120);
                         högervänsterbitar=högervänsterbitar+Math.floor(fisklängd4);
                     }
                     
                     let helabrädor=calcwholebits(capx/10,capy/10,fiskx,fisky,Offset,Math.floor(fisklängd6),Math.floor(antalsansa)+Math.floor(antalsansa2));
                     
-                    ctx.fillText("Antal hela brädor:" + helabrädor, canvas.width/2+80, 160);
-                    
+                   // ctx.fillText("Antal hela brädor:" + helabrädor, canvas.width/2+80, 160);
+                    harringbone.helabrädor=helabrädor;
                     
                     
                     let antalbottomboards=calcbottomfloor(capx/10,capy/10,fiskx,fisky,Offset,Math.floor(antalsansa)+Math.floor(antalsansa2)+1,Math.ceil(fisklängd));
@@ -1465,9 +1576,9 @@ html {background-color: lightgray}
                     
                     ctx.font = "25px serif";
                     ctx.fillStyle = "black";
-                    ctx.fillText("Brädor:" + (helabrädor+högervänsterbitar+antalstarttringelbrädor+antalbottomboards) +" M2:"+Math.round((((helabrädor+högervänsterbitar+antalstarttringelbrädor+antalbottomboards)*input3.value*input4.value/1000000)+ Number.EPSILON) * 100)/100, canvas.width/2-200, 390);
-                    
-                    
+                   // ctx.fillText("Brädor:" + (helabrädor+högervänsterbitar+antalstarttringelbrädor+antalbottomboards) +" M2:"+Math.round((((helabrädor+högervänsterbitar+antalstarttringelbrädor+antalbottomboards)*input3.value*input4.value/1000000)+ Number.EPSILON) * 100)/100, canvas.width/2-200, 390);
+                    harringbone.brädor=(helabrädor+högervänsterbitar+antalstarttringelbrädor+antalbottomboards);
+                    harringbone.M2brädor=Math.round((((helabrädor+högervänsterbitar+antalstarttringelbrädor+antalbottomboards)*input3.value*input4.value/1000000)+ Number.EPSILON) * 100)/100;
                     
                     
                     
@@ -1954,8 +2065,8 @@ html {background-color: lightgray}
                 
                 ctx.font = "25px serif";
                 ctx.fillStyle = "black";
-                ctx.fillText("Total yta:"+Math.round((((input.value*input2.value)/1000000)+ Number.EPSILON) * 100)/100+" M2", canvas.width/2-200, 415);
-                
+              //  ctx.fillText("Total yta:"+Math.round((((input.value*input2.value)/1000000)+ Number.EPSILON) * 100)/100+" M2", canvas.width/2-200, 415);
+                kapraderdata.Totalyta=Math.round((((input.value*input2.value)/1000000)+ Number.EPSILON) * 100)/100;
                 
                 let golvytans=capy*capx;
                 
@@ -1964,8 +2075,8 @@ html {background-color: lightgray}
                 
                 
                 
-                ctx.fillText("Golv yta:"+Math.round(((((golvytans)/1000000)) + Number.EPSILON) * 100) / 100+" M2", canvas.width/2-200, 440);
-                
+                //ctx.fillText("Golv yta:"+Math.round(((((golvytans)/1000000)) + Number.EPSILON) * 100) / 100+" M2", canvas.width/2-200, 440);
+                kapraderdata.Golvyta=Math.round(((((golvytans)/1000000)) + Number.EPSILON) * 100) / 100;
                 
          
                 
@@ -1973,7 +2084,7 @@ html {background-color: lightgray}
             }
             
         }catch(error){};
-                
+            NYTT();    
             setTimeout(check, 50);     
             };check();
             function setinputlocation(input,x,y){
@@ -1982,7 +2093,6 @@ html {background-color: lightgray}
                 input.style.position = 'absolute';
                 input.style.left = (x - 4) + 'px';
                 input.style.top = (y - 4) + 'px';
-                input.foam
                 
                 
                 input.size=7;
@@ -2446,6 +2556,38 @@ html {background-color: lightgray}
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     return {
         intersects: true,
         length: cutLengths.length === 1 ? cutLengths[0] : cutLengths
@@ -2671,13 +2813,15 @@ function calcbottomfloor(xroom, yroom, floox, floory, offsetToRight, numberofwid
             
             ctx.fillText(`${group.angle}: ${lengthText} - ${group.count} boards`, 
                         canvas.width/2+80, y);
+                        
+            harringbone.end.push(`${group.angle}: ${lengthText} - ${group.count} boards`);            
             y += 20;
             
             // Check if we're reaching the display limit
-            if (y > 850) {
-                ctx.fillText("...and more", canvas.width/2+80, y);
-                break;
-            }
+          //  if (y > 850) {
+          //      ctx.fillText("...and more", canvas.width/2+80, y);
+          //      break;
+          //  }
         }
 
         // Then display the red groups (if we haven't hit display limit)
@@ -2695,16 +2839,32 @@ function calcbottomfloor(xroom, yroom, floox, floory, offsetToRight, numberofwid
                 
                 ctx.fillText(`${group.angle}: ${lengthText} - ${group.count} boards`, 
                             canvas.width/2+80, y);
+                harringbone.end.push(`${group.angle}: ${lengthText} - ${group.count} boards`);             
                 y += 20;
                 
                 // Check if we're reaching the display limit
-                if (y > 850) {
-                    ctx.fillText("...and more", canvas.width/2+80, y);
-                    break;
-                }
+             //   if (y > 850) {
+             //       ctx.fillText("...and more", canvas.width/2+80, y);
+              //      break;
+             //   }
             }
         }
     }
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     
     return boardLengths.length;
@@ -3006,8 +3166,65 @@ function calcbottomfloor(xroom, yroom, floox, floory, offsetToRight, numberofwid
                 firstnummber++;
                 return woody;
             }
+////GAMMALT--------------------------------------------------------------------------------------------------------------------- 
+////GAMMALT--------------------------------------------------------------------------------------------------------------------- 
+         
+    async function NYTT(){
+
+
+        if (PLAN_BITMAP) PLAN_BITMAP.close();
+        const { sx, sy, sw, sh } = getPlanBounds();
+        PLAN_BITMAP = await createImageBitmap(canvas, sx, sy, sw, sh);
+        ctx.fillStyle="lightgray";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle="black";
+        drawPlanBitmapAt(ctx, 500, 500, 1, 0, true);
+        //kaprader
+        //kapraderdata
+        //harringbone
+        ctx.fillText(harringbone.end[harringbone.end.length-2],50,50);
         
-        
+
+    }   
+         
+    function drawPlanBitmapAt(ctx2d, x, y, scale = 1, rotationRad = 0, center = true) {
+      if (!PLAN_BITMAP) return;
+      const w = PLAN_BITMAP.width * scale;
+      const h = PLAN_BITMAP.height * scale;
+
+      ctx2d.save();
+      ctx2d.translate(x, y);
+      if (rotationRad) ctx2d.rotate(rotationRad);
+      if (center) ctx2d.drawImage(PLAN_BITMAP, -w/2, -h/2, w, h);
+      else        ctx2d.drawImage(PLAN_BITMAP, 0, 0, w, h);
+      ctx2d.restore();
+    }
+    function getPlanBounds() {
+        // Grundytan du redan ritar (den vita rektangeln)
+        const x = (canvas.width/2) - (Number(input.value) / 20);
+        const y = 450;
+        const w = Number(input.value) / 10;
+        const h = Number(input2.value) / 10;
+
+        // (valfritt) lägg på en pixelpadding för att få med kanter/linjer
+        const pad = 1;
+
+        // Returnera heltal (krav för image bitmap crop i vissa motorer)
+        const sx = Math.floor(x - pad);
+        const sy = Math.floor(y - pad);
+        const sw = Math.ceil(w + pad*2);
+        const sh = Math.ceil(h + pad*2);
+
+        // Skydda mot negativa/värden utanför canvas
+        return {
+          sx: Math.max(0, sx),
+          sy: Math.max(0, sy),
+          sw: Math.max(1, Math.min(sw, canvas.width  - Math.max(0, sx))),
+          sh: Math.max(1, Math.min(sh, canvas.height - Math.max(0, sy))),
+        };
+    }     
+         
+         
          </script>
     </body>
 </html>
