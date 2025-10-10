@@ -3154,6 +3154,7 @@ function drawReportOnCanvas(ctx, planBitmap){
   const sheetH = Math.min(H - margin*2, Math.max(720, H - margin*2));
   const sx = Math.floor((W - sheetW)/2);
   const sy = Math.floor((H - sheetH)/2);
+  window.__REPORT_BOUNDS = { x: sx, y: sy, w: sheetW, h: sheetH, r: 16 };
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,.35)';
   ctx.shadowBlur = 24;
@@ -3219,17 +3220,7 @@ function drawReportOnCanvas(ctx, planBitmap){
   const p      = Number(window.programmnummer|0);
   const v      = Number(window.programmnummer2|0);
 
-  const stats = {};
-  try{
-    if(Array.isArray(window.kaprader))      stats.kaprader = window.kaprader.length;
-    if(Array.isArray(window.kapraderdata))  stats.kapraderdata = window.kapraderdata.length;
-    const hb = window.harringbone || window.herringbone;
-    if(hb){
-      if(Array.isArray(hb.bits)) stats.hbBits = hb.bits.length;
-      if(typeof hb.end === 'number') stats.hbEnd = hb.end;
-      if(Array.isArray(hb.end))      stats.hbEnd = hb.end[hb.end.length-1];
-    }
-  }catch(_){}
+
 
   // 6) Två kort i grid (Room/Boards + Pattern)
   const colGap = 14;
@@ -3284,9 +3275,9 @@ function drawReportOnCanvas(ctx, planBitmap){
   gy += 140 + 12;
 
   // 7) Computed totals (frivillig sektion om vi har siffror)
-  const haveTotals = Object.keys(stats).length > 0;
+  const haveTotals = 5;
   if(haveTotals){
-    const x = gx, y = gy, w = sheetW - pad*2, h = 90;
+    const x = gx, y = gy, w = sheetW - pad*2, h = 180;
     ctx.save();
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#e5e7eb';
@@ -3300,13 +3291,14 @@ function drawReportOnCanvas(ctx, planBitmap){
 
     // Rada upp nyckel-värden i två kolumner om många
     const rows = [];
-    if(stats.kaprader!=null)      rows.push({k:'kaprader (rows)',      v:String(stats.kaprader)});
-    if(stats.kapraderdata!=null)  rows.push({k:'kapraderdata (items)', v:String(stats.kapraderdata)});
-    if(stats.hbBits!=null)        rows.push({k:'herringbone bits',     v:String(stats.hbBits)});
-    if(stats.hbEnd!=null)         rows.push({k:'herringbone end',      v:String(stats.hbEnd)});
+    rows.push({k:'Row1: first/last plank',      v:String(kaprader.Första1+" "+kaprader.Sista1+" X:" +kaprader.antal1 )});
+    rows.push({k:'Row2: first/last plank',      v:String(kaprader.Första2+" "+kaprader.Sista2+" X:" +kaprader.antal2 )});
+    rows.push({k:'Row3: first/last plank',      v:String(kaprader.Första3+" "+kaprader.Sista3+" X:" +kaprader.antal3 )});
+    rows.push({k:'Row4: first/last plank',      v:String(kaprader.Första4+" "+kaprader.Sista4+" X:" +kaprader.antal4 )});
+    rows.push({k:'Row5: first/last plank',      v:String(kaprader.Första5+" "+kaprader.Sista5+" X:" +kaprader.antal5 )});
 
-    const left = rows.slice(0, Math.ceil(rows.length/2));
-    const right= rows.slice(Math.ceil(rows.length/2));
+    const left = rows.slice(0, Math.ceil(5));
+    const right= rows.slice(5);
 
     drawKVGrid(ctx, x+10, y+38, Math.floor((w-30)/2), 18, left);
     ctx.save(); ctx.textAlign='left'; // drawKVGrid återställer själv
@@ -3315,6 +3307,7 @@ function drawReportOnCanvas(ctx, planBitmap){
 
     ctx.restore();
   }
+
 }
 
 // === Din NYTT() – lägg till anropet i slutet ===
@@ -3373,7 +3366,134 @@ async function NYTT(){
         };
     }     
          
-         
+// ===== Helpers: tabellrendering & datanormalisering =====
+function pickKeysForObjects(arr, maxCols=6){
+  // Välj upp till maxCols mest förekommande nycklar i objekt
+  const freq = new Map();
+  for(const o of arr){
+    if(!o || typeof o!=='object') continue;
+    for(const k of Object.keys(o)) freq.set(k, (freq.get(k)||0)+1);
+  }
+  // prioritera vanliga fältnamn
+  const preferred = ['row','index','x','y','angle','dir','length','len','width','w','count','pieces','waste','type','side'];
+  const keys = Array.from(freq.keys()).sort((a,b)=>{
+    const ai = preferred.indexOf(a), bi = preferred.indexOf(b);
+    if(ai!==-1 || bi!==-1) return (ai===-1?99:ai) - (bi===-1?99:bi);
+    return freq.get(b)-freq.get(a);
+  }).slice(0, maxCols);
+  return keys;
+}
+function rowsFromArray(arr, maxRows=60){
+  // Returnerar {headers, rows} för arr av objekt/array/nummer
+  if(!Array.isArray(arr) || arr.length===0) return {headers:[], rows:[]};
+
+  // Objekt?
+  if (arr.some(v => v && typeof v === 'object' && !Array.isArray(v))){
+    const keys = pickKeysForObjects(arr);
+    const rows = [];
+    for(let i=0;i<Math.min(arr.length, maxRows);i++){
+      const o = arr[i] || {};
+      rows.push(keys.map(k => o[k]));
+    }
+    return { headers: keys, rows };
+  }
+  // Array?
+  if (arr.some(v => Array.isArray(v))){
+    const maxLen = Math.min(
+      Math.max(...arr.map(a => Array.isArray(a) ? a.length : 0)),
+      8
+    );
+    const headers = Array.from({length:maxLen}, (_,i)=> `col${i}`);
+    const rows = [];
+    for(let i=0;i<Math.min(arr.length, maxRows);i++){
+      const a = Array.isArray(arr[i]) ? arr[i] : [];
+      rows.push(headers.map((_,j)=> a[j]));
+    }
+    return { headers, rows };
+  }
+  // Platt lista (nummer/strängar)
+  return { headers:['value'], rows: arr.slice(0, maxRows).map(v=>[v]) };
+}
+function formatCell(v){
+  if(v==null) return '';
+  const s = String(v);
+  // byt punkt→komma för mm om det ser numeriskt ut
+  if(/^-?\d+(\.\d+)?$/.test(s)) return s.replace('.', ',');
+  return s;
+}
+function drawTableCard(ctx, title, x, y, w, data, opts={}){
+  const { headers=[], rows=[] } = data || {};
+  const lineH  = opts.lineH  || 18;
+  const pad    = opts.pad    || 10;
+  const headBg = opts.headBg || '#f3f4f6';
+  const rule   = '#e5e7eb';
+
+  const visibleRows = Math.min(rows.length, opts.maxRows || 20);
+  const h =  // titel + header + rader + padd
+    20 + 6 + lineH + visibleRows*lineH + pad*2;
+
+  // kort
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = rule;
+  ctx.lineWidth = 1;
+  drawRoundedRect(ctx, x, y, w, h, 10);
+  ctx.fill(); ctx.stroke();
+
+  // titel
+  ctx.fillStyle = '#111827';
+  ctx.font = '600 13px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+  ctx.fillText(title, x+pad, y+pad+13);
+
+  // header bakgrund
+  const headY = y + pad + 20 + 6;
+  ctx.fillStyle = headBg;
+  ctx.fillRect(x+pad, headY-14, w-pad*2, lineH);
+
+  // kolumnbredder (jämn fördelning)
+  const colW = Math.floor((w - pad*2) / Math.max(headers.length,1));
+
+  // header text
+  ctx.fillStyle = 'rgba(17,24,39,.75)';
+  ctx.font = '600 12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+  headers.forEach((hname, i)=>{
+    const cx = x+pad + i*colW + 6;
+    ctx.fillText(String(hname), cx, headY);
+  });
+
+  // rader
+  ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+  ctx.fillStyle = '#111827';
+  for(let r=0;r<visibleRows;r++){
+    const yy = headY + (r+1)*lineH;
+    // horisontal linje
+    ctx.strokeStyle = rule; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x+pad, yy-14 + lineH); ctx.lineTo(x+w-pad, yy-14 + lineH); ctx.stroke();
+
+    const row = rows[r] || [];
+    for(let c=0;c<headers.length;c++){
+      const cell = formatCell(row[c]);
+      const cx = x+pad + c*colW + 6;
+      ctx.fillText(cell, cx, yy);
+    }
+  }
+
+  ctx.restore();
+  return h + 10; // nytt y-offset
+}
+function sumFields(arr, fieldNames){
+  // summerar första fält som finns i fieldNames
+  if(!Array.isArray(arr)) return null;
+  const f = fieldNames.find(fn => arr.some(o => o && typeof o==='object' && o[fn]!=null));
+  if(!f) return null;
+  let s = 0;
+  for(const o of arr){
+    const v = o && typeof o==='object' ? o[f] : null;
+    const n = parseFloat(String(v ?? '').replace(',', '.'));
+    if(Number.isFinite(n)) s += n;
+  }
+  return { field:f, sum:s };
+}         
          </script>
          
 <!-- === Mobile/Capacitor UI bridge (v2) === -->
@@ -3383,6 +3503,7 @@ async function NYTT(){
   <div class="bar">
     <div class="title">Floor planner</div>
     <div class="actions">
+        <button id="ui-export-pdf" type="button" class="toggle">Save PDF</button>
       <label class="switch" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ui-muted);">
         <input id="ui-rotate" type="checkbox" style="width:20px;height:20px;accent-color:var(--ui-accent)">
         Rotate room
@@ -3564,6 +3685,182 @@ async function NYTT(){
 
 })();
 </script>         
-         
+<script>
+// ---- PDF utils (canvas -> PDF Blob) ----
+async function canvasToPdfBlob_fromCrop(sourceCanvas, cropRect, opts={}){
+  const mmToPt = mm => mm * 72 / 25.4;
+  const pageWpt = mmToPt(210), pageHpt = mmToPt(297);       // A4 porträtt
+  const marginTopPt = mmToPt(opts.marginTopMM ?? 10);       // toppmarginal
+  const marginLeftPt= mmToPt(opts.marginLeftMM ?? 10);      // vänstermarginal
+  const marginRightPt= mmToPt(opts.marginRightMM ?? (opts.marginLeftMM ?? 10));
+
+  // 1) Bygg ett "rent ark" med vit bakgrund + rundad clip
+  const sx = cropRect.x|0, sy = cropRect.y|0;
+  const sw = Math.max(1, cropRect.w|0), sh = Math.max(1, cropRect.h|0);
+  const r  = Math.max(0, cropRect.r|0 || 0);
+
+  const sheet = document.createElement('canvas');
+  sheet.width = sw; sheet.height = sh;
+  const sctx = sheet.getContext('2d');
+
+  // vit bakgrund
+  sctx.fillStyle = '#ffffff'; sctx.fillRect(0,0,sw,sh);
+
+  // rundad clip så vi bara tar innehållet "inne i arket"
+  if(r > 0){
+    sctx.beginPath();
+    const rr = Math.min(r, sw/2, sh/2);
+    sctx.moveTo(rr, 0);
+    sctx.arcTo(sw, 0,  sw, sh, rr);
+    sctx.arcTo(sw, sh, 0,  sh, rr);
+    sctx.arcTo(0,  sh, 0,  0,  rr);
+    sctx.arcTo(0,  0,  sw, 0,  rr);
+    sctx.closePath();
+    sctx.clip();
+  }
+
+  // rita käll-canvasens ark-innehåll inuti clippen
+  sctx.drawImage(sourceCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+  // 2) JPEG av "rena arket"
+  const dataUrl = sheet.toDataURL('image/jpeg', 0.92);
+  const base64  = dataUrl.split(',')[1];
+  const imgBytes= Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+
+  // 3) Placera uppe/åt vänster med marginaler (inte centrerat)
+  const availWpt = pageWpt - marginLeftPt - marginRightPt;
+  // skala bara om arket är bredare än ytan; annars 1:1
+  const scale = Math.min(1, availWpt / sw);
+  const drawW = sw * scale, drawH = sh * scale;
+
+  const leftPt   = marginLeftPt;
+  const bottomPt = pageHpt - marginTopPt - drawH;  // toppjusterat
+
+  // 4) Minimal PDF
+  const enc = s => new TextEncoder().encode(s);
+  const parts=[], offs=[]; const size=()=>parts.reduce((s,a)=>s+a.length,0);
+  const push=u8=>{ offs.push(size()); parts.push(u8); };
+
+  push(enc('%PDF-1.4\n%âãÏÓ\n'));
+  push(enc('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n'));
+  push(enc('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n'));
+  push(enc(`3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWpt.toFixed(2)} ${pageHpt.toFixed(2)}] /Resources << /XObject << /Im0 4 0 R >> /ProcSet [/PDF /ImageC] >> /Contents 5 0 R >>\nendobj\n`));
+  push(enc(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${sw} /Height ${sh} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imgBytes.length} >>\nstream\n`));
+  parts.push(imgBytes);
+  push(enc('\nendstream\nendobj\n'));
+
+  const stream = `q\n${drawW.toFixed(2)} 0 0 ${drawH.toFixed(2)} ${leftPt.toFixed(2)} ${bottomPt.toFixed(2)} cm\n/Im0 Do\nQ\n`;
+  push(enc(`5 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}endstream\nendobj\n`));
+
+  const xrefStart = size();
+  let xref = 'xref\n0 6\n0000000000 65535 f \n';
+  for(let i=0;i<parts.length;i++){ xref += String(i===0?0:offs[i]).padStart(10,'0') + ' 00000 n \n'; }
+  push(enc(xref));
+  push(enc(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`));
+
+  const out = new Uint8Array(size()); let p=0; for(const a of parts){ out.set(a,p); p+=a.length; }
+  return new Blob([out], { type:'application/pdf' });
+}
+
+// Spara/dela (samma som tidigare)
+async function savePdfBlob(blob, filename='FloorPlan.pdf'){
+  if(!window.Capacitor){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 1000);
+    return true;
+  }
+  try{
+    const { Filesystem } = window.Capacitor.Plugins || {};
+    const toB64 = b => new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(String(fr.result).split(',')[1]); fr.readAsDataURL(b); });
+    const data = await toB64(blob);
+    const path = `FloorPlan-${Date.now()}.pdf`;
+    await Filesystem.writeFile({ path, data, directory: 'DOCUMENTS' });
+    const Share = window.Capacitor.Plugins?.Share;
+    if(Share) await Share.share({ title:'Floor plan', url:`file://${path}` });
+  }catch(e){ console.warn('Capacitor save failed', e); }
+}
+
+// ---- Save/Share helper ----
+async function savePdfBlob(blob, filename='FloorPlan.pdf'){
+  // Web: ladda ned
+  if(!window.Capacitor){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; document.body.appendChild(a);
+    a.click(); a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 1000);
+    return true;
+  }
+  // Capacitor: skriv fil och dela/öppna
+  try{
+    const { Filesystem } = window.Capacitor.Plugins || {};
+    const toBase64 = (blob) => new Promise(r=>{
+      const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(',')[1]); fr.readAsDataURL(blob);
+    });
+    const b64 = await toBase64(blob);
+    const path = `FloorPlan-${Date.now()}.pdf`;
+    await Filesystem.writeFile({ path, data: b64, directory: 'DOCUMENTS' });
+    // Dela om Share finns, annars bara klart
+    const Share = window.Capacitor.Plugins?.Share;
+    if(Share){
+      await Share.share({ title:'Floor plan', text:'PDF exported', url:`file://${path}`, dialogTitle:'Share PDF' });
+    }
+    return true;
+  }catch(e){
+    console.warn('Capacitor PDF save failed:', e);
+    return false;
+  }
+}
+
+// ---- Hooka upp knappen ----
+(function(){
+  const btn = document.getElementById('ui-export-pdf');
+  if(!btn) return;
+
+  // tiny helper: let the UI settle
+  const nextFrame = () => new Promise(r => requestAnimationFrame(()=>r()));
+
+  async function doExport(){
+    // 1) DO NOT call NYTT() here – it clears/close()s PLAN_BITMAP
+    //    Just snapshot what the user currently sees.
+    const live = (window.canvas instanceof HTMLCanvasElement)
+      ? window.canvas
+      : document.querySelector('canvas');
+    if(!live){ alert('No canvas'); return; }
+
+    // wait 1 frame in case of last keystroke
+    await nextFrame();
+
+    // 2) Freeze current pixels into an offscreen copy (atomic snapshot)
+    const bmp = await createImageBitmap(live);
+    const off = document.createElement('canvas');
+    off.width = live.width; off.height = live.height;
+    const octx = off.getContext('2d', { alpha: true });
+    octx.drawImage(bmp, 0, 0);
+    bmp.close();
+
+    // 3) Use the report bounds we stored when drawing the report
+    const r = window.__REPORT_BOUNDS;
+    if(!r){ alert('Report not ready'); return; }
+
+    // 4) Build PDF from the cropped report only (no black background)
+    const pdf = await canvasToPdfBlob_fromCrop(off, r, { marginMM: 10 });
+    await savePdfBlob(pdf, 'FloorPlan.pdf');
+  }
+
+  const handle = e => {
+    if(e.type==='keydown' && !['Enter',' '].includes(e.key)) return;
+    e.preventDefault(); e.stopPropagation();
+    doExport();
+  };
+
+  btn.type = 'button';
+  btn.addEventListener('click', handle, {passive:false});
+  btn.addEventListener('touchstart', handle, {passive:false});
+  btn.addEventListener('keydown', handle, {passive:false});
+})();
+</script>         
     </body>
 </html>
