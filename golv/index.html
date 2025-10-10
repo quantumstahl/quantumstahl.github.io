@@ -3543,21 +3543,7 @@ async function NYTT(){
 (function(){
   const ui = document.getElementById('floor-ui');
 
-  // 1) Lägg till collapse/expand-knapp i actions-raden
-  const actions = ui?.querySelector('.actions');
-  if (actions && !document.getElementById('ui-collapse')){
-    const t = document.createElement('button');
-    t.id = 'ui-collapse';
-    t.type = 'button';
-    t.className = 'toggle';
-    t.textContent = 'Hide panel';
-    t.addEventListener('click', ()=>{
-      ui.classList.toggle('collapsed');
-      t.textContent = ui.classList.contains('collapsed') ? 'Show panel' : 'Hide panel';
-      measureAndPad();             // uppdatera bottenspace efter state
-    });
-    actions.prepend(t);
-  }
+
 
   // 2) Mät panelhöjden och sätt body padding-bottom så inget döljs bakom
   function measureAndPad(){
@@ -3575,26 +3561,7 @@ async function NYTT(){
     ro.observe(ui);
   }
 
-  // 3) Bonus: auto-minimera på scroll (valfritt, kommentera bort om du inte vill)
-  let scT;
-  window.addEventListener('scroll', ()=>{
-    clearTimeout(scT);
-    if(!ui.classList.contains('collapsed')){
-      ui.classList.add('collapsed');
-      const btn = document.getElementById('ui-collapse');
-      if(btn) btn.textContent = 'Show panel';
-      measureAndPad();
-    }
-    // öppna igen efter 1.5s inaktivitet
-    scT = setTimeout(()=>{
-      // lämna panelen stängd om användaren hellre vill ha den dold
-      // (ta bort följande fyra rader om du inte vill auto-öppna)
-      // ui.classList.remove('collapsed');
-      // const btn = document.getElementById('ui-collapse');
-      // if(btn) btn.textContent = 'Hide panel';
-      // measureAndPad();
-    }, 1500);
-  }, {passive:true});
+
 })();
 </script>         
          
