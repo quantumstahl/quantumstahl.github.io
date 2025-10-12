@@ -3268,6 +3268,9 @@ function drawReportOnCanvas(ctx, planBitmap){
       {k:'Type',        v: patternLabel(p, v)},
       {k:'Rotate room', v: rot ? 'Yes' : 'No'},
       {k:'Generated',   v: new Date().toLocaleString()},
+      {k:'Rum m2',   v: kapraderdata.Totalyta},
+      {k:'Floor m2',   v: kapraderdata.Golvyta},
+      {k:'Planks to buy m2',   v: kapraderdata.M2BrädorKöpa},
     ]);
     ctx.restore();
   })();
@@ -3275,7 +3278,7 @@ function drawReportOnCanvas(ctx, planBitmap){
   gy += 140 + 12;
 
   // 7) Computed totals (frivillig sektion om vi har siffror)
-  const haveTotals = 5;
+  const haveTotals = 100;
   if(haveTotals){
     const x = gx, y = gy, w = sheetW - pad*2, h = 180;
     ctx.save();
@@ -3291,12 +3294,27 @@ function drawReportOnCanvas(ctx, planBitmap){
 
     // Rada upp nyckel-värden i två kolumner om många
     const rows = [];
+    
+    if(programmnummer===0){
+    
     rows.push({k:'Row1: first/last plank',      v:String(kaprader.Första1+" "+kaprader.Sista1+" X:" +kaprader.antal1 )});
     rows.push({k:'Row2: first/last plank',      v:String(kaprader.Första2+" "+kaprader.Sista2+" X:" +kaprader.antal2 )});
     rows.push({k:'Row3: first/last plank',      v:String(kaprader.Första3+" "+kaprader.Sista3+" X:" +kaprader.antal3 )});
     rows.push({k:'Row4: first/last plank',      v:String(kaprader.Första4+" "+kaprader.Sista4+" X:" +kaprader.antal4 )});
     rows.push({k:'Row5: first/last plank',      v:String(kaprader.Första5+" "+kaprader.Sista5+" X:" +kaprader.antal5 )});
-
+    }
+    if(programmnummer==1){
+    rows.push({k:'Row1: first/last plank',      v:String(kaprader.Första1+" "+kaprader.Sista1+" X:" +kaprader.antal1 )});
+    rows.push({k:'Row2: first/last plank',      v:String(kaprader.Första2+" "+kaprader.Sista2+" X:" +kaprader.antal2 )});
+        
+    }
+    if(programmnummer==2){
+    rows.push({k:'Coverage ratio',      v:String(kapraderdata.utnyttjande +"%" )});    
+        
+        
+    }
+    
+    
     const left = rows.slice(0, Math.ceil(5));
     const right= rows.slice(5);
 
