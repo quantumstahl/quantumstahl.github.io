@@ -3130,7 +3130,7 @@ function drawRoundedRect(ctx, x, y, w, h, r){
 function drawKVGrid(ctx, x, y, colW, lineH, items){
   // items: [{k:'Room width', v:'5000 mm'}, ...]
   ctx.save();
-  ctx.font = '16px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+  ctx.font = '15px system-ui, -apple-system, Segoe UI, Roboto, Arial';
   items.forEach((row, i)=>{
     const yy = y + i*lineH;
     ctx.fillStyle = 'rgba(17,24,39,.65)'; // muted
