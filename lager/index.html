@@ -1,0 +1,177 @@
+<html>
+    <head>
+        <title>IBC-lager</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body>
+        <button id="loginBtn">Logga in med Google</button>
+        <div id="authStatus">Inte inloggad</div>
+        <input type="file" id="imageInput" accept="image/*">
+        <input type="text" id="name" placeholder="Namn">
+        <input type="text" id="lotNo" placeholder="Lotnummer">
+        <input type="text" id="locationId" placeholder="Lagerplats-ID (t.ex. L1)">
+        <input type="number" id="qty" placeholder="Antal" value="0">
+
+        <button id="saveBtn">Spara</button>
+        <div id="status"></div>
+        <img id="preview" style="max-width:150px;display:none;">
+        
+        
+        <script type="module">
+            
+            
+            
+            import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+            import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+            import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
+
+            const firebaseConfig = {
+                apiKey: "AIzaSyABkVGems0dMpPJHU1ZD8DC8MEff93NAIE",
+                authDomain: "ibc-lager.firebaseapp.com",
+                projectId: "ibc-lager",
+                storageBucket: "ibc-lager.firebasestorage.app",
+                messagingSenderId: "998447660944",
+                appId: "1:998447660944:web:19312163b4a5749a0afd15"
+            };
+
+            const app = initializeApp(firebaseConfig);
+            const db = getFirestore(app);
+            const storage = getStorage(app);
+        
+        
+     
+            const companyId = "company1";
+
+            const statusEl = document.getElementById("status");
+            const setStatus = (t) => statusEl.textContent = t;
+
+            document.getElementById("saveBtn").onclick = async () => {
+              try {
+                const file = document.getElementById("imageInput").files[0];
+
+                const name = document.getElementById("name").value.trim();
+                const lotNo = document.getElementById("lotNo").value.trim();
+                const locationId = document.getElementById("locationId").value.trim();
+                const qty = Number(document.getElementById("qty").value);
+
+                if (!name || !lotNo || !locationId || Number.isNaN(qty)) {
+                  alert("Fyll i namn, lotnummer, lagerplats och antal.");
+                  return;
+                }
+
+                // Välj id-strategi: itemId = lotNo (enkelt)
+                const itemId = lotNo;
+
+                setStatus("Laddar upp...");
+
+                // 1) Upload image (optional)
+                let imageUrl = null;
+                if (file) {
+                  const path = `companies/${companyId}/items/${itemId}/main.jpg`;
+                  const imageRef = ref(storage, path);
+                  await uploadBytes(imageRef, file);
+                  imageUrl = await getDownloadURL(imageRef);
+                }
+
+                setStatus("Sparar artikel...");
+
+                await saveToFirestore({
+                namn: name,
+                lotnummer: lotNo,
+                lager: locationId,
+                antal: qty,
+                imageUrl
+              });
+
+                setStatus("✅ Klart!");
+              } catch (err) {
+                console.error(err);
+                setStatus("❌ Fel: " + (err?.message ?? err));
+              }
+            };
+            
+            import { 
+            getAuth, 
+            GoogleAuthProvider, 
+            signInWithRedirect, 
+            getRedirectResult,
+            onAuthStateChanged
+          } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+            const auth = getAuth(app);
+            const provider = new GoogleAuthProvider();
+
+            // 1) Trigger login
+            document.getElementById("loginBtn").onclick = async () => {
+              await signInWithRedirect(auth, provider);
+            };
+
+            // 2) Handle result after redirect
+            getRedirectResult(auth).catch(console.error);
+
+            // 3) Show auth state + debug
+            onAuthStateChanged(auth, (user) => {
+              console.log("AUTH STATE:", user ? user.email : "signed out");
+              document.getElementById("authStatus").textContent =
+                user ? `Inloggad: ${user.email}` : "Inte inloggad";
+            });
+            
+            imageInput.onchange = () => {
+  const file = imageInput.files[0];
+  if (!file) return;
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = "block";
+};
+
+
+
+
+
+async function saveToFirestore({ namn, lotnummer, lager, antal, imageUrl }) {
+    
+
+    
+  const Namn = (namn ?? "").trim();
+  const Lotnummer = String(lotnummer ?? "").trim();
+  const Lager = (lager ?? "").trim();
+  const Antal = Number(antal);
+
+  if (!Namn || !Lotnummer || !Lager || Number.isNaN(Antal)) {
+    throw new Error("Fyll i Namn, Lotnummer, Lager och Antal (Antal måste vara ett tal).");
+  }
+
+  const docId = Lotnummer;
+
+  const data = {
+    Namn,
+    Lotnummer,
+    Lager,
+    Antal,
+    updatedAt: serverTimestamp(),
+  };
+  if (imageUrl) data.imageUrl = imageUrl;
+
+  console.log("Firestore write ->", "IBC-lager/" + docId, data);
+
+  // Timeout så den inte kan "hänga" tyst
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error("Firestore timeout (10s) – troligen rules/auth/nät).")), 10000)
+  );
+
+  await Promise.race([
+    setDoc(doc(db, "IBC-lager", docId), data, { merge: true }),
+    timeout
+  ]);
+
+  console.log("Firestore write OK");
+}
+
+
+            
+        </script>    
+        
+        
+        
+    </body>
+</html>
