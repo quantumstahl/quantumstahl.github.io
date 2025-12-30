@@ -24,9 +24,9 @@
             
             
             import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-            import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+            import { getFirestore, doc, setDoc, serverTimestamp,collection, getDocs, query, orderBy,updateDoc, increment, deleteDoc} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
             import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
-            import { collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+            
             const firebaseConfig = {
                 apiKey: "AIzaSyABkVGems0dMpPJHU1ZD8DC8MEff93NAIE",
                 authDomain: "ibc-lager.firebaseapp.com",
@@ -204,7 +204,11 @@ async function loadList() {
   renderList(rows);
 }
 
+let currentRows = [];
+
 function renderList(rows) {
+  currentRows = rows;
+
   const q = (document.getElementById("search").value || "").toLowerCase();
   const filtered = rows.filter(r =>
     String(r.Namn||"").toLowerCase().includes(q) ||
@@ -213,17 +217,94 @@ function renderList(rows) {
   );
 
   document.getElementById("list").innerHTML = filtered.map(r => `
-    <div style="border:1px solid #ccc;padding:8px;margin:6px 0;display:flex;gap:10px;align-items:center;">
-      ${r.imageUrl ? `<img src="${r.imageUrl}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;">` : ``}
-      <div>
-        <div><b>${r.Namn}</b></div>
-        <div>Lot: ${r.Lotnummer} · Lager: ${r.Lager} · Antal: ${r.Antal}</div>
+    <div class="row"
+         data-id="${r.id}"
+         style="border:1px solid #ccc;padding:10px;margin:8px 0;display:flex;gap:10px;align-items:center;">
+      
+      ${r.imageUrl ? `<img src="${r.imageUrl}" style="width:54px;height:54px;object-fit:cover;border-radius:8px;flex:0 0 auto;">` : ``}
+
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.Namn ?? ""}</div>
+        <div style="opacity:.8;">Lot: ${r.Lotnummer ?? r.id} · Lager: ${r.Lager ?? ""}</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:0 0 auto;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="qtyMinus" data-id="${r.id}" title="Minska" style="width:36px;height:34px;">−</button>
+          <div style="min-width:34px;text-align:center;font-weight:700;">${r.Antal ?? 0}</div>
+          <button class="qtyPlus" data-id="${r.id}" title="Öka" style="width:36px;height:34px;">+</button>
+        </div>
+        <button class="delBtn" data-id="${r.id}" title="Ta bort" style="height:30px;">🗑️</button>
       </div>
     </div>
   `).join("");
+
+  // Koppla events
+  document.querySelectorAll(".qtyPlus").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      await changeQty(btn.dataset.id, +1);
+    });
+  });
+
+  document.querySelectorAll(".qtyMinus").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      await changeQty(btn.dataset.id, -1);
+    });
+  });
+
+  document.querySelectorAll(".delBtn").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      await deleteLot(btn.dataset.id);
+    });
+  });
 }
 
 document.getElementById("search").addEventListener("input", loadList);
+
+async function changeQty(docId, delta) {
+  try {
+    setStatus(delta > 0 ? "Ökar antal..." : "Minskar antal...");
+
+    const ref = doc(db, "IBC-lager", docId);
+
+    // Atomisk increment (tål att flera trycker samtidigt)
+    await updateDoc(ref, { 
+      Antal: increment(delta),
+      updatedAt: serverTimestamp()
+    });
+
+    await loadList();
+    setStatus("✅ Uppdaterat!");
+  } catch (e) {
+    console.error(e);
+    setStatus("❌ Fel: " + (e?.message ?? e));
+  }
+}
+async function deleteLot(docId) {
+  try {
+    const row = currentRows.find(r => r.id === docId);
+    const label = row ? `${row.Namn} (Lot ${row.Lotnummer ?? docId})` : docId;
+
+    if (!confirm(`Ta bort ${label}?`)) return;
+
+    setStatus("Tar bort...");
+    await deleteDoc(doc(db, "IBC-lager", docId));
+
+    await loadList();
+    setStatus("🗑️ Borttagen!");
+  } catch (e) {
+    console.error(e);
+    setStatus("❌ Fel: " + (e?.message ?? e));
+  }
+}
+
+
 
             await loadList();
         </script>    
