@@ -25,7 +25,7 @@
             
             import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
             import { getFirestore, doc, setDoc, serverTimestamp,collection, getDocs, query, orderBy,updateDoc, increment, deleteDoc} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-            import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
+            import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
             
             const firebaseConfig = {
                 apiKey: "AIzaSyABkVGems0dMpPJHU1ZD8DC8MEff93NAIE",
@@ -211,16 +211,16 @@ function renderList(rows) {
 
   const q = (document.getElementById("search").value || "").toLowerCase();
   const filtered = rows.filter(r =>
-    String(r.Namn||"").toLowerCase().includes(q) ||
-    String(r.Lotnummer||"").toLowerCase().includes(q) ||
-    String(r.Lager||"").toLowerCase().includes(q)
+    String(r.Namn || "").toLowerCase().includes(q) ||
+    String(r.Lotnummer || "").toLowerCase().includes(q) ||
+    String(r.Lager || "").toLowerCase().includes(q)
   );
 
   document.getElementById("list").innerHTML = filtered.map(r => `
     <div class="row"
          data-id="${r.id}"
          style="border:1px solid #ccc;padding:10px;margin:8px 0;display:flex;gap:10px;align-items:center;">
-      
+
       ${r.imageUrl ? `<img src="${r.imageUrl}" style="width:54px;height:54px;object-fit:cover;border-radius:8px;flex:0 0 auto;">` : ``}
 
       <div style="flex:1;min-width:0;">
@@ -230,37 +230,44 @@ function renderList(rows) {
 
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:0 0 auto;">
         <div style="display:flex;align-items:center;gap:6px;">
-          <button class="qtyMinus" data-id="${r.id}" title="Minska" style="width:36px;height:34px;">−</button>
-          <div style="min-width:34px;text-align:center;font-weight:700;">${r.Antal ?? 0}</div>
-          <button class="qtyPlus" data-id="${r.id}" title="Öka" style="width:36px;height:34px;">+</button>
+          <input class="qtyInput" data-id="${r.id}" type="number" step="1" min="0"
+                 value="${Number.isFinite(r.Antal) ? r.Antal : 0}"
+                 style="width:86px;height:34px;text-align:center;">
+          <button class="qtySave" data-id="${r.id}" style="height:34px;">Spara</button>
         </div>
-        <button class="delBtn" data-id="${r.id}" title="Ta bort" style="height:30px;">🗑️</button>
+        <button class="delBtn" data-id="${r.id}" style="height:30px;">🗑️</button>
       </div>
     </div>
   `).join("");
 
-  // Koppla events
-  document.querySelectorAll(".qtyPlus").forEach(btn => {
+  // Spara antal
+  document.querySelectorAll(".qtySave").forEach(btn => {
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
-      await changeQty(btn.dataset.id, +1);
+      const id = btn.dataset.id;
+      const input = document.querySelector(`.qtyInput[data-id="${id}"]`);
+      await setQty(id, input?.value);
     });
   });
 
-  document.querySelectorAll(".qtyMinus").forEach(btn => {
-    btn.addEventListener("click", async (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      await changeQty(btn.dataset.id, -1);
+  // Spara med Enter i input
+  document.querySelectorAll(".qtyInput").forEach(inp => {
+    inp.addEventListener("keydown", async (ev) => {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        ev.stopPropagation();
+        await setQty(inp.dataset.id, inp.value);
+      }
     });
   });
 
+  // Delete
   document.querySelectorAll(".delBtn").forEach(btn => {
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
-      await deleteLot(btn.dataset.id);
+      await deleteLotAndImage(btn.dataset.id);
     });
   });
 }
@@ -303,8 +310,56 @@ async function deleteLot(docId) {
     setStatus("❌ Fel: " + (e?.message ?? e));
   }
 }
+async function setQty(docId, value) {
+  try {
+    const qty = Number(value);
+    if (!Number.isFinite(qty) || qty < 0) {
+      alert("Antal måste vara ett tal (0 eller mer).");
+      return;
+    }
 
+    setStatus("Sparar antal...");
 
+    await updateDoc(doc(db, "IBC-lager", docId), {
+      Antal: qty,
+      updatedAt: serverTimestamp(),
+    });
+
+    await loadList();
+    setStatus("✅ Antal uppdaterat!");
+  } catch (e) {
+    console.error(e);
+    setStatus("❌ Fel: " + (e?.message ?? e));
+  }
+}
+async function deleteLotAndImage(docId) {
+  try {
+    const row = currentRows.find(r => r.id === docId);
+    const label = row ? `${row.Namn} (Lot ${row.Lotnummer ?? docId})` : docId;
+
+    if (!confirm(`Ta bort ${label}?\n\nDetta raderar även bilden.`)) return;
+
+    setStatus("Tar bort...");
+
+    // 1) Försök ta bort bilden i Storage
+    const imagePath = `companies/${companyId}/items/${docId}/main.jpg`;
+    try {
+      await deleteObject(ref(storage, imagePath));
+    } catch (e) {
+      // Om bilden inte finns längre: ignorera (vanligt fel är "object-not-found")
+      console.warn("Kunde inte radera bild (ok om saknas):", e?.code || e);
+    }
+
+    // 2) Ta bort Firestore-dokumentet
+    await deleteDoc(doc(db, "IBC-lager", docId));
+
+    await loadList();
+    setStatus("🗑️ Borttagen!");
+  } catch (e) {
+    console.error(e);
+    setStatus("❌ Fel: " + (e?.message ?? e));
+  }
+}
 
             await loadList();
         </script>    
