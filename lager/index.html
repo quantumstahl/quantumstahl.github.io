@@ -126,9 +126,26 @@ getRedirectResult(auth).then((res) => {
   document.getElementById("authStatus").textContent = "Redirect-fel: " + (e?.message ?? e);
 });
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
+  console.log("AUTH STATE:", user ? user.email : "signed out");
+
   document.getElementById("authStatus").textContent =
     user ? `Inloggad: ${user.email}` : "Inte inloggad";
+
+  if (user) {
+    try {
+      setStatus("Laddar lista...");
+      await loadList();
+      setStatus("✅ Lista laddad");
+    } catch (e) {
+      console.error(e);
+      setStatus("❌ Kunde inte ladda listan: " + (e?.message ?? e));
+    }
+  } else {
+    // valfritt: töm listan om man loggar ut
+    const listEl = document.getElementById("list");
+    if (listEl) listEl.innerHTML = "";
+  }
 });
             
             imageInput.onchange = () => {
