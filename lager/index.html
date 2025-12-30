@@ -94,47 +94,41 @@
             };
             
             import { 
-            getAuth, 
-            GoogleAuthProvider, 
-            signInWithRedirect, 
-            getRedirectResult,
-            onAuthStateChanged
-          } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+  getAuth, 
+  GoogleAuthProvider, 
+  signInWithRedirect, 
+  signInWithPopup,
+  getRedirectResult,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
-            const auth = getAuth(app);
-            const provider = new GoogleAuthProvider();
-
-           const authStatusEl = document.getElementById("authStatus");
-
-function showAuth(msg) {
-  authStatusEl.textContent = msg;
-}
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
 document.getElementById("loginBtn").onclick = async () => {
   try {
-    showAuth("Startar inloggning (redirect)...");
-    await signInWithRedirect(auth, provider);
+    document.getElementById("authStatus").textContent = "Loggar in (popup)...";
+    await signInWithPopup(auth, provider);
   } catch (e) {
-    console.error(e);
-    showAuth("Login-fel: " + (e?.message ?? e));
+    console.warn("Popup misslyckades, testar redirect:", e);
+    document.getElementById("authStatus").textContent = "Loggar in (redirect)...";
+    await signInWithRedirect(auth, provider);
   }
 };
 
-try {
-  const res = await getRedirectResult(auth);
+// Viktigt: fånga redirect-resultat med tydlig output
+getRedirectResult(auth).then((res) => {
   if (res?.user) {
-    showAuth("Inloggad: " + res.user.email);
-  } else {
-    console.log("No redirect result (normal first load).");
+    console.log("Redirect login OK:", res.user.email);
   }
-} catch (e) {
+}).catch((e) => {
   console.error("RedirectResult error:", e);
-  showAuth("Redirect-fel: " + (e?.message ?? e));
-}
+  document.getElementById("authStatus").textContent = "Redirect-fel: " + (e?.message ?? e);
+});
 
 onAuthStateChanged(auth, (user) => {
-  console.log("AUTH STATE:", user ? user.email : "signed out");
-  showAuth(user ? `Inloggad: ${user.email}` : "Inte inloggad");
+  document.getElementById("authStatus").textContent =
+    user ? `Inloggad: ${user.email}` : "Inte inloggad";
 });
             
             imageInput.onchange = () => {
