@@ -104,20 +104,38 @@
             const auth = getAuth(app);
             const provider = new GoogleAuthProvider();
 
-            // 1) Trigger login
-            document.getElementById("loginBtn").onclick = async () => {
-              await signInWithRedirect(auth, provider);
-            };
+           const authStatusEl = document.getElementById("authStatus");
 
-            // 2) Handle result after redirect
-            getRedirectResult(auth).catch(console.error);
+function showAuth(msg) {
+  authStatusEl.textContent = msg;
+}
 
-            // 3) Show auth state + debug
-            onAuthStateChanged(auth, (user) => {
-              console.log("AUTH STATE:", user ? user.email : "signed out");
-              document.getElementById("authStatus").textContent =
-                user ? `Inloggad: ${user.email}` : "Inte inloggad";
-            });
+document.getElementById("loginBtn").onclick = async () => {
+  try {
+    showAuth("Startar inloggning (redirect)...");
+    await signInWithRedirect(auth, provider);
+  } catch (e) {
+    console.error(e);
+    showAuth("Login-fel: " + (e?.message ?? e));
+  }
+};
+
+try {
+  const res = await getRedirectResult(auth);
+  if (res?.user) {
+    showAuth("Inloggad: " + res.user.email);
+  } else {
+    console.log("No redirect result (normal first load).");
+  }
+} catch (e) {
+  console.error("RedirectResult error:", e);
+  showAuth("Redirect-fel: " + (e?.message ?? e));
+}
+
+onAuthStateChanged(auth, (user) => {
+  console.log("AUTH STATE:", user ? user.email : "signed out");
+  showAuth(user ? `Inloggad: ${user.email}` : "Inte inloggad");
+});
             
             imageInput.onchange = () => {
   const file = imageInput.files[0];
