@@ -331,3 +331,63 @@ input,button,select,textarea{
   border-radius: 16px;
   box-shadow: var(--shadow);
 }
+/* --- Mobile polish --- */
+@media (max-width: 520px) {
+
+  .container { width: 94vw; margin-top: 12px; }
+
+  .card { padding: 12px; }
+
+  .cardHeader.row { flex-direction: column; align-items: stretch; }
+  .searchWrap { flex: 1; max-width: none; }
+
+  /* Form: gör Spara fullbredd */
+  .formActions { justify-content: stretch; }
+  .formActions .btn.primary { width: 100%; }
+
+  /* File row: gör den mindre "weird" */
+  .fileRow { align-items: flex-start; }
+  .preview { width: 48px; height: 48px; border-radius: 12px; }
+
+  /* List row: stacka */
+  .rowItem {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .rowMain {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 10px;
+    align-items: center;
+  }
+
+  /* Thumb + text i samma rad */
+  .thumbImg {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+  }
+
+  .rowRight {
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .qtyRow {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .qtyInput { flex: 1; max-width: 140px; }
+
+  .btn.smallBtn.qtySave { flex: 0 0 auto; }
+
+  .delBtn { width: 100%; }
+}
+@media (max-width: 520px){
+  .topbar { padding: 10px 12px; }
+  .logo { width: 36px; height: 36px; border-radius: 12px; }
+  .actions .btn { padding: 9px 10px; }
+}
