@@ -18,14 +18,14 @@
         <img id="preview" style="max-width:150px;display:none;">
         <input id="search" placeholder="Sök (namn/lot/lag)" />
         <div id="list"></div>
-        
+        <button id="loadMoreBtn" style="display:none;">Ladda fler</button>
         <script type="module">
             
             
             
             import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-            import { getFirestore, doc, setDoc, serverTimestamp,collection, getDocs, query, orderBy,updateDoc, increment, deleteDoc} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-            import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
+            import {getFirestore, doc, setDoc, serverTimestamp,collection, getDocs, query, orderBy, limit, startAfter,updateDoc, deleteDoc} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+            import {getStorage, ref, uploadBytes, getDownloadURL, deleteObject} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
             
             const firebaseConfig = {
                 apiKey: "AIzaSyABkVGems0dMpPJHU1ZD8DC8MEff93NAIE",
@@ -67,23 +67,40 @@
                 setStatus("Laddar upp...");
 
                 // 1) Upload image (optional)
-                let imageUrl = null;
-                if (file) {
-                  const path = `companies/${companyId}/items/${itemId}/main.jpg`;
-                  const imageRef = ref(storage, path);
-                  await uploadBytes(imageRef, file);
-                  imageUrl = await getDownloadURL(imageRef);
-                }
+let imageUrl = null;
+let thumbUrl = null;
+
+if (file) {
+  setStatus("Skapar WebP...");
+
+  const mainBlob = await makeMainWebP(file, MAIN_MAX);
+  const thumbBlob = await makeThumbWebP(file, THUMB_SIZE);
+
+  const mainPath = `companies/${companyId}/items/${itemId}/main.webp`;
+  const thumbPath = `companies/${companyId}/items/${itemId}/thumb.webp`;
+
+  const mainRef = ref(storage, mainPath);
+  const thumbRef = ref(storage, thumbPath);
+
+  setStatus("Laddar upp bilder...");
+
+  await uploadBytes(mainRef, mainBlob, { contentType: "image/webp" });
+  await uploadBytes(thumbRef, thumbBlob, { contentType: "image/webp" });
+
+  imageUrl = await getDownloadURL(mainRef);
+  thumbUrl = await getDownloadURL(thumbRef);
+}
 
                 setStatus("Sparar artikel...");
 
                 await saveToFirestore({
-                namn: name,
-                lotnummer: lotNo,
-                lager: locationId,
-                antal: qty,
-                imageUrl
-              });
+                    namn: name,
+                    lotnummer: lotNo,
+                    lager: locationId,
+                    antal: qty,
+                    imageUrl,
+                    thumbUrl
+                  });
 
                 setStatus("✅ Klart!");
                 await loadList();
@@ -159,7 +176,7 @@ onAuthStateChanged(auth, async (user) => {
 
 
 
-async function saveToFirestore({ namn, lotnummer, lager, antal, imageUrl }) {
+async function saveToFirestore({ namn, lotnummer, lager, antal, imageUrl, thumbUrl })  {
     
 
     
@@ -175,13 +192,11 @@ async function saveToFirestore({ namn, lotnummer, lager, antal, imageUrl }) {
   const docId = Lotnummer;
 
   const data = {
-    Namn,
-    Lotnummer,
-    Lager,
-    Antal,
+    Namn, Lotnummer, Lager, Antal,
     updatedAt: serverTimestamp(),
   };
   if (imageUrl) data.imageUrl = imageUrl;
+  if (thumbUrl) data.thumbUrl = thumbUrl;
 
   console.log("Firestore write ->", "IBC-lager/" + docId, data);
 
@@ -221,7 +236,10 @@ function renderList(rows) {
          data-id="${r.id}"
          style="border:1px solid #ccc;padding:10px;margin:8px 0;display:flex;gap:10px;align-items:center;">
 
-      ${r.imageUrl ? `<img src="${r.imageUrl}" style="width:54px;height:54px;object-fit:cover;border-radius:8px;flex:0 0 auto;">` : ``}
+      ${(r.thumbUrl || r.imageUrl) ? `
+  <img loading="lazy" src="${r.thumbUrl || r.imageUrl}"
+       style="width:54px;height:54px;object-fit:cover;border-radius:8px;flex:0 0 auto;">
+` : ``}
 
       <div style="flex:1;min-width:0;">
         <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.Namn ?? ""}</div>
@@ -341,27 +359,91 @@ async function deleteLotAndImage(docId) {
 
     setStatus("Tar bort...");
 
-    // 1) Försök ta bort bilden i Storage
-    const imagePath = `companies/${companyId}/items/${docId}/main.jpg`;
-    try {
-      await deleteObject(ref(storage, imagePath));
-    } catch (e) {
-      // Om bilden inte finns längre: ignorera (vanligt fel är "object-not-found")
-      console.warn("Kunde inte radera bild (ok om saknas):", e?.code || e);
-    }
+const mainWebp = `companies/${companyId}/items/${docId}/main.webp`;
+const thumbWebp = `companies/${companyId}/items/${docId}/thumb.webp`;
 
-    // 2) Ta bort Firestore-dokumentet
-    await deleteDoc(doc(db, "IBC-lager", docId));
 
-    await loadList();
+for (const p of [mainWebp, thumbWebp]) {
+  try { await deleteObject(ref(storage, p)); }
+  catch (e) { console.warn("Ignorerar bild-delete-fel:", p, e?.code || e); }
+}
+
+await deleteDoc(doc(db, "IBC-lager", docId));
+await loadList();
     setStatus("🗑️ Borttagen!");
   } catch (e) {
     console.error(e);
     setStatus("❌ Fel: " + (e?.message ?? e));
   }
 }
+const MAIN_MAX = 1024;       // max bredd/höjd för huvudbild
+const THUMB_SIZE = 128;      // 128x128 thumb
+const WEBP_QUALITY_MAIN = 0.82;
+const WEBP_QUALITY_THUMB = 0.75;
+const PAGE_SIZE = 5;
 
-            await loadList();
+async function fileToImageBitmap(file) {
+  // createImageBitmap är snabbare och funkar bra på mobil
+  if ("createImageBitmap" in window) return await createImageBitmap(file);
+  // fallback
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+  await img.decode();
+  return img;
+}
+
+function canvasToWebPBlob(canvas, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) reject(new Error("Kunde inte skapa WebP blob."));
+      else resolve(blob);
+    }, "image/webp", quality);
+  });
+}
+
+// Skala ner så att längsta sidan blir maxSize (behåller aspect)
+async function makeMainWebP(file, maxSize = MAIN_MAX) {
+  const img = await fileToImageBitmap(file);
+  const w = img.width, h = img.height;
+
+  const scale = Math.min(1, maxSize / Math.max(w, h));
+  const outW = Math.max(1, Math.round(w * scale));
+  const outH = Math.max(1, Math.round(h * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = outW;
+  canvas.height = outH;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, outW, outH);
+
+  const blob = await canvasToWebPBlob(canvas, WEBP_QUALITY_MAIN);
+  return blob;
+}
+
+// Thumb 128x128 “cover” (center-crop till kvadrat)
+async function makeThumbWebP(file, size = THUMB_SIZE) {
+  const img = await fileToImageBitmap(file);
+  const w = img.width, h = img.height;
+
+  // cover: skala så att min dimension fyller size
+  const scale = Math.max(size / w, size / h);
+  const drawW = Math.round(w * scale);
+  const drawH = Math.round(h * scale);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+
+  const ctx = canvas.getContext("2d");
+  const dx = Math.round((size - drawW) / 2);
+  const dy = Math.round((size - drawH) / 2);
+
+  ctx.drawImage(img, dx, dy, drawW, drawH);
+
+  const blob = await canvasToWebPBlob(canvas, WEBP_QUALITY_THUMB);
+  return blob;
+}
+           // await loadList();
         </script>    
         
         
