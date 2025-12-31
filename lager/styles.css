@@ -356,22 +356,34 @@ input,button,select,textarea{
   }
 }
 /* Print: visa bara printArea */
+/* Print area is normally hidden */
 #printArea { display: none; }
 
+/* Print: hide app, show printArea */
 @media print {
-  body { background: #fff !important; }
-
-  /* göm allt i appen */
-  body > * { display: none !important; }
-
-  /* visa bara printArea */
-  #printArea {
-    display: block !important;
+  html, body {
+    background: #fff !important;
     color: #000 !important;
+  }
+
+  /* Hide everything by default */
+  body * {
+    display: none !important;
+  }
+
+  /* Show printArea and its contents */
+  #printArea, #printArea * {
+    display: revert !important; /* bättre än block/inline för tabeller */
+    color: #000 !important;
+    background: transparent !important;
+  }
+
+  #printArea {
+    position: static !important;
     padding: 16px !important;
   }
 
   #printArea table { width: 100%; border-collapse: collapse; }
   #printArea th, #printArea td { border: 1px solid #000; padding: 6px 8px; text-align: left; }
-  #printArea th { background: #eee; }
+  #printArea th { background: #eee !important; }
 }

@@ -488,13 +488,13 @@ document.getElementById("printBtn").addEventListener("click", () => {
   printCurrentList();
 });
 //----print----------
-function printCurrentList() {
-  const q = (el.search.value || "").toLowerCase().trim();
+async function printCurrentList() {
+  const term = (el.search.value || "").toLowerCase().trim();
 
   const rows = currentRows.filter(r =>
-    String(r.Namn || "").toLowerCase().includes(q) ||
-    String(r.Lotnummer || "").toLowerCase().includes(q) ||
-    String(r.Lager || "").toLowerCase().includes(q)
+    String(r.Namn || "").toLowerCase().includes(term) ||
+    String(r.Lotnummer || "").toLowerCase().includes(term) ||
+    String(r.Lager || "").toLowerCase().includes(term)
   );
 
   if (!rows.length) {
@@ -502,7 +502,7 @@ function printCurrentList() {
     return;
   }
 
-  const title = q ? `Lagerlista – filter: "${q}"` : "Lagerlista";
+  const title = term ? `Lagerlista – filter: "${term}"` : "Lagerlista";
   const now = new Date().toLocaleString("sv-SE");
 
   const html = `
@@ -511,6 +511,7 @@ function printCurrentList() {
       <div style="margin:0 0 12px 0; font-size:12px; opacity:.8;">
         ${escapeHtml(now)}
       </div>
+
       <table>
         <thead>
           <tr>
@@ -537,11 +538,16 @@ function printCurrentList() {
   const printArea = document.getElementById("printArea");
   printArea.innerHTML = html;
 
-  // Viktigt: kör print direkt (i klick-eventet) för iOS
-  window.print();
+  // Force reflow (iOS Safari behöver ofta detta)
+  void printArea.offsetHeight;
 
-  // Städa efteråt
-  setTimeout(() => {
-    printArea.innerHTML = "";
-  }, 500);
+  // Vänta 1 frame så att Safari hinner rendera printArea
+  await new Promise(requestAnimationFrame);
+
+  // Kör print
+  window.print();
 }
+window.addEventListener("afterprint", () => {
+  const printArea = document.getElementById("printArea");
+  if (printArea) printArea.innerHTML = "";
+});
