@@ -81,6 +81,7 @@ const el = {
   imageModal: document.getElementById("imageModal"),
   modalImg: document.getElementById("modalImg"),
   logoutBtn: document.getElementById("logoutBtn"),
+  printBtn:document.getElementById("printBtn")
 };
 
 el.logoutBtn.addEventListener("click", async () => {
@@ -484,8 +485,13 @@ async function makeThumbWebP(file, size = THUMB_SIZE) {
 
   return await canvasToWebPBlob(canvas, WEBP_QUALITY_THUMB);
 }
-document.getElementById("printBtn").addEventListener("click", () => {
-  buildPrintAreaAndPrint();
+el.printBtn.addEventListener("click", () => {
+  try {
+    buildPrintAreaAndPrint();   // synkront
+  } catch (e) {
+    console.error(e);
+    alert("Kunde inte skriva ut.");
+  }
 });
 //----print----------
 function buildPrintAreaAndPrint() {
