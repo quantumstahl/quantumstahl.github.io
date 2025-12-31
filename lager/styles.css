@@ -218,7 +218,7 @@ input,button,select,textarea{
 }
 
 .search{
-  width:50%;
+  width:100%;
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,.12);
@@ -339,3 +339,19 @@ input,button,select,textarea{
   box-shadow: var(--shadow);
 }
 
+/* --- Print + search mobile fix --- */
+@media (max-width: 520px){
+
+  .cardHeader.row{
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .searchWrap{
+    width: 100%;
+  }
+
+  #printBtn{
+    width: 100%;
+  }
+}
