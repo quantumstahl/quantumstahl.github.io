@@ -486,65 +486,105 @@ async function makeThumbWebP(file, size = THUMB_SIZE) {
   return await canvasToWebPBlob(canvas, WEBP_QUALITY_THUMB);
 }
 el.printBtn.addEventListener("click", () => {
-  try {
-    buildPrintAreaAndPrint();   // synkront
-    
-  } catch (e) {
-    console.error(e);
-    alert("Kunde inte skriva ut.");
-  }
-});
-//----print----------
-function buildPrintAreaAndPrint() {
   const term = (el.search.value || "").toLowerCase().trim();
 
   const rows = currentRows.filter(r =>
-    String(r.Namn || "").toLowerCase().includes(term) ||
-    String(r.Lotnummer || "").toLowerCase().includes(term) ||
-    String(r.Lager || "").toLowerCase().includes(term)
+    String(r.Namn||"").toLowerCase().includes(term) ||
+    String(r.Lotnummer||"").toLowerCase().includes(term) ||
+    String(r.Lager||"").toLowerCase().includes(term)
   );
 
-  if (!rows.length) {
-    alert("Inget att skriva ut.");
-    return;
-  }
+  if (!rows.length) return alert("Inget att skriva ut.");
 
-  const title = term ? `Lagerlista – filter: "${term}"` : "Lagerlista";
+  const title = term ? `Lagerlista – ${term}` : "Lagerlista";
+  openPrintTabAndReturn(rows, title);
+});
+//----print----------
+function openPrintTabAndReturn(rows, title) {
   const now = new Date().toLocaleString("sv-SE");
 
-  const printArea = document.getElementById("printArea");
+  const html = `
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;padding:16px;background:#fff;color:#000;}
+    .bar{display:flex;gap:10px;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;padding:10px 0;border-bottom:1px solid #ddd;}
+    .btn{border:1px solid #bbb;background:#f5f5f5;padding:10px 12px;border-radius:10px;font-size:16px}
+    h1{margin:0;font-size:18px}
+    .meta{font-size:12px;color:#444;margin-top:4px}
+    table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px}
+    th,td{border:1px solid #000;padding:6px 8px;text-align:left}
+    th{background:#eee}
+    @media print {.bar{display:none}}
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <div>
+      <h1>${escapeHtml(title)}</h1>
+      <div class="meta">${escapeHtml(now)}</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn" id="backBtn">Tillbaka</button>
+      <button class="btn" id="printBtn">Skriv ut</button>
+    </div>
+  </div>
 
-  // Enter lightweight mode BEFORE printing (speeds up iOS)
-  document.body.classList.add("isPrinting");
+  <table>
+    <thead>
+      <tr><th>Namn</th><th>Lotnummer</th><th>Lager</th><th>Antal</th></tr>
+    </thead>
+    <tbody>
+      ${rows.map(r => `
+        <tr>
+          <td>${escapeHtml(r.Namn ?? "")}</td>
+          <td>${escapeHtml(r.Lotnummer ?? r.id)}</td>
+          <td>${escapeHtml(r.Lager ?? "")}</td>
+          <td>${Number.isFinite(r.Antal) ? r.Antal : ""}</td>
+        </tr>
+      `).join("")}
+    </tbody>
+  </table>
 
-  printArea.innerHTML = `
-    <h1>${escapeHtml(title)}</h1>
-    <div class="printMeta">${escapeHtml(now)}</div>
-    <table>
-      <thead>
-        <tr><th>Namn</th><th>Lotnummer</th><th>Lager</th><th>Antal</th></tr>
-      </thead>
-      <tbody>
-        ${rows.map(r => `
-          <tr>
-            <td>${escapeHtml(r.Namn ?? "")}</td>
-            <td>${escapeHtml(r.Lotnummer ?? r.id)}</td>
-            <td>${escapeHtml(r.Lager ?? "")}</td>
-            <td>${Number.isFinite(r.Antal) ? r.Antal : ""}</td>
-          </tr>
-        `).join("")}
-      </tbody>
-    </table>
+  <script>
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+  function goBack() {
+    try { window.close(); } catch(e) {}
+    try { history.back(); } catch(e) {}
+  }
+
+  document.getElementById("printBtn").addEventListener("click", () => window.print());
+  document.getElementById("backBtn").addEventListener("click", goBack);
+
+  window.addEventListener("afterprint", () => {
+    setTimeout(() => { try { window.close(); } catch(e) {} }, 200);
+  });
+
+  // ✅ Desktop: auto-print direkt när sidan laddat
+  // (iOS: låt användaren trycka "Skriv ut" för att slippa blockering)
+  if (!isIOS) {
+    window.addEventListener("load", () => {
+      setTimeout(() => window.print(), 50);
+    });
+  }
+<\/script>
+</body>
+</html>
   `;
 
-  // Force layout (helps Safari)
-  void printArea.offsetHeight;
-
-  // MUST be direct in click handler for iOS
-  window.print();
+  // Öppna i ny flik/fönster (måste ske direkt i klick)
+  const w = window.open("", "_blank");
+if (!w) {
+  alert("Popup blockerad – tillåt popups för att skriva ut.");
+  return;
 }
-window.addEventListener("afterprint", () => {
-  document.body.classList.remove("isPrinting");
-  const printArea = document.getElementById("printArea");
-  if (printArea) printArea.innerHTML = "";
-});
+w.document.open();
+w.document.write(html);
+w.document.close();
+w.focus();
+}
