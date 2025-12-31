@@ -32,6 +32,11 @@ import {
   signOut
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
+import { setPersistence, browserLocalPersistence } 
+  from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+
+
 // ---------- Config ----------
 const firebaseConfig = {
   apiKey: "AIzaSyABkVGems0dMpPJHU1ZD8DC8MEff93NAIE",
@@ -58,6 +63,8 @@ const storage = getStorage(app);
 
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+
+await setPersistence(auth, browserLocalPersistence);
 
 // ---------- DOM ----------
 const el = {
@@ -99,12 +106,15 @@ let searchTimer = null;
 // ---------- Auth ----------
 el.loginBtn.addEventListener("click", async () => {
   try {
-    el.authStatus.textContent = "Loggar in (popup)...";
     await signInWithPopup(auth, provider);
   } catch (e) {
-    console.warn("Popup misslyckades, testar redirect:", e);
-    el.authStatus.textContent = "Loggar in (redirect)...";
-    await signInWithRedirect(auth, provider);
+    console.error("Popup login failed:", e);
+    alert(
+      "Inloggning misslyckades.\n\n" +
+      "Om du använder iPhone:\n" +
+      "• testa Safari\n" +
+      "• se till att popups är tillåtna"
+    );
   }
 });
 
