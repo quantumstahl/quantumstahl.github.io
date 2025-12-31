@@ -356,39 +356,63 @@ input,button,select,textarea{
   }
 }
 /* Print: visa bara printArea */
-/* Print area is normally hidden */
-/* Normal */
-#printArea { display:none; }
+/* Normal: printArea hidden */
+#printArea { display: none; }
 
-/* När vi förbereder utskrift: stäng av tunga effekter */
+/* When preparing print: kill heavy effects (iOS Safari speedup) */
+body.isPrinting,
 body.isPrinting * {
-  backdrop-filter: none !important;
+  animation: none !important;
+  transition: none !important;
   box-shadow: none !important;
   text-shadow: none !important;
-  transition: none !important;
-  animation: none !important;
+  backdrop-filter: none !important;
+  filter: none !important;
 }
 
-/* Print mode */
+/* Also hide fancy background layer if you use body::before */
+body.isPrinting::before {
+  content: none !important;
+  display: none !important;
+}
+
+/* Print rules */
 @media print {
-  body { background:#fff !important; color:#000 !important; }
+  html, body {
+    background: #fff !important;
+    color: #000 !important;
+  }
 
-  /* Göm appen men låt printArea synas */
-  body * { visibility: hidden !important; }
-  #printArea, #printArea * { visibility: visible !important; }
+  /* HIDE EVERYTHING */
+  body > * {
+    display: none !important;
+  }
 
+  /* SHOW ONLY printArea */
   #printArea {
-    display:block !important;
-    position: absolute !important;
-    inset: 0 !important;
+    display: block !important;
     padding: 16px !important;
   }
 
-  .printWrap { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-  .printWrap h1 { margin: 0 0 8px 0; font-size: 18px; }
-  .printMeta { margin: 0 0 12px 0; font-size: 12px; color: #333; }
+  #printArea, #printArea * {
+    color: #000 !important;
+    background: transparent !important;
+  }
 
-  table { width:100%; border-collapse: collapse; font-size: 13px; }
-  th, td { border:1px solid #000; padding:6px 8px; text-align:left; }
-  th { background:#eee; }
+  #printArea h1 {
+    margin: 0 0 6px 0;
+    font-size: 18px;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+
+  #printArea .printMeta {
+    margin: 0 0 12px 0;
+    font-size: 12px;
+    color: #333 !important;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+
+  #printArea table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  #printArea th, #printArea td { border: 1px solid #000; padding: 6px 8px; text-align: left; }
+  #printArea th { background: #eee !important; }
 }

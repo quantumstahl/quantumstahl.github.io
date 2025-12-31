@@ -486,12 +486,7 @@ async function makeThumbWebP(file, size = THUMB_SIZE) {
   return await canvasToWebPBlob(canvas, WEBP_QUALITY_THUMB);
 }
 el.printBtn.addEventListener("click", () => {
-  try {
-    buildPrintAreaAndPrint();   // synkront
-  } catch (e) {
-    console.error(e);
-    alert("Kunde inte skriva ut.");
-  }
+  buildPrintAreaAndPrint();
 });
 //----print----------
 function buildPrintAreaAndPrint() {
@@ -513,36 +508,33 @@ function buildPrintAreaAndPrint() {
 
   const printArea = document.getElementById("printArea");
 
-  // Flagga för att slå av tunga effekter innan print (snabbar upp)
+  // Enter lightweight mode BEFORE printing (speeds up iOS)
   document.body.classList.add("isPrinting");
 
   printArea.innerHTML = `
-    <div class="printWrap">
-      <h1>${escapeHtml(title)}</h1>
-      <div class="printMeta">${escapeHtml(now)}</div>
-
-      <table>
-        <thead>
-          <tr><th>Namn</th><th>Lotnummer</th><th>Lager</th><th>Antal</th></tr>
-        </thead>
-        <tbody>
-          ${rows.map(r => `
-            <tr>
-              <td>${escapeHtml(r.Namn ?? "")}</td>
-              <td>${escapeHtml(r.Lotnummer ?? r.id)}</td>
-              <td>${escapeHtml(r.Lager ?? "")}</td>
-              <td>${Number.isFinite(r.Antal) ? r.Antal : ""}</td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
-    </div>
+    <h1>${escapeHtml(title)}</h1>
+    <div class="printMeta">${escapeHtml(now)}</div>
+    <table>
+      <thead>
+        <tr><th>Namn</th><th>Lotnummer</th><th>Lager</th><th>Antal</th></tr>
+      </thead>
+      <tbody>
+        ${rows.map(r => `
+          <tr>
+            <td>${escapeHtml(r.Namn ?? "")}</td>
+            <td>${escapeHtml(r.Lotnummer ?? r.id)}</td>
+            <td>${escapeHtml(r.Lager ?? "")}</td>
+            <td>${Number.isFinite(r.Antal) ? r.Antal : ""}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
   `;
 
-  // tvinga layout (synkront)
+  // Force layout (helps Safari)
   void printArea.offsetHeight;
 
-  // VIKTIGT: inga await / setTimeout här
+  // MUST be direct in click handler for iOS
   window.print();
 }
 window.addEventListener("afterprint", () => {
