@@ -118,14 +118,7 @@ el.loginBtn.addEventListener("click", async () => {
   }
 });
 
-getRedirectResult(auth)
-  .then((res) => {
-    if (res?.user) console.log("Redirect login OK:", res.user.email);
-  })
-  .catch((e) => {
-    console.error("RedirectResult error:", e);
-    el.authStatus.textContent = "Redirect-fel: " + (e?.message ?? e);
-  });
+
 
 onAuthStateChanged(auth, async (user) => {
   el.authStatus.textContent = user ? `Inloggad: ${user.email}` : "Inte inloggad";
