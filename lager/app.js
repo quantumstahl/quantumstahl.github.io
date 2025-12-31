@@ -485,10 +485,10 @@ async function makeThumbWebP(file, size = THUMB_SIZE) {
   return await canvasToWebPBlob(canvas, WEBP_QUALITY_THUMB);
 }
 document.getElementById("printBtn").addEventListener("click", () => {
-  printCurrentList();
+  buildPrintAreaAndPrint();
 });
 //----print----------
-async function printCurrentList() {
+function buildPrintAreaAndPrint() {
   const term = (el.search.value || "").toLowerCase().trim();
 
   const rows = currentRows.filter(r =>
@@ -505,21 +505,19 @@ async function printCurrentList() {
   const title = term ? `Lagerlista – filter: "${term}"` : "Lagerlista";
   const now = new Date().toLocaleString("sv-SE");
 
-  const html = `
-    <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
-      <h1 style="margin:0 0 6px 0;">${escapeHtml(title)}</h1>
-      <div style="margin:0 0 12px 0; font-size:12px; opacity:.8;">
-        ${escapeHtml(now)}
-      </div>
+  const printArea = document.getElementById("printArea");
+
+  // Flagga för att slå av tunga effekter innan print (snabbar upp)
+  document.body.classList.add("isPrinting");
+
+  printArea.innerHTML = `
+    <div class="printWrap">
+      <h1>${escapeHtml(title)}</h1>
+      <div class="printMeta">${escapeHtml(now)}</div>
 
       <table>
         <thead>
-          <tr>
-            <th>Namn</th>
-            <th>Lotnummer</th>
-            <th>Lager</th>
-            <th>Antal</th>
-          </tr>
+          <tr><th>Namn</th><th>Lotnummer</th><th>Lager</th><th>Antal</th></tr>
         </thead>
         <tbody>
           ${rows.map(r => `
@@ -535,19 +533,14 @@ async function printCurrentList() {
     </div>
   `;
 
-  const printArea = document.getElementById("printArea");
-  printArea.innerHTML = html;
-
-  // Force reflow (iOS Safari behöver ofta detta)
+  // tvinga layout (synkront)
   void printArea.offsetHeight;
 
-  // Vänta 1 frame så att Safari hinner rendera printArea
-  await new Promise(requestAnimationFrame);
-
-  // Kör print
+  // VIKTIGT: inga await / setTimeout här
   window.print();
 }
 window.addEventListener("afterprint", () => {
+  document.body.classList.remove("isPrinting");
   const printArea = document.getElementById("printArea");
   if (printArea) printArea.innerHTML = "";
 });
