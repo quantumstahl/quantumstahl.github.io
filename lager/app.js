@@ -299,7 +299,7 @@ async function loadList() {
   currentRows = sortByLotnummer(rows);
   renderList(currentRows);
 }
-let didWarmup = false;
+
 function renderList(rows) {
   const term = (el.search.value || "").toLowerCase().trim();
 
@@ -384,11 +384,6 @@ function renderList(rows) {
       await deleteLotAndImage(btn.dataset.id);
     });
   });
-  if (!didWarmup) {
-    didWarmup = true;
-    warmupPrintArea();
-  }
-  
 }
 
 // ---------- Utils ----------
@@ -491,8 +486,13 @@ async function makeThumbWebP(file, size = THUMB_SIZE) {
   return await canvasToWebPBlob(canvas, WEBP_QUALITY_THUMB);
 }
 el.printBtn.addEventListener("click", () => {
-  document.body.classList.add("printWarmup");
-buildPrintAreaAndPrint();                                // direkt i klicket (ingen varning)
+  try {
+    buildPrintAreaAndPrint();   // synkront
+    
+  } catch (e) {
+    console.error(e);
+    alert("Kunde inte skriva ut.");
+  }
 });
 //----print----------
 function buildPrintAreaAndPrint() {
@@ -544,17 +544,7 @@ function buildPrintAreaAndPrint() {
   window.print();
 }
 window.addEventListener("afterprint", () => {
-  document.body.classList.remove("printWarmup");
+  document.body.classList.remove("isPrinting");
   const printArea = document.getElementById("printArea");
   if (printArea) printArea.innerHTML = "";
 });
-
-function warmupPrintArea() {
-  const printArea = document.getElementById("printArea");
-  if (!printArea) return;
-
-  // bygg en liten minimal version bara för att Safari ska ha "layoutat" den
-  printArea.innerHTML = `<div style="font-family:system-ui;font-size:12px;">(print warmup)</div>`;
-  void printArea.offsetHeight; // force layout
-  printArea.innerHTML = "";    // städa
-}
