@@ -486,10 +486,13 @@ async function makeThumbWebP(file, size = THUMB_SIZE) {
   return await canvasToWebPBlob(canvas, WEBP_QUALITY_THUMB);
 }
 el.printBtn.addEventListener("click", () => {
-  buildPrintAreaAndPrint();
+  fastPrintCurrentList();
 });
 //----print----------
-function buildPrintAreaAndPrint() {
+let _savedBodyHtml = null;
+let _savedScrollY = 0;
+
+el.printBtn.addEventListener("click", () => {
   const term = (el.search.value || "").toLowerCase().trim();
 
   const rows = currentRows.filter(r =>
@@ -498,22 +501,15 @@ function buildPrintAreaAndPrint() {
     String(r.Lager || "").toLowerCase().includes(term)
   );
 
-  if (!rows.length) {
-    alert("Inget att skriva ut.");
-    return;
-  }
+  if (!rows.length) return alert("Inget att skriva ut.");
 
   const title = term ? `Lagerlista – filter: "${term}"` : "Lagerlista";
   const now = new Date().toLocaleString("sv-SE");
 
-  const printArea = document.getElementById("printArea");
+  const inner = `
+    <h1 style="margin:0 0 6px 0;">${escapeHtml(title)}</h1>
+    <div style="margin:0 0 12px 0;font-size:12px;color:#333;">${escapeHtml(now)}</div>
 
-  // Enter lightweight mode BEFORE printing (speeds up iOS)
-  document.body.classList.add("isPrinting");
-
-  printArea.innerHTML = `
-    <h1>${escapeHtml(title)}</h1>
-    <div class="printMeta">${escapeHtml(now)}</div>
     <table>
       <thead>
         <tr><th>Namn</th><th>Lotnummer</th><th>Lager</th><th>Antal</th></tr>
@@ -531,14 +527,60 @@ function buildPrintAreaAndPrint() {
     </table>
   `;
 
-  // Force layout (helps Safari)
-  void printArea.offsetHeight;
+  const fullDoc = `
+    <!doctype html><html><head><meta charset="utf-8">
+      <title>${escapeHtml(title)}</title>
+      <style>
+        body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:16px}
+        table{width:100%;border-collapse:collapse;font-size:13px}
+        th,td{border:1px solid #000;padding:6px 8px;text-align:left}
+        th{background:#eee}
+      </style>
+    </head><body>${inner}</body></html>
+  `;
 
-  // MUST be direct in click handler for iOS
-  window.print();
-}
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+  if (isIOS) {
+    printViaPrintArea(inner);
+  } else {
+    printViaIframe(fullDoc);
+  }
+});
 window.addEventListener("afterprint", () => {
-  document.body.classList.remove("isPrinting");
   const printArea = document.getElementById("printArea");
   if (printArea) printArea.innerHTML = "";
 });
+
+
+function printViaIframe(html) {
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  iframe.onload = () => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => iframe.remove(), 1000);
+  };
+}
+function printViaPrintArea(innerHtml) {
+  const printArea = document.getElementById("printArea");
+  printArea.innerHTML = innerHtml;
+
+  // tvinga layout
+  void printArea.offsetHeight;
+
+  // måste vara direkt i klicket på iOS
+  window.print();
+}
