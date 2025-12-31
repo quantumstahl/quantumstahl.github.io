@@ -484,3 +484,82 @@ async function makeThumbWebP(file, size = THUMB_SIZE) {
 
   return await canvasToWebPBlob(canvas, WEBP_QUALITY_THUMB);
 }
+document.getElementById("printBtn").addEventListener("click", () => {
+  printCurrentList();
+});
+//----print----------
+function printCurrentList() {
+  const q = (document.getElementById("search").value || "").toLowerCase();
+
+  const rows = currentRows.filter(r =>
+    String(r.Namn || "").toLowerCase().includes(q) ||
+    String(r.Lotnummer || "").toLowerCase().includes(q) ||
+    String(r.Lager || "").toLowerCase().includes(q)
+  );
+
+  if (!rows.length) {
+    alert("Inget att skriva ut.");
+    return;
+  }
+
+  const title = q ? `Lagerlista – filter: "${q}"` : "Lagerlista";
+
+  const html = `
+    <html>
+      <head>
+        <title>${title}</title>
+        <style>
+          body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            padding: 20px;
+          }
+          h1 {
+            margin-bottom: 12px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+          }
+          th, td {
+            border: 1px solid #333;
+            padding: 6px 8px;
+            text-align: left;
+          }
+          th {
+            background: #f0f0f0;
+          }
+        </style>
+      </head>
+      <body>
+        <h1>${title}</h1>
+        <table>
+          <thead>
+            <tr>
+              <th>Namn</th>
+              <th>Lotnummer</th>
+              <th>Lager</th>
+              <th>Antal</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr>
+                <td>${escapeHtml(r.Namn ?? "")}</td>
+                <td>${escapeHtml(r.Lotnummer ?? r.id)}</td>
+                <td>${escapeHtml(r.Lager ?? "")}</td>
+                <td>${Number.isFinite(r.Antal) ? r.Antal : ""}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </body>
+    </html>
+  `;
+
+  const w = window.open("", "_blank");
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  w.print();
+}
