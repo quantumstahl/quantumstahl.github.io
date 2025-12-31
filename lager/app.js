@@ -108,13 +108,7 @@ el.loginBtn.addEventListener("click", async () => {
   try {
     await signInWithPopup(auth, provider);
   } catch (e) {
-    console.error("Popup login failed:", e);
-    alert(
-      "Inloggning misslyckades.\n\n" +
-      "Om du använder iPhone:\n" +
-      "• testa Safari\n" +
-      "• se till att popups är tillåtna"
-    );
+    clearFirebaseAuthState();
   }
 });
 
@@ -132,7 +126,29 @@ onAuthStateChanged(auth, async (user) => {
     el.list.innerHTML = "";
   }
 });
+function clearFirebaseAuthState() {
+  // Rensa auth-relaterad storage (räcker oftast)
+  try {
+    const prefixes = [
+      "firebase:authUser:",
+      "firebase:redirectEvent:",
+      "firebase:persistence:",
+      "firebase:previousWebsocketFailure:",
+      "firebase:host:"
+    ];
 
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && prefixes.some(p => k.startsWith(p))) localStorage.removeItem(k);
+    }
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const k = sessionStorage.key(i);
+      if (k && prefixes.some(p => k.startsWith(p))) sessionStorage.removeItem(k);
+    }
+  } catch (e) {
+    console.warn("Could not clear auth state", e);
+  }
+}
 // ---------- Preview ----------
 el.imageInput.addEventListener("change", () => {
   const file = el.imageInput.files?.[0];
