@@ -416,3 +416,16 @@ body.isPrinting::before {
   #printArea th, #printArea td { border: 1px solid #000; padding: 6px 8px; text-align: left; }
   #printArea th { background: #eee !important; }
 }
+body.printWarmup, body.printWarmup * {
+  animation: none !important;
+  transition: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  backdrop-filter: none !important;
+  filter: none !important;
+}
+
+@media print {
+  body * { display:none !important; }
+  #printArea { display:block !important; padding:16px !important; background:#fff !important; color:#000 !important; }
+}
