@@ -315,23 +315,21 @@ function renderList(rows) {
       const thumb = r.thumbUrl || r.imageUrl || "";
       const full = r.imageUrl || r.thumbUrl || "";
 
-return `
+      return `
   <div class="rowItem" data-id="${escapeHtml(r.id)}">
-    <div class="rowMain">
-      ${
-        thumb
-          ? `<img class="thumbImg"
-                 loading="lazy"
-                 decoding="async"
-                 src="${thumb}"
-                 data-full="${encodeURIComponent(full)}" />`
-          : `<div style="width:56px;height:56px;"></div>`
-      }
+    ${
+      thumb
+        ? `<img class="thumbImg"
+               loading="lazy"
+               decoding="async"
+               src="${thumb}"
+               data-full="${encodeURIComponent(full)}" />`
+        : ``
+    }
 
-      <div>
-        <div class="rowTitle">${escapeHtml(r.Namn ?? "")}</div>
-        <div class="rowMeta">Lot: ${escapeHtml(r.Lotnummer ?? r.id)} · Lager: ${escapeHtml(r.Lager ?? "")}</div>
-      </div>
+    <div class="rowMain">
+      <div class="rowTitle">${escapeHtml(r.Namn ?? "")}</div>
+      <div class="rowMeta">Lot: ${escapeHtml(r.Lotnummer ?? r.id)} · Lager: ${escapeHtml(r.Lager ?? "")}</div>
     </div>
 
     <div class="rowRight">

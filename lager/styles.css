@@ -386,8 +386,3 @@ input,button,select,textarea{
 
   .delBtn { width: 100%; }
 }
-@media (max-width: 520px){
-  .topbar { padding: 10px 12px; }
-  .logo { width: 36px; height: 36px; border-radius: 12px; }
-  .actions .btn { padding: 9px 10px; }
-}
