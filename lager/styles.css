@@ -355,3 +355,23 @@ input,button,select,textarea{
     width: 100%;
   }
 }
+/* Print: visa bara printArea */
+#printArea { display: none; }
+
+@media print {
+  body { background: #fff !important; }
+
+  /* göm allt i appen */
+  body > * { display: none !important; }
+
+  /* visa bara printArea */
+  #printArea {
+    display: block !important;
+    color: #000 !important;
+    padding: 16px !important;
+  }
+
+  #printArea table { width: 100%; border-collapse: collapse; }
+  #printArea th, #printArea td { border: 1px solid #000; padding: 6px 8px; text-align: left; }
+  #printArea th { background: #eee; }
+}

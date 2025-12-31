@@ -489,7 +489,7 @@ document.getElementById("printBtn").addEventListener("click", () => {
 });
 //----print----------
 function printCurrentList() {
-  const q = (document.getElementById("search").value || "").toLowerCase();
+  const q = (el.search.value || "").toLowerCase().trim();
 
   const rows = currentRows.filter(r =>
     String(r.Namn || "").toLowerCase().includes(q) ||
@@ -503,85 +503,45 @@ function printCurrentList() {
   }
 
   const title = q ? `Lagerlista – filter: "${q}"` : "Lagerlista";
+  const now = new Date().toLocaleString("sv-SE");
 
   const html = `
-<!doctype html>
-<html>
-<head>
-  <title>${title}</title>
-  <meta charset="utf-8" />
-  <style>
-    body {
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      padding: 20px;
-    }
-    h1 {
-      margin-bottom: 12px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-    th, td {
-      border: 1px solid #333;
-      padding: 6px 8px;
-      text-align: left;
-    }
-    th {
-      background: #f0f0f0;
-    }
-  </style>
-</head>
-<body>
-  <h1>${title}</h1>
-  <table>
-    <thead>
-      <tr>
-        <th>Namn</th>
-        <th>Lotnummer</th>
-        <th>Lager</th>
-        <th>Antal</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${rows.map(r => `
-        <tr>
-          <td>${escapeHtml(r.Namn ?? "")}</td>
-          <td>${escapeHtml(r.Lotnummer ?? r.id)}</td>
-          <td>${escapeHtml(r.Lager ?? "")}</td>
-          <td>${Number.isFinite(r.Antal) ? r.Antal : ""}</td>
-        </tr>
-      `).join("")}
-    </tbody>
-  </table>
-</body>
-</html>
+    <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
+      <h1 style="margin:0 0 6px 0;">${escapeHtml(title)}</h1>
+      <div style="margin:0 0 12px 0; font-size:12px; opacity:.8;">
+        ${escapeHtml(now)}
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Namn</th>
+            <th>Lotnummer</th>
+            <th>Lager</th>
+            <th>Antal</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td>${escapeHtml(r.Namn ?? "")}</td>
+              <td>${escapeHtml(r.Lotnummer ?? r.id)}</td>
+              <td>${escapeHtml(r.Lager ?? "")}</td>
+              <td>${Number.isFinite(r.Antal) ? r.Antal : ""}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
   `;
 
-  // 👉 Skapa osynlig iframe
-  const iframe = document.createElement("iframe");
-  iframe.style.position = "fixed";
-  iframe.style.right = "0";
-  iframe.style.bottom = "0";
-  iframe.style.width = "0";
-  iframe.style.height = "0";
-  iframe.style.border = "0";
+  const printArea = document.getElementById("printArea");
+  printArea.innerHTML = html;
 
-  document.body.appendChild(iframe);
+  // Viktigt: kör print direkt (i klick-eventet) för iOS
+  window.print();
 
-  const doc = iframe.contentWindow.document;
-  doc.open();
-  doc.write(html);
-  doc.close();
-
-  iframe.onload = () => {
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
-
-    // Städa bort efter print
-    setTimeout(() => {
-      document.body.removeChild(iframe);
-    }, 1000);
-  };
+  // Städa efteråt
+  setTimeout(() => {
+    printArea.innerHTML = "";
+  }, 500);
 }
