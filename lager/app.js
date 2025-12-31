@@ -194,6 +194,7 @@ el.saveBtn.addEventListener("click", async () => {
 
     setStatus("✅ Klart!");
     await loadList();
+    resetForm({ keepLocation: true });
   } catch (err) {
     console.error(err);
     setStatus("❌ Fel: " + (err?.message ?? err));
@@ -405,6 +406,20 @@ function escapeHtml(s) {
 function cssEscape(s) {
   if (window.CSS && CSS.escape) return CSS.escape(s);
   return String(s).replace(/["\\]/g, "\\$&");
+}
+function resetForm({ keepLocation = true } = {}) {
+  el.name.value = "";
+  el.lotNo.value = "";
+  if (!keepLocation) el.locationId.value = "";
+  el.qty.value = "0";
+
+  // Rensa fil + preview
+  el.imageInput.value = "";
+  el.preview.src = "";
+  el.preview.style.display = "none";
+
+  // Fokus för snabb inmatning
+  el.name.focus();
 }
 
 // ---------- WebP helpers ----------
