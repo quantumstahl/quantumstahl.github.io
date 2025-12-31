@@ -29,6 +29,7 @@ import {
   signInWithPopup,
   getRedirectResult,
   onAuthStateChanged,
+  signOut
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
 // ---------- Config ----------
@@ -79,7 +80,12 @@ const el = {
 
   imageModal: document.getElementById("imageModal"),
   modalImg: document.getElementById("modalImg"),
+  logoutBtn: document.getElementById("logoutBtn"),
 };
+
+el.logoutBtn.addEventListener("click", async () => {
+  await signOut(auth);
+});
 
 function setStatus(t) {
   el.status.textContent = t || "";
@@ -112,6 +118,8 @@ getRedirectResult(auth)
 
 onAuthStateChanged(auth, async (user) => {
   el.authStatus.textContent = user ? `Inloggad: ${user.email}` : "Inte inloggad";
+  el.loginBtn.style.display = user ? "none" : "inline-block";
+  el.logoutBtn.style.display = user ? "inline-block" : "none";
   if (user) {
     setStatus("Laddar lista...");
     await loadList();
@@ -308,39 +316,32 @@ function renderList(rows) {
       const full = r.imageUrl || r.thumbUrl || "";
 
       return `
-      <div class="row"
-           data-id="${escapeHtml(r.id)}"
-           style="border:1px solid #ccc;padding:10px;margin:8px 0;display:flex;gap:10px;align-items:center;">
+  <div class="rowItem" data-id="${escapeHtml(r.id)}">
+    ${
+      thumb
+        ? `<img class="thumbImg"
+               loading="lazy"
+               decoding="async"
+               src="${thumb}"
+               data-full="${encodeURIComponent(full)}" />`
+        : ``
+    }
 
-        ${
-          thumb
-            ? `<img class="thumbImg"
-                 loading="lazy"
-                 decoding="async"
-                 src="${thumb}"
-                 data-full="${encodeURIComponent(full)}"
-                 style="width:54px;height:54px;object-fit:cover;border-radius:8px;cursor:pointer;flex:0 0 auto;">`
-            : ``
-        }
+    <div class="rowMain">
+      <div class="rowTitle">${escapeHtml(r.Namn ?? "")}</div>
+      <div class="rowMeta">Lot: ${escapeHtml(r.Lotnummer ?? r.id)} · Lager: ${escapeHtml(r.Lager ?? "")}</div>
+    </div>
 
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(
-            r.Namn ?? ""
-          )}</div>
-          <div style="opacity:.8;">Lot: ${escapeHtml(r.Lotnummer ?? r.id)} · Lager: ${escapeHtml(r.Lager ?? "")}</div>
-        </div>
-
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:0 0 auto;">
-          <div style="display:flex;align-items:center;gap:6px;">
-            <input class="qtyInput" data-id="${escapeHtml(r.id)}" type="number" step="1" min="0"
-                   value="${Number.isFinite(r.Antal) ? r.Antal : 0}"
-                   style="width:86px;height:34px;text-align:center;">
-            <button class="qtySave" data-id="${escapeHtml(r.id)}" style="height:34px;">Spara</button>
-          </div>
-          <button class="delBtn" data-id="${escapeHtml(r.id)}" style="height:30px;">🗑️</button>
-        </div>
+    <div class="rowRight">
+      <div class="qtyRow">
+        <input class="qtyInput" data-id="${escapeHtml(r.id)}" type="number" step="1" min="0"
+               value="${Number.isFinite(r.Antal) ? r.Antal : 0}">
+        <button class="btn smallBtn qtySave" data-id="${escapeHtml(r.id)}">Spara</button>
       </div>
-      `;
+      <button class="btn delBtn" data-id="${escapeHtml(r.id)}">🗑️ Ta bort</button>
+    </div>
+  </div>
+`;
     })
     .join("");
 

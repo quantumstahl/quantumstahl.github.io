@@ -1,0 +1,333 @@
+:root{
+  --bg: #0b1020;
+  --card: rgba(255,255,255,.06);
+  --card2: rgba(255,255,255,.08);
+  --border: rgba(255,255,255,.12);
+  --text: rgba(255,255,255,.92);
+  --muted: rgba(255,255,255,.65);
+  --muted2: rgba(255,255,255,.45);
+  --accent: #7c5cff;
+  --danger: #ff4d6d;
+  --ok: #20c997;
+  --shadow: 0 10px 30px rgba(0,0,0,.35);
+  --radius: 16px;
+}
+
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  background:
+    radial-gradient(1200px 600px at 20% -10%, rgba(124,92,255,.35), transparent 60%),
+    radial-gradient(800px 500px at 110% 10%, rgba(32,201,151,.22), transparent 55%),
+    var(--bg);
+  color:var(--text);
+}
+
+input,button,select,textarea{
+  font-size:16px; /* stoppar iOS-zoom */
+}
+
+.container{
+  width:min(980px, 92vw);
+  margin: 18px auto 28px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.topbar{
+  position: sticky;
+  top:0;
+  z-index:10;
+  backdrop-filter: blur(12px);
+  background: rgba(11,16,32,.6);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-width:0;
+}
+.logo{
+  width:40px;
+  height:40px;
+  border-radius: 12px;
+  display:grid;
+  place-items:center;
+  font-weight:800;
+  letter-spacing:.5px;
+  background: linear-gradient(135deg, rgba(124,92,255,.95), rgba(124,92,255,.55));
+  box-shadow: var(--shadow);
+}
+.brandText{ min-width:0; }
+.title{
+  font-size:16px;
+  font-weight:800;
+  line-height:1.1;
+}
+.subtitle{
+  font-size:12px;
+  color: var(--muted);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width: 52vw;
+}
+
+.actions{
+  display:flex;
+  gap:10px;
+}
+
+.btn{
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor:pointer;
+  transition: transform .06s ease, background .15s ease, border-color .15s ease;
+}
+.btn:hover{ background: rgba(255,255,255,.10); }
+.btn:active{ transform: translateY(1px); }
+
+.btn.primary{
+  background: linear-gradient(135deg, rgba(124,92,255,.95), rgba(124,92,255,.60));
+  border-color: rgba(124,92,255,.9);
+  box-shadow: 0 10px 25px rgba(124,92,255,.18);
+}
+.btn.ghost{
+  background: transparent;
+}
+
+.status{
+  min-height: 18px;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 0 2px;
+}
+
+.card{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px;
+}
+
+.cardHeader{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom: 10px;
+}
+.cardHeader.row{
+  align-items:center;
+}
+.cardTitle{
+  font-weight:800;
+  font-size:14px;
+}
+.cardHint{
+  font-size:12px;
+  color: var(--muted2);
+  margin-top: 4px;
+}
+
+.formGrid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 720px){
+  .formGrid{ grid-template-columns: 1fr; }
+  .subtitle{ max-width: 48vw; }
+}
+
+.field{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.field > span{
+  font-size:12px;
+  color: var(--muted);
+}
+
+.field input[type="text"],
+.field input[type="number"]{
+  width:100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.18);
+  color: var(--text);
+  outline:none;
+}
+.field input:focus{
+  border-color: rgba(124,92,255,.7);
+  box-shadow: 0 0 0 3px rgba(124,92,255,.15);
+}
+
+.span2{ grid-column: span 2; }
+@media (max-width: 720px){
+  .span2{ grid-column: span 1; }
+}
+
+.fileRow{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.preview{
+  width:56px;
+  height:56px;
+  border-radius: 14px;
+  object-fit:cover;
+  border: 1px solid var(--border);
+}
+
+.formActions{
+  display:flex;
+  justify-content:flex-end;
+  margin-top: 2px;
+}
+
+.searchWrap{
+  flex: 0 0 320px;
+  max-width: 55vw;
+}
+@media (max-width: 720px){
+  .searchWrap{ flex:1; max-width:none; }
+}
+.search{
+  width:100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.18);
+  color: var(--text);
+  outline:none;
+}
+.search:focus{
+  border-color: rgba(124,92,255,.7);
+  box-shadow: 0 0 0 3px rgba(124,92,255,.15);
+}
+
+.list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+/* Row card */
+.rowItem{
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.05);
+  border-radius: 16px;
+  padding: 10px;
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+.rowMain{
+  flex:1;
+  min-width:0;
+}
+.rowTitle{
+  font-weight:800;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.rowMeta{
+  font-size:12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.thumbImg{
+  width:56px;
+  height:56px;
+  border-radius: 14px;
+  object-fit:cover;
+  border: 1px solid rgba(255,255,255,.12);
+  cursor:pointer;
+  flex:0 0 auto;
+}
+
+.rowRight{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:8px;
+  flex:0 0 auto;
+}
+.qtyRow{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.qtyInput{
+  width: 92px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.18);
+  color: var(--text);
+  text-align:center;
+  outline:none;
+}
+.qtyInput:focus{
+  border-color: rgba(124,92,255,.7);
+  box-shadow: 0 0 0 3px rgba(124,92,255,.15);
+}
+
+.smallBtn{
+  height:36px;
+  padding: 0 10px;
+  border-radius: 12px;
+}
+.delBtn{
+  height:32px;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,77,109,.12);
+}
+.delBtn:hover{ background: rgba(255,77,109,.18); }
+
+/* Modal */
+.modal{
+  position: fixed;
+  inset: 0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background: rgba(0,0,0,.86);
+  z-index: 9999;
+  padding: 14px;
+}
+.modalInner{
+  width: min(980px, 96vw);
+  height: min(780px, 96vh);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.modalImg{
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}

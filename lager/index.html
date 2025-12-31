@@ -5,66 +5,98 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <style>
-      input,
-      select,
-      textarea,
-      button {
-        font-size: 16px;
-      }
-      .qtyInput {
-        font-size: 16px;
-        height: 36px;
-        padding: 0 8px;
-        border-radius: 8px;
-        text-align: center;
-      }
-    </style>
+    <link rel="stylesheet" href="./styles.css" />
   </head>
 
   <body>
-    <button id="loginBtn">Logga in med Google</button>
-    <div id="authStatus">Inte inloggad</div>
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">IBC</div>
+        <div class="brandText">
+          <div class="title">IBC-lager</div>
+          <div class="subtitle" id="authStatus">Inte inloggad</div>
+        </div>
+      </div>
 
-    <input type="file" id="imageInput" accept="image/*" />
-    <input type="text" id="name" placeholder="Namn" />
-    <input type="text" id="lotNo" placeholder="Lotnummer" />
-    <input type="text" id="locationId" placeholder="Lagerplats-ID (t.ex. L1)" />
-    <input type="number" id="qty" placeholder="Antal" value="0" />
+      <div class="actions">
+        <button class="btn" id="loginBtn">Logga in</button>
+        <button class="btn ghost" id="logoutBtn" style="display:none;">Logga ut</button>
+      </div>
+    </header>
 
-    <button id="saveBtn">Spara</button>
-    <div id="status"></div>
+    <main class="container">
+      <!-- Status toast-ish -->
+      <div id="status" class="status" aria-live="polite"></div>
 
-    <img id="preview" style="max-width: 150px; display: none" />
+      <!-- Create / Update -->
+      <section class="card">
+        <div class="cardHeader">
+          <div>
+            <div class="cardTitle">Lägg till / uppdatera</div>
+            <div class="cardHint">Lotnummer är nyckeln (skriv samma lot för att uppdatera).</div>
+          </div>
+        </div>
 
-    <input id="search" placeholder="Sök (namn/lot/lag)" />
-    <div id="list"></div>
+        <div class="formGrid">
+          <label class="field">
+            <span>Namn</span>
+            <input type="text" id="name" placeholder="t.ex. Skruv M6" />
+          </label>
+
+          <label class="field">
+            <span>Lotnummer</span>
+            <input type="text" id="lotNo" placeholder="t.ex. 12345" />
+          </label>
+
+          <label class="field">
+            <span>Lagerplats</span>
+            <input type="text" id="locationId" placeholder="t.ex. L1" />
+          </label>
+
+          <label class="field">
+            <span>Antal</span>
+            <input type="number" id="qty" placeholder="Antal" value="0" />
+          </label>
+
+          <div class="field span2">
+            <span>Bild (valfritt)</span>
+            <div class="fileRow">
+              <input type="file" id="imageInput" accept="image/*" />
+              <img id="preview" class="preview" style="display:none;" />
+            </div>
+          </div>
+
+          <div class="span2 formActions">
+            <button class="btn primary" id="saveBtn">Spara</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Search -->
+      <section class="card">
+        <div class="cardHeader row">
+          <div>
+            <div class="cardTitle">Lagerlista</div>
+            <div class="cardHint">Sök på namn, lotnummer eller lagerplats.</div>
+          </div>
+
+          <div class="searchWrap">
+            <input id="search" class="search" placeholder="Sök..." />
+          </div>
+        </div>
+
+        <div id="list" class="list"></div>
+      </section>
+    </main>
 
     <!-- Lightbox -->
-    <div
-      id="imageModal"
-      style="
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.85);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-      "
-    >
-      <img
-        id="modalImg"
-        style="
-          max-width: 95vw;
-          max-height: 95vh;
-          object-fit: contain;
-          border-radius: 10px;
-        "
-      />
+    <div id="imageModal" class="modal" aria-hidden="true">
+      <div class="modalInner">
+        <img id="modalImg" class="modalImg" />
+      </div>
     </div>
 
-    <!-- App module -->
     <script type="module" src="./app.js"></script>
   </body>
 </html>
