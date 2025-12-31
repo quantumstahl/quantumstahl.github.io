@@ -505,61 +505,83 @@ function printCurrentList() {
   const title = q ? `Lagerlista – filter: "${q}"` : "Lagerlista";
 
   const html = `
-    <html>
-      <head>
-        <title>${title}</title>
-        <style>
-          body {
-            font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-            padding: 20px;
-          }
-          h1 {
-            margin-bottom: 12px;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-          }
-          th, td {
-            border: 1px solid #333;
-            padding: 6px 8px;
-            text-align: left;
-          }
-          th {
-            background: #f0f0f0;
-          }
-        </style>
-      </head>
-      <body>
-        <h1>${title}</h1>
-        <table>
-          <thead>
-            <tr>
-              <th>Namn</th>
-              <th>Lotnummer</th>
-              <th>Lager</th>
-              <th>Antal</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows.map(r => `
-              <tr>
-                <td>${escapeHtml(r.Namn ?? "")}</td>
-                <td>${escapeHtml(r.Lotnummer ?? r.id)}</td>
-                <td>${escapeHtml(r.Lager ?? "")}</td>
-                <td>${Number.isFinite(r.Antal) ? r.Antal : ""}</td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
-      </body>
-    </html>
+<!doctype html>
+<html>
+<head>
+  <title>${title}</title>
+  <meta charset="utf-8" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 12px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid #333;
+      padding: 6px 8px;
+      text-align: left;
+    }
+    th {
+      background: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+  <h1>${title}</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Namn</th>
+        <th>Lotnummer</th>
+        <th>Lager</th>
+        <th>Antal</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map(r => `
+        <tr>
+          <td>${escapeHtml(r.Namn ?? "")}</td>
+          <td>${escapeHtml(r.Lotnummer ?? r.id)}</td>
+          <td>${escapeHtml(r.Lager ?? "")}</td>
+          <td>${Number.isFinite(r.Antal) ? r.Antal : ""}</td>
+        </tr>
+      `).join("")}
+    </tbody>
+  </table>
+</body>
+</html>
   `;
 
-  const w = window.open("", "_blank");
-  w.document.write(html);
-  w.document.close();
-  w.focus();
-  w.print();
+  // 👉 Skapa osynlig iframe
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  iframe.onload = () => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+
+    // Städa bort efter print
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 1000);
+  };
 }
