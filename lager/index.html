@@ -1,492 +1,70 @@
+<!doctype html>
 <html>
-    <head>
-        <title>IBC-lager</title>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        
-        <style>
-            
-            input,
-            select,
-            textarea,
-            button {
-              font-size: 16px;
-            }
-            .qtyInput {
-                font-size: 16px;
-                height: 36px;
-                padding: 0 8px;
-                border-radius: 8px;
-                text-align: center;
-              }
-            
-        </style>
-        
-        
-    </head>
-    <body>
-        
-        
-        
-        
-        <button id="loginBtn">Logga in med Google</button>
-        <div id="authStatus">Inte inloggad</div>
-        <input type="file" id="imageInput" accept="image/*">
-        <input type="text" id="name" placeholder="Namn">
-        <input type="text" id="lotNo" placeholder="Lotnummer">
-        <input type="text" id="locationId" placeholder="Lagerplats-ID (t.ex. L1)">
-        <input type="number" id="qty" placeholder="Antal" value="0">
+  <head>
+    <title>IBC-lager</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-        <button id="saveBtn">Spara</button>
-        <div id="status"></div>
-        <img id="preview" style="max-width:150px;display:none;">
-        <input id="search" placeholder="Sök (namn/lot/lag)" />
-        <div id="list"></div>
-        <button id="loadMoreBtn" style="display:none;">Ladda fler</button>
-        <script type="module">
-            
-            
-            
-            import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-            import {getFirestore, doc, setDoc, serverTimestamp,collection, getDocs, query, orderBy, limit, startAfter,updateDoc, deleteDoc} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-            import {getStorage, ref, uploadBytes, getDownloadURL, deleteObject} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
-            
-            const firebaseConfig = {
-                apiKey: "AIzaSyABkVGems0dMpPJHU1ZD8DC8MEff93NAIE",
-                authDomain: "ibc-lager.firebaseapp.com",
-                projectId: "ibc-lager",
-                storageBucket: "ibc-lager.firebasestorage.app",
-                messagingSenderId: "998447660944",
-                appId: "1:998447660944:web:19312163b4a5749a0afd15"
-            };
-
-            const app = initializeApp(firebaseConfig);
-            const db = getFirestore(app);
-            const storage = getStorage(app);
-            
-            
-     
-            const companyId = "company1";
-
-            const statusEl = document.getElementById("status");
-            const setStatus = (t) => statusEl.textContent = t;
-
-            document.getElementById("saveBtn").onclick = async () => {
-              try {
-                const file = document.getElementById("imageInput").files[0];
-
-                const name = document.getElementById("name").value.trim();
-                const lotNo = document.getElementById("lotNo").value.trim();
-                const locationId = document.getElementById("locationId").value.trim();
-                const qty = Number(document.getElementById("qty").value);
-
-                if (!name || !lotNo || !locationId || Number.isNaN(qty)) {
-                  alert("Fyll i namn, lotnummer, lagerplats och antal.");
-                  return;
-                }
-
-                // Välj id-strategi: itemId = lotNo (enkelt)
-                const itemId = lotNo;
-
-                setStatus("Laddar upp...");
-
-                // 1) Upload image (optional)
-let imageUrl = null;
-let thumbUrl = null;
-
-if (file) {
-  setStatus("Skapar WebP...");
-
-  const mainBlob = await makeMainWebP(file, MAIN_MAX);
-  const thumbBlob = await makeThumbWebP(file, THUMB_SIZE);
-
-  const mainPath = `companies/${companyId}/items/${itemId}/main.webp`;
-  const thumbPath = `companies/${companyId}/items/${itemId}/thumb.webp`;
-
-  const mainRef = ref(storage, mainPath);
-  const thumbRef = ref(storage, thumbPath);
-
-  setStatus("Laddar upp bilder...");
-
-  await uploadBytes(mainRef, mainBlob, { contentType: "image/webp" });
-  await uploadBytes(thumbRef, thumbBlob, { contentType: "image/webp" });
-
-  imageUrl = await getDownloadURL(mainRef);
-  thumbUrl = await getDownloadURL(thumbRef);
-}
-
-                setStatus("Sparar artikel...");
-
-                await saveToFirestore({
-                    namn: name,
-                    lotnummer: lotNo,
-                    lager: locationId,
-                    antal: qty,
-                    imageUrl,
-                    thumbUrl
-                  });
-
-                setStatus("✅ Klart!");
-                await loadList();
-              } catch (err) {
-                console.error(err);
-                setStatus("❌ Fel: " + (err?.message ?? err));
-              }
-            };
-            
-            import { 
-  getAuth, 
-  GoogleAuthProvider, 
-  signInWithRedirect, 
-  signInWithPopup,
-  getRedirectResult,
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-
-const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
-
-document.getElementById("loginBtn").onclick = async () => {
-  try {
-    document.getElementById("authStatus").textContent = "Loggar in (popup)...";
-    await signInWithPopup(auth, provider);
-  } catch (e) {
-    console.warn("Popup misslyckades, testar redirect:", e);
-    document.getElementById("authStatus").textContent = "Loggar in (redirect)...";
-    await signInWithRedirect(auth, provider);
-  }
-};
-
-// Viktigt: fånga redirect-resultat med tydlig output
-getRedirectResult(auth).then((res) => {
-  if (res?.user) {
-    console.log("Redirect login OK:", res.user.email);
-  }
-}).catch((e) => {
-  console.error("RedirectResult error:", e);
-  document.getElementById("authStatus").textContent = "Redirect-fel: " + (e?.message ?? e);
-});
-
-onAuthStateChanged(auth, async (user) => {
-  console.log("AUTH STATE:", user ? user.email : "signed out");
-
-  document.getElementById("authStatus").textContent =
-    user ? `Inloggad: ${user.email}` : "Inte inloggad";
-
-  if (user) {
-    try {
-      setStatus("Laddar lista...");
-      await loadList();
-      setStatus("✅ Lista laddad");
-    } catch (e) {
-      console.error(e);
-      setStatus("❌ Kunde inte ladda listan: " + (e?.message ?? e));
-    }
-  } else {
-    // valfritt: töm listan om man loggar ut
-    const listEl = document.getElementById("list");
-    if (listEl) listEl.innerHTML = "";
-  }
-});
-            
-            imageInput.onchange = () => {
-  const file = imageInput.files[0];
-  if (!file) return;
-  preview.src = URL.createObjectURL(file);
-  preview.style.display = "block";
-};
-
-
-
-
-
-async function saveToFirestore({ namn, lotnummer, lager, antal, imageUrl, thumbUrl })  {
-    
-
-    
-  const Namn = (namn ?? "").trim();
-  const Lotnummer = String(lotnummer ?? "").trim();
-  const Lager = (lager ?? "").trim();
-  const Antal = Number(antal);
-
-  if (!Namn || !Lotnummer || !Lager || Number.isNaN(Antal)) {
-    throw new Error("Fyll i Namn, Lotnummer, Lager och Antal (Antal måste vara ett tal).");
-  }
-
-  const docId = Lotnummer;
-
-  const data = {
-    Namn, Lotnummer, Lager, Antal,
-    updatedAt: serverTimestamp(),
-  };
-  if (imageUrl) data.imageUrl = imageUrl;
-  if (thumbUrl) data.thumbUrl = thumbUrl;
-
-  console.log("Firestore write ->", "IBC-lager/" + docId, data);
-
-  // Timeout så den inte kan "hänga" tyst
-  const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error("Firestore timeout (10s) – troligen rules/auth/nät).")), 10000)
-  );
-
-  await Promise.race([
-    setDoc(doc(db, "IBC-lager", docId), data, { merge: true }),
-    timeout
-  ]);
-
-  console.log("Firestore write OK");
-}
-async function loadList() {
-  const snap = await getDocs(query(collection(db, "IBC-lager"), orderBy("updatedAt", "desc")));
-  const rows = [];
-  snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
-  const allRows = sortByLotnummer(rows);
-  renderList(allRows);
-}
-
-let currentRows = [];
-
-function renderList(rows) {
-  currentRows = rows;
-
-  const q = (document.getElementById("search").value || "").toLowerCase();
-  const filtered = rows.filter(r =>
-    String(r.Namn || "").toLowerCase().includes(q) ||
-    String(r.Lotnummer || "").toLowerCase().includes(q) ||
-    String(r.Lager || "").toLowerCase().includes(q)
-  );
-
-  document.getElementById("list").innerHTML = filtered.map(r => `
-    <div class="row"
-         data-id="${r.id}"
-         style="border:1px solid #ccc;padding:10px;margin:8px 0;display:flex;gap:10px;align-items:center;">
-
-      ${(r.thumbUrl || r.imageUrl) ? `
-  <img loading="lazy" src="${r.thumbUrl || r.imageUrl}"
-       style="width:54px;height:54px;object-fit:cover;border-radius:8px;flex:0 0 auto;">
-` : ``}
-
-      <div style="flex:1;min-width:0;">
-        <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.Namn ?? ""}</div>
-        <div style="opacity:.8;">Lot: ${r.Lotnummer ?? r.id} · Lager: ${r.Lager ?? ""}</div>
-      </div>
-
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:0 0 auto;">
-        <div style="display:flex;align-items:center;gap:6px;">
-          <input class="qtyInput" data-id="${r.id}" type="number" step="1" min="0"
-                 value="${Number.isFinite(r.Antal) ? r.Antal : 0}"
-                 style="width:86px;height:34px;text-align:center;">
-          <button class="qtySave" data-id="${r.id}" style="height:34px;">Spara</button>
-        </div>
-        <button class="delBtn" data-id="${r.id}" style="height:30px;">🗑️</button>
-      </div>
-    </div>
-  `).join("");
-
-  // Spara antal
-  document.querySelectorAll(".qtySave").forEach(btn => {
-    btn.addEventListener("click", async (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      const id = btn.dataset.id;
-      const input = document.querySelector(`.qtyInput[data-id="${id}"]`);
-      await setQty(id, input?.value);
-    });
-  });
-
-  // Spara med Enter i input
-  document.querySelectorAll(".qtyInput").forEach(inp => {
-    inp.addEventListener("keydown", async (ev) => {
-      if (ev.key === "Enter") {
-        ev.preventDefault();
-        ev.stopPropagation();
-        await setQty(inp.dataset.id, inp.value);
+    <style>
+      input,
+      select,
+      textarea,
+      button {
+        font-size: 16px;
       }
-    });
-  });
+      .qtyInput {
+        font-size: 16px;
+        height: 36px;
+        padding: 0 8px;
+        border-radius: 8px;
+        text-align: center;
+      }
+    </style>
+  </head>
 
-  // Delete
-  document.querySelectorAll(".delBtn").forEach(btn => {
-    btn.addEventListener("click", async (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      await deleteLotAndImage(btn.dataset.id);
-    });
-  });
-}
+  <body>
+    <button id="loginBtn">Logga in med Google</button>
+    <div id="authStatus">Inte inloggad</div>
 
-document.getElementById("search").addEventListener("input", loadList);
+    <input type="file" id="imageInput" accept="image/*" />
+    <input type="text" id="name" placeholder="Namn" />
+    <input type="text" id="lotNo" placeholder="Lotnummer" />
+    <input type="text" id="locationId" placeholder="Lagerplats-ID (t.ex. L1)" />
+    <input type="number" id="qty" placeholder="Antal" value="0" />
 
-async function changeQty(docId, delta) {
-  try {
-    setStatus(delta > 0 ? "Ökar antal..." : "Minskar antal...");
+    <button id="saveBtn">Spara</button>
+    <div id="status"></div>
 
-    const ref = doc(db, "IBC-lager", docId);
+    <img id="preview" style="max-width: 150px; display: none" />
 
-    // Atomisk increment (tål att flera trycker samtidigt)
-    await updateDoc(ref, { 
-      Antal: increment(delta),
-      updatedAt: serverTimestamp()
-    });
+    <input id="search" placeholder="Sök (namn/lot/lag)" />
+    <div id="list"></div>
 
-    await loadList();
-    setStatus("✅ Uppdaterat!");
-  } catch (e) {
-    console.error(e);
-    setStatus("❌ Fel: " + (e?.message ?? e));
-  }
-}
-async function deleteLot(docId) {
-  try {
-    const row = currentRows.find(r => r.id === docId);
-    const label = row ? `${row.Namn} (Lot ${row.Lotnummer ?? docId})` : docId;
+    <!-- Lightbox -->
+    <div
+      id="imageModal"
+      style="
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.85);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      "
+    >
+      <img
+        id="modalImg"
+        style="
+          max-width: 95vw;
+          max-height: 95vh;
+          object-fit: contain;
+          border-radius: 10px;
+        "
+      />
+    </div>
 
-    if (!confirm(`Ta bort ${label}?`)) return;
-
-    setStatus("Tar bort...");
-    await deleteDoc(doc(db, "IBC-lager", docId));
-
-    await loadList();
-    setStatus("🗑️ Borttagen!");
-  } catch (e) {
-    console.error(e);
-    setStatus("❌ Fel: " + (e?.message ?? e));
-  }
-}
-async function setQty(docId, value) {
-  try {
-    const qty = Number(value);
-    if (!Number.isFinite(qty) || qty < 0) {
-      alert("Antal måste vara ett tal (0 eller mer).");
-      return;
-    }
-
-    setStatus("Sparar antal...");
-
-    await updateDoc(doc(db, "IBC-lager", docId), {
-      Antal: qty,
-      updatedAt: serverTimestamp(),
-    });
-
-    await loadList();
-    setStatus("✅ Antal uppdaterat!");
-  } catch (e) {
-    console.error(e);
-    setStatus("❌ Fel: " + (e?.message ?? e));
-  }
-}
-async function deleteLotAndImage(docId) {
-  try {
-    const row = currentRows.find(r => r.id === docId);
-    const label = row ? `${row.Namn} (Lot ${row.Lotnummer ?? docId})` : docId;
-
-    if (!confirm(`Ta bort ${label}?\n\nDetta raderar även bilden.`)) return;
-
-    setStatus("Tar bort...");
-
-const mainWebp = `companies/${companyId}/items/${docId}/main.webp`;
-const thumbWebp = `companies/${companyId}/items/${docId}/thumb.webp`;
-
-
-for (const p of [mainWebp, thumbWebp]) {
-  try { await deleteObject(ref(storage, p)); }
-  catch (e) { console.warn("Ignorerar bild-delete-fel:", p, e?.code || e); }
-}
-
-await deleteDoc(doc(db, "IBC-lager", docId));
-await loadList();
-    setStatus("🗑️ Borttagen!");
-  } catch (e) {
-    console.error(e);
-    setStatus("❌ Fel: " + (e?.message ?? e));
-  }
-}
-const MAIN_MAX = 1024;       // max bredd/höjd för huvudbild
-const THUMB_SIZE = 128;      // 128x128 thumb
-const WEBP_QUALITY_MAIN = 0.82;
-const WEBP_QUALITY_THUMB = 0.75;
-const PAGE_SIZE = 5;
-
-async function fileToImageBitmap(file) {
-  // createImageBitmap är snabbare och funkar bra på mobil
-  if ("createImageBitmap" in window) return await createImageBitmap(file);
-  // fallback
-  const img = new Image();
-  img.src = URL.createObjectURL(file);
-  await img.decode();
-  return img;
-}
-
-function canvasToWebPBlob(canvas, quality) {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (!blob) reject(new Error("Kunde inte skapa WebP blob."));
-      else resolve(blob);
-    }, "image/webp", quality);
-  });
-}
-
-// Skala ner så att längsta sidan blir maxSize (behåller aspect)
-async function makeMainWebP(file, maxSize = MAIN_MAX) {
-  const img = await fileToImageBitmap(file);
-  const w = img.width, h = img.height;
-
-  const scale = Math.min(1, maxSize / Math.max(w, h));
-  const outW = Math.max(1, Math.round(w * scale));
-  const outH = Math.max(1, Math.round(h * scale));
-
-  const canvas = document.createElement("canvas");
-  canvas.width = outW;
-  canvas.height = outH;
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(img, 0, 0, outW, outH);
-
-  const blob = await canvasToWebPBlob(canvas, WEBP_QUALITY_MAIN);
-  return blob;
-}
-
-// Thumb 128x128 “cover” (center-crop till kvadrat)
-async function makeThumbWebP(file, size = THUMB_SIZE) {
-  const img = await fileToImageBitmap(file);
-  const w = img.width, h = img.height;
-
-  // cover: skala så att min dimension fyller size
-  const scale = Math.max(size / w, size / h);
-  const drawW = Math.round(w * scale);
-  const drawH = Math.round(h * scale);
-
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-
-  const ctx = canvas.getContext("2d");
-  const dx = Math.round((size - drawW) / 2);
-  const dy = Math.round((size - drawH) / 2);
-
-  ctx.drawImage(img, dx, dy, drawW, drawH);
-
-  const blob = await canvasToWebPBlob(canvas, WEBP_QUALITY_THUMB);
-  return blob;
-}
-function sortByLotnummer(rows) {
-  const collator = new Intl.Collator("sv", {
-    numeric: true,
-    sensitivity: "base"
-  });
-
-  return rows.sort((a, b) =>
-    collator.compare(
-      String(a.Lotnummer ?? a.id),
-      String(b.Lotnummer ?? b.id)
-    )
-  );
-}
-
-
-           // await loadList();
-        </script>    
-        
-        
-        
-    </body>
+    <!-- App module -->
+    <script type="module" src="./app.js"></script>
+  </body>
 </html>
