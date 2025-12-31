@@ -53,6 +53,7 @@ input,button,select,textarea{
 .topbar{
   position: sticky;
   top:0;
+  right:0;
   z-index:10;
   backdrop-filter: blur(12px);
   background: rgba(11,16,32,.6);
