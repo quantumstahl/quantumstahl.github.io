@@ -3,8 +3,32 @@
         <title>IBC-lager</title>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <style>
+            
+            input,
+            select,
+            textarea,
+            button {
+              font-size: 16px;
+            }
+            .qtyInput {
+                font-size: 16px;
+                height: 36px;
+                padding: 0 8px;
+                border-radius: 8px;
+                text-align: center;
+              }
+            
+        </style>
+        
+        
     </head>
     <body>
+        
+        
+        
+        
         <button id="loginBtn">Logga in med Google</button>
         <div id="authStatus">Inte inloggad</div>
         <input type="file" id="imageInput" accept="image/*">
@@ -216,7 +240,8 @@ async function loadList() {
   const snap = await getDocs(query(collection(db, "IBC-lager"), orderBy("updatedAt", "desc")));
   const rows = [];
   snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
-  renderList(rows);
+  const allRows = sortByLotnummer(rows);
+  renderList(allRows);
 }
 
 let currentRows = [];
@@ -443,6 +468,21 @@ async function makeThumbWebP(file, size = THUMB_SIZE) {
   const blob = await canvasToWebPBlob(canvas, WEBP_QUALITY_THUMB);
   return blob;
 }
+function sortByLotnummer(rows) {
+  const collator = new Intl.Collator("sv", {
+    numeric: true,
+    sensitivity: "base"
+  });
+
+  return rows.sort((a, b) =>
+    collator.compare(
+      String(a.Lotnummer ?? a.id),
+      String(b.Lotnummer ?? b.id)
+    )
+  );
+}
+
+
            // await loadList();
         </script>    
         
