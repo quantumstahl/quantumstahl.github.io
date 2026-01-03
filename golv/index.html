@@ -3454,15 +3454,15 @@ s2 = s2.replace(/^Red:\s*/,'');  // A
 
   const rows = [];
   if(programmnummer===0){
-    rows.push({k:'Row1: first/last plank', v:String(kaprader.Första1+" "+kaprader.Sista1+" X:" +kaprader.antal1 )});
-    rows.push({k:'Row2: first/last plank', v:String(kaprader.Första2+" "+kaprader.Sista2+" X:" +kaprader.antal2 )});
-    rows.push({k:'Row3: first/last plank', v:String(kaprader.Första3+" "+kaprader.Sista3+" X:" +kaprader.antal3 )});
-    rows.push({k:'Row4: first/last plank', v:String(kaprader.Första4+" "+kaprader.Sista4+" X:" +kaprader.antal4 )});
-    rows.push({k:'Row5: first/last plank', v:String(kaprader.Första5+" "+kaprader.Sista5+" X:" +kaprader.antal5 )});
+    rows.push({k:'Row1: first/last plank', v:String(kaprader.Första1+" / "+kaprader.Sista1+" X:" +kaprader.antal1 )});
+    rows.push({k:'Row2: first/last plank', v:String(kaprader.Första2+" / "+kaprader.Sista2+" X:" +kaprader.antal2 )});
+    rows.push({k:'Row3: first/last plank', v:String(kaprader.Första3+" / "+kaprader.Sista3+" X:" +kaprader.antal3 )});
+    rows.push({k:'Row4: first/last plank', v:String(kaprader.Första4+" / "+kaprader.Sista4+" X:" +kaprader.antal4 )});
+    rows.push({k:'Row5: first/last plank', v:String(kaprader.Första5+" / "+kaprader.Sista5+" X:" +kaprader.antal5 )});
   }
   if(programmnummer==1){
-    rows.push({k:'Row1: first/last plank', v:String(kaprader.Första1+" "+kaprader.Sista1+" X:" +kaprader.antal1 )});
-    rows.push({k:'Row2: first/last plank', v:String(kaprader.Första2+" "+kaprader.Sista2+" X:" +kaprader.antal2 )});
+    rows.push({k:'Row1: first/last plank', v:String(kaprader.Första1+" / "+kaprader.Sista1+" X:" +kaprader.antal1 )});
+    rows.push({k:'Row2: first/last plank', v:String(kaprader.Första2+" / "+kaprader.Sista2+" X:" +kaprader.antal2 )});
   }
   if(programmnummer==2){
     rows.push({k:'Coverage ratio', v:String(kapraderdata.utnyttjande +"%" )});
