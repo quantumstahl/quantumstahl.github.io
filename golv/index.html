@@ -3349,7 +3349,7 @@ if(haveTotals){
 
     // ---- Höger kort: Edge cuts (harringbone.end) ----
     (function(){
-      const x = gx + colW + colGap, y = gy, w = colW, h = 180;
+      const x = gx + colW + colGap, y = gy, w = colW, h = 380;
 
       ctx.save();
       ctx.fillStyle = '#ffffff';
@@ -3370,16 +3370,15 @@ if(haveTotals){
       const red  = lines.filter(s => String(s).trim().startsWith('Red'));
       const other= lines.filter(s => !(String(s).trim().startsWith('Gray') || String(s).trim().startsWith('Red')));
 
-      // Render i 2 kolumner i rutan
-      const innerX = x + 10;
-      const innerY = y + 38;
-      const innerW = w - 20;
-      const innerH = h - 48;
-      const colW2  = Math.floor((innerW - 10) / 2);
-      const lineH  = 14;
+      // Render i 1 kolumn
+        const innerX = x + 10;
+        const innerY = y + 38;
+        const innerW = w - 20;
+        const innerH = h - 48;
+        const lineH  = 20;
 
       ctx.save();
-      ctx.font = '13px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      ctx.font = '20px system-ui, -apple-system, Segoe UI, Roboto, Arial';
       ctx.fillStyle = 'rgba(17,24,39,65)';
 
       let cx = innerX, cy = innerY;
@@ -3390,25 +3389,15 @@ if(haveTotals){
         ctx.fillText(t, cx, cy);
         cy += lineH;
         ctx.fillStyle = 'rgba(17,24,39,65)';
-        ctx.font = '13px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+        ctx.font = '20px system-ui, -apple-system, Segoe UI, Roboto, Arial';
       }
       function drawLine(t){
-        // bryt till nästa kolumn om vi inte får plats
-        if(cy + lineH > innerY + innerH){
-          cx = innerX + colW2 + 10;
-          cy = innerY;
-        }
-        // om även kolumn 2 är full: sluta rita (hellre snyggt än kaos)
-        if(cx > innerX + colW2 + 9 && cy + lineH > innerY + innerH) return false;
-
+        
         // klipp texten lite om den blir för lång
         const s = String(t);
-        const maxPx = colW2;
-        let out = s;
-        while(ctx.measureText(out).width > maxPx && out.length > 8) out = out.slice(0, -2);
-        if(out !== s) out = out + '…';
 
-        ctx.fillText(out, cx, cy);
+
+        ctx.fillText(s, cx, cy);
         cy += lineH;
         return true;
       }
