@@ -3302,8 +3302,18 @@ if(haveTotals){
   const ppp = Number(programmnummer|0);
 
   // --- Hjälpare för HB-bitar ---
-  const hasBit = (o) => !!o && (((o.long|0)!==0) || ((o.short|0)!==0) || ((o.count|0)!==0));
-  const fmtBit = (o)=> `${o.long}/${o.short} ${o.color}  X:${o.count}`;
+    const bitsRows = [];
+    const b = harringbone.bits || {};
+
+    // Samma formattering som innan
+    const fmtBit = (o)=> `${o.long}/${o.short} ${o.color}  X:${o.count}`;
+    const hasBit = (o) => !!o && ((o.count|0) > 0); // eller din gamla om du vill
+
+    // Mappa färg -> A/B (A=röd, B=grå)
+    const bandOf = (o) => (String(o.color).toLowerCase() === 'red') ? 'A' : 'B';
+
+    // Ta bara med bitar som faktiskt används
+    const list = [];
 
   // =========================
   // CASE: Herringbone (p==3)
@@ -3335,11 +3345,22 @@ if(haveTotals){
       rows.push({k:'Boards total',    v:String(harringbone.brädor)});
 
       // bits (bit2 skrivs bara ut om den behövs)
-      const b = harringbone.bits || {};
-      if(hasBit(b.höger1))   rows.push({k:'Right bit 1', v: fmtBit(b.höger1)});
-      if(hasBit(b.vänster1)) rows.push({k:'Left bit 1',  v: fmtBit(b.vänster1)});
-      if(hasBit(b.höger2))   rows.push({k:'Right bit 2', v: fmtBit(b.höger2)});
-      if(hasBit(b.vänster2)) rows.push({k:'Left bit 2',  v: fmtBit(b.vänster2)});
+        if(hasBit(b.höger1))   list.push({side:'Right', idx:1, o:b.höger1});
+        if(hasBit(b.höger2))   list.push({side:'Right', idx:2, o:b.höger2});
+        if(hasBit(b.vänster1)) list.push({side:'Left',  idx:1, o:b.vänster1});
+        if(hasBit(b.vänster2)) list.push({side:'Left',  idx:2, o:b.vänster2});
+
+        // Sortera så det blir stabilt: A först, sen B (valfritt)
+       // list.sort((a,bx)=> (bandOf(a.o) > bandOf(bx.o)) ? 1 : -1);
+
+        // Skriv ut med A/B istället för color + Right/Left
+        for(const it of list){
+          const band = bandOf(it.o);
+         rows.push({
+            k: `${band} bit (${it.side} ${it.idx})`,
+            v: fmtBit(it.o).replace(/\sred\s/i,'').replace(/\sgray\s/i,'') // ta bort "red/gray" i texten
+          });
+        }
 
       // 1 kolumn (för att slippa trängsel)
       drawKVGrid(ctx, x+10, y+38, w-20, 18, rows.slice(0, 9));
@@ -3395,15 +3416,16 @@ if(haveTotals){
         
         // klipp texten lite om den blir för lång
         const s = String(t);
+        let s2 = s.trim();
+s2 = s2.replace(/^Gray:\s*/,''); // B
+s2 = s2.replace(/^Red:\s*/,'');  // A
 
-
-        ctx.fillText(s, cx, cy);
+        ctx.fillText(s2, cx, cy);
         cy += lineH;
         return true;
       }
-
-      if(gray.length){ drawHeader('Gray'); for(const s of gray){ if(!drawLine(s)) break; } }
-      if(red.length){  drawHeader('Red');  for(const s of red){  if(!drawLine(s)) break; } }
+      if(red.length){  drawHeader('A');  for(const s of red){  if(!drawLine(s)) break; } }
+      if(gray.length){ drawHeader('B'); for(const s of gray){ if(!drawLine(s)) break; } }
       if(other.length){drawHeader('Other');for(const s of other){if(!drawLine(s)) break; } }
 
       ctx.restore();
