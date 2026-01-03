@@ -3134,7 +3134,7 @@ function drawRoundedRect(ctx, x, y, w, h, r){
 function drawKVGrid(ctx, x, y, colW, lineH, items){
   // items: [{k:'Room width', v:'5000 mm'}, ...]
   ctx.save();
-  ctx.font = '15px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+  ctx.font = '20px system-ui, -apple-system, Segoe UI, Roboto, Arial';
   items.forEach((row, i)=>{
     const yy = y + i*lineH;
     ctx.fillStyle = 'rgba(17,24,39,.65)'; // muted
@@ -3342,7 +3342,7 @@ if(haveTotals){
       if(hasBit(b.vänster2)) rows.push({k:'Left bit 2',  v: fmtBit(b.vänster2)});
 
       // 1 kolumn (för att slippa trängsel)
-      drawKVGrid(ctx, x+10, y+38, w-20, 18, rows.slice(0, 7));
+      drawKVGrid(ctx, x+10, y+38, w-20, 18, rows.slice(0, 9));
 
       ctx.restore();
     })();
