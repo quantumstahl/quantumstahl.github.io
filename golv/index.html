@@ -1997,8 +1997,12 @@ html, body { background:#121417; }
               //  ctx.fillText("Total yta:"+Math.round((((input.value*input2.value)/1000000)+ Number.EPSILON) * 100)/100+" M2", canvas.width/2-200, 415);
                 kapraderdata.Totalyta=Math.round((((input.value*input2.value)/1000000)+ Number.EPSILON) * 100)/100;
                 
-                let golvytans=capy*capx;
-                
+                if(programmnummer!=2)golvytans=capy*capx;
+                else{
+                    golvytans=capy*capx*(kapraderdata.utnyttjande/100);
+                    
+                    
+                }
                 
                 
                 
@@ -3263,7 +3267,19 @@ function drawReportOnCanvas(ctx, planBitmap){
     ctx.fillStyle = '#111827';
     ctx.font = '600 16px system-ui, -apple-system, Segoe UI, Roboto, Arial';
     ctx.fillText('Pattern', x+10, y+18);
-
+    
+    
+    if(programmnummer==3){
+    drawKVGrid(ctx, x+10, y+38, w-20, 18, [
+      {k:'Type',        v: patternLabel(p, v)},
+      {k:'Rotate room', v: rot ? 'Yes' : 'No'},
+      {k:'Generated',   v: new Date().toLocaleString()},
+      {k:'Rum m2',   v: kapraderdata.Totalyta},
+      {k:'Floor m2',   v: kapraderdata.Golvyta},
+      {k:'Planks to buy m2',   v: harringbone.M2brädor},
+    ]);
+    }
+    else{
     drawKVGrid(ctx, x+10, y+38, w-20, 18, [
       {k:'Type',        v: patternLabel(p, v)},
       {k:'Rotate room', v: rot ? 'Yes' : 'No'},
@@ -3271,60 +3287,186 @@ function drawReportOnCanvas(ctx, planBitmap){
       {k:'Rum m2',   v: kapraderdata.Totalyta},
       {k:'Floor m2',   v: kapraderdata.Golvyta},
       {k:'Planks to buy m2',   v: kapraderdata.M2BrädorKöpa},
-    ]);
+    ]);    
+    }
+    
     ctx.restore();
   })();
 
   gy += 140 + 12;
 
-  // 7) Computed totals (frivillig sektion om vi har siffror)
-  const haveTotals = 100;
-  if(haveTotals){
-    const x = gx, y = gy, w = sheetW - pad*2, h = 180;
-    ctx.save();
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = '#e5e7eb';
-    ctx.lineWidth = 1;
-    drawRoundedRect(ctx, x, y, w, h, 10);
-    ctx.fill(); ctx.stroke();
+// 7) Computed totals + (för herringbone) Edge cuts till höger
+const haveTotals = 100;
+if(haveTotals){
 
-    ctx.fillStyle = '#111827';
-    ctx.font = '600 16px system-ui, -apple-system, Segoe UI, Roboto, Arial';
-    ctx.fillText('Computed totals', x+10, y+18);
+  const ppp = Number(programmnummer|0);
 
-    // Rada upp nyckel-värden i två kolumner om många
-    const rows = [];
-    
-    if(programmnummer===0){
-    
-    rows.push({k:'Row1: first/last plank',      v:String(kaprader.Första1+" "+kaprader.Sista1+" X:" +kaprader.antal1 )});
-    rows.push({k:'Row2: first/last plank',      v:String(kaprader.Första2+" "+kaprader.Sista2+" X:" +kaprader.antal2 )});
-    rows.push({k:'Row3: first/last plank',      v:String(kaprader.Första3+" "+kaprader.Sista3+" X:" +kaprader.antal3 )});
-    rows.push({k:'Row4: first/last plank',      v:String(kaprader.Första4+" "+kaprader.Sista4+" X:" +kaprader.antal4 )});
-    rows.push({k:'Row5: first/last plank',      v:String(kaprader.Första5+" "+kaprader.Sista5+" X:" +kaprader.antal5 )});
-    }
-    if(programmnummer==1){
-    rows.push({k:'Row1: first/last plank',      v:String(kaprader.Första1+" "+kaprader.Sista1+" X:" +kaprader.antal1 )});
-    rows.push({k:'Row2: first/last plank',      v:String(kaprader.Första2+" "+kaprader.Sista2+" X:" +kaprader.antal2 )});
-        
-    }
-    if(programmnummer==2){
-    rows.push({k:'Coverage ratio',      v:String(kapraderdata.utnyttjande +"%" )});    
-        
-        
-    }
-    
-    
-    const left = rows.slice(0, Math.ceil(5));
-    const right= rows.slice(5);
+  // --- Hjälpare för HB-bitar ---
+  const hasBit = (o) => !!o && (((o.long|0)!==0) || ((o.short|0)!==0) || ((o.count|0)!==0));
+  const fmtBit = (o)=> `${o.long}/${o.short} ${o.color}  X:${o.count}`;
 
-    drawKVGrid(ctx, x+10, y+38, Math.floor((w-30)/2), 18, left);
-    ctx.save(); ctx.textAlign='left'; // drawKVGrid återställer själv
-    drawKVGrid(ctx, x+Math.floor(w/2), y+38, Math.floor((w-30)/2), 18, right);
-    ctx.restore();
+  // =========================
+  // CASE: Herringbone (p==3)
+  // =========================
+  if(ppp === 3){
 
-    ctx.restore();
+    // ---- Vänster kort: Computed totals (kompakt) ----
+    (function(){
+      const x = gx, y = gy, w = colW, h = 180;
+
+      ctx.save();
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      drawRoundedRect(ctx, x, y, w, h, 10);
+      ctx.fill(); ctx.stroke();
+
+      ctx.fillStyle = '#111827';
+      ctx.font = '600 16px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      ctx.fillText('Computed totals', x+10, y+18);
+
+      const rows = [];
+
+      // översikt
+      rows.push({k:'Start triangles', v:String(harringbone.starttrianglar)});
+      rows.push({k:'Left triangle',   v:String(harringbone.vänstertriangeln + ' mm')});
+      rows.push({k:'Right triangle',  v:String(harringbone.högertriangeln  + ' mm')});
+      rows.push({k:'Whole boards',    v:String(harringbone.helabrädor)});
+      rows.push({k:'Boards total',    v:String(harringbone.brädor)});
+
+      // bits (bit2 skrivs bara ut om den behövs)
+      const b = harringbone.bits || {};
+      if(hasBit(b.höger1))   rows.push({k:'Right bit 1', v: fmtBit(b.höger1)});
+      if(hasBit(b.vänster1)) rows.push({k:'Left bit 1',  v: fmtBit(b.vänster1)});
+      if(hasBit(b.höger2))   rows.push({k:'Right bit 2', v: fmtBit(b.höger2)});
+      if(hasBit(b.vänster2)) rows.push({k:'Left bit 2',  v: fmtBit(b.vänster2)});
+
+      // 1 kolumn (för att slippa trängsel)
+      drawKVGrid(ctx, x+10, y+38, w-20, 18, rows.slice(0, 7));
+
+      ctx.restore();
+    })();
+
+    // ---- Höger kort: Edge cuts (harringbone.end) ----
+    (function(){
+      const x = gx + colW + colGap, y = gy, w = colW, h = 180;
+
+      ctx.save();
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      drawRoundedRect(ctx, x, y, w, h, 10);
+      ctx.fill(); ctx.stroke();
+
+      ctx.fillStyle = '#111827';
+      ctx.font = '600 16px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      ctx.fillText('End cuts', x+10, y+18);
+
+      // Förbered rader (gruppera Gray/Red om dina strängar börjar så)
+      const endArr = Array.isArray(harringbone.end) ? harringbone.end : [];
+      const lines = endArr.map(e => (typeof e === 'string') ? e : JSON.stringify(e));
+
+      const gray = lines.filter(s => String(s).trim().startsWith('Gray'));
+      const red  = lines.filter(s => String(s).trim().startsWith('Red'));
+      const other= lines.filter(s => !(String(s).trim().startsWith('Gray') || String(s).trim().startsWith('Red')));
+
+      // Render i 2 kolumner i rutan
+      const innerX = x + 10;
+      const innerY = y + 38;
+      const innerW = w - 20;
+      const innerH = h - 48;
+      const colW2  = Math.floor((innerW - 10) / 2);
+      const lineH  = 14;
+
+      ctx.save();
+      ctx.font = '13px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      ctx.fillStyle = 'rgba(17,24,39,65)';
+
+      let cx = innerX, cy = innerY;
+
+      function drawHeader(t){
+        ctx.fillStyle = '#111827';
+        ctx.font = '600 13px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+        ctx.fillText(t, cx, cy);
+        cy += lineH;
+        ctx.fillStyle = 'rgba(17,24,39,65)';
+        ctx.font = '13px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      }
+      function drawLine(t){
+        // bryt till nästa kolumn om vi inte får plats
+        if(cy + lineH > innerY + innerH){
+          cx = innerX + colW2 + 10;
+          cy = innerY;
+        }
+        // om även kolumn 2 är full: sluta rita (hellre snyggt än kaos)
+        if(cx > innerX + colW2 + 9 && cy + lineH > innerY + innerH) return false;
+
+        // klipp texten lite om den blir för lång
+        const s = String(t);
+        const maxPx = colW2;
+        let out = s;
+        while(ctx.measureText(out).width > maxPx && out.length > 8) out = out.slice(0, -2);
+        if(out !== s) out = out + '…';
+
+        ctx.fillText(out, cx, cy);
+        cy += lineH;
+        return true;
+      }
+
+      if(gray.length){ drawHeader('Gray'); for(const s of gray){ if(!drawLine(s)) break; } }
+      if(red.length){  drawHeader('Red');  for(const s of red){  if(!drawLine(s)) break; } }
+      if(other.length){drawHeader('Other');for(const s of other){if(!drawLine(s)) break; } }
+
+      ctx.restore();
+      ctx.restore();
+    })();
+
+    // OBS: vi har ritat båda korten -> hoppa över gamla fullbredds-kortet
+    ctx.restore?.();
+    return;
   }
+
+  // =========================
+  // Default: gamla fullbredds
+  // =========================
+  const x = gx, y = gy, w = sheetW - pad*2, h = 180;
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#e5e7eb';
+  ctx.lineWidth = 1;
+  drawRoundedRect(ctx, x, y, w, h, 10);
+  ctx.fill(); ctx.stroke();
+
+  ctx.fillStyle = '#111827';
+  ctx.font = '600 16px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+  ctx.fillText('Computed totals', x+10, y+18);
+
+  const rows = [];
+  if(programmnummer===0){
+    rows.push({k:'Row1: first/last plank', v:String(kaprader.Första1+" "+kaprader.Sista1+" X:" +kaprader.antal1 )});
+    rows.push({k:'Row2: first/last plank', v:String(kaprader.Första2+" "+kaprader.Sista2+" X:" +kaprader.antal2 )});
+    rows.push({k:'Row3: first/last plank', v:String(kaprader.Första3+" "+kaprader.Sista3+" X:" +kaprader.antal3 )});
+    rows.push({k:'Row4: first/last plank', v:String(kaprader.Första4+" "+kaprader.Sista4+" X:" +kaprader.antal4 )});
+    rows.push({k:'Row5: first/last plank', v:String(kaprader.Första5+" "+kaprader.Sista5+" X:" +kaprader.antal5 )});
+  }
+  if(programmnummer==1){
+    rows.push({k:'Row1: first/last plank', v:String(kaprader.Första1+" "+kaprader.Sista1+" X:" +kaprader.antal1 )});
+    rows.push({k:'Row2: first/last plank', v:String(kaprader.Första2+" "+kaprader.Sista2+" X:" +kaprader.antal2 )});
+  }
+  if(programmnummer==2){
+    rows.push({k:'Coverage ratio', v:String(kapraderdata.utnyttjande +"%" )});
+  }
+
+  const left = rows.slice(0, Math.ceil(5));
+  const right= rows.slice(5);
+
+  drawKVGrid(ctx, x+10, y+38, Math.floor((w-30)/2), 18, left);
+  ctx.save(); ctx.textAlign='left';
+  drawKVGrid(ctx, x+Math.floor(w/2), y+38, Math.floor((w-30)/2), 18, right);
+  ctx.restore();
+
+  ctx.restore();
+}
 
 }
 
