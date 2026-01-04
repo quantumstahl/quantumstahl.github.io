@@ -1293,8 +1293,8 @@ canvas{
             function resizecanvas(){
                 
                 
-                widthInput.value = Math.round(drawareax/zoom) ;
-               heightInput.value = Math.round(drawareay/zoom);
+                widthInput.value = ensureIntDimension(drawareax/zoom) ;
+               heightInput.value = ensureIntDimension(drawareay/zoom);
                
         
             // Show the modal
@@ -4615,9 +4615,12 @@ canvas.addEventListener('pointerdown', (ev) => {
         isSelecting = true; //selectionStartX = canvasX; selectionStartY = canvasY; selectionEndX = canvasX; selectionEndY = canvasY;
       } else if (currentTool === 'text') {
         const text = prompt("Enter your text:"); if (text) { beginAction(); drawText(x, y, text); endAction(); }
-      } else if (currentTool === 'pen') {
+      } //else if (currentTool === 'pen') {
+       // beginAction(); _capturePreStroke();delatare=true;isDrawing = true; lastX = 0; lastY = 0; penDown(x, y);
+      //}
+    }
+    if (currentTool === 'pen') {
         beginAction(); _capturePreStroke();delatare=true;isDrawing = true; lastX = 0; lastY = 0; penDown(x, y);
-      }
     }
   }
 }, { passive: false });
@@ -4748,8 +4751,8 @@ function ensureStacks(pid){
 function captureRegionSnapshot() {
   // Snapshot av aktuella bildmått (w,h) – inte hela backing-canvas
   const z = _effectiveZoom();
-  const imgW = Math.max(1, Math.floor(drawareax / z)) | 0;
-  const imgH = Math.max(1, Math.floor(drawareay / z)) | 0;
+  const imgW = Math.max(1, ensureIntDimension(drawareax / z)) | 0;
+  const imgH = Math.max(1, ensureIntDimension(drawareay / z)) | 0;
 
   const snap = document.createElement('canvas');
   snap.width = imgW; snap.height = imgH;
@@ -5136,14 +5139,7 @@ function resetPaletteToDefaults(activateIndex = 0){
   // om du visar förhandsvisning etc., uppdatera där också vid behov
 }
 
-let running = true;
-document.addEventListener('visibilitychange', () => {
-    
-  if(!running)  window.requestAnimationFrame(check);
-    
-  running = (document.visibilityState === 'visible');
-  
-});
+
 
 async function warmUpCanvas(canvas, bg = 'white') {
   // Ta ut context med rätt flaggor
@@ -5313,8 +5309,8 @@ async function gogogo(canvas, bg = 'white'){
                 // Use integer coordinates and add 1px buffer to prevent edge artifacts
                 const patternX = Math.floor(drawstartx+1+camera.x);
                 const patternY = Math.floor(drawstarty+1+camera.y);
-                const patternWidth = (Math.ceil(drawareax + (drawstartx+camera.x - patternX)-1) - 0);
-                const patternHeight = (Math.ceil(drawareay + (drawstarty+camera.y - patternY)-1) - 0);
+                const patternWidth = (ensureIntDimension(drawareax + (drawstartx+camera.x - patternX)-1) - 0);
+                const patternHeight = (ensureIntDimension(drawareay + (drawstarty+camera.y - patternY)-1) - 0);
                 ctx.fillRect(patternX, patternY, patternWidth, patternHeight);
 
 
@@ -5445,7 +5441,7 @@ async function gogogo(canvas, bg = 'white'){
             
             
             
-                if(running)window.requestAnimationFrame(check);   
+                window.requestAnimationFrame(check);   
             }; 
             
             check();
@@ -5495,6 +5491,8 @@ let _albumId = null;
 const ALBUM_NAME = 'MaxPaint';
 ensureAlbumId();
 async function ensureAlbumId() {
+    
+  try{  
   if (_albumId) return _albumId;
   _albumId = localStorage.getItem('mp_album_id');
   if (_albumId) return _albumId;
@@ -5510,6 +5508,7 @@ async function ensureAlbumId() {
   _albumId = found?.identifier || null;
   if (_albumId) localStorage.setItem('mp_album_id', _albumId);
   return _albumId;
+  }catch(e){}
 }    
 
 
