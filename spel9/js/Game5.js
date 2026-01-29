@@ -1,3 +1,6 @@
+var maskCanvas = document.createElement('canvas');
+var maskCtx = maskCanvas.getContext('2d');
+
 const COLL_PROF = 1;
 function _mkProf(){
   return {
@@ -202,7 +205,7 @@ const BETA       = 2;  // 0..1, hur stor del av återstående pen som tas per fr
 const MAX_CORR_PX= 32.0;   // max px per par och kropp per iteration (skydd mot “skott”)
 
 const STEP_EPS   = 2;   // hur mycket under topp vi tolererar (px)
-const STEP_MAX   = 8;   // hur mycket över topp vi får "kliva upp" (px)
+const STEP_MAX   = 12;   // hur mycket över topp vi får "kliva upp" (px)
 const SIDE_SKIN  = 1.0; // valfritt: skär av statiska sidkanter lite
 const SimSolver = {
   ITER: 4,
@@ -213,105 +216,43 @@ const SimSolver = {
     
     const prof = COLL_PROF ? _mkProf() : null;  
     if (prof) prof.tic('precalc');  
-function _pushCollisionLog(targetRef, otherRef, n, isGhost=false){
-        if (!targetRef) return;
+function _pushCollisionLog(targetRef, otherRef, n, isGhost=false, depth=0, aabbA=null, aabbB=null){
+  if (!targetRef) return;
 
-        let dir;
-        if (isGhost){
-          dir = "ghost";
-        } else {
-          // Skärmkoordinater: +x = höger, +y = nedåt
-          if (Math.abs(n.x) > Math.abs(n.y)){
-            dir = (n.x > 0) ? 'right' : 'left';
-          } else {
-            dir = (n.y > 0) ? 'down'  : 'up';
-          }
-        }
+  let dir;
+  if (isGhost){
+    dir = "ghost";
+  } else {
+    // === NYTT: filtrera "falska" sidkollisioner vid kanter ===
+    if (aabbA && aabbB && Math.abs(n.x) > Math.abs(n.y)) {
+      const aTop = aabbA.y, aBot = aabbA.y + aabbA.h;
+      const bTop = aabbB.y, bBot = aabbB.y + aabbB.h;
+      const overlapY = Math.min(aBot, bBot) - Math.max(aTop, bTop);
 
-        targetRef.hadcollidedobj.push(otherRef || null);
-        targetRef.collideslistanobj.push(otherRef || null);
-        targetRef.collideslistandir.push(dir);
-        targetRef.collideslistan.push(otherRef?.name || 'any');
-      } 
-function coalesceStaticsRobust(stat, {
-  yTol = 2.0,       // px: block inom detta ΔY hamnar i samma rad
-  gapTol = 2.0,     // px: tillåt så här stor glipa mellan block när vi slår ihop
-  sideSkin = 0.5    // px: skär bort lite på sidorna för att slippa fastna i mikrosömmar
-} = {}){
-  const passthrough = [];
-  const rows = []; // [{y:medelY, items:[S...]}]
+      // Hur mycket vertikal overlap som krävs för att få räknas som riktig sid-kollision.
+      // Procent av minsta höjden – funkar oavsett storlek/RTS/plattform.
+      const minH = Math.min(aabbA.h, aabbB.h);
+      const MIN_SIDE_OVERLAP = Math.max(2, minH * 0.35); // testa 0.25..0.45
 
-  // 1) Dela upp i rader med Y-tolerans
-  const tiles = [];
-  for (const S of stat){
-    if (S.type !== 'static' || (S.rot|0) !== 0){ passthrough.push(S); continue; }
-    tiles.push(S);
-  }
-  tiles.sort((a,b)=> a.y - b.y);
-
-  for (const S of tiles){
-    // hitta rad där |S.y - row.y| <= yTol
-    let row = null, bestDy = Infinity;
-    for (const r of rows){
-      const dy = Math.abs(S.y - r.y);
-      if (dy <= yTol && dy < bestDy){ bestDy = dy; row = r; }
-    }
-    if (!row){ row = { y:S.y, items:[] }; rows.push(row); }
-    row.items.push(S);
-    // uppdatera radens representativa Y (glidande medel)
-    row.y = (row.y * (row.items.length-1) + S.y) / row.items.length;
-  }
-
-  const merged = [];
-
-  // 2) Inom varje rad: normalisera Y och slå ihop i X (med gap-tolerans)
-  for (const row of rows){
-    const Y = row.y;
-    // normalisera y och skin:a sidor
-    const arr = row.items.map(s =>{
-      const out = { ...s };
-      out.y = Y; // snäpp upp/ner till radens nivå
-      if (sideSkin > 0){
-        out.x += sideSkin;
-        out.w -= sideSkin*2;
-        if (out.w < 1) out.w = 1; // skydd
-      }
-      return out;
-    }).filter(s => s.w > 0);
-
-    arr.sort((a,b)=> a.x - b.x);
-
-    // slå ihop: tillåt små glipor upp till gapTol
-    let cur = null;
-    for (const s of arr){
-      if (!cur){
-        cur = { ...s, children:[s] };
-        continue;
-      }
-      const right = cur.x + cur.w;
-      if (s.x - right <= gapTol){ // NUDDAR ELLER LITEN GLIPA → MERGE
-        const newRight = Math.max(right, s.x + s.w);
-        cur.w = newRight - cur.x;
-        cur.children.push(s);
-      } else {
-        // flush
-        cur._corners = null;
-        cur._aabb = { x:cur.x, y:cur.y, w:cur.w, h:cur.h };
-        cur._axes = null;
-        merged.push(cur);
-        cur = { ...s, children:[s] };
+      // Om overlapY är för liten: det är nästan alltid ett "corner/ledge-sniff" -> logga inte left/right
+      if (overlapY > 0 && overlapY < MIN_SIDE_OVERLAP) {
+        return;
       }
     }
-    if (cur){
-      cur._corners = null;
-      cur._aabb = { x:cur.x, y:cur.y, w:cur.w, h:cur.h };
-      cur._axes = null;
-      merged.push(cur);
+
+    if (Math.abs(n.x) > Math.abs(n.y)){
+      dir = (n.x > 0) ? 'right' : 'left';
+    } else {
+      dir = (n.y > 0) ? 'down'  : 'up';
     }
   }
 
-  return merged.concat(passthrough);
+  targetRef.hadcollidedobj.push(otherRef || null);
+  targetRef.collideslistanobj.push(otherRef || null);
+  targetRef.collideslistandir.push(dir);
+  targetRef.collideslistan.push(otherRef?.name || 'any');
 }
+
     const map = game.maps[game.currentmap];
     let stat = [];
     const dyn  = [];
@@ -461,7 +402,6 @@ if (ghostFront){
         }
       }
     } 
-    stat = coalesceStaticsRobust(stat, { yTol: 2, gapTol: 2, sideSkin: 0.5 });
     markGhostsDirty();
 // Bygg stat-grid EN gång per frame (som innan)
 const { gridStat, gridGhost } = _ensureStaticGrids(stat, ghosts);
@@ -476,7 +416,12 @@ for (let it = 0; it < this.ITER; it++) {
   // — Hashgrid för dynamics (billig reset via bucket-stamp) —
   gridDyn.beginInsertCycle();
   for (let i = 0; i < dyn.length; i++) gridDyn.insert(dyn[i]);
-
+  
+  
+  
+  
+  
+  
   
 
   // Change A: init per-ref ackumulatorer (sloppa Map/ensure)
@@ -492,6 +437,18 @@ for (let it = 0; it < this.ITER; it++) {
   for (let ai = 0; ai < dyn.length; ai++) {
     
     const A = dyn[ai];
+
+// --- applicera queued step-up smooth ---
+if (A.ref && A.ref._stepRemain > 0) {
+  const STEP_PER_FRAME = 100; // testa 1..3
+  const take = Math.min(STEP_PER_FRAME, A.ref._stepRemain);
+  A.y -= take;
+  A.ref._stepRemain -= take;
+  A._aabb = { x:A.x, y:A.y, w:A.w, h:A.h };
+}
+if (A.ref && A.ref._stepLock > 0) A.ref._stepLock--;
+
+
 
     // --------- A mot statics ---------
     tmpStat.length = 0;
@@ -516,7 +473,67 @@ for (let it = 0; it < this.ITER; it++) {
       if (!contact) continue;
       // --- Skip MTV om överlappningen ligger endast i ghost-delen ---
 
-      
+
+//NYTT
+if (Math.abs(contact.n.x) > 0.9 && (A.ref?._wantdx || 0) !== 0) {
+  // Guard 1: bara om vi inte är på väg uppåt (om du har vy)
+  // if ((A.ref?._vy || 0) < -0.001) { /* hoppar upp */ } else ...
+
+  // Guard 2: bara om det finns "mark" nära framför fötterna efter step.
+  // (Detta hindrar att man klättrar upp på en ren vägg.)
+  const wantdx = (A.ref?._wantdx || 0);
+  const dir = wantdx > 0 ? 1 : -1;
+
+  // Spara nuvarande pos
+  const x0 = A.x, y0 = A.y;
+
+  // Vi letar minsta step som funkar
+  let best = 0;
+
+  for (let step = 1; step <= STEP_MAX; step++) {
+    const test = { x: x0, y: y0 - step, w: A.w, h: A.h, rot: A.rot||0 };
+
+    // Måste vara fri från just B
+    if (obbObbMTV(test, B)) continue;
+
+    // Måste vara fri från andra statics i närheten
+    const near2 = gridStat.query(_aabbFrom(test.x,test.y,test.w,test.h,test.rot||0));
+    let ok = true;
+    for (let k=0;k<near2.length;k++){
+      const S = near2[k];
+      if (S === B) continue;
+      if (obbObbMTV(test, S)) { ok = false; break; }
+    }
+    if (!ok) continue;
+
+    // ✅ LEDGE-GUARD:
+    // Efter step, kolla att vi INTE står "inne i" en vägg som fortsätter uppåt precis framför oss.
+    // Vi kollar en smal "probe" framför kroppen och lite ner mot fötterna.
+    // Om probe:n kolliderar: det är troligen en ren vägg -> step avbryts.
+    const PROBE_W = 2;       // tunn
+    const PROBE_H = Math.min(6, A.h * 0.25);
+    const PROBE_X = test.x + (dir > 0 ? (test.w - PROBE_W) : 0);
+    const PROBE_Y = test.y + test.h - PROBE_H;
+
+    const probe = { x: PROBE_X + dir * 1, y: PROBE_Y, w: PROBE_W, h: PROBE_H, rot: 0 };
+    const nearP = gridStat.query(_aabbFrom(probe.x,probe.y,probe.w,probe.h,0));
+    let hitsWall = false;
+    for (let k=0;k<nearP.length;k++){
+      const S = nearP[k];
+      if (obbObbMTV(probe, S)) { hitsWall = true; break; }
+    }
+    if (hitsWall) continue;
+
+    best = step;
+    break; // minsta step hittad
+  }
+
+  if (best > 0) {
+    A.ref._stepRemain = (A.ref._stepRemain || 0) + best-10;
+  A.ref._stepLock = 100; // 1-3 frames: hindra att AI flippar pga sidlogg i samma hörn
+  continue;
+  }
+}
 
 
       
@@ -563,8 +580,8 @@ for (let it = 0; it < this.ITER; it++) {
       if (B.type === 'static' && (B.rot || 0) !== 0 && A.ref) {
         A.ref._contactNormals.push(n);
       }
-      if (A.ref) _pushCollisionLog(A.ref, (B.ref || B), n, false);
-      if (B.ref) _pushCollisionLog(B.ref, (A.ref || A), { x: -n.x, y: -n.y }, false);
+      if (A.ref) _pushCollisionLog(A.ref, (B.ref || B), n, false, dpth, A._aabb, B._aabb);
+      if (B.ref) _pushCollisionLog(B.ref, (A.ref || A), { x: -n.x, y: -n.y }, false, dpth, A._aabb, B._aabb);
     }
 
     // --------- A mot andra dynamics ---------
@@ -615,8 +632,8 @@ for (let it = 0; it < this.ITER; it++) {
       if (L > MAX_CORR_PX) { const s = MAX_CORR_PX / L; cBx *= s; cBy *= s; }
       B.ref.__dx += cBx;  B.ref.__dy += cBy;
 
-      if (A.ref) _pushCollisionLog(A.ref, (B.ref || B), n, false);
-      if (B.ref) _pushCollisionLog(B.ref, (A.ref || A), { x: -n.x, y: -n.y }, false);
+      if (A.ref) _pushCollisionLog(A.ref, (B.ref || B), n, false, dpth, A._aabb, B._aabb);
+      if (B.ref) _pushCollisionLog(B.ref, (A.ref || A), { x: -n.x, y: -n.y }, false, dpth, A._aabb, B._aabb);
     }
   }
 
@@ -875,6 +892,13 @@ function _ensureStaticGrids(stat, ghosts){
     for (let i=0;i<ghosts.length;i++) _gridGhost.insert(ghosts[i]);
     _gridGhost._builtFor = _ghostStamp;
   }
+   // <<< NYTT: gör grids åtkomliga från index.html / spel-AI
+  window.G5 = window.G5 || {};
+  window.G5.gridStat = _gridStat;
+  window.G5.gridGhost = _gridGhost;
+  
+  
+  
   return { gridStat:_gridStat, gridGhost:_gridGhost };
 }
 const EDGE_DROP_MAX = 0;   // testa 1..3
@@ -891,6 +915,84 @@ function effectiveTopY(S, playerCenterX){
   const drop = EDGE_DROP_MAX * Math.pow(edgeFactor, EDGE_POWER);
   return S.y + drop; // "sänkt" top-Y
 }
+
+// ===== LOS / Raycast helpers (snabb) =====
+function _segAABB(ax, ay, bx, by, pad = 2){
+  const minx = Math.min(ax, bx) - pad;
+  const miny = Math.min(ay, by) - pad;
+  const maxx = Math.max(ax, bx) + pad;
+  const maxy = Math.max(ay, by) + pad;
+  return { x:minx, y:miny, w:(maxx-minx), h:(maxy-miny) };
+}
+
+// Segment vs AABB (slab test). Returnerar t (0..1) för första hit, eller null.
+function segmentAabbHit(ax, ay, bx, by, r){
+  let tmin = 0, tmax = 1;
+  const dx = bx - ax, dy = by - ay;
+
+  if (Math.abs(dx) < 1e-9){
+    if (ax < r.x || ax > r.x + r.w) return null;
+  } else {
+    const inv = 1 / dx;
+    let t1 = (r.x - ax) * inv;
+    let t2 = (r.x + r.w - ax) * inv;
+    if (t1 > t2){ const tmp=t1; t1=t2; t2=tmp; }
+    tmin = Math.max(tmin, t1);
+    tmax = Math.min(tmax, t2);
+    if (tmin > tmax) return null;
+  }
+
+  if (Math.abs(dy) < 1e-9){
+    if (ay < r.y || ay > r.y + r.h) return null;
+  } else {
+    const inv = 1 / dy;
+    let t1 = (r.y - ay) * inv;
+    let t2 = (r.y + r.h - ay) * inv;
+    if (t1 > t2){ const tmp=t1; t1=t2; t2=tmp; }
+    tmin = Math.max(tmin, t1);
+    tmax = Math.min(tmax, t2);
+    if (tmin > tmax) return null;
+  }
+
+  if (tmin < 0 || tmin > 1) return null;
+  return tmin;
+}
+
+function raycastStatics(gridStat, ax, ay, bx, by, opts = {}){
+  if (!gridStat) return null;
+  const pad = (opts.pad ?? 2);
+  const aabb = _segAABB(ax, ay, bx, by, pad);
+
+  const cand = gridStat.query(aabb);
+  let bestT = Infinity;
+  let best = null;
+
+  for (let i=0;i<cand.length;i++){
+    const S = cand[i];
+    if (opts.filter && opts.filter(S) === false) continue;
+
+    const r = S._aabb || _aabbFrom(S.x, S.y, S.w, S.h, S.rot||0);
+    const t = segmentAabbHit(ax, ay, bx, by, r);
+    if (t === null) continue;
+    if (t < bestT){ bestT = t; best = S; }
+  }
+
+  if (!best) return null;
+  return best; // LOS behöver bara veta om något blockerar
+}
+
+function hasLineOfSight(gridStat, ax, ay, bx, by, opts = {}){
+  return raycastStatics(gridStat, ax, ay, bx, by, opts) === null;
+}
+
+// Exponera för spelkod (index.html)
+window.G5 = window.G5 || {};
+window.G5.hasLineOfSight = hasLineOfSight;
+
+
+
+
+
 
 let cococ=0;
 var cursorX;
@@ -1481,7 +1583,73 @@ class Game5 {
             }
         }
         updateAndDrawFX(ctx);
-  
+        
+        const map = this.maps[this.currentmap];
+  if (!map) return;
+
+  const players = this.getobjecttype("swordguy")?.objects || [];
+  if (!players.length) return;
+  const p = players[0];
+  const W = ctx.canvas.width;
+  const H = ctx.canvas.height;
+
+  const zoom  = map.zoom;
+  const scale = 1 + (zoom / 100);
+  const camX  = map.camerax;
+  const camY  = map.cameray;
+
+  // player i WORLD
+  const pwx = p.x + p.dimx*0.5;
+  const pwy = p.y + p.dimy*0.5;
+
+  // inställningar
+  const RADIUS = 1000;   // world-units (justera)
+  const RAYS   = 48;    // 32..64 (48 är bra sweet spot)
+
+  // Bygg polygon i world
+  const poly = this._buildVisibilityPolygonWorld(pwx, pwy, RADIUS, RAYS, { pad: 1 });
+
+  ctx.save();
+
+  // 1) mörker overlay
+ // ctx.fillStyle = "rgba(0,0,0,0.78)";
+ // ctx.fillRect(0,0,W,H);
+
+maskCanvas.width = canvas.width;
+            maskCanvas.height = canvas.height;
+            maskCtx.fillStyle = "rgba(0, 0, 0, 0.7)";
+            maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+            maskCtx.globalCompositeOperation = "destination-out";
+     
+
+  if (poly && poly.length){
+    maskCtx.beginPath();
+
+    // world->screen: (world + cam) * scale
+    const x0 = (poly[0].x + camX) * scale;
+    const y0 = (poly[0].y + camY) * scale;
+    maskCtx.moveTo(x0, y0);
+
+    for (let i=1;i<poly.length;i++){
+      const sx = (poly[i].x + camX) * scale;
+      const sy = (poly[i].y + camY) * scale;
+      maskCtx.lineTo(sx, sy);
+    }
+    maskCtx.closePath();
+    maskCtx.fill();
+  } else {
+    // fallback: cirkel (om grid inte är redo)
+    const px = (pwx + camX) * scale;
+    const py = (pwy + camY) * scale;
+    maskCtx.beginPath();
+    maskCtx.arc(px, py, RADIUS * scale, 0, Math.PI*2);
+    maskCtx.fill();
+  }
+  ctx.drawImage(maskCanvas, 0, 0);
+  // reset
+  maskCtx.globalCompositeOperation = "source-over";
+  maskCtx.globalAlpha = 1;
+  maskCtx.restore();
         
         } catch (error) {}
     }
@@ -1975,8 +2143,41 @@ class Game5 {
     }
     return null;
 }
-    
-    
+    _buildVisibilityPolygonWorld(px, py, radius, rays, opts = {}){
+  const gridStat = window.G5?.gridStat;
+  const hitFn = window.G5?.raycastStaticsHit;
+  if (!gridStat || !hitFn) return null;
+
+  const pts = [];
+  const jitter = opts.jitter ?? 0.0008; // små vinkel-offsets hjälper runt hörn
+  const pad = opts.pad ?? 1;
+
+  // 3 rays per vinkel: (a-jitter, a, a+jitter) för bättre hörn
+  for (let i=0;i<rays;i++){
+    const a0 = (i / rays) * Math.PI * 2;
+
+    for (let j=-1;j<=1;j++){
+      const a = a0 + j * jitter;
+
+      const bx = px + Math.cos(a) * radius;
+      const by = py + Math.sin(a) * radius;
+
+      const hit = hitFn(gridStat, px, py, bx, by, { pad });
+
+      if (hit){
+        pts.push({ a, x: hit.x, y: hit.y });
+      } else {
+        pts.push({ a, x: bx, y: by });
+      }
+    }
+  }
+
+  // sortera på vinkel
+  pts.sort((p1,p2)=>p1.a-p2.a);
+
+  return pts;
+}
+  
 }
 
 class Maps {
@@ -2030,6 +2231,7 @@ class Objecttype {
         this.fliped = false;
     }
     draw(ctx, zoom, camerax, cameray) {
+        
         const scale = 1 + (zoom / 100);
         const viewW = ctx.canvas.width  / scale;
         const viewH = ctx.canvas.height / scale;
@@ -2046,12 +2248,13 @@ class Objecttype {
 
         for (let i = 0; i < this.objects.length; i++) {
           const o = this.objects[i];
+          if(!o.isvisable)continue;
           o.isonscreen = false;
 
           // bild?
           const img = this.images?.[o.animation]?.getimage?.();
           if (!img) continue;
-
+          
           // storlek & mitt
           const w  = toNum(o.dimx, 0);
           const h  = toNum(o.dimy, 0);
@@ -2075,7 +2278,7 @@ class Objecttype {
 
           // on-screen
           o.isonscreen = true;
-
+          
           // valfri: selektionsring innan spriten
           try { drawSelectRing(ctx, o, zoom, camerax, cameray); } catch(e){}
 
@@ -2256,6 +2459,9 @@ class Objectx {
         this.despawn =100;
         this.flashTimer=0;
         this.flashTimercolor="rgba(255,60,60,0.6)";
+        this._stepRemain=0;
+        this._stepLock=0;
+        this.isvisable=true;
     }
     collidestest(){
 
@@ -2579,3 +2785,35 @@ colli = {
         return SATCollision(corners1, corners2);
     }
 };
+
+function raycastStaticsHit(gridStat, ax, ay, bx, by, opts = {}){
+  if (!gridStat) return null;
+
+  const pad = (opts.pad ?? 2);
+  const aabb = _segAABB(ax, ay, bx, by, pad);
+  const cand = gridStat.query(aabb);
+
+  let bestT = Infinity;
+  let best = null;
+
+  for (let i=0;i<cand.length;i++){
+    const S = cand[i];
+    if (opts.filter && opts.filter(S) === false) continue;
+
+    const r = S._aabb || _aabbFrom(S.x, S.y, S.w, S.h, S.rot||0);
+    const t = segmentAabbHit(ax, ay, bx, by, r);
+    if (t === null) continue;
+    if (t < bestT){ bestT = t; best = S; }
+  }
+
+  if (!best) return null;
+
+  const hx = ax + (bx - ax) * bestT;
+  const hy = ay + (by - ay) * bestT;
+  return { obj: best, t: bestT, x: hx, y: hy };
+}
+
+// Export
+window.G5 = window.G5 || {};
+window.G5.raycastStaticsHit = raycastStaticsHit;
+

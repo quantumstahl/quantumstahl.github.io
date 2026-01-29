@@ -107,6 +107,7 @@
             
 
             jump=false;
+            climb =false;
             count=0;
             jumplength=30;
             attack=false;
@@ -208,7 +209,7 @@
                         game.setcameraobj(bird.objects[0], canvas.width, null);
                         bird.objects[0].dual=40;
                         bird.objects[0].animation=0;
-                        bird.objects[0].y=bird.objects[0].y+11;
+                        if(climb==false)bird.objects[0].y=bird.objects[0].y+11;
                         if(keyState.d){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}
                         if(keyState.a){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}
                         if("ontouchstart" in document.documentElement){if(abutton.objects[0].mousepressed==true){if(game.collideswith(bird.objects[0],"any","down"))jump=true; }}
@@ -234,9 +235,18 @@
                             if(acount<attacklength){acount++;}
                             else{attack=false;acount=0;}
                         }
-                        updatePhysics(bird.objects[0]);
+                        updatePhysics(bird.objects[0],true);
                         updateLoot(bird.objects[0]);
                         updateGoal(bird.objects[0]);
+                        
+                        if(game.collideswiths(bird.objects[0],"rope")){
+                            if(keyState.w||keyState.s){climb=true;jump=false;}
+                            if(keyState.w)bird.objects[0].y-=3;
+                            if(keyState.s)bird.objects[0].y+=3;
+                        }
+                        else{climb=false;}
+                        
+                        
                     }
                     updateRats();
                     updateArchers();
@@ -310,7 +320,7 @@ function drawHealthBars() {
 
   const objs = game.getAllObjects().filter(o => o.name=="swordguy"|| o.name=="rat"|| o.name=="archer"|| o.name=="tank"|| o.name=="bat"|| o.name=="mage"|| o.name=="warlock");
   for (const o of objs) {
-
+      if(!o.isvisable)continue;
 
     // defaultvärden om hälsa saknas
     if (o.maxhealth == null&&o.name=="warlock"){o.maxhealth = 400;o.health = o.maxhealth;}
@@ -523,7 +533,16 @@ function initRat(r){
     target:null,
     turnCD:0,       // <— NYTT
     alertT:0,        // <— NYTT (för “!” och ev. ‘alert’-animation)
-    vy:0
+    vy:0,
+    
+    losCD: 0,
+    canSee: false,
+    lastSeenX:r.x,
+    lastSeenY:r.y,
+    huntT: 0,
+    tturn:false,
+    hurt: r.health
+    
   };
 }
 
@@ -553,6 +572,8 @@ function ratSeparation(r, rats){
 function updateRats(){
   const rats = game.getobjecttype('rat')?.objects || [];
   for (const r of rats){
+    if(!r.isonscreen)continue;  
+      
     initRat(r);
     updatePhysics(r);
     r.animation = 0;
@@ -572,25 +593,46 @@ function updateRats(){
     if (r.ai.turnCD > 0){ r.ai.turnCD--;}
     if (r.alertT > 0) r.alertT--;
 
-    // ——— Aggro/forget
-    const seesPlayer = (P && distX < RAT_AI.SIGHT_X && Math.abs(dy) < RAT_AI.SIGHT_Y);
+    // ——— LOS (uppdateras inte varje frame)
+    if (r.ai.losCD > 0) r.ai.losCD--;
+    if (r.ai.losCD === 0 && P && r.isonscreen){
+      r.ai.losCD = 6; // testa 4..10 (lägre = snabbare reaktion, mer CPU)
+      const gridStat = window.G5?.gridStat;
+
+      const eyeX = r.x + r.dimx*0.5;
+      const eyeY = r.y + r.dimy*0.35;
+      const px   = P.x + P.dimx*0.5;
+      const py   = P.y + P.dimy*0.35;
+
+      r.ai.canSee = window.G5?.hasLineOfSight?.(gridStat, eyeX, eyeY, px, py, {
+        pad: 2,
+        filter: (S) => true // här kan du senare ignorera "see-through" walls
+      }) ?? true;
+    }
+    if(!r.ai.canSee)r.isvisable=false;
+    else r.isvisable=true;
+    
+    const desiredDir = (dx < 0 ? -1 : 1);
+    const seesPlayer = (P && distX < RAT_AI.SIGHT_X && Math.abs(dy) < RAT_AI.SIGHT_Y && r.ai.canSee&&r.ai.dir=== desiredDir);
     if (r.ai.state==='patrol' && seesPlayer){ 
       r.ai.state = 'chase'; 
       r.alertT = RAT_AI.ALERT_T_FR;          // <— visa “!”
+     r.ai.tturn=true;
       // valfritt: setta animation “alert”
     }
-    if (r.ai.state!=='patrol' && (!P || distX>RAT_AI.FORGET_X)){
+    if (r.ai.state!=='patrol' && (!P || (distX>RAT_AI.FORGET_X && r.ai.tturn===false))){
       r.ai.state = 'patrol'; r.ai.target=null;
     }
 
     // ——— Vändhantering: om spelaren är på andra sidan → vänd + turn cooldown
     // Ger ett “backstab-fönster”: under turnCD kan råttan inte starta attack.
-    const desiredDir = (dx < 0 ? -1 : 1);
+    
     if (P){
       
-      if (desiredDir !== r.ai.dir){
+      if (desiredDir !== r.ai.dir&&(r.ai.tturn||r.ai.hurt!==r.health)){
+          
           if(r.ai.turnCD==0)r.ai.turnCD = RAT_AI.TURN_CD_FR
-          if(r.ai.turnCD==1)r.ai.dir   = desiredDir;
+          if(r.ai.turnCD==1){r.ai.dir   = desiredDir;r.ai.tturn=false;r.ai.state = 'patrol';r.ai.hurt=r.health;}
 
       }
     }
@@ -608,7 +650,7 @@ function updateRats(){
 
       case 'chase': {
         r.ai.vx = RAT_AI.CHASE_SPEED * r.ai.dir;
-
+        r.ai.tturn=true;
         if (!game.collideswiths(r,'swordguy')){
           if (game.collideswith(r,'any','left'))  r.ai.dir = +1;
           if (game.collideswith(r,'any','right')) r.ai.dir = -1;
@@ -652,16 +694,19 @@ function updateRats(){
         break;
       }
     }
-
+    
     // Rörelse + facing
-    if(desiredDir === r.ai.dir)r.x += r.ai.vx;
+    if(desiredDir === r.ai.dir|| (r.ai.state=='patrol'&&r.ai.tturn==false))r.x += r.ai.vx;
+
     r.fliped = (r.ai.dir < 0);
     r.direction = r.fliped ? 'left' : 'right';
+    
+    
   }
 }
-function updatePhysics(obj){
+function updatePhysics(obj,player){
   // Gravitation
-  if(obj.vy<0)obj.vy += 1.2;         // grav styrka
+  if(player && climb==true){obj.vy=0;}else if(obj.vy<0)obj.vy += 1.2;         // grav styrka
   
   
   //if (obj.vy > 11) obj.vy = 11; // clamp fallhastighet
@@ -1003,11 +1048,21 @@ const ARCHER_AI = {
   WINDUP_FR: 80,
   COOLDOWN_FR: 80,
   SPEED: 2.2,
+  
+  
 };
 
 function initArcher(r){
   if (r.ai) return;
-  r.ai = { state:"patrol", dir:(r.fliped?-1:1), timer:0, target:null };
+  r.ai = { state:"patrol", dir:(r.fliped?-1:1), timer:0, target:null ,losCD: 0,
+    canSee: false,
+    lastSeenX:r.x,
+    lastSeenY:r.y,
+    huntT: 0,
+    tturn:false,
+    hurt: r.health,
+    turnCD:0,       // <— NYTT
+    alertT:0,};
 }
 
 function updateArchers(){
@@ -1017,7 +1072,7 @@ function updateArchers(){
 
   for (const r of archers){
     initArcher(r);
-
+    if(!r.isonscreen)continue;  
     // === fysik ===
     updatePhysics(r);
     r.y += 11;   // ditt “dual/grav hack”
@@ -1026,11 +1081,52 @@ function updateArchers(){
     const p = players[0];
     const dx = p.x - r.x, dy = p.y - r.y;
     const dist = Math.hypot(dx,dy);
-    const dir = dx<0 ? -1 : 1;
-    r.fliped = dir<0; r.direction = (dir<0)?"left":"right";
+   // const dir = dx<0 ? -1 : 1;
+    r.fliped = r.ai.dir<0;// r.direction = (dir<0)?"left":"right";
 
     if (r.ai.timer>0) r.ai.timer--;
+    if (r.ai.turnCD > 0){ r.ai.turnCD--;}
+    if (r.alertT > 0) r.alertT--;
+    const desiredDir = (dx < 0 ? -1 : 1);
+    
+    if(r.ai.hurt!==r.health){r.ai.dir=desiredDir;r.ai.hurt=r.health;}
+    
+    // ——— LOS (uppdateras inte varje frame)
+    if (r.ai.losCD > 0) r.ai.losCD--;
+    if (r.ai.losCD === 0 && p && r.isonscreen ){
+      r.ai.losCD = 6; // testa 4..10 (lägre = snabbare reaktion, mer CPU)
+      const gridStat = window.G5?.gridStat;
 
+      const eyeX = r.x + r.dimx*0.5;
+      const eyeY = r.y + r.dimy*0.35;
+      const px   = p.x + p.dimx*0.5;
+      const py   = p.y + p.dimy*0.35;
+
+      r.ai.canSee = window.G5?.hasLineOfSight?.(gridStat, eyeX, eyeY, px, py, {
+        pad: 2,
+        filter: (S) => true // här kan du senare ignorera "see-through" walls
+      }) ?? true;
+    }
+    if(!r.ai.canSee)r.isvisable=false;
+    else r.isvisable=true;
+    
+    
+    
+     if (desiredDir !== r.ai.dir&&(r.ai.tturn)){
+          
+          if(r.ai.turnCD==0)r.ai.turnCD = 102;
+          if(r.ai.turnCD==1){r.ai.dir   = desiredDir;r.ai.tturn=false;r.ai.state = 'patrol';}
+
+      }
+    
+    
+    
+    
+    
+    
+    
+    
+    
     switch(r.ai.state){
       case "patrol": {
         // enkel patrull → gå i riktning
@@ -1039,24 +1135,22 @@ function updateArchers(){
         if (game.collideswith(r,"any","left"))  r.ai.dir = +1;
         if (game.collideswith(r,"any","right")) r.ai.dir = -1;
 
-        if (dist < ARCHER_AI.SIGHT_X){
+        if (dist < ARCHER_AI.SIGHT_X&&desiredDir===r.ai.dir&&r.ai.canSee){
           r.ai.state = "aim";
+          r.ai.tturn=true;
+          r.alertT = RAT_AI.ALERT_T_FR;
         }
         break;
       }
 
       case "aim": {
-        if (dist < ARCHER_AI.MIN_DISTANCE){
-          // backa om spelaren kommer nära
-          r.x -= dir * ARCHER_AI.SPEED;
-        } else if (dist < ARCHER_AI.ATTACK_RANGE && r.ai.timer===0){
+     
+         if (dist < ARCHER_AI.ATTACK_RANGE && r.ai.timer===0&&desiredDir===r.ai.dir&&r.ai.canSee){
           r.ai.state = "windup";
           r.ai.timer = ARCHER_AI.WINDUP_FR;
           r.animation = 1; // sikta
-        } else {
-          // för långt bort → gå mot spelaren
-          r.x += dir * ARCHER_AI.SPEED*0.6;
         }
+        else r.ai.state="patrol";
         break;
       }
 
@@ -1064,7 +1158,7 @@ function updateArchers(){
         r.ai.timer--;
         r.animation = 1; // “dra strängen”
         if (r.ai.timer<=0){
-          shootArrow(r.x, r.y, dir);
+          shootArrow(r.x, r.y, r.ai.dir);
           r.ai.state="cooldown";
           r.ai.timer=ARCHER_AI.COOLDOWN_FR;
         }
@@ -1143,11 +1237,21 @@ const SHIELD_AI = {
 function initShield(r){
   if (r.ai) return;
   r.ai = {
-    state: "patrol",
+    state:'patrol',
     dir: (r.fliped ? -1 : 1),
-    timer: 0,
-    turnCD: 0,
-    blocking: true
+    vx:0, timer:0,
+    target:null,
+    turnCD:0,       // <— NYTT
+    alertT:0,        // <— NYTT (för “!” och ev. ‘alert’-animation)
+    vy:0,
+    
+    losCD: 0,
+    canSee: false,
+    lastSeenX:r.x,
+    lastSeenY:r.y,
+    huntT: 0,
+    tturn:false,
+    hurt: r.health
   };
 }
 
@@ -1159,6 +1263,7 @@ function updateShields(){
   for (const r of shields){
     initShield(r);
     updatePhysics(r);
+    if(!r.isonscreen)continue;  
     r.animation = 0;
     // din grav / dual hack
     r.y += 11; 
@@ -1175,25 +1280,46 @@ function updateShields(){
     if (r.ai.turnCD > 0){ r.ai.turnCD--;}
     if (r.alertT > 0) r.alertT--;
 
-    // ——— Aggro/forget
-    const seesPlayer = (P && distX < RAT_AI.SIGHT_X && Math.abs(dy) < RAT_AI.SIGHT_Y);
+    // ——— LOS (uppdateras inte varje frame)
+    if (r.ai.losCD > 0) r.ai.losCD--;
+    if (r.ai.losCD === 0 && P && r.isonscreen){
+      r.ai.losCD = 6; // testa 4..10 (lägre = snabbare reaktion, mer CPU)
+      const gridStat = window.G5?.gridStat;
+
+      const eyeX = r.x + r.dimx*0.5;
+      const eyeY = r.y + r.dimy*0.35;
+      const px   = P.x + P.dimx*0.5;
+      const py   = P.y + P.dimy*0.35;
+
+      r.ai.canSee = window.G5?.hasLineOfSight?.(gridStat, eyeX, eyeY, px, py, {
+        pad: 2,
+        filter: (S) => true // här kan du senare ignorera "see-through" walls
+      }) ?? true;
+    }
+    if(!r.ai.canSee)r.isvisable=false;
+    else r.isvisable=true;
+    
+    const desiredDir = (dx < 0 ? -1 : 1);
+    const seesPlayer = (P && distX < RAT_AI.SIGHT_X && Math.abs(dy) < RAT_AI.SIGHT_Y && r.ai.canSee&&r.ai.dir=== desiredDir);
     if (r.ai.state==='patrol' && seesPlayer){ 
       r.ai.state = 'chase'; 
       r.alertT = RAT_AI.ALERT_T_FR;          // <— visa “!”
+     r.ai.tturn=true;
       // valfritt: setta animation “alert”
     }
-    if (r.ai.state!=='patrol' && (!P || distX>RAT_AI.FORGET_X)){
+    if (r.ai.state!=='patrol' && (!P || (distX>RAT_AI.FORGET_X && r.ai.tturn===false))){
       r.ai.state = 'patrol'; r.ai.target=null;
     }
 
     // ——— Vändhantering: om spelaren är på andra sidan → vänd + turn cooldown
     // Ger ett “backstab-fönster”: under turnCD kan råttan inte starta attack.
-    const desiredDir = (dx < 0 ? -1 : 1);
+    
     if (P){
       
-      if (desiredDir !== r.ai.dir){
-          if(r.ai.turnCD==0)r.ai.turnCD = SHIELD_AI.TURN_CD_FR
-          if(r.ai.turnCD==1)r.ai.dir   = desiredDir;
+      if (desiredDir !== r.ai.dir&&(r.ai.tturn||r.ai.hurt!==r.health)){
+          
+          if(r.ai.turnCD==0)r.ai.turnCD = RAT_AI.TURN_CD_FR
+          if(r.ai.turnCD==1){r.ai.dir   = desiredDir;r.ai.tturn=false;r.ai.state = 'patrol';r.ai.hurt=r.health;}
 
       }
     }
@@ -1211,7 +1337,7 @@ function updateShields(){
 
       case 'chase': {
         r.ai.vx = RAT_AI.CHASE_SPEED * r.ai.dir;
-
+        r.ai.tturn=true;
         if (!game.collideswiths(r,'swordguy')){
           if (game.collideswith(r,'any','left'))  r.ai.dir = +1;
           if (game.collideswith(r,'any','right')) r.ai.dir = -1;
@@ -1257,7 +1383,8 @@ function updateShields(){
     }
 
     // Rörelse + facing
-    if(desiredDir === r.ai.dir)r.x += r.ai.vx;
+    if(desiredDir === r.ai.dir|| (r.ai.state=='patrol'&&r.ai.tturn==false))r.x += r.ai.vx;
+
     r.fliped = (r.ai.dir < 0);
     r.direction = r.fliped ? 'left' : 'right';
   }
@@ -1305,6 +1432,7 @@ function updateBats(){
 
   for (const b of bats){
     initBat(b);
+    if(!b.isonscreen)continue;  
     const dx = player.x - b.x;
     const dy = player.y - b.y;
     const adx = Math.abs(dx), ady = Math.abs(dy);
@@ -1316,7 +1444,8 @@ function updateBats(){
     b.ai.t++;
 
     const sees = (adx < BAT_AI.SIGHT_X && ady < BAT_AI.SIGHT_Y);
-
+        
+        
     switch (b.ai.state){
 
       case 'perch': { // hänger “sovande”
@@ -1390,7 +1519,7 @@ function updateBats(){
     
     
       if (!b.hitCD || b.hitCD <= 0){
-        handleCombat("bat", ["swordguy"], 10);   // din funktion
+        handleCombat("bat", ["swordguy"], 2.5);   // din funktion
 
 
         b.hitCD = 30;
@@ -1410,7 +1539,7 @@ const MAGE_AI = {
 
 function initMage(r){
   if (r.ai) return;
-  r.ai = { state:"idle", dir:(r.fliped?-1:1), timer:0, target:null };
+  r.ai = { state:"idle", dir:(r.fliped?-1:1), timer:0, target:null,canSee:false,losCD:0 };
 }
 
 function updateMages(){
@@ -1422,29 +1551,59 @@ function updateMages(){
     initMage(r);
     updatePhysics(r);
     r.y+=11;
+    if(!r.isonscreen)continue;  
     const p = players[0];
     const dx = p.x - r.x;
     const dy = p.y - r.y;
     const dist = Math.hypot(dx,dy);
-    const dir = dx<0 ? -1 : 1;
-
-    r.fliped = dir<0;
+    let dir = r.fliped ? -1 : 1;
+    
+    if(Math.abs(dx)>10)r.fliped = dir<0;
     r.direction = r.fliped ? "left":"right";
 
     if (r.ai.timer>0) r.ai.timer--;
+    
+    // ——— LOS (uppdateras inte varje frame)
+    if (r.ai.losCD > 0) r.ai.losCD--;
+    if (r.ai.losCD === 0 && p && dist < MAGE_AI.SIGHT_X ){
+      r.ai.losCD = 6; // testa 4..10 (lägre = snabbare reaktion, mer CPU)
+      const gridStat = window.G5?.gridStat;
 
+      const eyeX = r.x + r.dimx*0.5;
+      const eyeY = r.y + r.dimy*0.35;
+      const px   = p.x + p.dimx*0.5;
+      const py   = p.y + p.dimy*0.35;
+
+      r.ai.canSee = window.G5?.hasLineOfSight?.(gridStat, eyeX, eyeY, px, py, {
+        pad: 2,
+        filter: (S) => true // här kan du senare ignorera "see-through" walls
+      }) ?? true;
+    }
+    if(!r.ai.canSee)r.ai.state="idle";
+    
     switch(r.ai.state){
       case "idle": {
+              
+              if (!game.collideswiths(r,'swordguy')){
+          if (game.collideswith(r,'any','left'))  r.fliped=false;
+          if (game.collideswith(r,'any','right')) r.fliped=true;
+        }
+              
+              dir = r.fliped ? -1 : 1;
+              r.x += dir * MAGE_AI.SPEED*0.6;
         // börja jaga om spelaren nära nog
-        if (dist < MAGE_AI.SIGHT_X){
+        if (dist < MAGE_AI.SIGHT_X&&r.ai.canSee){
           r.ai.state = "chase";
         }
         break;
       }
 
       case "chase": {
+         dir = dx<0 ? -1 : 1; 
+         r.fliped = dir<0;
         // håll avstånd
-        if (dist < MAGE_AI.MIN_DISTANCE){
+        if(dist<10){}
+        else if (dist < MAGE_AI.MIN_DISTANCE){
           r.x -= dir * MAGE_AI.SPEED;
         } else if (dist > MAGE_AI.ATTACK_RANGE){
           r.x += dir * MAGE_AI.SPEED * 0.6;
