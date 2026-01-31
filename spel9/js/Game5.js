@@ -1603,8 +1603,8 @@ class Game5 {
   const pwy = p.y + p.dimy*0.5;
 
   // inställningar
-  const RADIUS = 1000;   // world-units (justera)
-  const RAYS   = 48;    // 32..64 (48 är bra sweet spot)
+  const RADIUS = 500;   // world-units (justera)
+  const RAYS   = 64;    // 32..64 (48 är bra sweet spot)
 
   // Bygg polygon i world
   const poly = this._buildVisibilityPolygonWorld(pwx, pwy, RADIUS, RAYS, { pad: 1 });
