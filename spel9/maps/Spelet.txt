@@ -682,13 +682,6 @@ F*?
 100
 0
 true
-F*?
-9796.545454545443
-753.3636363636365
-100
-100
-0
-true
 C*?
 archer
 100
@@ -792,6 +785,13 @@ D*?
 5
 E*?
 images/warlockshoot.png
+F*?
+9624
+651
+300
+200
+0
+true
 B*?
 buttons
 false
