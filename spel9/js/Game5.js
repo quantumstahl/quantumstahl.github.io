@@ -205,7 +205,7 @@ const BETA       = 2;  // 0..1, hur stor del av återstående pen som tas per fr
 const MAX_CORR_PX= 32.0;   // max px per par och kropp per iteration (skydd mot “skott”)
 
 const STEP_EPS   = 2;   // hur mycket under topp vi tolererar (px)
-const STEP_MAX   = 12;   // hur mycket över topp vi får "kliva upp" (px)
+const STEP_MAX   = 17;   // hur mycket över topp vi får "kliva upp" (px)
 const SIDE_SKIN  = 1.0; // valfritt: skär av statiska sidkanter lite
 const SimSolver = {
   ITER: 4,
@@ -344,7 +344,24 @@ const hasDual = (!isBuilding(o) && !o.ghost && ((o.rot|0) === 0) && dualPct > 0)
 let ghostFront = null; // {x,y,w,h}
 if (hasDual){
   const p = dualPct / 100;
-  const dir = (o.direction||'').toString().trim().toLowerCase();
+  let dir = "";
+const wx = (o._wantdx || 0);
+
+// 1) om vi faktiskt rör oss i X: uppdatera facing
+if (Math.abs(wx) > 0.001) {
+  dir = (wx > 0) ? "right" : "left";
+  o._dualFacing = dir;                 // spara
+}
+// 2) om vi står still: använd senaste kända
+else if (o._dualFacing) {
+  dir = o._dualFacing;
+}
+// 3) sista fallback: o.direction (om du använder "left/right")
+else {
+  const d = (o.direction || "").toString().trim().toLowerCase();
+  dir = (d === "left" || d === "right") ? d : "right"; // default
+  o._dualFacing = dir;
+}
   const W = o.dimx, H = o.dimy;
 
   if (dir === 'right'){
@@ -957,7 +974,33 @@ function segmentAabbHit(ax, ay, bx, by, r){
   if (tmin < 0 || tmin > 1) return null;
   return tmin;
 }
+function segmentObbHit(ax, ay, bx, by, S, pad = 0){
+  // S: {x,y,w,h,rot} där x,y = top-left och rot i grader
+  const cx = S.x + S.w * 0.5;
+  const cy = S.y + S.h * 0.5;
 
+  const th = (S.rot || 0) * Math.PI / 180;
+  const c = Math.cos(-th), s = Math.sin(-th); // inverse rotation
+
+  // world -> local
+  const ax0 = ax - cx, ay0 = ay - cy;
+  const bx0 = bx - cx, by0 = by - cy;
+
+  const lax = ax0 * c - ay0 * s;
+  const lay = ax0 * s + ay0 * c;
+  const lbx = bx0 * c - by0 * s;
+  const lby = bx0 * s + by0 * c;
+
+  // axis-aligned box i local space, centrerad vid 0,0
+  const r = {
+    x: -S.w * 0.5 - pad,
+    y: -S.h * 0.5 - pad,
+    w:  S.w + pad * 2,
+    h:  S.h + pad * 2
+  };
+
+  return segmentAabbHit(lax, lay, lbx, lby, r);
+}
 function raycastStatics(gridStat, ax, ay, bx, by, opts = {}){
   if (!gridStat) return null;
   const pad = (opts.pad ?? 2);
@@ -971,14 +1014,20 @@ function raycastStatics(gridStat, ax, ay, bx, by, opts = {}){
     const S = cand[i];
     if (opts.filter && opts.filter(S) === false) continue;
 
-    const r = S._aabb || _aabbFrom(S.x, S.y, S.w, S.h, S.rot||0);
-    const t = segmentAabbHit(ax, ay, bx, by, r);
+    let t = null;
+    if ((S.rot || 0) !== 0){
+      t = segmentObbHit(ax, ay, bx, by, S, 0);
+    } else {
+      const r = S._aabb || { x:S.x, y:S.y, w:S.w, h:S.h };
+      t = segmentAabbHit(ax, ay, bx, by, r);
+    }
+
     if (t === null) continue;
     if (t < bestT){ bestT = t; best = S; }
   }
 
   if (!best) return null;
-  return best; // LOS behöver bara veta om något blockerar
+  return best;
 }
 
 function hasLineOfSight(gridStat, ax, ay, bx, by, opts = {}){
@@ -988,6 +1037,7 @@ function hasLineOfSight(gridStat, ax, ay, bx, by, opts = {}){
 // Exponera för spelkod (index.html)
 window.G5 = window.G5 || {};
 window.G5.hasLineOfSight = hasLineOfSight;
+window.G5.raycastStatics = raycastStatics;
 
 
 
@@ -2800,8 +2850,16 @@ function raycastStaticsHit(gridStat, ax, ay, bx, by, opts = {}){
     const S = cand[i];
     if (opts.filter && opts.filter(S) === false) continue;
 
-    const r = S._aabb || _aabbFrom(S.x, S.y, S.w, S.h, S.rot||0);
-    const t = segmentAabbHit(ax, ay, bx, by, r);
+    let t = null;
+
+    // rot != 0 => OBB-test, annars AABB-test
+    if ((S.rot || 0) !== 0){
+      t = segmentObbHit(ax, ay, bx, by, S, 0);
+    } else {
+      const r = S._aabb || { x:S.x, y:S.y, w:S.w, h:S.h };
+      t = segmentAabbHit(ax, ay, bx, by, r);
+    }
+
     if (t === null) continue;
     if (t < bestT){ bestT = t; best = S; }
   }

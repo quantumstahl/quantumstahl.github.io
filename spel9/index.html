@@ -247,6 +247,13 @@
                         else{climb=false;}
                         
                         
+                        if(game.collideswith(bird.objects[0],"any","down")&&game.collideswiths(bird.objects[0],"any","down").rot!=0){
+                            
+              
+                            bird.objects[0].y=bird.objects[0].y-11; 
+                        }
+                        
+                        
                     }
                     updateRats();
                     updateArchers();
@@ -579,9 +586,13 @@ function updateRats(){
     r.animation = 0;
     // din grav / dual hack
     r.y += 11; 
+    if(game.collideswith(r,"any","down")&&game.collideswith(r,"any","down").rot!=0){
+        r.y=r.y-11; 
+    }
+    
     r.dual = 35;
 
-    ratSeparation(r, rats);
+    //ratSeparation(r, rats);
 
     // target + avstånd
     if (!r.ai.target) r.ai.target = nearestPlayer(r);
@@ -639,21 +650,41 @@ function updateRats(){
 
     // ——— State machine
     switch (r.ai.state){
-      case 'patrol': {
-        r.ai.vx = RAT_AI.SPEED * r.ai.dir;
-        if (!game.collideswiths(r,'swordguy')){
-          if (game.collideswith(r,'any','left'))  r.ai.dir = +1;
-          if (game.collideswith(r,'any','right')) r.ai.dir = -1;
-        }
-        break;
-      }
+case 'patrol': {
+  r.ai.vx = RAT_AI.SPEED * r.ai.dir;
+
+  if (!game.collideswiths(r,'swordguy')){
+    const gs = window.G5?.gridStat;
+    const rc = window.G5?.raycastStatics;
+
+    if (gs && rc){
+      const dir = r.ai.dir > 0 ? 1 : -1;
+      const frontX = r.x + (dir > 0 ? r.dimx : 0);
+
+      // bröst
+      const chestY = r.y + r.dimy * 0.35;
+      const hitChest = rc(gs, frontX, chestY, frontX + dir * 10, chestY, { pad: 1 });
+
+      // huvud (för diagonala tak som på bilden)
+      const headY = r.y + r.dimy * 0.10;
+      const hitHead = rc(gs, frontX, headY, frontX + dir * 10, headY, { pad: 1 });
+
+      if (hitChest || hitHead) r.ai.dir *= -1;
+      
+    } 
+      if (game.collideswith(r,'any','left'))  r.ai.dir = +1;
+      if (game.collideswith(r,'any','right')) r.ai.dir = -1;
+    
+  }
+  break;
+}
 
       case 'chase': {
         r.ai.vx = RAT_AI.CHASE_SPEED * r.ai.dir;
         r.ai.tturn=true;
         if (!game.collideswiths(r,'swordguy')){
-          if (game.collideswith(r,'any','left'))  r.ai.dir = +1;
-          if (game.collideswith(r,'any','right')) r.ai.dir = -1;
+          if (game.collideswith(r,'any','left')&&game.collideswith(r,'any','left').rot==0)  r.ai.dir = +1;
+          if (game.collideswith(r,'any','right')&&game.collideswith(r,'any','right').rot==0) r.ai.dir = -1;
         }
 
         // Attack bara när:
@@ -699,7 +730,7 @@ function updateRats(){
     if(desiredDir === r.ai.dir|| (r.ai.state=='patrol'&&r.ai.tturn==false))r.x += r.ai.vx;
 
     r.fliped = (r.ai.dir < 0);
-    r.direction = r.fliped ? 'left' : 'right';
+   // r.direction = r.fliped ? 'left' : 'right';
     
     
   }
