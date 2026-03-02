@@ -240,7 +240,9 @@
                         updateGoal(bird.objects[0]);
                         
                         if(game.collideswiths(bird.objects[0],"rope")){
-                            if(keyState.w||keyState.s){climb=true;jump=false;}
+                            climb=true;
+                            jump=false;
+                            if(keyState.w||keyState.s){jump=false;}
                             if(keyState.w)bird.objects[0].y-=3;
                             if(keyState.s)bird.objects[0].y+=3;
                         }
