@@ -16,7 +16,8 @@
         <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
     
         <script>
-            function mobileAndTabletCheck() {const isMobile = {Android: function() {return navigator.userAgent.match(/Android/i);},BlackBerry: function() {return navigator.userAgent.match(/BlackBerry/i);},iOS: function() {return navigator.userAgent.match(/iPhone|iPod/i);},Opera: function() {return navigator.userAgent.match(/Opera Mini/i);},Windows: function() {return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i);},any: function() {return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows()|| (navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints && navigator.maxTouchPoints > 1));}};return isMobile.any();}
+            const isMobile = {Android: function() {return navigator.userAgent.match(/Android/i);},BlackBerry: function() {return navigator.userAgent.match(/BlackBerry/i);},iOS: function() {return navigator.userAgent.match(/iPhone|iPod/i);},Opera: function() {return navigator.userAgent.match(/Opera Mini/i);},Windows: function() {return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i);},any: function() {return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows()|| (navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints && navigator.maxTouchPoints > 1));}};
+            function mobileAndTabletCheck() {return isMobile.any();}
 
             const canvas = document.getElementById("myCanvas");
             const ctx = canvas.getContext("2d");
@@ -72,7 +73,13 @@
               }
           });
 
-           
+           window.addEventListener("error", (e) => {
+  alert("💥 ERROR", e.message, e.filename, e.lineno, e.colno, e.error);
+});
+
+window.addEventListener("unhandledrejection", (e) => {
+  alert("💥 PROMISE", e.reason);
+});
             
             
   
@@ -290,8 +297,7 @@
                 gameover();
                 }
                 if (gameState==="overworld"){
-                    
-                   
+
                     if(!audio.src.endsWith("COV.mp3")){audio.src = 'sounds/COV.mp3';audio.play();}
                     updateOverworld();
                     drawOverworld(ctx);
