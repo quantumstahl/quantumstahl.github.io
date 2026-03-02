@@ -180,7 +180,7 @@
                 const apple=game.getobjecttype("apple");
                 const coinicon=game.getobjecttype("coinicon");
                 
-                if(bird){
+                if(bird && gameState !== "overworld"){
                     bbutton.objects[0].x=canvas.width-400;bbutton.objects[0].y=canvas.height-400;
                     abutton.objects[0].x=canvas.width-250;abutton.objects[0].y=canvas.height-250;
                     if(!mobileAndTabletCheck()){abutton.objects[0].x=canvas.width+300;abutton.objects[0].y=canvas.height+400;bbutton.objects[0].x=canvas.width+300;bbutton.objects[0].y=canvas.height+400;}

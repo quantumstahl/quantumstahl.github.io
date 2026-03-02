@@ -1,15 +1,7 @@
 var maskCanvas = document.createElement('canvas');
 var maskCtx = maskCanvas.getContext('2d');
 
-const COLL_PROF = 1;
-function _mkProf(){
-  return {
-    t:{}, ms:{}, c:{},
-    tic(k){ this.t[k]=performance.now(); },
-    toc(k){ this.ms[k]=(this.ms[k]||0)+(performance.now()-this.t[k]); },
-    inc(k,n=1){ this.c[k]=(this.c[k]||0)+n; }
-  };
-}
+
 
 
 "use strict";
@@ -214,8 +206,7 @@ const SimSolver = {
 
   step(game){
     
-    const prof = COLL_PROF ? _mkProf() : null;  
-    if (prof) prof.tic('precalc');  
+
 function _pushCollisionLog(targetRef, otherRef, n, isGhost=false, depth=0, aabbA=null, aabbB=null){
   if (!targetRef) return;
 
@@ -278,7 +269,6 @@ function _pushCollisionLog(targetRef, otherRef, n, isGhost=false, depth=0, aabbA
                     o.rakna2 = 0;
                 } else {
                     o.rakna = o.x - o.freex;
-                    console.log(o.direction);
                     o.rakna2 = o.y - o.freey;
                     o._wantdx = o.rakna;   // <--- NYTT
                     o._wantdy = o.rakna2;  // <--- NYTT
@@ -427,8 +417,7 @@ const { gridStat, gridGhost } = _ensureStaticGrids(stat, ghosts);
 const gridDyn = new HashGrid(SOLVER_CELL);
 // 2) Iterera Jacobi
 
- if (prof) prof.toc('precalc');  
-if (prof) prof.tic('calc');
+
 for (let it = 0; it < this.ITER; it++) {
   // — Hashgrid för dynamics (billig reset via bucket-stamp) —
   gridDyn.beginInsertCycle();
@@ -672,8 +661,7 @@ if (Math.abs(contact.n.x) > 0.9 && (A.ref?._wantdx || 0) !== 0) {
 
   
 }
-if (prof) prof.toc('calc');
-if (prof) prof.tic('slide');
+
     let stopper=false;
     // --- Riktad slide längs roterade statics (aligna med o.direction) ---
     const gStat = gridStat; // återanvänd stat-grid
@@ -855,9 +843,9 @@ if (prof) prof.tic('slide');
         o.y = d.y - (d._insetOffY || 0);
         o.freex = o.x; o.freey = o.y;
     }
-    if (prof) prof.toc('slide');
+
     
-    if (prof){ if(cococ==60){console.table({ms:prof.ms, c:prof.c});cococ=0;} cococ++; }
+   
     
     
   }
@@ -1044,7 +1032,6 @@ window.G5.raycastStatics = raycastStatics;
 
 
 
-let cococ=0;
 var cursorX;
 var cursorY;
 var game;
