@@ -145,7 +145,19 @@
             
             window.addEventListener('keydown', e => { if (e.code==='Space') if(gameState === 'game_over')wantRestart = true; });
             canvas.addEventListener('pointerdown', () => { if(gameState === 'game_over')wantRestart = true; });
-             
+            
+            let apresspress=false;
+            canvas.addEventListener("touchstart", function(e) {
+                e.preventDefault();
+                if (game.collideCircleWithRotatedRectangle(e.touches[0].clientX, e.touches[0].clientY, 10, canvas.width-250, canvas.height-250, 150, 150, 0)) {
+                    apresspress = true;
+                }
+                else{
+                    apresspress=false;
+
+                }
+            });
+    
             var check = function(){
                 if(canvas.width===10||canvas.width===300){
                     canvas.width=document.body.clientWidth;
@@ -181,7 +193,7 @@
                 const apple=game.getobjecttype("apple");
                 const coinicon=game.getobjecttype("coinicon");
                 
-                if(bird){
+                if(bird && gameState !== 'overworld'){
                     bbutton.objects[0].x=canvas.width-400;bbutton.objects[0].y=canvas.height-400;
                     abutton.objects[0].x=canvas.width-250;abutton.objects[0].y=canvas.height-250;
                     if(!mobileAndTabletCheck()){abutton.objects[0].x=canvas.width+300;abutton.objects[0].y=canvas.height+400;bbutton.objects[0].x=canvas.width+300;bbutton.objects[0].y=canvas.height+400;}
@@ -972,7 +984,7 @@ if (keyState.w&&wstopper===false) {iy -= 1;wstopper=true;}
 const next = chooseNeighborByInput(ix,iy);
 if (next!=null) moveToNode(next);
 gemeovercounter--;
-if (gemeovercounter<1&&(keyState.space||(game.getobjecttype("abutton")&&game.getobjecttype("abutton").objects[0].mousepressed==true))){game.load().then(stuff).catch(console.error);  }
+if (gemeovercounter<1&&(keyState.space||apresspress)){game.load().then(stuff).catch(console.error);  }
 
 
 
