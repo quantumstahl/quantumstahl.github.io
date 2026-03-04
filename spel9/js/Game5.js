@@ -2299,7 +2299,7 @@ class Objecttype {
           const cy = o.y + h/2;
 
           // rotation (stöd string/deg)
-          const rad = toRad(o.rot ?? o.rotation ?? o.angle ?? 0);
+          const rad = toRad(o.rot+o.rotimage);
           const c = Math.cos(rad), s = Math.sin(rad);
 
           // roterad AABB-extents
@@ -2499,6 +2499,7 @@ class Objectx {
         this._stepRemain=0;
         this._stepLock=0;
         this.isvisable=true;
+        this.rotimage=0;
     }
     collidestest(){
 

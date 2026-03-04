@@ -167,12 +167,12 @@
                     
                     overworldNodes = [
                              {id:0, x:canvas.width/8, y:canvas.height/2.5, type:"level", cleared:false,prereq:[]},
-                             {id:1, x:canvas.width/2.2, y:canvas.height/2.3, type:"level",  cleared:false,prereq:[0]},
-                             {id:2, x:canvas.width/2.1, y:canvas.height/6.5, type:"level", cleared:false,prereq:[1]},
-                             {id:3, x:canvas.width/1.35, y:canvas.height/2.2, type:"level", cleared:false,prereq:[1]}, // gren uppåt
-                             {id:4, x:canvas.width/2.2, y:canvas.height/1.3, type:"level", cleared:false,prereq:[1]},
-                             {id:5, x:canvas.width/1.3, y:canvas.height/1.4, type:"level", cleared:false,prereq:[4]},
-                             {id:6, x:canvas.width/1.1, y:canvas.height/1.1, type:"level", cleared:false,prereq:[5]},
+                             {id:1, x:canvas.width/2.2, y:canvas.height/2.3, type:"level",  cleared:false,prereq:[]},//0
+                             {id:2, x:canvas.width/2.1, y:canvas.height/6.5, type:"level", cleared:false,prereq:[]},//1
+                             {id:3, x:canvas.width/1.35, y:canvas.height/2.2, type:"level", cleared:false,prereq:[]}, //1
+                             {id:4, x:canvas.width/2.2, y:canvas.height/1.3, type:"level", cleared:false,prereq:[]},//1
+                             {id:5, x:canvas.width/1.3, y:canvas.height/1.4, type:"level", cleared:false,prereq:[]},//4
+                             {id:6, x:canvas.width/1.1, y:canvas.height/1.1, type:"level", cleared:false,prereq:[]},//5
                            ];
 
                    overworldEdges = [
@@ -192,6 +192,7 @@
                 const coin=game.getobjecttype("coin");
                 const apple=game.getobjecttype("apple");
                 const coinicon=game.getobjecttype("coinicon");
+      
                 
                 if(bird && gameState !== 'overworld'){
                     bbutton.objects[0].x=canvas.width-400;bbutton.objects[0].y=canvas.height-400;
@@ -281,6 +282,65 @@
                     updateWarlocks();
                     updateFireballs();
                     updateFirePillars();
+                    
+                    const boulders = game.getobjecttype('bolder')?.objects || [];
+
+for (const b of boulders) {
+  // init
+  if (b.vx == null) b.vx = 0;
+  if (b.vy == null) b.vy = 0;
+
+  // GRAV
+  b.vy += 0.8;          // testa 0.6..1.2
+  if (b.vy > 20) b.vy = 20;
+
+  // Flytta vertikalt först
+  b.y += b.vy;
+
+  // Cache:a ground en gång
+  const ground = game.collideswith(b, "any", "down");
+
+  if (ground) {
+      
+    // Om du vill: stoppa att den fortsätter sjunka
+    b.vy = 0;
+
+    // === SLOPE ACCEL ===
+    // ground.rot i grader, negativ = lutar ner åt höger (?) hos dig
+    const rot = ground.rot || 0;
+
+    // acceleration längs sluttning (sinus) → mjukt
+    const accel = Math.sin(rot * Math.PI / 180) * 1.2; // testa 0.6..2.0
+    b.vx += accel;
+
+    // markfriktion
+    b.vx *= 0.985; // testa 0.97..0.995
+
+    // döda micro-jitter
+    if (Math.abs(b.vx) < 0.05) b.vx = 0;
+  } else {
+    // luftmotstånd när den är i luften
+    b.vx *= 0.999;
+  }
+
+  // Flytta horisontellt
+  b.x += b.vx;
+
+  // Rotera sprite baserat på vx (snyggt!)
+  b.rotimage += b.vx * 0.3;
+
+    
+    if(Math.abs(b.vx)>0){b.counter++;}
+    else{b.counter=0;}    
+    console.log(b.counter);
+  // Combat när den rullar tillräckligt fort (valfritt)
+  if (Math.abs(b.vx) > 2&&b.counter>30) {
+ 
+    handleCombat("bolder", ["rat","archer","tank","bat","mage","warlock","swordguy"], 50);
+  }
+}
+                    
+                    
                     
                     if(acount==25)  handleCombat("swordguy", ["rat","archer","tank","bat","mage","warlock"], 50);
                     
@@ -409,6 +469,8 @@ function drawHealthBars() {
   
   
 }
+
+
 function handleCombat(attackerType, enemyTypes, damage) {
   function attackFromFront(attacker, defender){
   const ddir = defender.fliped ? -1 : 1;
@@ -427,7 +489,8 @@ function warlockFrontOpen(w){
   const attackers = game.getobjecttype(attackerType).objects;
   for (const unit of attackers) {
     for (const enemyType of enemyTypes) {
-      const target = game.collideswith(unit, enemyType, "ghost");
+      let target = game.collideswith(unit, enemyType, "ghost");
+      if(unit.name==="bolder")target=game.collideswiths(unit, enemyType);
       if (target) {
           
           if (enemyType === "tank"){
@@ -589,6 +652,24 @@ function ratSeparation(r, rats){
     }
   }
 }
+function dropDepthAhead(r, dir, maxCheck = 700) {
+  const gs = window.G5?.gridStat;
+  const rc = window.G5?.raycastStatics;
+  if (!gs || !rc) return 0;
+
+  const x = r.x + (dir > 0 ? r.dimx : 0) + dir * 6; // lite framför
+  const y0 = r.y + r.dimy - 2;                      // fothöjd
+  const hit = rc(gs, x, y0, x, y0 + maxCheck, { pad: 1 });
+
+  if (!hit) return maxCheck; // inget golv inom max -> "jättestup"
+  // hit kan vara proxy (static) eller ref beroende på din raycast; men vi behöver bara t-värdet…
+  // Din raycastStatics returnerar objekt, inte t. Så vi gör djup approx via hit.y - y0:
+  // (ok i platformer)
+  const floorY = (hit._aabb?.y ?? hit.y);           // top-y ungefär
+  return Math.max(0, floorY - y0);
+}
+
+
 
 function updateRats(){
   const rats = game.getobjecttype('rat')?.objects || [];
@@ -600,8 +681,10 @@ function updateRats(){
     r.animation = 0;
     // din grav / dual hack
     r.y += 11; 
-    if(game.collideswith(r,"any","down")&&game.collideswith(r,"any","down").rot!=0){
-        r.y=r.y-11; 
+    
+    
+    if(game.collideswith(r,"any","down")){
+        r.y=r.y-10; 
     }
     
     r.dual = 35;
@@ -684,6 +767,9 @@ case 'patrol': {
       const hitHead = rc(gs, frontX, headY, frontX + dir * 10, headY, { pad: 1 });
 
       if (hitChest || hitHead) r.ai.dir *= -1;
+      
+      const drop = dropDepthAhead(r, dir, 700);
+       if (drop > 600) r.ai.dir *= -1;
       
     } 
       if (game.collideswith(r,'any','left'))  r.ai.dir = +1;
