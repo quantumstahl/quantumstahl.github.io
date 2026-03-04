@@ -310,7 +310,7 @@ for (const b of boulders) {
     const rot = ground.rot || 0;
 
     // acceleration längs sluttning (sinus) → mjukt
-    const accel = Math.sin(rot * Math.PI / 180) * 1.2; // testa 0.6..2.0
+    const accel = Math.sin(rot * Math.PI / 180) * 2; // testa 0.6..2.0
     b.vx += accel;
 
     // markfriktion
@@ -332,7 +332,6 @@ for (const b of boulders) {
     
     if(Math.abs(b.vx)>0){b.counter++;}
     else{b.counter=0;}    
-    console.log(b.counter);
   // Combat när den rullar tillräckligt fort (valfritt)
   if (Math.abs(b.vx) > 2&&b.counter>30) {
  
