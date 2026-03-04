@@ -1200,7 +1200,7 @@ F*?
 false
 A*?
 map2
-352
+848
 0
 B*?
 backgrund
@@ -1565,8 +1565,8 @@ images/ratattack3.png
 E*?
 images/ratattck1.png
 F*?
-1777
-986
+1214
+988
 100
 100
 0
