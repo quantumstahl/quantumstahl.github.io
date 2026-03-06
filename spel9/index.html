@@ -1050,7 +1050,7 @@ if (keyState.w&&wstopper===false) {iy -= 1;wstopper=true;}
 const next = chooseNeighborByInput(ix,iy);
 if (next!=null) moveToNode(next);
 gemeovercounter--;
-if (gemeovercounter<1&&(keyState.space||apresspress)){game.load().then(stuff).catch(console.error);  }
+if (gemeovercounter<1&&(keyState.space||apresspress)){apresspress=false;game.load().then(stuff).catch(console.error);  }
 
 
 
