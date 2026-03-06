@@ -168,7 +168,9 @@
                     }
                 }
             }, { passive: false });
-    
+            canvas.addEventListener("touchend", function() {
+                apresspress = false;
+            });
             var check = function(){
                 if(canvas.width===10||canvas.width===300){
                     canvas.width=document.body.clientWidth;
