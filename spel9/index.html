@@ -391,7 +391,7 @@ function drawHealthBars() {
       if(!o.isvisable)continue;
 
     // defaultvärden om hälsa saknas
-    if (o.maxhealth == null&&o.name=="warlock"){o.maxhealth = 400;o.health = o.maxhealth;}
+    if (o.maxhealth == null&&o.name=="warlock"){o.maxhealth = 4000;o.health = o.maxhealth;}
     if (o.maxhealth == null&&o.name=="tank"){o.maxhealth = 200;o.health = o.maxhealth;}
     if (o.maxhealth == null&&(o.name=="mage"||o.name=="bat")){o.maxhealth = 50;o.health = o.maxhealth;}
     if (o.maxhealth == null){ o.maxhealth = Heroes.has(o.name) ? 30 : 100;o.health = o.maxhealth;}
@@ -1809,7 +1809,7 @@ function updateFireballs(){
 
 // ================== Tunables ==================
 const WARLOCK_AI = {
-  HP: 400,
+  HP: 4000,
 
   SPEED: 1.2,
   SIGHT_X: 9999,
@@ -1886,7 +1886,7 @@ function updateWarlocks(){
     if(b.isonscreen&&!audio.src.endsWith("drak.mp3")){audio.src = "sounds/drak.mp3";audio.play();}
     
     const hpPct = b.health / b.maxHealth;
-    b.ai.phase = (hpPct > 0.70) ? 1 : (hpPct > 0.35 ? 2 : 3);
+    b.ai.phase = (hpPct > 0.70) ? 1 : (hpPct > 0.05 ? 2 : 3);
 
     // grundriktning mot spelaren
     const dx = P.x - b.x-b.dimx/3, dy = P.y - b.y;
@@ -1911,7 +1911,8 @@ function updateWarlocks(){
 
         // fasbeteende
         if (b.ai.phase===1){
-          if (b.ai.cd===0){ startCast(b, 'fireball'); }
+          if (b.ai.cd===0){ if (Math.random()<0.5) startCast(b, 'fireball');
+            else startCast(b, 'pillar'); }
         } else if (b.ai.phase===2){
           // teleporta ibland + fireball / pillar
           if (b.ai.tpCD===0 && Math.random()<0.02){
