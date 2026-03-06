@@ -285,65 +285,40 @@
                     
                     const boulders = game.getobjecttype('bolder')?.objects || [];
 
-for (const b of boulders) {
-  // init
-  if (b.vx == null) b.vx = 0;
-  if (b.vy == null) b.vy = 0;
+                    for (const b of boulders) {
+                        b.vy += 0.8;         
+                        if (b.vy > 20) b.vy = 20;
+                        b.y += b.vy;
+                        const ground = game.collideswith(b, "any", "down");
+                        if (ground) {
+                          b.vy = 0;
+                          const rot = ground.rot || 0;
+                          const accel = Math.sin(rot * Math.PI / 180) * 2; 
+                          b.vx += accel;
+                          b.vx *= 0.985;
+                          if (Math.abs(b.vx) < 0.05) b.vx = 0;
+                        } else {
+                          b.vx *= 0.999;
+                        }
+                        b.x += b.vx;
+                        b.rotimage += b.vx * 0.3;
+                        if(Math.abs(b.vx)>0){b.counter++;}
+                        else{b.counter=0;}    
 
-  // GRAV
-  b.vy += 0.8;          // testa 0.6..1.2
-  if (b.vy > 20) b.vy = 20;
-
-  // Flytta vertikalt först
-  b.y += b.vy;
-
-  // Cache:a ground en gång
-  const ground = game.collideswith(b, "any", "down");
-
-  if (ground) {
-      
-    // Om du vill: stoppa att den fortsätter sjunka
-    b.vy = 0;
-
-    // === SLOPE ACCEL ===
-    // ground.rot i grader, negativ = lutar ner åt höger (?) hos dig
-    const rot = ground.rot || 0;
-
-    // acceleration längs sluttning (sinus) → mjukt
-    const accel = Math.sin(rot * Math.PI / 180) * 2; // testa 0.6..2.0
-    b.vx += accel;
-
-    // markfriktion
-    b.vx *= 0.985; // testa 0.97..0.995
-
-    // döda micro-jitter
-    if (Math.abs(b.vx) < 0.05) b.vx = 0;
-  } else {
-    // luftmotstånd när den är i luften
-    b.vx *= 0.999;
-  }
-
-  // Flytta horisontellt
-  b.x += b.vx;
-
-  // Rotera sprite baserat på vx (snyggt!)
-  b.rotimage += b.vx * 0.3;
-
-    
-    if(Math.abs(b.vx)>0){b.counter++;}
-    else{b.counter=0;}    
-  // Combat när den rullar tillräckligt fort (valfritt)
-  if (Math.abs(b.vx) > 2&&b.counter>30) {
- 
-    handleCombat("bolder", ["rat","archer","tank","bat","mage","warlock","swordguy"], 50);
-  }
-}
+                        if (Math.abs(b.vx) > 2&&b.counter>30) {
+                            
+              
+                            handleCombat(b, ["rat","archer","tank","bat","mage","warlock","swordguy"], 50);
+                        }
+                    }
                     
                     
                     
-                    if(acount==25)  handleCombat("swordguy", ["rat","archer","tank","bat","mage","warlock"], 50);
+                    if(acount==25)  handleCombat(bird.objects[0], ["rat","archer","tank","bat","mage","warlock"], 50);
                     
-                    handleCombat("arrow", ["swordguy"], 10);
+                    const arrows = game.getobjecttype('arrow')?.objects || [];
+                    for(const a of arrows)
+                        handleCombat(a, ["swordguy"], 10);
                     
                     
                     let offx = 0, offy = 0;
@@ -470,7 +445,7 @@ function drawHealthBars() {
 }
 
 
-function handleCombat(attackerType, enemyTypes, damage) {
+function handleCombat(unit, enemyTypes, damage) {
   function attackFromFront(attacker, defender){
   const ddir = defender.fliped ? -1 : 1;
   const ax = attacker.x + attacker.dimx/2;
@@ -484,9 +459,7 @@ function warlockFrontOpen(w){
 }  
     
     
-    
-  const attackers = game.getobjecttype(attackerType).objects;
-  for (const unit of attackers) {
+
     for (const enemyType of enemyTypes) {
       let target = game.collideswith(unit, enemyType, "ghost");
       if(unit.name==="bolder")target=game.collideswiths(unit, enemyType);
@@ -589,7 +562,7 @@ function warlockFrontOpen(w){
         }
       }
     }
-  }
+  
 }
 // ====== Tunables ======
 const RAT_AI = {
@@ -771,8 +744,19 @@ case 'patrol': {
        if (drop > 600) r.ai.dir *= -1;
       
     } 
+    if(game.collideswiths(r,'bolder')){r.counter++;}
+    else{
       if (game.collideswith(r,'any','left'))  r.ai.dir = +1;
       if (game.collideswith(r,'any','right')) r.ai.dir = -1;
+    }
+    
+    if(r.counter>60){
+        r.counter=0;
+        if (game.collideswith(r,'any','left'))  r.ai.dir = +1;
+        if (game.collideswith(r,'any','right')) r.ai.dir = -1;
+        
+    }
+    
     
   }
   break;
@@ -807,7 +791,7 @@ case 'patrol': {
 
         // När halva windupen passerat → träffen går igenom
         if (r.ai.timer === Math.floor(RAT_AI.WINDUP_FR/2)) {
-          handleCombat("rat", ["swordguy"], 10);
+          handleCombat(r, ["swordguy"], 10);
         }
 
         if (r.ai.timer <= 0) {
@@ -1495,7 +1479,7 @@ function updateShields(){
 
         // När halva windupen passerat → träffen går igenom
         if (r.ai.timer === Math.floor(RAT_AI.WINDUP_FR/2)) {
-          handleCombat("tank", ["swordguy"], 10);
+          handleCombat(r, ["swordguy"], 10);
         }
 
         if (r.ai.timer <= 0) {
@@ -1650,7 +1634,7 @@ function updateBats(){
     
     
       if (!b.hitCD || b.hitCD <= 0){
-        handleCombat("bat", ["swordguy"], 2.5);   // din funktion
+        handleCombat(b, ["swordguy"], 2.5);   // din funktion
 
 
         b.hitCD = 30;
@@ -1794,7 +1778,7 @@ function updateFireballs(){
 
     // träffar spelaren?
     if (P && game.collideswith(f,"swordguy","ghost")){
-      handleCombat("fire", ["swordguy"], 10);
+      handleCombat(f, ["swordguy"], 10);
       spawnHitParticles(P.x+P.dimx/2,P.y,10,"#ff9933");
       cameraShake(4,120);
       hitStop(3);
@@ -1962,7 +1946,7 @@ function updateWarlocks(){
         b.ai.timer--;
         // skada spelaren vid kontakt
         if (game.collideswith(b, 'swordguy','ghost')){
-          handleCombat("warlock", ["swordguy"], 10);
+          handleCombat(b, ["swordguy"], 10);
           const k = (b.x<P.x)?+1:-1;
           P.vx = (P.vx||0) + k*5; P.vy = -6;
         }
@@ -2175,7 +2159,7 @@ function updateFirePillars(){
             
             
            if (!p.hitCD || p.hitCD <= 0){
-            handleCombat("firepillar", ["swordguy"], 10); // din funktion
+            handleCombat(p, ["swordguy"], 10); // din funktion
 
 
              p.hitCD = 30;
@@ -2201,7 +2185,7 @@ function updateFirePillars(){
       p.lingerT--;
       if (P && game.collideswith(p, 'swordguy', 'ghost')){
         if (!p.hitCD || p.hitCD <= 0){  
-            handleCombat("firepillar", ["swordguy"], 10);
+            handleCombat(p, ["swordguy"], 10);
             p.hitCD = 30;
         }
         if (p.hitCD && p.hitCD > 0) p.hitCD--;  
