@@ -317,9 +317,9 @@
                     if(acount==25)  handleCombat(bird.objects[0], ["rat","archer","tank","bat","mage","warlock"], 50);
                     
                     const arrows = game.getobjecttype('arrow')?.objects || [];
-                    for(const a of arrows)
+                    for(const a of arrows){
                         handleCombat(a, ["swordguy"], 10);
-                    
+                    }
                     
                     let offx = 0, offy = 0;
                     if (shakeTime > 0){
@@ -502,7 +502,7 @@ function warlockFrontOpen(w){
         spawnDamageNumber(-damage, unit.x, unit.y, { color: "#ff4d4d" });
         spawnHitParticles(target.x+target.dimx/2, target.y+target.dimy/2, 6);
         
-        if(unit.name==="arrow")game.removeobject(game.getobjecttype(attackerType), unit);
+        if(unit.name==="arrow")game.removeobject(game.getobjecttype(unit.name), unit);
         
 
         // === JUICE ===
