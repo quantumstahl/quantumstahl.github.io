@@ -2021,13 +2021,65 @@ function summonMinionsNear(b){
 }
 
 // teleport – kort blink till en plats 140px åt valfri sida med fri mark
-function doTeleport(b, P){
-  const dir = (Math.random()<0.5)? -1 : 1;
-  const nx = b.x + dir*640;
-  b.x = nx; // kan göras mjukare med effekter
-  cameraShake(3,120);
-}
+function doTeleport(b, P) {
+  const dirs = Math.random() < 0.5 ? [-1, 1] : [1, -1];
+  const offsetsY = [0, -32, -64, 32];
 
+  for (const dir of dirs) {
+    const baseX = b.x + dir * 640;
+
+    for (const offY of offsetsY) {
+      const nx = baseX;
+      const ny = b.y + offY;
+
+      if (canTeleportTo(b, nx, ny)) {
+        b.x = nx;
+        b.y = ny;
+        cameraShake(3, 120);
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+function canTeleportTo(obj, x, y) {
+  const gs = window.G5?.gridStat;
+  if (!gs) return false;
+
+  const test = {
+    x: x,
+    y: y,
+    w: obj.dimx,
+    h: obj.dimy,
+    rot: obj.rot || 0
+  };
+
+  const aabb = { x:test.x, y:test.y, w:test.w, h:test.h };
+  const near = gs.query(aabb, []);
+
+  for (let i = 0; i < near.length; i++) {
+    const S = near[i];
+
+    // snabb AABB-check först
+    const sa = S._aabb || { x:S.x, y:S.y, w:S.w, h:S.h };
+    if (
+      !(aabb.x + aabb.w <= sa.x ||
+        sa.x + sa.w <= aabb.x ||
+        aabb.y + aabb.h <= sa.y ||
+        sa.y + sa.h <= aabb.y)
+    ) {
+      // exaktare check om du vill
+      if ((S.rot || 0) === 0 && (test.rot || 0) === 0) {
+        return false;
+      } else {
+        if (obbObbMTV(test, S)) return false;
+      }
+    }
+  }
+
+  return true;
+}
 
 
 //=== resolveCast: ersätt bara 'pillar'-fallet ===
