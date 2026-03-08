@@ -51,7 +51,7 @@
                 e.preventDefault();
 				
                     try{if(audio.paused){ 
-                        start=true;audio.play();
+                        audio.play();start=true;
                     }
                     }catch(error){};
                     if(context.state === 'suspended'){context.suspend();context.resume();}           
@@ -81,7 +81,7 @@
             
             
   
-            document.addEventListener('click', (event) => {try{if(audio.paused&&gameState!=='game_over'){ start=true;audio.play();}}catch(error){};});
+            document.addEventListener('click', (event) => {try{if(audio.paused&&gameState!=='game_over'){ audio.play();start=true;}}catch(error){};});
 
             
             let keyState = {
@@ -188,16 +188,23 @@
             var check = function(){
                 
                 if(start==false){
-                    let camShakeX = Math.sin(Date.now()*0.001)*2;
-                    let camShakeY = Math.cos(Date.now()*0.001)*2;
-                    ctx.drawImage(titlescreen,camShakeX,camShakeY,canvas.width,canvas.height);
+                    canvas.width=document.body.clientWidth;
+                    canvas.height=document.body.clientHeight-8;
+                    canvas.style.width  = canvas.width + "px";
+                    canvas.style.height = canvas.height + "px";
+                    
+
+                    
+
+                    
+                    ctx.drawImage(titlescreen,0,0,canvas.width,canvas.height);
                     if(Math.floor(Date.now()/1000)%2==0){
-                        ctx.font="20px Cinzel";
+                        ctx.font="30px Cinzel";
                         ctx.fillStyle="white";
                         ctx.textAlign="center";
                         ctx.shadowColor = "gold";
                         ctx.shadowBlur = 10;
-                        ctx.fillText("CLICK TO BEGIN",canvas.width/2,canvas.height/2+120);
+                        ctx.fillText("CLICK TO BEGIN",canvas.width/2,canvas.height/2+420);
                         ctx.shadowBlur = 0;
                     }
 
