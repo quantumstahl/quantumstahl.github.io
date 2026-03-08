@@ -51,7 +51,7 @@
                 e.preventDefault();
 				
                     try{if(audio.paused){ 
-                        audio.play();
+                        start=true;audio.play();
                     }
                     }catch(error){};
                     if(context.state === 'suspended'){context.suspend();context.resume();}           
@@ -181,12 +181,51 @@
             });
             
             let start=false;
+            
+            function drawLetterboxedImage(ctx, img) {
+                const canvasW = ctx.canvas.width;
+                const canvasH = ctx.canvas.height;
+
+                const imgW = img.width;
+                const imgH = img.height;
+
+                const canvasRatio = canvasW / canvasH;
+                const imgRatio = imgW / imgH;
+
+                let drawW, drawH, drawX, drawY;
+
+                if (canvasRatio > imgRatio) {
+                    // canvas är bredare än bilden → fyll höjden
+                    drawH = canvasH;
+                    drawW = drawH * imgRatio;
+                    drawX = (canvasW - drawW) / 2;
+                    drawY = 0;
+                } else {
+                    // canvas är smalare/högre än bilden → fyll bredden
+                    drawW = canvasW;
+                    drawH = drawW / imgRatio;
+                    drawX = 0;
+                    drawY = (canvasH - drawH) / 2;
+                }
+
+                // svart bakgrund = bars
+                ctx.fillStyle = "black";
+                ctx.fillRect(0, 0, canvasW, canvasH);
+
+                ctx.drawImage(img, drawX, drawY, drawW, drawH);
+
+                return { x: drawX, y: drawY, w: drawW, h: drawH };
+            }
+
+
+            
             var check = function(){
                 
                 if(start==false){
-
-                    ctx.drawImage(titlescreen,0,0,canvas.width,canvas.height);
-
+                  //  let camShakeX = Math.sin(Date.now()*0.001)*2;
+                 ///   let camShakeY = Math.cos(Date.now()*0.001)*2;
+                  //  ctx.drawImage(titlescreen,camShakeX,camShakeY,canvas.width,canvas.height);
+                    drawLetterboxedImage(ctx,titlescreen);
                     if(Math.floor(Date.now()/1000)%2==0){
                         ctx.font="20px Cinzel";
                         ctx.fillStyle="white";
