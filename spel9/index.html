@@ -187,32 +187,6 @@
             
             var check = function(){
                 
-                if(start==false){
-                    canvas.width=document.body.clientWidth;
-                    canvas.height=document.body.clientHeight-8;
-                    canvas.style.width  = canvas.width + "px";
-                    canvas.style.height = canvas.height + "px";
-                    
-
-                    
-
-                    
-                    ctx.drawImage(titlescreen,0,0,canvas.width,canvas.height);
-                    if(Math.floor(Date.now()/1000)%2==0){
-                        ctx.font="30px Cinzel";
-                        ctx.fillStyle="white";
-                        ctx.textAlign="center";
-                        ctx.shadowColor = "gold";
-                        ctx.shadowBlur = 10;
-                        ctx.fillText("CLICK TO BEGIN",canvas.width/2,canvas.height/2+420);
-                        ctx.shadowBlur = 0;
-                    }
-
-                }
-                else{
-                
-                
-                
                 if(canvas.width===10||canvas.width===300){
                     canvas.width=document.body.clientWidth;
                     canvas.height=document.body.clientHeight-8;
@@ -235,7 +209,28 @@
 
                    OW = { adj: buildAdjList(overworldNodes, overworldEdges) };
                    
-              }  
+                } 
+                
+                
+                if(start==false){
+
+                    ctx.drawImage(titlescreen,0,0,canvas.width,canvas.height);
+                    if(Math.floor(Date.now()/1000)%2==0){
+                        ctx.font="30px Cinzel";
+                        ctx.fillStyle="white";
+                        ctx.textAlign="center";
+                        ctx.shadowColor = "gold";
+                        ctx.shadowBlur = 10;
+                        ctx.fillText("CLICK TO BEGIN",canvas.width/2,canvas.height/2+450);
+                        ctx.shadowBlur = 0;
+                    }
+
+                }
+                else{
+                
+                
+                
+                 
                 ctx.fillStyle = "black";
                 ctx.fillRect(0, 0, canvas.width, canvas.height); 
 
