@@ -2339,7 +2339,7 @@ class Objecttype {
           
           ctx.restore();
 
-          // ===== (valfritt) markeringsram när selected =====
+          // ===== markeringsram när selected
           if (o.selected) {
             ctx.save();
             ctx.scale(scale, scale);
@@ -2353,7 +2353,7 @@ class Objecttype {
             ctx.restore();
           }
 
-          // ===== ghost-byggen (oförändrat, men du kan rotera om du vill) =====
+          // ===== ghost-byggen 
           if (o.ghost && o.name !== "tree"&&o.buildobject!==null) {
             let valid = true;
             try { if (typeof window.isBuildPlacementValid === "function") valid = !!window.isBuildPlacementValid(o); } catch(e){}

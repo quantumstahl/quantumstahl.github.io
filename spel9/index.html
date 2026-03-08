@@ -6,7 +6,8 @@
         <meta charset="utf-8">
         <meta name="keywords" content="mobilspel, mobilegames, js games, javascript games">
         <link rel="icon" href="images/swordguy.png" type="image/vnd.microsoft.icon" />
-	<title>Test4</title>
+        <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&display=swap" rel="stylesheet">
+	<title>BirdKnight</title>
         
         <script src="js/Game5.js"></script>
         <script src="js/joy.js"></script>
@@ -64,7 +65,10 @@
             
             document.addEventListener("visibilitychange", event => {
                 if (document.visibilityState === "visible") {
-                        audio.pause();audio.src = 'sounds/cast3.mp3';context.resume();
+                        audio.pause();
+                        if(game.currentmap==1){audio.src = 'sounds/cast4.mp3';}
+                        else{ audio.src = 'sounds/cast3.mp3';}
+                        context.resume();
                         
                 }
                 else {
@@ -77,7 +81,7 @@
             
             
   
-            document.addEventListener('click', (event) => {try{if(audio.paused&&gameState!=='game_over'){ audio.play();}}catch(error){};});
+            document.addEventListener('click', (event) => {try{if(audio.paused&&gameState!=='game_over'){ start=true;audio.play();}}catch(error){};});
 
             
             let keyState = {
@@ -89,7 +93,7 @@
             };
             
             document.addEventListener("keydown", function(e) {
-                try{if(audio.paused&&gameState!=='game_over'){ audio.play();}}catch(error){};
+                try{if(audio.paused&&gameState!=='game_over'){ if(start)audio.play();}}catch(error){};
                 if (e.key === "w") keyState.w = true;
                 if (e.key === "a") keyState.a = true;
                 if (e.key === "s") keyState.s = true;
@@ -134,6 +138,10 @@
             let OW = { adj: buildAdjList(overworldNodes, overworldEdges) };
             const overworldimage=new Image();
             overworldimage.src="images/overworld.png";
+            
+            const titlescreen=new Image();
+            titlescreen.src="images/Titlescreen.png";
+            
             let dstopper=false;
             let astopper=false;
             let wstopper=false;
@@ -171,7 +179,29 @@
             canvas.addEventListener("touchend", function() {
                 apresspress = false;
             });
+            
+            let start=false;
             var check = function(){
+                
+                if(start==false){
+
+                    ctx.drawImage(titlescreen,0,0,canvas.width,canvas.height);
+
+                    if(Math.floor(Date.now()/1000)%2==0){
+                        ctx.font="20px Cinzel";
+                        ctx.fillStyle="white";
+                        ctx.textAlign="center";
+                        ctx.shadowColor = "gold";
+                        ctx.shadowBlur = 10;
+                        ctx.fillText("CLICK TO BEGIN",canvas.width/2,canvas.height/2+120);
+                        ctx.shadowBlur = 0;
+                    }
+
+                }
+                else{
+                
+                
+                
                 if(canvas.width===10||canvas.width===300){
                     canvas.width=document.body.clientWidth;
                     canvas.height=document.body.clientHeight-8;
@@ -215,8 +245,13 @@
                 }
                 
                 if(bird&&gameState !== 'overworld'){
-                    if(!audio.src.endsWith("cast3.mp3")&&(!audio.src.endsWith("drak.mp3")||game.getobjecttype("warlock").objects.length===0)){audio.src = "sounds/cast3.mp3";audio.play();}
                     
+                    if(game.currentmap==1){
+                        if(!audio.src.endsWith("cast4.mp3")&&!audio.src.endsWith("cast3.mp3")&&(!audio.src.endsWith("drak.mp3")||game.getobjecttype("warlock").objects.length===0)){audio.src = "sounds/cast4.mp3";audio.play();}
+                    }
+                    else{ 
+                        if(!audio.src.endsWith("cast4.mp3")&&!audio.src.endsWith("cast3.mp3")&&(!audio.src.endsWith("drak.mp3")||game.getobjecttype("warlock").objects.length===0)){audio.src = "sounds/cast3.mp3";audio.play();}
+                    } 
                     
                     coinicon.objects[0].x=40;coinicon.objects[0].y=100;
                     ctx.restore();
@@ -354,6 +389,10 @@
                     if(!audio.src.endsWith("COV.mp3")){audio.src = 'sounds/COV.mp3';audio.play();}
                     updateOverworld();
                     drawOverworld(ctx);
+                    
+                    
+                    
+                    
                 }
                 if("ontouchstart" in document.documentElement){
                     keyState.d=false;keyState.a = false;keyState.w=false;keyState.s = false;
@@ -373,7 +412,7 @@
                 }
                 
                 
-                
+            }
                 window.requestAnimationFrame(check);   
             };check();
             
