@@ -51,6 +51,7 @@
                 e.preventDefault();
 				
                     try{if(audio.paused){ 
+                        if(start)cinematic=false;
                         audio.play();start=true;
                     }
                     }catch(error){};
@@ -81,7 +82,7 @@
             
             
   
-            document.addEventListener('click', (event) => {try{if(audio.paused&&gameState!=='game_over'){ audio.play();start=true;}}catch(error){};});
+            document.addEventListener('click', (event) => {if(start)cinematic=false;try{if(audio.paused&&gameState!=='game_over'){ audio.play();start=true;}}catch(error){};});
 
             
             let keyState = {
@@ -360,9 +361,9 @@
                         
                         game.updateanimation(ctx);
                         
-                        ctx.fillStyle = "black";
+                        ctx.fillStyle = "gold";
                         ctx.textAlign = "center";
-                        ctx.font = "80px Cinzel";
+                        ctx.font = "120px Cinzel";
                         ctx.fillText("BirdKnight", canvas.width/2, 300);
                         
                         
