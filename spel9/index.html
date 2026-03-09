@@ -49,9 +49,9 @@
             
             document.addEventListener("touchstart" , function(e) {
                 e.preventDefault();
-				
+		    if(start)cinematic=false;		
                     try{if(audio.paused){ 
-                        if(start)cinematic=false;
+                        
                         audio.play();start=true;
                     }
                     }catch(error){};
@@ -373,6 +373,11 @@
                         ctx.fillRect(0, 0, canvas.width, canvas.height);
                         
                     }
+                    
+                    ctx.fillStyle = "gold";
+                    ctx.font = "30px Cinzel";
+                    ctx.fillText("Press to skipp", 150, 50); 
+                    
                     
                 }
                 else{
