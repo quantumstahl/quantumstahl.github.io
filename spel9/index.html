@@ -311,6 +311,34 @@
                         game.getobjecttype("swordguy").objects[1].counter++;
                         
                     }
+                    else if(cinematicTimer > 1401&&cinematicTimer< 1800){
+                        game.setcameraobj(game.getobjecttype("swordguy").objects[2], canvas.width, canvas.height);
+                        game.maps[7].zoom=1;
+                        game.updateanimation(ctx);
+                        game.getobjecttype("swordguy").objects[2].animation=0;
+                        
+                        if(cinematicTimer > 1601)game.getobjecttype("swordguy").objects[2].animation=3;
+                        
+                      //  game.getobjecttype("swordguy").objects[2].x=game.getobjecttype("swordguy").objects[2].x+3;
+                        const rat = game.getobjecttype('rat2')?.objects || [];
+                        for (const r of rat) {
+                            if(r.fliped)r.x=r.x-2;
+                            if(!r.fliped)r.x=r.x+2;
+                        }
+                        
+                        
+                        
+                    }
+                    else if(cinematicTimer > 1801&&cinematicTimer< 2200){
+                        
+                        game.setcameraobj(game.getobjecttype("swordguy").objects[3], canvas.width-400, canvas.height-400);
+                        game.getobjecttype("swordguy").objects[3].x=game.getobjecttype("swordguy").objects[3].x+4;
+                        game.getobjecttype("swordguy").objects[3].y=game.getobjecttype("swordguy").objects[3].y+4;
+                        game.maps[7].zoom=game.maps[7].zoom+0.1;
+                        game.updateanimation(ctx);
+                    }
+                    
+                    
                     else{
                         ctx.fillStyle = "black";
                         ctx.fillRect(0, 0, canvas.width, canvas.height);
