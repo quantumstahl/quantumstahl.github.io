@@ -376,7 +376,16 @@
                     
                     ctx.fillStyle = "gold";
                     ctx.font = "30px Cinzel";
-                    ctx.fillText("Press to skipp", 150, 50); 
+                    
+                    
+                    
+
+                        ctx.fillText(
+                            mobileAndTabletCheck() ? "TAP TO START" : "CLICK TO START",
+                            150,
+                            50
+                        );
+
                     
                     
                 }
