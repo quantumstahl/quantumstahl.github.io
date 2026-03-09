@@ -297,6 +297,19 @@
                         ctx.globalAlpha = 1;
                         
                     }
+                    else if(cinematicTimer > 1041&&cinematicTimer< 1400){
+           
+                        
+                        game.setcameraobj(game.getobjecttype("swordguy").objects[1], canvas.width+game.getobjecttype("swordguy").objects[1].counter*6, canvas.height+game.getobjecttype("swordguy").objects[1].counter);
+                        game.maps[7].zoom=1;
+                        game.updateanimation(ctx);
+                        game.getobjecttype("swordguy").objects[1].animation=1;
+                        game.getobjecttype("swordguy").objects[1].x++;
+                        game.getobjecttype("swordguy").objects[1].x++;
+                        game.getobjecttype("swordguy").objects[1].x++;
+                        game.getobjecttype("swordguy").objects[1].counter++;
+                        
+                    }
                     else{
                         ctx.fillStyle = "black";
                         ctx.fillRect(0, 0, canvas.width, canvas.height);
