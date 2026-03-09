@@ -197,7 +197,7 @@ const BETA       = 2;  // 0..1, hur stor del av återstående pen som tas per fr
 const MAX_CORR_PX= 32.0;   // max px per par och kropp per iteration (skydd mot “skott”)
 
 const STEP_EPS   = 2;   // hur mycket under topp vi tolererar (px)
-const STEP_MAX   = 17;   // hur mycket över topp vi får "kliva upp" (px)
+const STEP_MAX   = 21;   // hur mycket över topp vi får "kliva upp" (px)
 const SIDE_SKIN  = 1.0; // valfritt: skär av statiska sidkanter lite
 const SimSolver = {
   ITER: 4,
@@ -763,7 +763,7 @@ if (Math.abs(contact.n.x) > 0.9 && (A.ref?._wantdx || 0) !== 0) {
   if (!gridStat) return; // säkerhet
 
   const LOOT_ITER = 3;        // få varv räcker
-  const MAX_STEP  = 12;       // max px per korrigering
+  const MAX_STEP  = 20;       // max px per korrigering
   const EPS_PEN   = 0.05;     // liten dead-zone
 
   for (let gi=0; gi<ghosts.length; gi++){
@@ -1622,7 +1622,7 @@ class Game5 {
         updateAndDrawFX(ctx);
         
         const map = this.maps[this.currentmap];
-  if (!map) return;
+  if (!map|| this.currentmap==7) return;
 
   const players = this.getobjecttype("swordguy")?.objects || [];
   if (!players.length) return;
