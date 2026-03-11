@@ -96,7 +96,13 @@
                 d: false,
                 space: false
             };
-            
+            let prevKeyState = {
+                w: false,
+                a: false,
+                s: false,
+                d: false,
+                space: false
+            };
             document.addEventListener("keydown", function(e) {
                 try{if(audio.paused&&gameState!=='game_over'){ if(start)audio.play();}}catch(error){};
                 if (e.key === "w") keyState.w = true;
@@ -649,92 +655,126 @@
                     }
                     
                     if(bird.objects[0]){
-                        game.setcameraobj(bird.objects[0], canvas.width, null);
-                        bird.objects[0].dual=40;
-                        bird.objects[0].animation=0;
-                        if(climb==false)bird.objects[0].y=bird.objects[0].y+11;
-                        if("ontouchstart" in document.documentElement){if(abutton.objects[0].mousepressed==true){if(game.collideswith(bird.objects[0],"any","down")||climb)jump=true; }}
-                        else{if(keyState.w){if(game.collideswith(bird.objects[0],"any","down")||climb)jump=true; }}
-                        if(keyState.d){if(!climb||jump)bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}
-                        if(keyState.a){if(!climb||jump)bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}
-                        
+                        const player = bird.objects[0];
+                        const onTouch = "ontouchstart" in document.documentElement;
+                        const onGround = game.collideswith(player,"any","down");
+                        const onRope = game.collideswiths(player,"rope");
 
-                        
-                        if(jump==true){
-                            bird.objects[0].animation=2;
-                            if(count==0){}
-                            
-                            if(climbcounter>0){
-                                if(count<jumplength/2){bird.objects[0].y=bird.objects[0].y-22;count++;}
-                            }
-                            else{
-                                if(count<jumplength){bird.objects[0].y=bird.objects[0].y-22;count++;}
-                            }
+                        const wPressed = keyState.w && !prevKeyState.w;
+                        const sPressed = keyState.s && !prevKeyState.s;
 
-                            if(game.collideswith(bird.objects[0],"any","down")&&count>2){
-                                count=0;
-                                jump=false;
-                            }
+                        game.setcameraobj(player, canvas.width, null);
+                        player.dual = 40;
+                        player.animation = 0;
+
+                        if(climb == false) player.y += 11;
+
+                        // Rörelse vänster/höger
+                        if(keyState.d){
+                            if(!climb || jump) player.x += 5;
+                            player.fliped = false;
+                            player.animation = 1;
+                            player.direction = "right";
                         }
-                        if(keyState.space||bbutton.objects[0].mousepressed==true){attack=true;}
-
-                        if(attack==true){
-                            if(acount===0){bird.images[3].ani=0;bird.images[3].counter = 0;}
-                            bird.objects[0].animation=3;
-                            if(acount<attacklength){acount++;}
-                            else{attack=false;acount=0;}
+                        if(keyState.a){
+                            if(!climb || jump) player.x -= 5;
+                            player.fliped = true;
+                            player.animation = 1;
+                            player.direction = "left";
                         }
-                        updatePhysics(bird.objects[0],true);
-                        updateLoot(bird.objects[0]);
-                        updateGoal(bird.objects[0]);
-                        
-                        if(climbcounter>0)climbcounter--;
-                        
-                        if(climb==true){
-                            if(jump==true){climb=false;climbcounter=60;count=0;}
-                                else{
-                                if(joy.GetDir()=="N"||joy.GetDir()=="NE"||joy.GetDir()=="NW"|| keyState.w==true){
-                                    bird.objects[0].y=bird.objects[0].y-4;
-                                    if(!game.collideswiths(bird.objects[0],"rope"))climb=false;
 
+                        // Börja klättra först om man är på rep
+                        if(onRope && climbcounter == 0){
+                            if(
+                                joy.GetDir()=="N" || joy.GetDir()=="NE" || joy.GetDir()=="NW" ||
+                                (joy.GetDir()=="S" && jump==false) ||
+                                keyState.w ||
+                                (keyState.s && jump==false)
+                            ){
+                                const ropeObj = game.collideswithobject(player,"rope");
+                                if(ropeObj){
+                                    player.x = ropeObj.x - (player.dimx / 2);
                                 }
-                                else if(joy.GetDir()=="S"||joy.GetDir()=="SE"||joy.GetDir()=="SW"||keyState.s==true){
-                                    bird.objects[0].y=bird.objects[0].y+4;
-                                    if(!game.collideswiths(bird.objects[0],"rope"))climb=false;
 
+                                jump = false;
+                                climb = true;
+                            }
+                        }
 
+                        // Hopp bara om man inte klättrar och inte står i rep-läge
+                        const wantsJumpMobile = onTouch && abutton.objects[0].mousepressed == true;
+                        const wantsJumpPC = !onTouch && wPressed;
 
+                        if(!climb && !onRope){
+                            if((wantsJumpMobile || wantsJumpPC) && onGround){
+                                jump = true;
+                            }
+                        }
+
+                        if(jump == true){
+                            player.animation = 2;
+
+                            if(climbcounter > 0){
+                                if(count < jumplength / 2){
+                                    player.y -= 22;
+                                    count++;
+                                }
+                            } else {
+                                if(count < jumplength){
+                                    player.y -= 22;
+                                    count++;
+                                }
+                            }
+
+                            if(game.collideswith(player,"any","down") && count > 2){
+                                count = 0;
+                                jump = false;
+                            }
+                        }
+
+                        if(keyState.space || bbutton.objects[0].mousepressed == true){
+                            attack = true;
+                        }
+
+                        if(attack == true){
+                            if(acount === 0){
+                                bird.images[3].ani = 0;
+                                bird.images[3].counter = 0;
+                            }
+                            player.animation = 3;
+                            if(acount < attacklength) acount++;
+                            else {
+                                attack = false;
+                                acount = 0;
+                            }
+                        }
+
+                        updatePhysics(player,true);
+                        updateLoot(player);
+                        updateGoal(player);
+
+                        if(climbcounter > 0) climbcounter--;
+
+                        if(climb == true){
+                            if(jump == true){
+                                climb = false;
+                                climbcounter = 60;
+                                count = 0;
+                            } else {
+                                if(joy.GetDir()=="N" || joy.GetDir()=="NE" || joy.GetDir()=="NW" || keyState.w){
+                                    player.y -= 4;
+                                    if(!game.collideswiths(player,"rope")) climb = false;
+                                }
+                                else if(joy.GetDir()=="S" || joy.GetDir()=="SE" || joy.GetDir()=="SW" || keyState.s){
+                                    player.y += 4;
+                                    if(!game.collideswiths(player,"rope")) climb = false;
                                 }
                             }
                         }
-                        
-                        
-                        
-                        if(game.collideswiths(bird.objects[0],"rope")&&climbcounter==0){
-                        
-                        if((joy.GetDir()=="N"||joy.GetDir()=="NE"||joy.GetDir()=="NW"||(joy.GetDir()=="S"&&jump==false))||(keyState.w||(keyState.s&&jump==false))){
 
-                                bird.objects[0].x=game.collideswithobject(bird.objects[0],"rope").x-(bird.objects[0].dimx/2);
-
-
-                                jump=false;
-                                climb=true;
-
-
-                            }
+                        if(game.collideswith(player,"any","down") && game.collideswiths(player,"any","down").rot != 0){
+                            player.y -= 11;
                         }
-
-
-                        
-                        
-                        
-                        if(game.collideswith(bird.objects[0],"any","down")&&game.collideswiths(bird.objects[0],"any","down").rot!=0){
-                            
-              
-                            bird.objects[0].y=bird.objects[0].y-11; 
-                        }
-                        
-                        
                     }
                     updateRats();
                     updateArchers();
@@ -830,6 +870,9 @@
                 
                 
             }
+                prevKeyState.w = keyState.w;
+                prevKeyState.s = keyState.s;
+                prevKeyState.space = keyState.space;
                 window.requestAnimationFrame(check);   
             };check();
             
