@@ -1710,6 +1710,7 @@ maskCanvas.width = canvas.width;
     
     
     collideswiths(obj, name) {
+        try{
         for (let i = 0; i < obj.collideslistan.length; i++) {
             
             if (name == "any")
@@ -1717,10 +1718,13 @@ maskCanvas.width = canvas.width;
             else if (obj.collideslistan[i] == name)
                 return obj.collideslistanobj[i];
         }
+        }catch (error) {}
         return null;
     }
     
     collideswith(obj, name, dir) {
+        
+        try{
         for (let i = 0; i < obj.collideslistan.length; i++) {
             
             
@@ -1741,6 +1745,7 @@ maskCanvas.width = canvas.width;
                     return obj.collideslistanobj[i];
             }
         }
+        }catch (error) {}
         return null;
     }
     collideswithanoterobject(obj, obj2) {

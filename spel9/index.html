@@ -34,6 +34,8 @@
             joy = new JoyStick('myCanvas');
             var audio = new Audio('sounds/BirdKnight.mp3');
             audio.loop = true;
+            let gamewinrestar=false;
+            let bigrestart=false;
              
              const context = new (window.AudioContext || window.webkitAudioContext)();
              const audio2 = async url => {   
@@ -49,6 +51,8 @@
             
             document.addEventListener("touchstart" , function(e) {
                 e.preventDefault();
+                if(gamewinrestar)bigrestart=true;
+                
 		    if(start)cinematic=false;		
                     try{if(audio.paused){ 
                         
@@ -82,7 +86,7 @@
             
             
   
-            document.addEventListener('click', (event) => {if(start)cinematic=false;try{if(audio.paused&&gameState!=='game_over'){ audio.play();start=true;}}catch(error){};});
+            document.addEventListener('click', (event) => {if(gamewinrestar)bigrestart=true;if(start)cinematic=false;try{if(audio.paused&&gameState!=='game_over'){ audio.play();start=true;}}catch(error){};});
 
             
             let keyState = {
@@ -140,8 +144,18 @@
             const overworldimage=new Image();
             overworldimage.src="images/overworld.png";
             
+            const overworldimage2=new Image();
+            overworldimage2.src="images/overworld3.png";
+            
+            
             const titlescreen=new Image();
             titlescreen.src="images/Titlescreen.png";
+            
+            const winscreen=new Image();
+            winscreen.src="images/winscreen.png";
+            
+            const birdflock=new Image();
+            birdflock.src="images/birdflock.png";
             
             let dstopper=false;
             let astopper=false;
@@ -186,7 +200,27 @@
             let cinematic=true;
             let cinematicTimer = 0;
             let ismoblies =0;
+            
+            let outro=false;
+            let outroTimer=0;
+            
+            
             if(mobileAndTabletCheck())ismoblies=300;
+            
+            
+            function drawMapLightSpread(ctx, darkMapImg, brightMapImg, castleX, castleY, radius) {
+                ctx.drawImage(darkMapImg, 0, 0, canvas.width, canvas.height);
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(castleX, castleY, radius, 0, Math.PI * 2);
+                ctx.clip();
+
+                ctx.drawImage(brightMapImg, 0, 0, canvas.width, canvas.height);
+                ctx.restore();
+            }
+            
+            
             var check = function(){
                 
                 if(canvas.width===10||canvas.width===300){
@@ -381,7 +415,7 @@
                     
 
                         ctx.fillText(
-                            mobileAndTabletCheck() ? "TAP TO START" : "CLICK TO START",
+                            mobileAndTabletCheck() ? "TAP TO SKIP" : "CLICK TO SKIP",
                             150,
                             50
                         );
@@ -389,10 +423,155 @@
                     
                     
                 }
+                else if(outro){
+                    
+                    outroTimer++;
+
+                    ctx.fillStyle = "black";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    // 0-120 WARLOCK DIES
+                    if(outroTimer <= 400){
+
+                        game.updateanimation(ctx);
+                        game.getobjecttype("swordguy").objects[0].animation=0;
+
+                        const warlock = game.getobjecttype("warlock")?.objects?.[0];
+
+
+                        // skak / instabilitet
+                        let dx = 0;
+                        let dy = 0;
+
+                        if(outroTimer <= 400){
+                            dx = Math.sin(outroTimer * 1.8) * 4;
+                            dy = Math.cos(outroTimer * 1.4) * 3;
+                        }
+
+                        // fade bort under senare delen
+                        let alpha = 1;
+                        if(outroTimer >= 150){
+                            alpha = 1 - ((outroTimer - 150) / 60);
+                            if(alpha < 0) alpha = 0;
+                        }
+
+                        ctx.save();
+                        ctx.globalAlpha = alpha;
+
+                        // om du kan rita warlock manuellt här med offset:
+                        // drawWarlock(warlock.x + dx, warlock.y + dy);
+
+                        // annars kan du tillfälligt flytta objektet
+                        warlock.x += dx;
+                        warlock.y += dy;
+                        game.updateanimation(ctx);
+                        warlock.x -= dx;
+                        warlock.y -= dy;
+
+                        ctx.restore();
+
+                        // lila overlay
+                        if(outroTimer >= 80 && outroTimer <= 250){
+                            ctx.globalAlpha = 0.08;
+                            ctx.fillStyle = "purple";
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            ctx.globalAlpha = 1;
+                        }
+
+                        // vit flash precis i början
+                        if(outroTimer <= 80){
+                            ctx.globalAlpha = 0.55;
+                            ctx.fillStyle = "white";
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            ctx.globalAlpha = 1;
+                        }
+                    }
+
+                    // 121-180 FADE TO BLACK
+                    else if(outroTimer <= 800){
+                        let alpha = (outroTimer - 401) / 300;
+                        if(alpha > 1) alpha = 1;
+
+                     //   ctx.fillStyle = "black";
+                     //   ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.globalAlpha = 1-alpha;
+                        // om du vill visa sista bilden av warlock room lite under
+                         game.updateanimation(ctx);
+         
+                    }
+                    else if(outroTimer <= 1000){
+                        
+                        ctx.drawImage(overworldimage,0,0,canvas.width,canvas.height);
+                    }
+                    else if(outroTimer <= 2000){
+                        
+                        const t = outroTimer - 1001;
+                        const radius = t * 8; // justera hastighet
+
+                        // slottets position på skärmen - du får tweaka dessa
+                        const castleX = canvas.width - 120;
+                        const castleY = canvas.height - 180;
+
+                        drawMapLightSpread(ctx, overworldimage, overworldimage2, castleX, castleY, radius);
+
+                        // glow-ring
+                        ctx.beginPath();
+                        ctx.arc(castleX, castleY, radius, 0, Math.PI * 2);
+                        ctx.strokeStyle = "rgba(255, 230, 120, 0.25)";
+                        ctx.lineWidth = 12;
+                        ctx.stroke();
+                        
+                        if(outroTimer >= 1600){
+                            
+                            ctx.drawImage(birdflock,canvas.width/2,canvas.height-(outroTimer-1600),30,30);
+                            
+                            ctx.drawImage(birdflock,canvas.width/2+130,canvas.height-(outroTimer-1660),30,30);
+                            
+                            ctx.drawImage(birdflock,canvas.width/2+40,canvas.height-(outroTimer-1700),30,30);
+                            
+                            ctx.drawImage(birdflock,canvas.width/2+80,canvas.height-(outroTimer-1770),30,30);
+                            
+                            ctx.drawImage(birdflock,canvas.width/2+200,canvas.height-(outroTimer-1800),30,30);
+                            
+                            ctx.drawImage(birdflock,canvas.width/2-80,canvas.height-(outroTimer-1630),30,30);
+                            
+                            ctx.drawImage(birdflock,canvas.width/2-40,canvas.height-(outroTimer-1680),30,30);
+                            
+                            ctx.drawImage(birdflock,canvas.width/2-130,canvas.height-(outroTimer-1750),30,30);
+                            
+                        }
+                        
+                    }
+                    
+                    
+                    
+                    else{
+                        
+                        ctx.drawImage(winscreen,0,0,canvas.width,canvas.height);
+                        gamewinrestar=true;
+                        if(bigrestart){               
+                            location.reload();
+                            
+                        }
+                        
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                
+                }
                 else{
-                
-                
-                
                  
                 ctx.fillStyle = "black";
                 ctx.fillRect(0, 0, canvas.width, canvas.height); 
@@ -778,8 +957,9 @@ function warlockFrontOpen(w){
             
             
             
-            
-          game.removeobject(game.getobjecttype(enemyType), target);
+          if(enemyType=="warlock"){outro=true;audio.src = "sounds/win.mp3";audio.play();}
+          else
+              game.removeobject(game.getobjecttype(enemyType), target);
         }
       }
     }
@@ -1072,7 +1252,7 @@ function hitStop(fr){
 }
 function groundSnapGhost(o){
   // Om din motor tillåter: if (game.collideswith(o,"ground","down")) return true;
-  const grounds = game.getobjecttype("ground")?.objects || [];
+  const grounds = game.getobjecttype("ground")?.objects;
   let bestY = +Infinity;
   for (const g of grounds){
     const overlapX = (o.x+o.dimx > g.x) && (o.x < g.x+g.dimx);
@@ -2094,7 +2274,7 @@ function updateWarlocks(){
     if(b.isonscreen&&!audio.src.endsWith("drak.mp3")){audio.src = "sounds/drak.mp3";audio.play();}
     
     const hpPct = b.health / b.maxHealth;
-    b.ai.phase = (hpPct > 0.70) ? 1 : (hpPct > 0.05 ? 2 : 3);
+    b.ai.phase = (hpPct > 0.70) ? 1 : (hpPct > 0.10 ? 2 : 3);
 
     // grundriktning mot spelaren
     const dx = P.x - b.x-b.dimx/3, dy = P.y - b.y;
