@@ -203,7 +203,7 @@
             
             let outro=false;
             let outroTimer=0;
-            
+            const sparkles = [];
             
             if(mobileAndTabletCheck())ismoblies=300;
             
@@ -522,6 +522,39 @@
                         ctx.stroke();
                         
                         if(outroTimer >= 1600){
+                            
+                          //  if(outroTimer % 20 == 0){
+                                sparkles.push({
+                                    x: Math.random() * canvas.width,
+                                    y: Math.random() * canvas.height,
+                                    life: 60,
+                                    size: 2 + Math.random()*3
+                                });
+                          //  }
+                            
+                            for(let i = sparkles.length-1; i >= 0; i--){
+
+                                const s = sparkles[i];
+
+                                s.life--;
+
+                                let alpha = s.life / 60;
+
+                                ctx.globalAlpha = alpha;
+
+                                ctx.fillStyle = "gold";
+                                ctx.beginPath();
+                                ctx.arc(s.x, s.y, s.size, 0, Math.PI*2);
+                                ctx.fill();
+
+                                ctx.globalAlpha = 1;
+
+                                if(s.life <= 0){
+                                    sparkles.splice(i,1);
+                                }
+                            }
+                            
+                            
                             
                             ctx.drawImage(birdflock,canvas.width/2,canvas.height-(outroTimer-1600),30,30);
                             
