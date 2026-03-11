@@ -2274,6 +2274,9 @@ function updateWarlocks(){
     if(b.isonscreen&&!audio.src.endsWith("drak.mp3")){audio.src = "sounds/drak.mp3";audio.play();}
     
     const hpPct = b.health / b.maxHealth;
+    
+    if(hpPct > 0.10 && b.ai.phase===2){b.ai.cd = 140;}
+    
     b.ai.phase = (hpPct > 0.70) ? 1 : (hpPct > 0.10 ? 2 : 3);
 
     // grundriktning mot spelaren
@@ -2287,6 +2290,8 @@ function updateWarlocks(){
     if (b.ai.cd>0) b.ai.cd--;
     if (b.ai.tpCD>0) b.ai.tpCD--;
     if (b.ai.summonCD>0) b.ai.summonCD--;
+    
+    
 
     // enkel “grav” så han står på mark
     b.y += 11; b.dual = 50;
