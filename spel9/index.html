@@ -663,8 +663,13 @@
                         if(jump==true){
                             bird.objects[0].animation=2;
                             if(count==0){}
-                            if(count<jumplength){bird.objects[0].y=bird.objects[0].y-22;count++;}
-
+                            
+                            if(climbcounter>0){
+                                if(count<jumplength/2){bird.objects[0].y=bird.objects[0].y-22;count++;}
+                            }
+                            else{
+                                if(count<jumplength){bird.objects[0].y=bird.objects[0].y-22;count++;}
+                            }
 
                             if(game.collideswith(bird.objects[0],"any","down")&&count>2){
                                 count=0;
@@ -686,7 +691,7 @@
                         if(climbcounter>0)climbcounter--;
                         
                         if(climb==true){
-                            if(jump==true){climb=false;climbcounter=60;}
+                            if(jump==true){climb=false;climbcounter=60;count=0;}
                                 else{
                                 if(joy.GetDir()=="N"||joy.GetDir()=="NE"||joy.GetDir()=="NW"|| keyState.w==true){
                                     bird.objects[0].y=bird.objects[0].y-4;
