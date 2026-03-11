@@ -685,6 +685,26 @@
                         
                         if(climbcounter>0)climbcounter--;
                         
+                        if(climb==true){
+                            if(jump==true){climb=false;climbcounter=60;}
+                                else{
+                                if(joy.GetDir()=="N"||joy.GetDir()=="NE"||joy.GetDir()=="NW"|| keyState.w==true){
+                                    bird.objects[0].y=bird.objects[0].y-4;
+                                    if(!game.collideswiths(bird.objects[0],"rope"))climb=false;
+
+                                }
+                                else if(joy.GetDir()=="S"||joy.GetDir()=="SE"||joy.GetDir()=="SW"||keyState.s==true){
+                                    bird.objects[0].y=bird.objects[0].y+4;
+                                    if(!game.collideswiths(bird.objects[0],"rope"))climb=false;
+
+
+
+                                }
+                            }
+                        }
+                        
+                        
+                        
                         if(game.collideswiths(bird.objects[0],"rope")&&climbcounter==0){
                         
                         if((joy.GetDir()=="N"||joy.GetDir()=="NE"||joy.GetDir()=="NW"||(joy.GetDir()=="S"&&jump==false))||(keyState.w||(keyState.s&&jump==false))){
@@ -700,26 +720,7 @@
                         }
 
 
-                        if(climb==true){
-
-
-                            if(joy.GetDir()=="N"||joy.GetDir()=="NE"||joy.GetDir()=="NW"|| keyState.w==true){
-                                bird.objects[0].y=bird.objects[0].y-4;
-                                if(!game.collideswiths(bird.objects[0],"rope"))climb=false;
-
-                            }
-                            else if(joy.GetDir()=="S"||joy.GetDir()=="SE"||joy.GetDir()=="SW"||keyState.s==true){
-                                bird.objects[0].y=bird.objects[0].y+4;
-                                if(!game.collideswiths(bird.objects[0],"rope"))climb=false;
-
-
-
-                            }
-                            if(jump==true){climb=false;climbcounter=60;}
-
-
-
-                        }
+                        
                         
                         
                         if(game.collideswith(bird.objects[0],"any","down")&&game.collideswiths(bird.objects[0],"any","down").rot!=0){
