@@ -204,7 +204,7 @@
             let outro=false;
             let outroTimer=0;
             const sparkles = [];
-            
+            let climbcounter=0;
             if(mobileAndTabletCheck())ismoblies=300;
             
             
@@ -682,7 +682,9 @@
                         updateLoot(bird.objects[0]);
                         updateGoal(bird.objects[0]);
                         
-                        if(game.collideswiths(bird.objects[0],"rope")){
+                        if(climbcounter>0)climbcounter--;
+                        
+                        if(game.collideswiths(bird.objects[0],"rope")&&climbcounter==0){
                         
                         if((joy.GetDir()=="N"||joy.GetDir()=="NE"||joy.GetDir()=="NW"||(joy.GetDir()=="S"&&jump==false))||(keyState.w||(keyState.s&&jump==false))){
 
@@ -712,7 +714,7 @@
 
 
                             }
-                            if(jump==true)climb=false;
+                            if(jump==true){climb=false;climbcounter=60;}
 
 
 
