@@ -802,7 +802,7 @@
                     
                     
                 }
-                if("ontouchstart" in document.documentElement && !climb){
+                if("ontouchstart" in document.documentElement ){
                     keyState.d=false;keyState.a = false;keyState.w=false;keyState.s = false;
                     if(joy.GetDir()=="N"){keyState.w = true;}
                     else if(joy.GetDir()=="NE"){keyState.d = true;}    
