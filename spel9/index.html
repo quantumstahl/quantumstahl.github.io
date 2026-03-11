@@ -653,8 +653,8 @@
                         bird.objects[0].dual=40;
                         bird.objects[0].animation=0;
                         if(climb==false)bird.objects[0].y=bird.objects[0].y+11;
-                        if(keyState.d){bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}
-                        if(keyState.a){bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}
+                        if(keyState.d){if(!climb)bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}
+                        if(keyState.a){if(!climb)bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}
                         if("ontouchstart" in document.documentElement){if(abutton.objects[0].mousepressed==true){if(game.collideswith(bird.objects[0],"any","down"))jump=true; }}
                         else{if(keyState.w){if(game.collideswith(bird.objects[0],"any","down"))jump=true; }}
 
@@ -683,13 +683,40 @@
                         updateGoal(bird.objects[0]);
                         
                         if(game.collideswiths(bird.objects[0],"rope")){
-                            climb=true;
-                            jump=false;
-                            if(keyState.w||keyState.s){jump=false;}
-                            if(keyState.w)bird.objects[0].y-=3;
-                            if(keyState.s)bird.objects[0].y+=3;
+                        
+                        if((joy.GetDir()=="N"||joy.GetDir()=="NE"||joy.GetDir()=="NW"||(joy.GetDir()=="S"&&jump==false))||(keyState.w||(keyState.s&&jump==false))){
+
+                                bird.objects[0].x=game.collideswithobject(bird.objects[0],"rope").x-(bird.objects[0].dimx/2);
+
+
+                                jump=false;
+                                climb=true;
+
+
+                            }
                         }
-                        else{climb=false;}
+
+
+                        if(climb==true){
+
+
+                            if(joy.GetDir()=="N"||joy.GetDir()=="NE"||joy.GetDir()=="NW"|| keyState.w==true){
+                                bird.objects[0].y=bird.objects[0].y-4;
+                                if(!game.collideswiths(bird.objects[0],"rope"))climb=false;
+
+                            }
+                            else if(joy.GetDir()=="S"||joy.GetDir()=="SE"||joy.GetDir()=="SW"||keyState.s==true){
+                                bird.objects[0].y=bird.objects[0].y+4;
+                                if(!game.collideswiths(bird.objects[0],"rope"))climb=false;
+
+
+
+                            }
+                            if(jump==true)climb=false;
+
+
+
+                        }
                         
                         
                         if(game.collideswith(bird.objects[0],"any","down")&&game.collideswiths(bird.objects[0],"any","down").rot!=0){
@@ -775,7 +802,7 @@
                     
                     
                 }
-                if("ontouchstart" in document.documentElement){
+                if("ontouchstart" in document.documentElement && !climb){
                     keyState.d=false;keyState.a = false;keyState.w=false;keyState.s = false;
                     if(joy.GetDir()=="N"){keyState.w = true;}
                     else if(joy.GetDir()=="NE"){keyState.d = true;}    
