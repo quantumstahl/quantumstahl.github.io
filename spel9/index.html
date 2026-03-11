@@ -655,8 +655,8 @@
                         if(climb==false)bird.objects[0].y=bird.objects[0].y+11;
                         if("ontouchstart" in document.documentElement){if(abutton.objects[0].mousepressed==true){if(game.collideswith(bird.objects[0],"any","down")||climb)jump=true; }}
                         else{if(keyState.w){if(game.collideswith(bird.objects[0],"any","down")||climb)jump=true; }}
-                        if(keyState.d){if(!climb)bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}
-                        if(keyState.a){if(!climb)bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}
+                        if(keyState.d){if(!climb||jump)bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}
+                        if(keyState.a){if(!climb||jump)bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}
                         
 
                         
