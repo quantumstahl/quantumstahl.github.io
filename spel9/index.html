@@ -636,9 +636,9 @@
                     
                     coinicon.objects[0].x=40;coinicon.objects[0].y=100;
                     ctx.restore();
-                    ctx.fillStyle="black";
+                    ctx.fillStyle="gold";
                     ctx.font = "100px serif";
-                    ctx.fillText(": "+coins, 150, 190);
+                    ctx.fillText(": "+coins, 200, 190);
                     
                     
                     
@@ -991,8 +991,10 @@ function warlockFrontOpen(w){
             
             
           if(enemyType=="warlock"){outro=true;audio.src = "sounds/win.mp3";audio.play();}
-          else
+          else{
               game.removeobject(game.getobjecttype(enemyType), target);
+              return;
+          }
         }
       }
     }
@@ -1425,7 +1427,7 @@ function drawOverlays(ctx){
 
         ctx.font = "16px sans-serif";
         ctx.fillStyle = "#fff";
-        ctx.fillText("Tap/Space för att försöka igen", canvas.width/2, canvas.height/2+28);
+        ctx.fillText("Tap/Space to try again", canvas.width/2, canvas.height/2+28);
     }
 }
 
