@@ -2420,7 +2420,7 @@ function updateWarlocks(){
     
     const hpPct = b.health / b.maxHealth;
     
-    if(hpPct > 0.10 && b.ai.phase===2){b.ai.cd = 140;}
+    if(hpPct <= 0.10 && b.ai.phase===2){b.ai.cd = 140;}
     
     b.ai.phase = (hpPct > 0.70) ? 1 : (hpPct > 0.10 ? 2 : 3);
 
