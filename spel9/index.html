@@ -632,7 +632,23 @@
                 if(bird&&gameState !== 'overworld'){
                     
                     if(game.currentmap==1){
-                        if(!audio.src.endsWith("cast4.mp3")&&!audio.src.endsWith("cast3.mp3")&&(!audio.src.endsWith("drak.mp3")||game.getobjecttype("warlock").objects.length===0)){audio.src = "sounds/cast4.mp3";audio.play();}
+                        if(game.getobjecttype("tank").objects.length===0){
+                            
+                            const rope = game.getobjecttype('rope')?.objects || [];
+                            const block = game.getobjecttype('block')?.objects || [];
+                            for (const r of rope){
+                                if(r.counter<500)r.counter++;
+                                
+                                if(r.counter<500)r.y++;
+                                
+                                
+                            }
+                            if(block[block.length-1].counter<500)block[block.length-1].counter++;
+                            if(block[block.length-1].counter<500)block[block.length-1].y++;
+                            
+                        }
+                        
+                        if(!audio.src.endsWith("cast4.mp3")&&!audio.src.endsWith("cast3.mp3")&&(!audio.src.endsWith("boss.mp3")||game.getobjecttype("tank").objects.length===0)){audio.src = "sounds/cast4.mp3";audio.play();}
                     }
                     else{ 
                         if(!audio.src.endsWith("cast4.mp3")&&!audio.src.endsWith("cast3.mp3")&&(!audio.src.endsWith("drak.mp3")||game.getobjecttype("warlock").objects.length===0)){audio.src = "sounds/cast3.mp3";audio.play();}
@@ -792,10 +808,12 @@
                         if(Math.abs(b.vx)>0){b.counter++;}
                         else{b.counter=0;}    
 
-                        if (Math.abs(b.vx) > 2&&b.counter>30) {
-                            
-              
-                            handleCombat(b, ["rat","archer","tank","bat","mage","warlock","swordguy"], 50);
+                        if (Math.abs(b.vx) > 6 && b.counter > 30) {
+                            if (b.vx > 0) {
+                                handleCombat(b, ["rat","archer","tank","bat","mage","warlock","swordguy"], 50, "right");
+                            } else if (b.vx < 0) {
+                                handleCombat(b, ["rat","archer","tank","bat","mage","warlock","swordguy"], 50, "left");
+                            }
                         }
                     }
                     const death = game.getobjecttype('death')?.objects || [];
@@ -948,7 +966,7 @@ function drawHealthBars() {
 }
 
 
-function handleCombat(unit, enemyTypes, damage) {
+function handleCombat(unit, enemyTypes, damage,dirbolder) {
   function attackFromFront(attacker, defender){
   const ddir = defender.fliped ? -1 : 1;
   const ax = attacker.x + attacker.dimx/2;
@@ -965,11 +983,13 @@ function warlockFrontOpen(w){
 
     for (const enemyType of enemyTypes) {
       let target = game.collideswith(unit, enemyType, "ghost");
-      if(unit.name==="bolder")target=game.collideswiths(unit, enemyType);
+      if(unit.name==="bolder")target=game.collideswith(unit, enemyType,dirbolder);
+      if(unit.name==="bolder" && target==null)target=game.collideswith(unit, enemyType,"down");
+      
       if (target) {
           
           if (enemyType === "tank"){
-                if (attackFromFront(unit, target)){
+                if (attackFromFront(unit, target)&&unit.name!=="death"){
                     // Blockerat!
                     spawnHitParticles(target.x+target.dimx/2, target.y+target.dimy/2, 8, "#aaa");
                     //playSound("clank");
@@ -1876,7 +1896,8 @@ function initShield(r){
     lastSeenY:r.y,
     huntT: 0,
     tturn:false,
-    hurt: r.health
+    hurt: r.health,
+    active:false
   };
 }
 
@@ -1886,14 +1907,22 @@ function updateShields(){
   if (!players.length) return;
 
   for (const r of shields){
+    
     initShield(r);
+    if(!r.isonscreen&&!r.ai.active)continue;    
+    r.ai.active=true;
     updatePhysics(r);
-    if(!r.isonscreen)continue;  
+    
+
+    
+    
     r.animation = 0;
     // din grav / dual hack
     r.y += 11; 
     r.dual = 35;
     
+    
+    if(game.currentmap==1){if(r.isonscreen&&!audio.src.endsWith("boss.mp3")){audio.src = "sounds/boss.mp3";audio.play();}}
     if(game.collideswith(r,"any","down")){
         r.y=r.y-10; 
     }
