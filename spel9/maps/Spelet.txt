@@ -3981,7 +3981,7 @@ false
 A*?
 map7
 -464
-672
+0
 B*?
 backgrund
 true
