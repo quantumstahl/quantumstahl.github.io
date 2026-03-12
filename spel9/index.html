@@ -644,7 +644,7 @@
                                 
                             }
                             if(block[block.length-1].counter<500)block[block.length-1].counter++;
-                            if(block[block.length-1].counter<500)block[block.length-1].y++;
+                            if(block[block.length-1].counter<500){block[block.length-1].y++;markStaticsDirty();}
                             
                         }
                         
