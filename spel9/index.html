@@ -881,7 +881,7 @@ function drawHealthBars() {
       if(!o.isvisable)continue;
 
     // defaultvärden om hälsa saknas
-    if (o.maxhealth == null&&o.name=="warlock"){o.maxhealth = 25;o.health = o.maxhealth;}
+    if (o.maxhealth == null&&o.name=="warlock"){o.maxhealth = 2500;o.health = o.maxhealth;}
     if (o.maxhealth == null&&o.name=="tank"){o.maxhealth = 200;o.health = o.maxhealth;}
     if (o.maxhealth == null&&(o.name=="mage"||o.name=="bat")){o.maxhealth = 50;o.health = o.maxhealth;}
     if (o.maxhealth == null){ o.maxhealth = Heroes.has(o.name) ? 30 : 100;o.health = o.maxhealth;}
@@ -2313,7 +2313,7 @@ function updateFireballs(){
 
 // ================== Tunables ==================
 const WARLOCK_AI = {
-  HP: 25,
+  HP: 2500,
 
   SPEED: 1.2,
   SIGHT_X: 9999,
