@@ -780,7 +780,7 @@
                         if (ground) {
                           b.vy = 0;
                           const rot = ground.rot || 0;
-                          const accel = Math.sin(rot * Math.PI / 180) * 2; 
+                          const accel = Math.sin(rot * Math.PI / 180) * 2.5; 
                           b.vx += accel;
                           b.vx *= 0.985;
                           if (Math.abs(b.vx) < 0.05) b.vx = 0;
@@ -1699,6 +1699,10 @@ function updateArchers(){
     r.y += 11;   // ditt “dual/grav hack”
     r.dual = 10;
 
+    if(game.collideswith(r,"any","down")){
+        r.y=r.y-10; 
+    }
+
     const p = players[0];
     const dx = p.x - r.x, dy = p.y - r.y;
     const dist = Math.hypot(dx,dy);
@@ -1889,7 +1893,10 @@ function updateShields(){
     // din grav / dual hack
     r.y += 11; 
     r.dual = 35;
-
+    
+    if(game.collideswith(r,"any","down")){
+        r.y=r.y-10; 
+    }
 
     // target + avstånd
     if (!r.ai.target) r.ai.target = nearestPlayer(r);
@@ -1953,6 +1960,10 @@ function updateShields(){
           if (game.collideswith(r,'any','left'))  r.ai.dir = +1;
           if (game.collideswith(r,'any','right')) r.ai.dir = -1;
         }
+        const drop = dropDepthAhead(r, r.ai.dir, 700);
+        if (drop > 600) r.ai.dir *= -1;
+        
+        
         break;
       }
 
