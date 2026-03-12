@@ -798,6 +798,18 @@
                             handleCombat(b, ["rat","archer","tank","bat","mage","warlock","swordguy"], 50);
                         }
                     }
+                    const death = game.getobjecttype('death')?.objects || [];
+                    for (const d of death) {
+                        d.animation=1;
+                        handleCombat(d, ["rat","archer","tank","bat","mage","warlock","swordguy"], 2500);
+                    }
+                    const trigger = game.getobjecttype('trigger')?.objects || [];
+                    for (let t=0;t<trigger.length;t++) {
+                        trigger[t].animation=1;
+                        if(t==0&& game.collideswiths(trigger[0],"swordguy")) game.setcameraobj(trigger[0], null, canvas.height+500);
+                        if(t==1&& game.collideswiths(trigger[1],"swordguy")) game.maps[game.currentmap].cameray=0;
+                        
+                    }
                     
                     
                     
@@ -1469,7 +1481,7 @@ function drawOverlays(ctx){
     ctx.fillText(gameState==='level_complete' ? "LEVEL COMPLETE!" : "GAME OVER", canvas.width/2, canvas.height/2);
     ctx.font = "16px sans-serif";
     ctx.fillStyle = "#fff";
-    ctx.fillText(gameState==='game_over' ? "Tap/Space för att försöka igen" : "", canvas.width/2, canvas.height/2+28);
+    ctx.fillText(gameState==='game_over' ? "Tap/Space to try again" : "", canvas.width/2, canvas.height/2+28);
     ctx.restore();
   }
   if (gameState === 'game_over'){
