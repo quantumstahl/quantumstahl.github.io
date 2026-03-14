@@ -1046,7 +1046,9 @@ let dragWasActive = false;
 let tapTimeout = null;
 let allowSingleTap = true;
 const selectenable=false;
-
+const offscreenCanvas = document.createElement('canvas');
+const offCtx = offscreenCanvas.getContext('2d');
+let waterRipples = [];
 class Game5 {
     
     kollitions = [];
@@ -1569,8 +1571,8 @@ class Game5 {
     
     
     updateanimation(ctx) {
-        try {
-    
+       // try {
+            updateWaterRipples();
             this.updateUnitMovement();
             
             this.collitionengine();
@@ -1652,6 +1654,93 @@ class Game5 {
  // ctx.fillStyle = "rgba(0,0,0,0.78)";
  // ctx.fillRect(0,0,W,H);
 
+    if(game.currentmap==2){
+        
+        
+     
+      
+        
+        
+        
+maskCanvas.width = canvas.width;
+            maskCanvas.height = canvas.height;
+            maskCtx.fillStyle = "rgba(255, 255, 255, 0.1)";
+            maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+            maskCtx.globalCompositeOperation = "destination-atop";    
+  if (poly && poly.length){
+    maskCtx.beginPath();
+
+    // world->screen: (world + cam) * scale
+    const x0 = (poly[0].x + camX) * scale;
+    const y0 = (poly[0].y + camY) * scale;
+    maskCtx.moveTo(x0, y0);
+
+    for (let i=1;i<poly.length;i++){
+      const sx = (poly[i].x + camX) * scale;
+      const sy = (poly[i].y + camY) * scale;
+      maskCtx.lineTo(sx, sy);
+    }
+    maskCtx.closePath();
+    maskCtx.fill();
+  } else {
+    // fallback: cirkel (om grid inte är redo)
+    const px = (pwx + camX) * scale;
+    const py = (pwy + camY) * scale;
+    maskCtx.beginPath();
+    maskCtx.arc(px, py, RADIUS * scale, 0, Math.PI*2);
+    maskCtx.fill();
+  }
+
+
+  ctx.drawImage(maskCanvas, 0, 0);
+  // reset
+  maskCtx.globalCompositeOperation = "source-over";
+  maskCtx.globalAlpha = 1;
+  maskCtx.restore();
+
+
+maskCanvas.width = canvas.width;
+            maskCanvas.height = canvas.height;
+            maskCtx.fillStyle = "rgba(0, 0, 0, 0.1)";
+            maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+            maskCtx.globalCompositeOperation = "destination-out";
+     
+
+  if (poly && poly.length){
+    maskCtx.beginPath();
+
+    // world->screen: (world + cam) * scale
+    const x0 = (poly[0].x + camX) * scale;
+    const y0 = (poly[0].y + camY) * scale;
+    maskCtx.moveTo(x0, y0);
+
+    for (let i=1;i<poly.length;i++){
+      const sx = (poly[i].x + camX) * scale;
+      const sy = (poly[i].y + camY) * scale;
+      maskCtx.lineTo(sx, sy);
+    }
+    maskCtx.closePath();
+    maskCtx.fill();
+  } else {
+    // fallback: cirkel (om grid inte är redo)
+    const px = (pwx + camX) * scale;
+    const py = (pwy + camY) * scale;
+    maskCtx.beginPath();
+    maskCtx.arc(px, py, RADIUS * scale, 0, Math.PI*2);
+    maskCtx.fill();
+  }
+  ctx.drawImage(maskCanvas, 0, 0);
+  // reset
+  maskCtx.globalCompositeOperation = "source-over";
+  maskCtx.globalAlpha = 1;
+  maskCtx.restore();
+
+
+    
+}
+    
+
+else{
 maskCanvas.width = canvas.width;
             maskCanvas.height = canvas.height;
             maskCtx.fillStyle = "rgba(0, 0, 0, 0.7)";
@@ -1687,8 +1776,12 @@ maskCanvas.width = canvas.width;
   maskCtx.globalCompositeOperation = "source-over";
   maskCtx.globalAlpha = 1;
   maskCtx.restore();
+}
+  
+  
+  
         
-        } catch (error) {}
+  //      } catch (error) {}
     }
     collitionengine() {
 
@@ -1712,7 +1805,6 @@ maskCanvas.width = canvas.width;
     collideswiths(obj, name) {
         try{
         for (let i = 0; i < obj.collideslistan.length; i++) {
-            
             if (name == "any")
                 return obj.collideslistanobj[i];
             else if (obj.collideslistan[i] == name)
@@ -2247,8 +2339,8 @@ const tintCanvas = document.createElement("canvas");
 const tintCtx = tintCanvas.getContext("2d");
 class Objecttype {
     
-    
-     drawTinted(ctx, sprite, x, y,w,h, tint){
+ 
+     drawTinted(ctx, sprite, x1, y1, width1, height1, x2, y2, hidth2, height2,tint){
         tintCanvas.width = sprite.width;
         tintCanvas.height = sprite.height;
 
@@ -2259,7 +2351,7 @@ class Objecttype {
         tintCtx.fillRect(0,0,tintCanvas.width,tintCanvas.height);
         tintCtx.globalCompositeOperation = "source-over";
 
-        ctx.drawImage(tintCanvas, x, y,w,h);
+        ctx.drawImage(tintCanvas,  x1, y1, width1, height1, x2, y2, hidth2, height2);
       }
     
     
@@ -2326,6 +2418,8 @@ class Objecttype {
 
           // ===== RITA SPRITE =====
           ctx.save();
+          ctx.globalAlpha=o.alpha;
+          
           ctx.scale(scale, scale);
           // flytta till objektets center i skärm-koordinater
           ctx.translate(camerax + cx, cameray + cy);
@@ -2335,14 +2429,97 @@ class Objecttype {
           
           
           if(o.flashTimer>0){
-             this.drawTinted(ctx, img, -w/2, -h/2,w,h, o.flashTimercolor);
+              
+             if(o.water){   
+                const slice = 4;
+                const strength = 6;
+                const t = performance.now() * 0.003;
+
+                for (let x = 0; x < img.width; x += slice) {
+                    const offset = Math.sin((x * 0.05) + t) * strength;
+                    this.drawTinted(ctx,img, x, 0, slice, img.height, -w / 2 + (x / img.width) * w, -h / 2 + offset, Math.ceil((slice / img.width) * w)+1, h,o.flashTimercolor);
+                }
+            } 
+            else{
+                
+                this.drawTinted(ctx,img, 0, 0, img.width, img.height, -w/2, -h/2, w, h,o.flashTimercolor);
+            }  
+         
              o.flashTimer--;
               
           }
-          else
-            ctx.drawImage(img, -w/2, -h/2, w, h);
           
+          else{
+
+            
+
+            if (o.water) {
+                
+                    // Uppdatera storleken om bilden ändras
+                if (offscreenCanvas.width !== img.width) {
+                    offscreenCanvas.width = img.width;
+                    offscreenCanvas.height = img.height + (3 * 2); // Extra höjd för vågen
+                }
+
+                const offCanvas =offscreenCanvas;
+
+                // Rensa offscreen-ytan (viktigt för transparens!)
+                offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
+                
+                
+                
+                const slice = 1; // Mycket snyggare med 1px slices när vi kör offscreen
+                const strength = 6;
+                const t = performance.now() * 0.003;
+
+                for (let x = 0; x < img.width; x += slice) {
+                    const offset = Math.sin((x * 0.05) + t) * strength;
+
+                    // Här ritar vi 1:1. Ingen skalning sker i loopen!
+                    offCtx.drawImage(
+                        img,
+                        x, 0, slice, img.height,      // source
+                        x, strength + offset, slice, img.height // dest (i offscreen canvas)
+                    );
+            
+            
+
+                }
+                if(o.name=="water"||o.name=="water2"){
+                
+                    offCtx.beginPath();
+                    for (let x = 0; x < img.width; x++) {
+                        const base = Math.sin((x * 0.05) + t) * strength;
+                        const ripple = getRippleOffset(x);
+                        const y = strength + base + ripple+1;
+
+                        if (x === 0) offCtx.moveTo(x, y);
+                        else offCtx.lineTo(x, y);
+                    }
+
+
+                    offCtx.strokeStyle = "white";
+                    offCtx.lineWidth = 2;
+                    offCtx.stroke();
+
+                    offCtx.strokeStyle = "rgba(0,0,0,0.25)";
+                    offCtx.lineWidth = 8;
+                    offCtx.stroke();
+                }
+                // 2. Rita nu hela den färdiga "vågbilden" till huvud-canvasen
+                // Här skalar vi hela bilden på en gång, vilket eliminerar gliporna.
+                ctx.drawImage(
+                    offCanvas, 
+                    0, 0, img.width, img.height + (strength * 2), // source (hela buffern)
+                    -w / 2, -h / 2, w, h                          // destination (skalad)
+                );
+            }
+            else ctx.drawImage(img, -w/2, -h/2,w,h);
+              
+              
+          }
           ctx.restore();
+          
 
           // ===== markeringsram när selected
           if (o.selected) {
@@ -2505,6 +2682,8 @@ class Objectx {
         this._stepLock=0;
         this.isvisable=true;
         this.rotimage=0;
+        this.alpha=1;
+        this.water=false;
     }
     collidestest(){
 
@@ -2863,7 +3042,40 @@ function raycastStaticsHit(gridStat, ax, ay, bx, by, opts = {}){
   const hy = ay + (by - ay) * bestT;
   return { obj: best, t: bestT, x: hx, y: hy };
 }
+function addWaterRipple(x, power = 8) {
+ 
+    waterRipples.push({
+        x: x,
+        power: power,
+        age: 0,
+        life: 40
+    });
+}
+function updateWaterRipples() {
+    for (let r of waterRipples) {
+        r.age++;
+    }
 
+    waterRipples = waterRipples.filter(r => r.age < r.life);
+}
+function getRippleOffset(x) {
+    let extra = 0;
+
+    for (let r of waterRipples) {
+        let dx = x - r.x;
+        let dist = Math.abs(dx);
+
+        if (dist < 80) {
+            let falloff = 1 - (dist / 80);
+            let lifeFade = 1 - (r.age / r.life);
+
+            extra += Math.sin((dist * 0.18) - (r.age * 0.35)) * r.power * falloff * lifeFade;
+        }
+     
+    }
+    
+    return extra;
+}
 // Export
 window.G5 = window.G5 || {};
 window.G5.raycastStaticsHit = raycastStaticsHit;

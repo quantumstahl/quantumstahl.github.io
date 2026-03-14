@@ -165,6 +165,11 @@
             let stateTimer = 0;
             let wantRestart = false;
             let gemeovercounter=0;
+            let inwater=false;
+            let waterjump=false;
+            let bubbles = [];
+            let previuswaterx=0;
+            let previuswaterdimx=0;
             
             window.addEventListener('keydown', e => { if (e.code==='Space') if(gameState === 'game_over')wantRestart = true; });
             canvas.addEventListener('pointerdown', () => { if(gameState === 'game_over')wantRestart = true; });
@@ -640,6 +645,14 @@
                 
                 if(bird&&gameState !== 'overworld'){
                     
+                    const water2 = game.getobjecttype('water2')?.objects || [];
+                    for (const w of water2){
+                        w.alpha=0.5;
+                        w.water=true;
+                       // drawWaterSurface(ctx, w.x+game.getcamerax(), w.dimx, w.y+game.getcameray(), performance.now());
+                    }
+                    
+                    
                     if(game.currentmap==1){
                         if(game.getobjecttype("tank").objects.length===0){
                             
@@ -658,6 +671,10 @@
                         }
                         
                         if(!audio.src.endsWith("cast4.mp3")&&!audio.src.endsWith("cast3.mp3")&&(!audio.src.endsWith("boss.mp3")||game.getobjecttype("tank").objects.length===0)){audio.src = "sounds/cast4.mp3";audio.play();}
+                    }
+                    else if(game.currentmap==2){
+                        if(!audio.src.endsWith("water.mp3")){audio.src = "sounds/water.mp3";audio.play();}
+                        
                     }
                     else{ 
                         if(!audio.src.endsWith("cast4.mp3")&&!audio.src.endsWith("cast3.mp3")&&(!audio.src.endsWith("drak.mp3")||game.getobjecttype("warlock").objects.length===0)){audio.src = "sounds/cast3.mp3";audio.play();}
@@ -681,6 +698,28 @@
                         
                         dubbelW=false;
                         
+                        const waterobject=game.collideswiths(bird.objects[0],"water2");
+                        if(waterobject&& !inwater)count=0;
+                        if(waterobject){
+                            if(!inwater){addWaterRipple((bird.objects[0].x-waterobject.x)/(waterobject.dimx/game.getobjecttype("water2").images?.[waterobject.animation]?.getimage?.().width) , 10);}
+                            inwater=true;
+                            ctx.fillStyle = "rgba(0,120,160,0.15)";
+                            ctx.fillRect(0,0,canvas.width,canvas.height);
+                           // drawUnderwater(ctx, canvas, performance.now());
+                            if(bird.objects[0].fliped)spawnBubble(bird.objects[0].x+game.getcamerax(),bird.objects[0].y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
+                            if(!bird.objects[0].fliped)spawnBubble(bird.objects[0].x+game.getcamerax()+bird.objects[0].dimx,bird.objects[0].y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
+                            previuswaterx=waterobject.x;
+                            previuswaterdimx=waterobject.dimx/game.getobjecttype("water2").images?.[waterobject.animation]?.getimage?.().width;
+                        }
+                        else{
+                            if(inwater==true&& count==10)addWaterRipple((bird.objects[0].x-previuswaterx)/previuswaterdimx , 10);
+                            
+                            
+                            if(waterjump==false)inwater=false;
+                        waterjump=false;
+                            
+                        }
+                        
                         
                         
                         if(keyState.w&&notW){
@@ -695,19 +734,25 @@
                             notW=false;
                         }
                         if(!keyState.w)notW=true;
-                        
-                        game.setcameraobj(bird.objects[0], canvas.width, null);
+                        if(game.currentmap==2)game.setcameraobj(bird.objects[0], canvas.width, canvas.height);
+                        else game.setcameraobj(bird.objects[0], canvas.width, null);
                         bird.objects[0].dual=40;
+                        if(inwater)bird.objects[0].dual=0;
                         bird.objects[0].animation=0;
-                        if(climb==false)bird.objects[0].y=bird.objects[0].y+11;
-                        if("ontouchstart" in document.documentElement){if(abutton.objects[0].mousepressed==true){if(game.collideswith(bird.objects[0],"any","down")||climb)jump=true; }}
-                        else{if(keyState.w){if(game.collideswith(bird.objects[0],"any","down")||climb&&dubbelW)jump=true; }}
+                        if(climb==false&&!inwater)bird.objects[0].y=bird.objects[0].y+11;
+                        if(inwater){bird.objects[0].y=bird.objects[0].y+3;if(keyState.s)bird.objects[0].y=bird.objects[0].y+3;}
+                        
+                        
+                        
+                        if("ontouchstart" in document.documentElement){if(abutton.objects[0].mousepressed==true){waterjump=true;if(game.collideswith(bird.objects[0],"any","down")||climb)jump=true; }}
+                        else{if(keyState.w){waterjump=true;if(game.collideswith(bird.objects[0],"any","down")||climb&&dubbelW)jump=true; }}
                         if(keyState.d){if(!climb||jump)bird.objects[0].x+=5;bird.objects[0].fliped=false;bird.objects[0].animation=1;bird.objects[0].direction="right";}
                         if(keyState.a){if(!climb||jump)bird.objects[0].x-=5;bird.objects[0].fliped=true;bird.objects[0].animation=1;bird.objects[0].direction="left";}
                         
 
-                        
+                        if(inwater)jump=false;
                         if(jump==true){
+                            
                             bird.objects[0].animation=2;
                             if(count==0){}
                             
@@ -723,14 +768,48 @@
                                 jump=false;
                             }
                         }
+                        if(waterjump==true&& inwater){
+                            
+                            if(!game.collideswiths(bird.objects[0],"water2")){
+                                if(count==0){}
+                                if(count<jumplength){bird.objects[0].y=bird.objects[0].y-11;count++;}
+                                if(count==jumplength){
+                                    count=0;
+                                    waterjump=false;
+                                }
+                                
+                            }
+                            else{
+                                if(count==0){}
+                                if(count<jumplength/2){bird.objects[0].y=bird.objects[0].y-11;count++;}
+                                if(count==jumplength/2){
+                                    count=0;
+                                    waterjump=false;
+                                }
+                            }
+                        }
+                        
+                        
+                        
                         if(keyState.space||bbutton.objects[0].mousepressed==true){attack=true;}
 
                         if(attack==true){
-                            if(acount===0){bird.images[3].ani=0;bird.images[3].counter = 0;}
-                            bird.objects[0].animation=3;
-                            if(acount<attacklength){acount++;}
-                            else{attack=false;acount=0;}
+                            
+                            if(inwater){
+                                if(acount===0){bird.images[3].ani=0;bird.images[3].counter = 0;}
+                                if(acount<attacklength*3){acount++;}
+                                else{attack=false;acount=0;}
+                                
+                            }
+                            else{
+                                if(acount===0){bird.images[3].ani=0;bird.images[3].counter = 0;}
+                                bird.objects[0].animation=3;
+                                if(acount<attacklength){acount++;}
+                                else{attack=false;acount=0;}
+                            }
                         }
+                        if(inwater)bird.objects[0].animation=4;
+                        
                         updatePhysics(bird.objects[0],true);
                         updateLoot(bird.objects[0]);
                         updateGoal(bird.objects[0]);
@@ -794,6 +873,11 @@
                     updateWarlocks();
                     updateFireballs();
                     updateFirePillars();
+                    updatesword();
+                    updatebubbles();
+                    
+                    
+                    
                     
                     const boulders = game.getobjecttype('bolder')?.objects || [];
 
@@ -837,14 +921,23 @@
                         if(t==1&& game.collideswiths(trigger[1],"swordguy")) game.maps[game.currentmap].cameray=0;
                         
                     }
+                    const seaweed = game.getobjecttype('seaweed')?.objects || [];
+                    for (const s of seaweed) {
+                          s.water=true;
+                        
+                    }
+
                     
                     
-                    
-                    if(acount==25)  handleCombat(bird.objects[0], ["rat","archer","tank","bat","mage","warlock"], 50);
-                    
+                    if(acount==25&& !inwater)  handleCombat(bird.objects[0], ["rat","archer","tank","bat","mage","warlock"], 50);
+                    if(acount==25&& inwater)shootsword(bird.objects[0].x, bird.objects[0].y, bird.objects[0].fliped);
                     const arrows = game.getobjecttype('arrow')?.objects || [];
                     for(const a of arrows){
                         handleCombat(a, ["swordguy"], 10);
+                    }
+                    const sword = game.getobjecttype('sword')?.objects || [];
+                    for(const a of sword){
+                        handleCombat(a, ["rat","archer","tank","bat","mage","warlock"], 50);
                     }
                     
                     let offx = 0, offy = 0;
@@ -895,6 +988,84 @@
             };check();
             
 const Heroes = new Set(["swordguy"]); // byggnader
+function updatebubbles(){
+    for(let b of bubbles){
+                        b.x+=b.vx;
+                        b.y+=b.vy;
+                    }
+                    bubbles = bubbles.filter(b=>b.y+(game.getcameray()-b.orgcy)>(b.watertop+game.getcameray()));
+                    ctx.fillStyle="rgba(255,255,255,0.5)";
+                    for(let b of bubbles){
+                        ctx.beginPath();
+                        ctx.arc(b.x+(game.getcamerax()-b.orgcx),b.y+(game.getcameray()-b.orgcy),b.size,0,Math.PI*2);
+                        ctx.fill();
+                    }
+    
+}
+function spawnBubble(x,y,camerax,cameray,top){
+    if(Math.floor(Math.random() * 10)==1){
+    bubbles.push({
+        x:x,
+        y:y,
+        vx:(Math.random()-0.5)*0.3,
+        vy:-1-Math.random()*1,
+        size:2+Math.random()*3,
+        orgcx:camerax,
+        orgcy:cameray,
+        watertop:top
+                
+    
+    });
+    }
+}
+function drawUnderwater(ctx, sourceCanvas, time) {
+
+    const slice = 4;     // höjd på varje slice
+    const strength = 6;  // hur mycket våg
+
+    for (let y = 0; y < sourceCanvas.height-game.getcameray(); y += slice) {
+
+        let offset = Math.sin((y * 0.05) + time * 0.003) * strength;
+
+        ctx.drawImage(
+            sourceCanvas,
+            0, y+game.getcameray(), sourceCanvas.width, slice,
+            offset, y+game.getcameray(), sourceCanvas.width, slice
+        );
+
+    }
+}
+function drawWaterSurface(ctx, x, width, waterY, time){
+
+    ctx.beginPath();
+
+    for(let i=0;i<=width;i+=10){
+
+        let wave = Math.sin((i*0.05)+(time*0.004))*3;
+
+        ctx.lineTo(x+i, waterY+wave);
+    }
+
+    ctx.strokeStyle="rgba(255,255,255,0.4)";
+    ctx.lineWidth=2;
+    ctx.stroke();
+    
+    
+ctx.beginPath();
+ctx.lineTo(x, waterY);
+ctx.lineTo(x+width, waterY);
+ctx.strokeStyle="rgba(255,255,255,0.45)";
+ctx.lineWidth=4;
+ctx.stroke();
+ctx.beginPath();
+ctx.lineTo(x, waterY);
+ctx.lineTo(x+width, waterY);
+ctx.strokeStyle="rgba(0,0,0,0.25)";
+ctx.lineWidth=12;
+ctx.stroke();
+    
+}
+
 function drawHealthBars() {
     if(!game.maps[game.currentmap])return;
     
@@ -1877,6 +2048,44 @@ function updateArrows(){
 
   }
 }
+function shootsword(x,y,dir){
+   
+  const arrow = game.addobject(game.getobjecttype("sword"), x, y, game.getobjecttype("sword").standarddimx, game.getobjecttype("sword").standarddimy, 0, dir);
+
+  
+    // fysik-komponent
+  if(dir)arrow.vx = -10;   // horisontell fart
+  if(!dir)arrow.vx = 10;
+  arrow.vy = 0;        // liten båge uppåt
+  arrow.ay = 0;        // gravitation
+  arrow.life = 60*3;      // 3s livstid
+  arrow.damage = 8;       // skada på spelaren
+  arrow.stuck = false;    // när den fastnar i mark/vägg
+  
+  
+}
+function updatesword(){
+  const A = game.getobjecttype("sword");
+  if (!A) return;
+
+  for (let i = A.objects.length - 1; i >= 0; --i){
+    const a = A.objects[i];
+
+    // döda gamla pilar
+    if (--a.life <= 0){ game.removeobject(A, a); continue; }
+
+    if (!a.stuck){
+      // fysik
+      a.vy += (a.ay || 0);
+      if (a.vy > 14) a.vy = 14;
+
+      a.x += (a.vx || 0);
+      a.y += (a.vy || 0);
+    }
+  }
+}
+
+
 
 const SHIELD_AI = {
   SPEED: 1.4,
