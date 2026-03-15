@@ -884,8 +884,10 @@
                         r.dual=10;
                         r.x += r.vx;
                         r.y += r.vy;
-                        r.vx *= 0.95;
-                        r.vy *= 0.95;
+                        r.vx *= 0.93;
+                        r.vy *= 0.93;
+                        if (Math.abs(r.vx)<0.2) r.vx = 0;
+                        if (Math.abs(r.vy)<0.2) r.vy = 0;
                         const waterobject=game.collideswiths(r,"water2");
                         if(waterobject){
                             r.counter2=0;
@@ -905,7 +907,7 @@
                             r.fliped = !r.fliped;
                             r.counter2 = 60;
                         }
-                        if(!game.collideswiths(r,"water2"))r.y+=3;
+                        if(!game.collideswiths(r,"water2"))r.y+=11;
                         
                         if(r.alertT>0)r.alertT--;
                         
@@ -939,8 +941,8 @@
                                 r.state="dash";
                                 r.counter=0;
 
-                                r.vx = dx / len * 19;
-                                r.vy = dy / len * 19;
+                                r.vx = dx / len * 25;
+                                r.vy = dy / len * 25;
                             }
                         }
                         else if(r.state=="dash"){
