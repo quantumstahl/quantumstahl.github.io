@@ -276,12 +276,12 @@
                         ctx.shadowColor = "gold";
                         ctx.shadowBlur = 10;
                         ctx.fillText("CLICK TO BEGIN",canvas.width/2,canvas.height/2+450);
-                        ctx.shadowBlur = 0;
+                       // ctx.shadowBlur = 0;
                     }
 
                 }
                 else if(cinematic){
-
+                    ctx.shadowBlur = 0;
                     game.currentmap = 7;
 
                     ctx.fillStyle = "black";
