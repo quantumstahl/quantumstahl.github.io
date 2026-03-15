@@ -893,7 +893,7 @@
                         if(r.counter2 > 0) r.counter2--;
 
                         if(
-                            r.counter2 <= 0 &&
+                            r.counter2 <= 0 && !game.collideswiths(r,"sword")&&
                             !game.collideswiths(r,"swordguy") &&
                             (game.collideswiths(r,"ground") || !game.collideswiths(r,"water2"))
                         ){
