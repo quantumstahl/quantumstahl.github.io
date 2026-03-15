@@ -878,7 +878,7 @@
                     
                     const ratfish = game.getobjecttype('ratfish')?.objects || [];
                     for (const r of ratfish){
-                        if(!r.isonscreen)continue;
+                        if(!r.isonscreen)continue
                         if(bird.objects.length===0)continue;
                         r.water=true;
                         r.dual=10;
@@ -1289,7 +1289,7 @@ function warlockFrontOpen(w){
           
         // === DAMAGE ===
         target.health -= damage;
-       // target.flashTimer = 12;
+        target.flashTimer = 12;
         spawnDamageNumber(-damage, unit.x, unit.y, { color: "#ff4d4d" });
         spawnHitParticles(target.x+target.dimx/2, target.y+target.dimy/2, 6);
         
@@ -1297,8 +1297,8 @@ function warlockFrontOpen(w){
     
         
         // === JUICE ===
-       // hitStop(3);                // fryser ~3 frames (≈50 ms vid 60fps)
-       // cameraShake(20, 120);       // 120 ms shake
+        hitStop(3);                // fryser ~3 frames (≈50 ms vid 60fps)
+        cameraShake(20, 120);       // 120 ms shake
         
         // === KNOCKBACK ===
         const dir = (unit.x < target.x) ? +1 : -1;
