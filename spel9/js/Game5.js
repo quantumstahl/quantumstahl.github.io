@@ -2495,7 +2495,7 @@ class Objecttype {
 
             if (o.water) {
                 
-                const slice = 8; // Ökat något för mobil-prestanda
+                const slice = 16; // Ökat något för mobil-prestanda
                 const strength = 6;
                 const t = time * 0.003;
                 // 1. Uppdatera storlek mer sällan/effektivt
