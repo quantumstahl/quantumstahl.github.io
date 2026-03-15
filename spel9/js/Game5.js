@@ -2346,10 +2346,10 @@ class Objecttype {
         
 
         if (o.water) {
-                if (offscreenCanvas.width !== sprite.width||offscreenCanvas.height !== sprite.height) {
+               // if (offscreenCanvas.width !== sprite.width||offscreenCanvas.height !== sprite.height) {
                     offscreenCanvas.width = sprite.width;
                     offscreenCanvas.height = sprite.height + (3 * 2); // Extra höjd för vågen
-                }
+               // }
                 offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
                 const slice = 5; // Mycket snyggare med 1px slices när vi kör offscreen
                 const strength = 6;
@@ -2379,10 +2379,10 @@ class Objecttype {
                 );
             }
             else {
-                if (offscreenCanvas.width !== sprite.width||offscreenCanvas.height !== sprite.height) {
+               /// if (offscreenCanvas.width !== sprite.width||offscreenCanvas.height !== sprite.height) {
                     offscreenCanvas.width = sprite.width;
                     offscreenCanvas.height = sprite.height; // Extra höjd för vågen
-                }
+              //  }
                 offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
                 offCtx.drawImage(sprite, 0, 0);
                 offCtx.globalCompositeOperation = "source-atop";
@@ -2480,10 +2480,10 @@ class Objecttype {
             if (o.water) {
                 
                     // Uppdatera storleken om bilden ändras
-                if (offscreenCanvas.width !== img.width) {
+               // if (offscreenCanvas.width !== img.width) {
                     offscreenCanvas.width = img.width;
                     offscreenCanvas.height = img.height + (3 * 2); // Extra höjd för vågen
-                }
+              //  }
 
                 const offCanvas =offscreenCanvas;
 
