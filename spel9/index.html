@@ -2169,6 +2169,16 @@ function updatesword(){
       a.x += (a.vx || 0);
       a.y += (a.vy || 0);
     }
+    
+    
+    if (game.collideswiths(a, "ratfish")) {
+       
+        // fastna i ytan: nolla hastigheten, kortare liv
+        a.vx = 0; a.vy = 0; a.ay = 0; a.stuck = true;
+        a.life = Math.min(a.life, 45);
+        // valfritt: gnist-partiklar här
+    }
+    
   }
 }
 
