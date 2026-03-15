@@ -884,8 +884,8 @@
                         const waterobject=game.collideswiths(r,"water2");
                         if(waterobject){
                             r.counter2=0;
-                           // if(r.fliped)spawnBubble(r.x+game.getcamerax(),r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
-                           // if(!r.fliped)spawnBubble(r.x+game.getcamerax()+r.dimx,r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
+                            if(r.fliped)spawnBubble(r.x+game.getcamerax(),r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
+                            if(!r.fliped)spawnBubble(r.x+game.getcamerax()+r.dimx,r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
                         }
                         
                         
