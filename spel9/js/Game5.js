@@ -2707,6 +2707,7 @@ class Objectx {
         this.rotimage=0;
         this.alpha=1;
         this.water=false;
+        this.wateroutline=false;
         this.state="patrol";
     }
     collidestest(){
