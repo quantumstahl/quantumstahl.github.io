@@ -1646,72 +1646,155 @@ let hitstopFrames = 0;
 function hitStop(fr){
   hitstopFrames = fr;
 }
-function groundSnapGhost(o){
-  // Om din motor tillåter: if (game.collideswith(o,"ground","down")) return true;
-  const grounds = game.getobjecttype("ground")?.objects;
-  let bestY = +Infinity;
+function groundSnapGhost(o, oldY){
+  const grounds = game.getobjecttype("ground")?.objects || [];
+  let bestY = Infinity;
+
   for (const g of grounds){
-    const overlapX = (o.x+o.dimx > g.x) && (o.x < g.x+g.dimx);
+    const overlapX = (o.x + o.dimx > g.x) && (o.x < g.x + g.dimx);
     if (!overlapX) continue;
-    bestY = Math.min(bestY, g.y - o.dimy);
+
+    const topY = g.y - o.dimy;
+
+    if (oldY <= topY && o.y >= topY){
+      bestY = Math.min(bestY, topY);
+    }
   }
-  if (bestY < +Infinity && o.y >= bestY){
+
+  if (bestY < Infinity){
     o.y = bestY;
     return true;
   }
   return false;
 }
+function getWaterAt(o){
+  const waters = game.getobjecttype("water2")?.objects || [];
+  for (const w of waters){
+    const overlapX = (o.x + o.dimx > w.x) && (o.x < w.x + w.dimx);
+    const overlapY = (o.y + o.dimy > w.y) && (o.y < w.y + w.dimy);
+    if (overlapX && overlapY) return w;
+  }
+  return null;
+}
+
 
 function updateLoot(player){
   const sets = [game.getobjecttype("coin"), game.getobjecttype("apple")];
+
   for (const type of sets){
     const arr = type?.objects || [];
-    for (let i=arr.length-1; i>=0; --i){
+
+    for (let i = arr.length - 1; i >= 0; --i){
       const o = arr[i];
-      o.t++; if (o.pickDelay>0) o.pickDelay--;
-      if (o.despawn-- <= 0){ game.removeobject(type, o); continue; }
+      o.t++;
+      if (o.pickDelay > 0) o.pickDelay--;
+      if (o.despawn-- <= 0){
+        game.removeobject(type, o);
+        continue;
+      }
+
+      const water = getWaterAt(o);
 
       if (o.state === 'air'){
-        // enkel “fysik”
+        const oldY = o.y;
+
         o.vy += (o.ay || 0.6);
         o.x  += (o.vx || 0);
         o.y  += (o.vy || 0);
 
-        // landa på mark (ghost → manuell snap)
-        if (groundSnapGhost(o)){
+        if (water){
+          // gå inte direkt till ytan – börja flyta upp mjukt
+          o.state = 'floatrise';
+          o.vx *= 0.6;
+          o.vy *= 0.2;
+          o.waterY = water.y - o.dimy + 2; // mål: strax i ytan
+        }
+        else if (groundSnapGhost(o, oldY)){
           o.state = 'rest';
-          o.vx = 0; o.vy = 0;
+          o.vx = 0;
+          o.vy = 0;
           o.baseY = o.y;
         }
-      } else { // 'rest' → bob + magnet
-        // bob
-        o.y = o.baseY + Math.sin(o.t*0.2)*0.6;
+      }
+      else if (o.state === 'floatrise'){
+        // bromsa sidled i vatten
+        o.vx *= 0.96;
+        o.x += (o.vx || 0);
 
-        // magnet mot spelaren inom radie
+        // flyt upp mjukt mot ytan
+        o.y += (o.vy || 0);
+        o.vy -= 0.18;     // uppdrift
+        if (o.vy < -2.2) o.vy = -2.2;
+
+        // om den lämnar vattnet igen
+        const nowWater = getWaterAt(o);
+        if (!nowWater){
+          o.state = 'air';
+        } else {
+          o.waterY = nowWater.y - o.dimy + 2;
+
+          if (o.y <= o.waterY){
+            o.y = o.waterY;
+            o.state = 'float';
+            o.baseY = o.y;
+            o.vx = 0;
+            o.vy = 0;
+          }
+        }
+      }
+      else if (o.state === 'float'){
+        // guppa på ytan
+        const nowWater = getWaterAt(o);
+        if (!nowWater){
+          o.state = 'air';
+        } else {
+          o.waterY = nowWater.y - o.dimy + 2;
+          o.baseY = o.waterY;
+          o.y = o.baseY + Math.sin(o.t * 0.12) * 1.2;
+        }
+
+        // lätt magnet i vatten
         const px = player.x + player.dimx/2, py = player.y + player.dimy/2;
         const ox = o.x + o.dimx/2,          oy = o.y + o.dimy/2;
-        const dx = px-ox, dy = py-oy;
+        const dx = px - ox, dy = py - oy;
         const d2 = dx*dx + dy*dy;
-        const R = 140; // magnetradie px
+        const R = 140;
+
         if (d2 < R*R){
-          const invd = 1/Math.max(1, Math.sqrt(d2));
-          const s = 3.0; // sugstyrka
-          o.x += dx*invd*s;
-          o.y += dy*invd*s;
+          const invd = 1 / Math.max(1, Math.sqrt(d2));
+          const s = 2.0;
+          o.x += dx * invd * s;
+          o.y += dy * invd * s * 0.6;
+        }
+      }
+      else { // rest
+        o.y = o.baseY + Math.sin(o.t * 0.2) * 0.6;
+
+        const px = player.x + player.dimx/2, py = player.y + player.dimy/2;
+        const ox = o.x + o.dimx/2,          oy = o.y + o.dimy/2;
+        const dx = px - ox, dy = py - oy;
+        const d2 = dx*dx + dy*dy;
+        const R = 140;
+
+        if (d2 < R*R){
+          const invd = 1 / Math.max(1, Math.sqrt(d2));
+          const s = 3.0;
+          o.x += dx * invd * s;
+          o.y += dy * invd * s;
         }
       }
 
-      // pickup (ghost-kollision)
-      if (o.pickDelay<=0){
+      // pickup
+      if (o.pickDelay <= 0){
         if (type === game.getobjecttype("coin") && game.collideswith(o,"swordguy","ghost")){
-          game.removeobject(type,o);
+          game.removeobject(type, o);
           coins++;
           audio2("sounds/coin.mp3");
           continue;
         }
         if (type === game.getobjecttype("apple") && game.collideswith(o,"swordguy","ghost")){
-          game.removeobject(type,o);
-          player.health = Math.min(player.maxhealth, (player.health)+10);
+          game.removeobject(type, o);
+          player.health = Math.min(player.maxhealth, player.health + 10);
           audio2("sounds/apple.mp3");
           continue;
         }
