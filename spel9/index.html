@@ -952,14 +952,14 @@
                             if(r.counter > 40){
                                 r.state="cooldown";
                                 r.counter=0;
-                                r.vx *= 0.3;
-                                r.vy *= 0.3;
+                               // r.vx *= 0.3;
+                              //  r.vy *= 0.3;
                             }
                         }
                         else if(r.state=="cooldown"){
                             r.counter++;
-                            r.vx *= 0.92;
-                            r.vy *= 0.92;
+                          //  r.vx *= 0.92;
+                         //   r.vy *= 0.92;
                             r.x += r.vx;
                             r.y += r.vy;
 
