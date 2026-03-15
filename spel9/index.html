@@ -648,7 +648,7 @@
                     const water2 = game.getobjecttype('water2')?.objects || [];
                     for (const w of water2){
                         w.alpha=0.5;
-                       // w.water=true;
+                        w.water=true;
                        // drawWaterSurface(ctx, w.x+game.getcamerax(), w.dimx, w.y+game.getcameray(), performance.now());
                     }
                     
@@ -1024,7 +1024,7 @@
                     }
                     const sword = game.getobjecttype('sword')?.objects || [];
                     for(const a of sword){
-                        handleCombat(a, ["rat","archer","tank","bat","mage","warlock","ratfish"], 50);
+                        //handleCombat(a, ["rat","archer","tank","bat","mage","warlock","ratfish"], 50);
                     }
                     
                     let offx = 0, offy = 0;
@@ -1294,7 +1294,7 @@ function warlockFrontOpen(w){
         
         if(unit.name==="arrow"||unit.name==="sword")game.removeobject(game.getobjecttype(unit.name), unit);
     
-
+        
         // === JUICE ===
         hitStop(3);                // fryser ~3 frames (≈50 ms vid 60fps)
         cameraShake(20, 120);       // 120 ms shake
