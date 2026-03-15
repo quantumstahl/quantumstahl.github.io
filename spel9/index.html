@@ -47,7 +47,21 @@
                 source.connect(context.destination);
                 source.start();
             };
-          
+            window.addEventListener("error", function (e) {
+                const crash = document.createElement("div");
+                crash.style.position = "fixed";
+                crash.style.top = "20px";
+                crash.style.left = "20px";
+                crash.style.right = "20px";
+                crash.style.background = "rgba(120,0,0,0.95)";
+                crash.style.color = "white";
+                crash.style.padding = "12px";
+                crash.style.zIndex = "1000001";
+                crash.style.fontFamily = "monospace";
+                crash.style.whiteSpace = "pre-wrap";
+                crash.textContent = "CRASH:\n" + e.message;
+                document.body.appendChild(crash);
+              });
             
             document.addEventListener("touchstart" , function(e) {
                 e.preventDefault();
