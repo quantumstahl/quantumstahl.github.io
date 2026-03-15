@@ -1162,6 +1162,7 @@ class Game5 {
             
         });
         canvas.addEventListener("touchmove", function(e) {
+             e.preventDefault();
             if (e.touches.length === 1 && dragSelectStart) {
                 const currentMap = game.maps[game.currentmap];
                 const zoomFactor = 1 + (1 * currentMap.zoom / 100);
