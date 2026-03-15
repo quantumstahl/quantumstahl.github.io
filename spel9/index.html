@@ -232,12 +232,12 @@
             
             var check = function(){
                 
-                if(canvas.width===10||canvas.width===300){
+             //   if(canvas.width===10||canvas.width===300){
                     
                     if(!mobileAndTabletCheck()){
                         canvas.width=1920*1.25;
                         canvas.height=1080*1.25;
-                        canvas.style.position="absloute";
+                        canvas.style.position="absolute";
                         canvas.style.width  = document.body.clientWidth + "px";
                         canvas.style.height = document.body.clientHeight-8 + "px";
                     }
@@ -263,7 +263,7 @@
 
                    OW = { adj: buildAdjList(overworldNodes, overworldEdges) };
                    
-                } 
+             //   } 
                 
                 
                 if(start==false){
@@ -640,11 +640,14 @@
                     bbutton.objects[0].x=canvas.width-400;bbutton.objects[0].y=canvas.height-400;
                     abutton.objects[0].x=canvas.width-250;abutton.objects[0].y=canvas.height-250;
                     if(!mobileAndTabletCheck()){abutton.objects[0].x=canvas.width+300;abutton.objects[0].y=canvas.height+400;bbutton.objects[0].x=canvas.width+300;bbutton.objects[0].y=canvas.height+400;}
-                    game.updateanimation(ctx);
+                   
+                game.updateanimation(ctx);
+                 drawHealthBars();
+                   //game.createlightning();
                 }
                 
                 if(bird&&gameState !== 'overworld'){
-                    
+                     
                     const water2 = game.getobjecttype('water2')?.objects || [];
                     for (const w of water2){
                         w.alpha=0.5;
@@ -864,7 +867,7 @@
                     }
                     updateRats();
                     updateArchers();
-                    drawHealthBars();
+                    
                     updateArrows();
                     updateShields();
                     updateBats();
@@ -1188,7 +1191,7 @@ function drawHealthBars() {
     const barH = Math.max(3, 5 * (zoom >= 1 ? zoom : 1)); // öka svagt med zoom
     const offsetY = -10 * zoom; // ovanför objektet
     
-    
+        
     
     if(o.name=="swordguy"){
         ctx.fillStyle = "rgba(0,0,0,0.5)";

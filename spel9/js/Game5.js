@@ -2773,6 +2773,7 @@ const getRandomInteger = (min, max) => {
 };
 
 const line = (start, end, thickness) => {
+  ctx.beginPath();
   ctx.moveTo(start.x, start.y);
   ctx.lineTo(end.x, end.y);
   ctx.lineWidth = thickness;
