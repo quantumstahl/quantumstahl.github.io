@@ -884,10 +884,10 @@
                         r.dual=10;
                         r.x += r.vx;
                         r.y += r.vy;
+                        r.vx *= 0.95;
+                        r.vy *= 0.95;
                         const waterobject=game.collideswiths(r,"water2");
                         if(waterobject){
-                            r.vx *= 0.95;
-                            r.vy *= 0.95;
                             r.counter2=0;
                             if(r.fliped)spawnBubble(r.x+game.getcamerax(),r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
                             if(!r.fliped)spawnBubble(r.x+game.getcamerax()+r.dimx,r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
