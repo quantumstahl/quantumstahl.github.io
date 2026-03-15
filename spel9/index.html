@@ -884,8 +884,8 @@
                         const waterobject=game.collideswiths(r,"water2");
                         if(waterobject){
                             r.counter2=0;
-                            if(r.fliped)spawnBubble(r.x+game.getcamerax(),r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
-                            if(!r.fliped)spawnBubble(r.x+game.getcamerax()+r.dimx,r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
+                           // if(r.fliped)spawnBubble(r.x+game.getcamerax(),r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
+                           // if(!r.fliped)spawnBubble(r.x+game.getcamerax()+r.dimx,r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
                         }
                         
                         
@@ -893,7 +893,7 @@
                         if(r.counter2 > 0) r.counter2--;
 
                         if(
-                            r.counter2 <= 0 && !game.collideswiths(r,"sword")&&
+                            r.counter2 <= 0 &&
                             !game.collideswiths(r,"swordguy") &&
                             (game.collideswiths(r,"ground") || !game.collideswiths(r,"water2"))
                         ){
@@ -1270,7 +1270,7 @@ function warlockFrontOpen(w){
               if (target.ai.shieldState === 'on' || target.ai.shieldState === 'warn'){
                 // block → flash blå
                 target.flashTimer = 6;
-                target.flashTimercolor = "#rgba(168, 199, 255, 0.8)";
+                target.flashTimercolor = "rgba(168, 199, 255, 0.8)";
 
                 spawnHitParticles(target.x+target.dimx/2, target.y, 6, "#a8c7ff");
                 cameraShake(2,80);
@@ -1288,7 +1288,7 @@ function warlockFrontOpen(w){
           
         // === DAMAGE ===
         target.health -= damage;
-        target.flashTimer = 12;
+       // target.flashTimer = 12;
         spawnDamageNumber(-damage, unit.x, unit.y, { color: "#ff4d4d" });
         spawnHitParticles(target.x+target.dimx/2, target.y+target.dimy/2, 6);
         
@@ -1296,8 +1296,8 @@ function warlockFrontOpen(w){
     
         
         // === JUICE ===
-        hitStop(3);                // fryser ~3 frames (≈50 ms vid 60fps)
-        cameraShake(20, 120);       // 120 ms shake
+       // hitStop(3);                // fryser ~3 frames (≈50 ms vid 60fps)
+       // cameraShake(20, 120);       // 120 ms shake
         
         // === KNOCKBACK ===
         const dir = (unit.x < target.x) ? +1 : -1;
@@ -1353,7 +1353,6 @@ function warlockFrontOpen(w){
               return;
           }
         }
-        return;
       }
     }
   
