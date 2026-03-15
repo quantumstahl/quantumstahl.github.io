@@ -2352,7 +2352,7 @@ class Objecttype {
                 offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
                 const slice = 5; // Mycket snyggare med 1px slices när vi kör offscreen
                 const strength = 6;
-                const t = performance.now() * 0.003;
+                const t = time * 0.003;
 
                 for (let x = 0; x < sprite.width; x += slice) {
                     const offset = Math.sin((x * 0.05) + t) * strength;
@@ -2493,7 +2493,7 @@ class Objecttype {
                 
                 const slice = 5; // Mycket snyggare med 1px slices när vi kör offscreen
                 const strength = 6;
-                const t = performance.now() * 0.003;
+                const t = time * 0.003;
 
                 for (let x = 0; x < img.width; x += slice) {
                     const offset = Math.sin((x * 0.05) + t) * strength;

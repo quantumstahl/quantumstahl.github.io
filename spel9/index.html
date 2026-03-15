@@ -215,7 +215,7 @@
             let notW=false;
             let notwstart=true;
             if(mobileAndTabletCheck())ismoblies=300;
-            
+            let time=performance.now();
             
             function drawMapLightSpread(ctx, darkMapImg, brightMapImg, castleX, castleY, radius) {
                 ctx.drawImage(darkMapImg, 0, 0, canvas.width, canvas.height);
@@ -231,7 +231,7 @@
             
             
             var check = function(){
-                
+                    time=performance.now();
              //   if(canvas.width===10||canvas.width===300){
                     
                     if(!mobileAndTabletCheck()){
@@ -726,7 +726,7 @@
                         
                         
                         if(keyState.w&&notW){
-                            let now = performance.now();
+                            let now = time;
 
                             if(now - lastWPress < 250){
                                if(!notwstart)dubbelW = true;
