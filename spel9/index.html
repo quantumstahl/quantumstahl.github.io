@@ -878,6 +878,7 @@
                     
                     const ratfish = game.getobjecttype('ratfish')?.objects || [];
                     for (const r of ratfish){
+                        updatePhysics(r);
                         if(bird.objects.length===0)continue;
                         r.water=true;
                         r.dual=10;
@@ -1024,7 +1025,7 @@
                     }
                     const sword = game.getobjecttype('sword')?.objects || [];
                     for(const a of sword){
-                        //handleCombat(a, ["rat","archer","tank","bat","mage","warlock","ratfish"], 50);
+                        handleCombat(a, ["rat","archer","tank","bat","mage","warlock","ratfish"], 50);
                     }
                     
                     let offx = 0, offy = 0;
