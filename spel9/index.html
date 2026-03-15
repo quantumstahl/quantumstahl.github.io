@@ -648,7 +648,7 @@
                     const water2 = game.getobjecttype('water2')?.objects || [];
                     for (const w of water2){
                         w.alpha=0.5;
-                        w.water=true;
+                       // w.water=true;
                        // drawWaterSurface(ctx, w.x+game.getcamerax(), w.dimx, w.y+game.getcameray(), performance.now());
                     }
                     
@@ -2170,14 +2170,7 @@ function updatesword(){
       a.y += (a.vy || 0);
     }
     
-    
-    if (game.collideswiths(a, "ratfish")) {
-       
-        // fastna i ytan: nolla hastigheten, kortare liv
-        a.vx = 0; a.vy = 0; a.ay = 0; a.stuck = true;
-        a.life = Math.min(a.life, 45);
-        // valfritt: gnist-partiklar här
-    }
+
     
   }
 }
