@@ -170,7 +170,7 @@
             let bubbles = [];
             let previuswaterx=0;
             let previuswaterdimx=0;
-            
+            let apresspresstimer=0;
             window.addEventListener('keydown', e => { if (e.code==='Space') if(gameState === 'game_over')wantRestart = true; });
             canvas.addEventListener('pointerdown', () => { if(gameState === 'game_over')wantRestart = true; });
             
@@ -191,7 +191,7 @@
                         canvas.height - 250+75,
                         150, 150, 0
                     )) {
-                        apresspress = true;
+                        if(apresspresstimer>10)apresspress = true;
                         break;
                     }
                 }
@@ -1936,7 +1936,8 @@ if (keyState.w&&wstopper===false) {iy -= 1;wstopper=true;}
 const next = chooseNeighborByInput(ix,iy);
 if (next!=null) moveToNode(next);
 gemeovercounter--;
-if (gemeovercounter<1&&(keyState.space||apresspress)){apresspress=false;game.load().then(stuff).catch(console.error);  }
+apresspresstimer++;
+if (gemeovercounter<1&&(keyState.space||apresspress)){apresspress=false;apresspresstimer=0;game.load().then(stuff).catch(console.error);  }
 
 
 
