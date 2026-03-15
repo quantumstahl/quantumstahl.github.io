@@ -2335,23 +2335,61 @@ class Layer {
         this.ghost = false;
     }
 }
-const tintCanvas = document.createElement("canvas");
-const tintCtx = tintCanvas.getContext("2d");
 class Objecttype {
     
  
-     drawTinted(ctx, sprite, x1, y1, width1, height1, x2, y2, hidth2, height2,tint){
-        tintCanvas.width = sprite.width;
-        tintCanvas.height = sprite.height;
+     drawTinted(ctx, sprite,tint,w,h,o){
 
-        tintCtx.clearRect(0,0,tintCanvas.width,tintCanvas.height);
-        tintCtx.drawImage(sprite, 0, 0);
-        tintCtx.globalCompositeOperation = "source-atop";
-        tintCtx.fillStyle = tint;
-        tintCtx.fillRect(0,0,tintCanvas.width,tintCanvas.height);
-        tintCtx.globalCompositeOperation = "source-over";
 
-        ctx.drawImage(tintCanvas,  x1, y1, width1, height1, x2, y2, hidth2, height2);
+        const offCanvas =offscreenCanvas;
+        
+
+        if (o.water) {
+                if (offscreenCanvas.width !== sprite.width||offscreenCanvas.height !== sprite.height) {
+                    offscreenCanvas.width = sprite.width;
+                    offscreenCanvas.height = sprite.height + (3 * 2); // Extra höjd för vågen
+                }
+                offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
+                const slice = 1; // Mycket snyggare med 1px slices när vi kör offscreen
+                const strength = 6;
+                const t = performance.now() * 0.003;
+
+                for (let x = 0; x < sprite.width; x += slice) {
+                    const offset = Math.sin((x * 0.05) + t) * strength;
+
+                    // Här ritar vi 1:1. Ingen skalning sker i loopen!
+                    offCtx.drawImage(
+                        sprite,
+                        x, 0, slice, sprite.height,      // source
+                        x, strength + offset, slice, sprite.height // dest (i offscreen canvas)
+                    );
+            
+            
+
+                }
+                offCtx.globalCompositeOperation = "source-atop";
+                offCtx.fillStyle = tint;
+                offCtx.fillRect(0,0,offscreenCanvas.width,offscreenCanvas.height);
+                offCtx.globalCompositeOperation = "source-over";
+                ctx.drawImage(
+                    offCanvas, 
+                    0, 0, sprite.width, sprite.height + (strength * 2), // source (hela buffern)
+                    -w / 2, -h / 2, w, h                          // destination (skalad)
+                );
+            }
+            else {
+                if (offscreenCanvas.width !== sprite.width||offscreenCanvas.height !== sprite.height) {
+                    offscreenCanvas.width = sprite.width;
+                    offscreenCanvas.height = sprite.height; // Extra höjd för vågen
+                }
+                offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
+                offCtx.drawImage(sprite, 0, 0);
+                offCtx.globalCompositeOperation = "source-atop";
+                offCtx.fillStyle = tint;
+                offCtx.fillRect(0,0,offscreenCanvas.width,offscreenCanvas.height);
+                offCtx.globalCompositeOperation = "source-over";
+                ctx.drawImage(offCanvas, -w/2, -h/2,w,h);
+            }
       }
     
     
@@ -2428,23 +2466,8 @@ class Objecttype {
           // rita bilden centrerad
           
           
-          if(o.flashTimer>0){
-              
-             if(o.water){   
-                const slice = 4;
-                const strength = 6;
-                const t = performance.now() * 0.003;
-
-                for (let x = 0; x < img.width; x += slice) {
-                    const offset = Math.sin((x * 0.05) + t) * strength;
-                    this.drawTinted(ctx,img, x, 0, slice, img.height, -w / 2 + (x / img.width) * w, -h / 2 + offset, Math.ceil((slice / img.width) * w)+1, h,o.flashTimercolor);
-                }
-            } 
-            else{
-                
-                this.drawTinted(ctx,img, 0, 0, img.width, img.height, -w/2, -h/2, w, h,o.flashTimercolor);
-            }  
-         
+          if(o.flashTimer>0){ 
+             this.drawTinted(ctx,img,o.flashTimercolor,w,h,o);
              o.flashTimer--;
               
           }
@@ -2677,7 +2700,7 @@ class Objectx {
         this.pickDelay=0;
         this.despawn =100;
         this.flashTimer=0;
-        this.flashTimercolor="rgba(255,60,60,0.6)";
+        this.flashTimercolor="rgba(255,60,60,0.8)";
         this._stepRemain=0;
         this._stepLock=0;
         this.isvisable=true;
