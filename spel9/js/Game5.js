@@ -2350,7 +2350,7 @@ class Objecttype {
                     offscreenCanvas.height = sprite.height + (3 * 2); // Extra höjd för vågen
                 }
                 offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
-                const slice = 1; // Mycket snyggare med 1px slices när vi kör offscreen
+                const slice = 5; // Mycket snyggare med 1px slices när vi kör offscreen
                 const strength = 6;
                 const t = performance.now() * 0.003;
 
@@ -2491,7 +2491,7 @@ class Objecttype {
                 
                 
                 
-                const slice = 1; // Mycket snyggare med 1px slices när vi kör offscreen
+                const slice = 5; // Mycket snyggare med 1px slices när vi kör offscreen
                 const strength = 6;
                 const t = performance.now() * 0.003;
 
