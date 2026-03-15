@@ -216,7 +216,7 @@
             let notwstart=true;
             if(mobileAndTabletCheck())ismoblies=300;
             let time=performance.now();
-            
+            let startnodes=false;
             function drawMapLightSpread(ctx, darkMapImg, brightMapImg, castleX, castleY, radius) {
                 ctx.drawImage(darkMapImg, 0, 0, canvas.width, canvas.height);
 
@@ -232,8 +232,6 @@
             
             var check = function(){
                     time=performance.now();
-             //   if(canvas.width===10||canvas.width===300){
-                    
                     if(!mobileAndTabletCheck()){
                         canvas.width=1920*1.25;
                         canvas.height=1080*1.25;
@@ -247,6 +245,9 @@
                         canvas.style.width  = canvas.width + "px";
                         canvas.style.height = canvas.height + "px";
                     }
+                if(canvas.width>300&&startnodes==false){
+                    startnodes=true;
+                    
                     overworldNodes = [
                              {id:0, x:canvas.width/8, y:canvas.height/2.5, type:"level", cleared:false,prereq:[]},
                              {id:1, x:canvas.width/2.2, y:canvas.height/2.3, type:"level",  cleared:false,prereq:[]},//0
@@ -263,7 +264,7 @@
 
                    OW = { adj: buildAdjList(overworldNodes, overworldEdges) };
                    
-             //   } 
+                } 
                 
                 
                 if(start==false){
