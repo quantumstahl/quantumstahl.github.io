@@ -878,13 +878,16 @@
                     
                     const ratfish = game.getobjecttype('ratfish')?.objects || [];
                     for (const r of ratfish){
-                        if(!r.isonscreen)continue
+                        if(!r.isonscreen)continue;
                         if(bird.objects.length===0)continue;
-                        updatePhysics(r);
                         r.water=true;
                         r.dual=10;
+                        r.x += r.vx;
+                        r.y += r.vy;
                         const waterobject=game.collideswiths(r,"water2");
                         if(waterobject){
+                            r.vx *= 0.95;
+                            r.vy *= 0.95;
                             r.counter2=0;
                             if(r.fliped)spawnBubble(r.x+game.getcamerax(),r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
                             if(!r.fliped)spawnBubble(r.x+game.getcamerax()+r.dimx,r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
@@ -936,14 +939,13 @@
                                 r.state="dash";
                                 r.counter=0;
 
-                                r.vx = dx / len * 8;
-                                r.vy = dy / len * 8;
+                                r.vx = dx / len * 19;
+                                r.vy = dy / len * 19;
                             }
                         }
                         else if(r.state=="dash"){
                             if(game.collideswiths(r,"water2")){
-                                r.x += r.vx;
-                                r.y += r.vy;
+                                
                                 handleCombat(r, ["swordguy"], 2);
                             }
                             r.counter++;
@@ -1290,7 +1292,7 @@ function warlockFrontOpen(w){
           
         // === DAMAGE ===
         target.health -= damage;
-       // target.flashTimer = 12;
+        target.flashTimer = 20;
         spawnDamageNumber(-damage, unit.x, unit.y, { color: "#ff4d4d" });
         spawnHitParticles(target.x+target.dimx/2, target.y+target.dimy/2, 6);
         
