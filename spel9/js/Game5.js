@@ -2346,27 +2346,42 @@ class Objecttype {
         
 
         if (o.water) {
-               // if (offscreenCanvas.width !== sprite.width||offscreenCanvas.height !== sprite.height) {
-                    offscreenCanvas.width = sprite.width;
-                    offscreenCanvas.height = sprite.height + (3 * 2); // Extra höjd för vågen
-               // }
-                offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
-                const slice = 5; // Mycket snyggare med 1px slices när vi kör offscreen
+                const slice = 8; // Ökat något för mobil-prestanda
                 const strength = 6;
                 const t = time * 0.003;
+                const isWaterName = (o.name === "water" || o.name === "water2");
+            
+            //if (offscreenCanvas.width !== sprite.width) {
+                    offscreenCanvas.width = sprite.width;
+                    offscreenCanvas.height = sprite.height + (strength * 2);
+             //   }
+
+                offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
+
+                
+
+                if (isWaterName) offCtx.beginPath();
 
                 for (let x = 0; x < sprite.width; x += slice) {
-                    const offset = Math.sin((x * 0.05) + t) * strength;
+                    // Räkna ut sinus en gång per slice
+                    const angle = (x * 0.05) + t;
+                    const wave = Math.sin(angle) * strength;
+                    const yPos = strength + wave;
 
-                    // Här ritar vi 1:1. Ingen skalning sker i loopen!
+                    // Rita bild-delen
                     offCtx.drawImage(
                         sprite,
-                        x, 0, slice, sprite.height,      // source
-                        x, strength + offset, slice, sprite.height // dest (i offscreen canvas)
+                        x, 0, slice, sprite.height,
+                        x, yPos, slice, sprite.height
                     );
-            
-            
 
+                    // Bygg path för vågkanten samtidigt (om det behövs)
+                    if (isWaterName) {
+                        const ripple = getRippleOffset(x);
+                        const edgeY = yPos + ripple + 1;
+                        if (x === 0) offCtx.moveTo(x, edgeY);
+                        else offCtx.lineTo(x, edgeY);
+                    }
                 }
                 offCtx.globalCompositeOperation = "source-atop";
                 offCtx.fillStyle = tint;
@@ -2374,9 +2389,10 @@ class Objecttype {
                 offCtx.globalCompositeOperation = "source-over";
                 ctx.drawImage(
                     offCanvas, 
-                    0, 0, sprite.width, sprite.height + (strength * 2), // source (hela buffern)
+                    0, 0, sprite.width, offscreenCanvas.height, // source (hela buffern)
                     -w / 2, -h / 2, w, h                          // destination (skalad)
                 );
+
             }
             else {
                /// if (offscreenCanvas.width !== sprite.width||offscreenCanvas.height !== sprite.height) {
@@ -2479,63 +2495,62 @@ class Objecttype {
 
             if (o.water) {
                 
-                    // Uppdatera storleken om bilden ändras
-               // if (offscreenCanvas.width !== img.width) {
-                    offscreenCanvas.width = img.width;
-                    offscreenCanvas.height = img.height + (3 * 2); // Extra höjd för vågen
-              //  }
-
-                const offCanvas =offscreenCanvas;
-
-                // Rensa offscreen-ytan (viktigt för transparens!)
-                offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
-                
-                
-                
-                const slice = 5; // Mycket snyggare med 1px slices när vi kör offscreen
+                const slice = 8; // Ökat något för mobil-prestanda
                 const strength = 6;
                 const t = time * 0.003;
+                // 1. Uppdatera storlek mer sällan/effektivt
+             //   if (offscreenCanvas.width !== img.width) {
+                    offscreenCanvas.width = img.width;
+                    offscreenCanvas.height = img.height + (strength * 2);
+              //  }
+
+                offCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+
+                
+                const isWaterName = (o.name === "water" || o.name === "water2");
+
+                if (isWaterName) offCtx.beginPath();
 
                 for (let x = 0; x < img.width; x += slice) {
-                    const offset = Math.sin((x * 0.05) + t) * strength;
+                    // Räkna ut sinus en gång per slice
+                    const angle = (x * 0.05) + t;
+                    const wave = Math.sin(angle) * strength;
+                    const yPos = strength + wave;
 
-                    // Här ritar vi 1:1. Ingen skalning sker i loopen!
+                    // Rita bild-delen
                     offCtx.drawImage(
                         img,
-                        x, 0, slice, img.height,      // source
-                        x, strength + offset, slice, img.height // dest (i offscreen canvas)
+                        x, 0, slice, img.height,
+                        x, yPos, slice, img.height
                     );
-            
-            
 
-                }
-                if(o.name=="water"||o.name=="water2"){
-                
-                    offCtx.beginPath();
-                    for (let x = 0; x < img.width; x++) {
-                        const base = Math.sin((x * 0.05) + t) * strength;
+                    // Bygg path för vågkanten samtidigt (om det behövs)
+                    if (isWaterName) {
                         const ripple = getRippleOffset(x);
-                        const y = strength + base + ripple+1;
-
-                        if (x === 0) offCtx.moveTo(x, y);
-                        else offCtx.lineTo(x, y);
+                        const edgeY = yPos + ripple + 1;
+                        if (x === 0) offCtx.moveTo(x, edgeY);
+                        else offCtx.lineTo(x, edgeY);
                     }
+                }
 
-
-                    offCtx.strokeStyle = "white";
-                    offCtx.lineWidth = 2;
-                    offCtx.stroke();
-
+                // Rita linjerna efter loopen
+                if (isWaterName) {
+                    // Skugga/Djup (Rita den breda först)
                     offCtx.strokeStyle = "rgba(0,0,0,0.25)";
                     offCtx.lineWidth = 8;
                     offCtx.stroke();
+
+                    // Vit kant
+                    offCtx.strokeStyle = "white";
+                    offCtx.lineWidth = 2;
+                    offCtx.stroke();
                 }
-                // 2. Rita nu hela den färdiga "vågbilden" till huvud-canvasen
-                // Här skalar vi hela bilden på en gång, vilket eliminerar gliporna.
+
+                // Slutgiltig rendering
                 ctx.drawImage(
-                    offCanvas, 
-                    0, 0, img.width, img.height + (strength * 2), // source (hela buffern)
-                    -w / 2, -h / 2, w, h                          // destination (skalad)
+                    offscreenCanvas, 
+                    0, 0, img.width, offscreenCanvas.height,
+                    -w / 2, -h / 2, w, h
                 );
             }
             else ctx.drawImage(img, -w/2, -h/2,w,h);
