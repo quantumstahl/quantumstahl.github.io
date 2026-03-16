@@ -1666,88 +1666,28 @@ class Game5 {
  // ctx.fillStyle = "rgba(0,0,0,0.78)";
  // ctx.fillRect(0,0,W,H);
 
-    if(game.currentmap==20){
-        
-        
-     
-      
-        
-        
-        
-maskCanvas.width = canvas.width;
-            maskCanvas.height = canvas.height;
-            maskCtx.fillStyle = "rgba(255, 255, 255, 0.1)";
-            maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
-            maskCtx.globalCompositeOperation = "destination-atop";    
-  if (poly && poly.length){
-    maskCtx.beginPath();
+    if(game.currentmap==2){
+    if (!poly || !poly.length) return;
 
-    // world->screen: (world + cam) * scale
+    ctx.save();
+
+    ctx.fillStyle = "rgba(255,255,255,0.12)";
+    ctx.beginPath();
+
     const x0 = (poly[0].x + camX) * scale;
     const y0 = (poly[0].y + camY) * scale;
-    maskCtx.moveTo(x0, y0);
+    ctx.moveTo(x0, y0);
 
-    for (let i=1;i<poly.length;i++){
-      const sx = (poly[i].x + camX) * scale;
-      const sy = (poly[i].y + camY) * scale;
-      maskCtx.lineTo(sx, sy);
+    for (let i = 1; i < poly.length; i++) {
+        const sx = (poly[i].x + camX) * scale;
+        const sy = (poly[i].y + camY) * scale;
+        ctx.lineTo(sx, sy);
     }
-    maskCtx.closePath();
-    maskCtx.fill();
-  } else {
-    // fallback: cirkel (om grid inte är redo)
-    const px = (pwx + camX) * scale;
-    const py = (pwy + camY) * scale;
-    maskCtx.beginPath();
-    maskCtx.arc(px, py, RADIUS * scale, 0, Math.PI*2);
-    maskCtx.fill();
-  }
 
+    ctx.closePath();
+    ctx.fill();
 
-  ctx.drawImage(maskCanvas, 0, 0);
-  // reset
-  maskCtx.globalCompositeOperation = "source-over";
-  maskCtx.globalAlpha = 1;
-  maskCtx.restore();
-
-
-maskCanvas.width = canvas.width;
-            maskCanvas.height = canvas.height;
-            maskCtx.fillStyle = "rgba(0, 0, 0, 0.1)";
-            maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
-            maskCtx.globalCompositeOperation = "destination-out";
-     
-
-  if (poly && poly.length){
-    maskCtx.beginPath();
-
-    // world->screen: (world + cam) * scale
-    const x0 = (poly[0].x + camX) * scale;
-    const y0 = (poly[0].y + camY) * scale;
-    maskCtx.moveTo(x0, y0);
-
-    for (let i=1;i<poly.length;i++){
-      const sx = (poly[i].x + camX) * scale;
-      const sy = (poly[i].y + camY) * scale;
-      maskCtx.lineTo(sx, sy);
-    }
-    maskCtx.closePath();
-    maskCtx.fill();
-  } else {
-    // fallback: cirkel (om grid inte är redo)
-    const px = (pwx + camX) * scale;
-    const py = (pwy + camY) * scale;
-    maskCtx.beginPath();
-    maskCtx.arc(px, py, RADIUS * scale, 0, Math.PI*2);
-    maskCtx.fill();
-  }
-  ctx.drawImage(maskCanvas, 0, 0);
-  // reset
-  maskCtx.globalCompositeOperation = "source-over";
-  maskCtx.globalAlpha = 1;
-  maskCtx.restore();
-
-
+    ctx.restore();
     
 }
     
