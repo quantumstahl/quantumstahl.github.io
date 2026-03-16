@@ -70,14 +70,18 @@
             
             document.addEventListener("visibilitychange", event => {
                 if (document.visibilityState === "visible") {
-                        audio.pause();
-                        if(game.currentmap==1){audio.src = 'sounds/cast4.mp3';}
+                        if(!cinematic)audio.pause();
+                        if(cinematic){}
+                        else if(game.currentmap==1){audio.src = 'sounds/cast4.mp3';}
+                        else if(game.currentmap==2){audio.src = 'sounds/water.mp3';}
+                        else if(game.currentmap==6){audio.src = 'sounds/drak.mp3';}
                         else{ audio.src = 'sounds/cast3.mp3';}
-                        context.resume();
+                        audio.play();
+                        if(!cinematic)context.resume();
                         
                 }
                 else {
-                   audio.pause(); audio.src = "";context.suspend();
+                   audio.pause(); if(!cinematic){audio.src = "";context.suspend();}
                 
               }
           });
@@ -256,10 +260,18 @@
                         canvas.style.height = document.body.clientHeight-8 + "px";
                     }
                     else{
-                        canvas.width=document.body.clientWidth;
-                        canvas.height=document.body.clientHeight-8;
-                        canvas.style.width  = canvas.width + "px";
-                        canvas.style.height = canvas.height + "px";
+                       // canvas.width=document.body.clientWidth;
+                     //   canvas.height=document.body.clientHeight-8;
+                       // canvas.style.width  = canvas.width + "px";
+                        //canvas.style.height = canvas.height + "px";
+                        
+                        canvas.width=2532;
+                        canvas.height=1170;
+                        canvas.style.position="absolute";
+                        canvas.style.width  = document.body.clientWidth + "px";
+                        canvas.style.height = document.body.clientHeight-8 + "px";
+                        
+                        
                     }
                 if(canvas.width>300&&startnodes==false){
                     startnodes=true;
@@ -447,11 +459,10 @@
                     ctx.font = "30px Cinzel";
                     
                     
-                    
-
+                        ctx.textAlign = "left";
                         ctx.fillText(
                             mobileAndTabletCheck() ? "TAP TO SKIP" : "CLICK TO SKIP",
-                            150,
+                            50,
                             50
                         );
 
