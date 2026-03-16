@@ -47,8 +47,8 @@ var JoyStick = (function (container, parameters, callback) {
     var circumference = 2 * Math.PI;
 
     // Geometry
-    var centerX = canvas.width / 2;
-    var centerY = canvas.height / 2;
+    var centerX = 200;
+    var centerY = canvas.height-350;
     var externalRadius = Math.min(canvas.width, canvas.height) * 0.30;
     var internalRadius = externalRadius * 0.50;
     var maxMoveStick = externalRadius - internalRadius;
