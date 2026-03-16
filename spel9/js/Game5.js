@@ -334,25 +334,14 @@ const hasDual = (!isBuilding(o) && !o.ghost && ((o.rot|0) === 0) && dualPct > 0)
 let ghostFront = null; // {x,y,w,h}
 if (hasDual){
   const p = dualPct / 100;
-  let dir = "";
-const wx = (o._wantdx || 0);
+const facing = getDualFacing(o);
+o._dualFacing = facing;
 
-// 1) om vi faktiskt rör oss i X: uppdatera facing
-if (Math.abs(wx) > 0.001) {
-  dir = (wx > 0) ? "right" : "left";
-  o._dualFacing = dir;                 // spara
-}
-// 2) om vi står still: använd senaste kända
-else if (o._dualFacing) {
-  dir = o._dualFacing;
-}
-// 3) sista fallback: o.direction (om du använder "left/right")
-else {
-  const d = (o.direction || "").toString().trim().toLowerCase();
-  dir = (d === "left" || d === "right") ? d : "right"; // default
-  o._dualFacing = dir;
-}
-  const W = o.dimx, H = o.dimy;
+const dir = o.backwarddual
+  ? (facing === "right" ? "left" : "right")
+  : facing;
+
+const W = o.dimx, H = o.dimy;
 
   if (dir === 'right'){
     const gw = Math.max(1, Math.floor(W * p));
@@ -1020,6 +1009,56 @@ function raycastStatics(gridStat, ax, ay, bx, by, opts = {}){
 
 function hasLineOfSight(gridStat, ax, ay, bx, by, opts = {}){
   return raycastStatics(gridStat, ax, ay, bx, by, opts) === null;
+}
+
+function pointInAabb(px, py, r){
+  return px >= r.x && px <= r.x + r.w &&
+         py >= r.y && py <= r.y + r.h;
+}
+
+function pointInObb(px, py, o){
+  const rot = o.rot || 0;
+  if ((rot | 0) === 0){
+    return px >= o.x && px <= o.x + o.w &&
+           py >= o.y && py <= o.y + o.h;
+  }
+
+  const cx = o.x + o.w * 0.5;
+  const cy = o.y + o.h * 0.5;
+  const th = -rot * Math.PI / 180;
+  const c = Math.cos(th), s = Math.sin(th);
+
+  const dx = px - cx;
+  const dy = py - cy;
+
+  const lx = dx * c - dy * s;
+  const ly = dx * s + dy * c;
+
+  return lx >= -o.w * 0.5 && lx <= o.w * 0.5 &&
+         ly >= -o.h * 0.5 && ly <= o.h * 0.5;
+}
+function getDualFacing(o){
+  // 1) Visuell facing från fliped har högst prioritet
+  if (typeof o.fliped === "boolean"){
+    return o.fliped ? "left" : "right";
+  }
+
+  // 2) Explicit direction
+  const d = (o.direction || "").toString().trim().toLowerCase();
+  if (d === "left" || d === "right") return d;
+
+  // 3) Rörelse som fallback
+  const wx = (o._wantdx || 0);
+  if (Math.abs(wx) > 0.001){
+    return (wx > 0) ? "right" : "left";
+  }
+
+  // 4) Senast kända
+  if (o._dualFacing === "left" || o._dualFacing === "right"){
+    return o._dualFacing;
+  }
+
+  return "right";
 }
 
 // Exponera för spelkod (index.html)
@@ -1743,7 +1782,37 @@ maskCanvas.width = canvas.width;
     // 3. Kör förflyttning + subpixlar
     SimSolver.step(this);
 }
+    collidepoint(px, py, typeName = "any"){
+      const map = game.maps[game.currentmap];
+      if (!map) return null;
 
+      for (let li = 0; li < map.layer.length; li++){
+        const layer = map.layer[li];
+
+        for (let oti = 0; oti < layer.objectype.length; oti++){
+          const ot = layer.objectype[oti];
+
+          if (typeName !== "any" && ot.name !== typeName) continue;
+
+          const arr = ot.objects;
+          for (let oi = 0; oi < arr.length; oi++){
+            const o = arr[oi];
+
+            const probe = {
+              x: o.x,
+              y: o.y,
+              w: o.dimx,
+              h: o.dimy,
+              rot: o.rot || 0
+            };
+
+            if (pointInObb(px, py, probe)) return o;
+          }
+        }
+      }
+
+      return null;
+    }
     
     isclose(obj, obj2){
         for (let i = 0; i < obj.hadcollidedobj.length; i++) {
@@ -2554,6 +2623,7 @@ class Objectx {
         this._wantdx=0;
         this._wantdy=0;
         this.dual=0;
+        this.backwarddual=false;
         this.alertT=0;
         this.vx=0;
         this.vy=0;

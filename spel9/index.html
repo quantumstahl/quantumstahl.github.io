@@ -256,7 +256,23 @@
                              {id:5, x:canvas.width/1.3, y:canvas.height/1.4, type:"level", cleared:false,prereq:[]},//4
                              {id:6, x:canvas.width/1.1, y:canvas.height/1.1, type:"level", cleared:false,prereq:[]},//5
                            ];
-            
+            function drawGiantRatfishBounds(){
+    const B = game.getobjecttype('giantratfish')?.objects || [];
+    for(const b of B){
+        if(b.roomLeft == null) continue;
+
+        ctx.save();
+        ctx.strokeStyle = "rgba(255,0,0,0.8)";
+        ctx.lineWidth = 4;
+        ctx.strokeRect(
+            b.roomLeft + game.getcamerax(),
+            b.roomTop + game.getcameray(),
+            b.roomRight - b.roomLeft,
+            b.roomBottom - b.roomTop
+        );
+        ctx.restore();
+    }
+}
             var check = function(){
                     
                     time=performance.now();
@@ -686,6 +702,7 @@
                 game.updateanimation(ctx);
                  drawHealthBars();
                  fps();
+                 //drawGiantRatfishBounds();
                    //game.createlightning();
                 }
                 
@@ -719,7 +736,7 @@
                         if(!audio.src.endsWith("cast4.mp3")&&!audio.src.endsWith("cast3.mp3")&&(!audio.src.endsWith("boss.mp3")||game.getobjecttype("tank").objects.length===0)){audio.src = "sounds/cast4.mp3";audio.play();}
                     }
                     else if(game.currentmap==2){
-                        if(!audio.src.endsWith("water.mp3")){audio.src = "sounds/water.mp3";audio.play();}
+                        if(!audio.src.endsWith("water.mp3")&&(!audio.src.endsWith("boss2.mp3")||game.getobjecttype("giantratfish").objects.length===0)){audio.src = "sounds/water.mp3";audio.play();}
                         
                     }
                     else{ 
@@ -916,6 +933,7 @@
                     updateBats();
                     updateMages();
                     runScheduled();
+                    updateGiantRatfish();
                     updateWarlocks();
                     updateFireballs();
                     updateFirePillars();
@@ -1054,18 +1072,47 @@
                         handleCombat(d, ["rat","archer","tank","bat","mage","warlock","swordguy"], 2500);
                     }
                     const trigger = game.getobjecttype('trigger')?.objects || [];
+                    const knapp = game.getobjecttype('knapp')?.objects || [];
+                    const gate = game.getobjecttype('gate')?.objects || [];
                     for (let t=0;t<trigger.length;t++) {
-                        trigger[t].animation=1;
-                        if(t==0&& game.collideswiths(trigger[0],"swordguy")) game.setcameraobj(trigger[0], null, canvas.height+500);
-                        if(t==1&& game.collideswiths(trigger[1],"swordguy")) game.maps[game.currentmap].cameray=0;
+                        if(game.currentmap==1){
+                            trigger[t].animation=1;
+                            if(t==0&& game.collideswiths(trigger[0],"swordguy")) game.setcameraobj(trigger[0], null, canvas.height+500);
+                            if(t==1&& game.collideswiths(trigger[1],"swordguy")) game.maps[game.currentmap].cameray=0;
+                        }
+                        if(game.currentmap==2){
+                            trigger[t].animation=1;
+                            if(gate[0].counter2===1){if(gate[0].counter<200){gate[0].y--;markStaticsDirty();gate[0].counter++;}}
+                            if(gate[0].counter3===1){gate[0].counter2=0;if(gate[0].counter>=0){gate[0].y++;markStaticsDirty();gate[0].counter--;}}
+                            if(t==0&& game.collideswiths(trigger[0],"swordguy")&& knapp[0].counter===1){
+                                gate[0].counter2=1;
+                                
+                                
+                                
+                            }
+                            if(t==1&& game.collideswiths(trigger[1],"swordguy")){
+                                gate[0].counter3=1;
+                                
+                                
+                            }
+                            
+                            
+                        }
+                        
+                        
                         
                     }
+                    if(game.currentmap===2&&gate[1].counter2===1){if(gate[1].counter<300){gate[1].y--;markStaticsDirty();gate[1].counter++;}}
+                    
+                    
                     const seaweed = game.getobjecttype('seaweed')?.objects || [];
                     for (const s of seaweed) {
                           s.water=true;
                         
                     }
-
+                    if(game.collideswith(bird.objects[0],"knapp","down")){game.collideswith(bird.objects[0],"knapp","down").animation=1;game.collideswith(bird.objects[0],"knapp","down").counter=1;}
+                    
+                    
                     
                     
                     if(acount==25&& !inwater)  handleCombat(bird.objects[0], ["rat","archer","tank","bat","mage","warlock","ratfish"], 50);
@@ -1078,6 +1125,7 @@
                     for(const a of sword){
                         handleCombat(a, ["rat","archer","tank","bat","mage","warlock","ratfish"], 50);
                     }
+                    handleGiantRatfishSwordCombat();
                     
                     let offx = 0, offy = 0;
                     if (shakeTime > 0){
@@ -1214,11 +1262,12 @@ function drawHealthBars() {
   const camX = map.camerax;
   const camY = map.cameray;
 
-  const objs = game.getAllObjects().filter(o => o.name=="swordguy"|| o.name=="rat"|| o.name=="archer"|| o.name=="tank"|| o.name=="bat"|| o.name=="mage"|| o.name=="warlock"||o.name=="ratfish");
+  const objs = game.getAllObjects().filter(o => o.name=="swordguy"|| o.name=="rat"|| o.name=="archer"|| o.name=="tank"|| o.name=="bat"|| o.name=="mage"|| o.name=="warlock"||o.name=="ratfish"||o.name=="giantratfish");
   for (const o of objs) {
       if(!o.isvisable)continue;
 
     // defaultvärden om hälsa saknas
+    if (o.maxhealth == null&&o.name=="giantratfish"){o.maxhealth = 800;o.health = o.maxhealth;}
     if (o.maxhealth == null&&o.name=="warlock"){o.maxhealth = 2500;o.health = o.maxhealth;}
     if (o.maxhealth == null&&o.name=="tank"){o.maxhealth = 200;o.health = o.maxhealth;}
     if (o.maxhealth == null&&(o.name=="mage"||o.name=="bat")){o.maxhealth = 50;o.health = o.maxhealth;}
@@ -1305,7 +1354,7 @@ function warlockFrontOpen(w){
       let target = game.collideswith(unit, enemyType, "ghost");
       if(unit.name==="bolder")target=game.collideswith(unit, enemyType,dirbolder);
       if(unit.name==="bolder" && target==null)target=game.collideswith(unit, enemyType,"down");
-      
+      if(unit.name==="giantratfish" && target==null)target=game.collideswiths(unit, enemyType,unit.direction);
       if (target) {
           
           if (enemyType === "tank"){
@@ -1472,22 +1521,29 @@ function ratSeparation(r, rats){
   }
 }
 function dropDepthAhead(r, dir, maxCheck = 700) {
+
   const gs = window.G5?.gridStat;
   const rc = window.G5?.raycastStatics;
   if (!gs || !rc) return 0;
 
-  const x = r.x + (dir > 0 ? r.dimx : 0) + dir * 6; // lite framför
-  const y0 = r.y + r.dimy - 2;                      // fothöjd
+  const lookAhead = r.dimx * 0.6;
+
+  const x = r.x + (dir > 0 ? r.dimx : 0) + dir * lookAhead;
+  const y0 = r.y + r.dimy - 2;
+
+  // vatten = behandla som stup
+  if (game.collidepoint(x, y0 + 5, "water2")) {
+      return maxCheck;
+  }
+
   const hit = rc(gs, x, y0, x, y0 + maxCheck, { pad: 1 });
 
-  if (!hit) return maxCheck; // inget golv inom max -> "jättestup"
-  // hit kan vara proxy (static) eller ref beroende på din raycast; men vi behöver bara t-värdet…
-  // Din raycastStatics returnerar objekt, inte t. Så vi gör djup approx via hit.y - y0:
-  // (ok i platformer)
-  const floorY = (hit._aabb?.y ?? hit.y);           // top-y ungefär
+  if (!hit) return maxCheck;
+
+  const floorY = (hit._aabb?.y ?? hit.y);
+
   return Math.max(0, floorY - y0);
 }
-
 
 
 function updateRats(){
@@ -3247,10 +3303,380 @@ function updateFirePillars(){
   }
 }
 
+const GIANT_RATFISH_AI = {
+  HP: 800,
+
+  SPEED: 2.4,
+  CHASE_SPEED: 2.8,
+
+  WINDUP_FR: 30,
+  CHARGE_FR: 32,
+  RECOVER_FR: 34,
+  STUN_FR: 500,
+
+  CONTACT_DMG: 1,
+  CHARGE_DMG: 2,
+
+  BUBBLE_CD_FR: 10,
+  START_RANGE: 1400,
+
+  PHASE2_AT: 0.5,
+  PHASE2_SPEED: 4.2,
+  PHASE2_CHARGE_FR: 42
+};
+function rectsOverlap(a, b){
+  return (
+    a.x < b.x + b.dimx &&
+    a.x + a.dimx > b.x &&
+    a.y < b.y + b.dimy &&
+    a.y + a.dimy > b.y
+  );
+}
+
+function giantRatfishWeakspot(b){
+  return {
+    x: b.fliped ? b.x + 10 : b.x + b.dimx - 100,
+    y: b.y + 30,
+    dimx: 90,
+    dimy: 90
+  };
+}
+
+function giantRatfishSpawnBubble(b){
+  const waterobject = game.collideswiths(b, "water2");
+  if(!waterobject) return;
+
+  if(b.fliped){
+    spawnBubble(
+      b.x + 40 + game.getcamerax(),
+      b.y + 45 + game.getcameray(),
+      game.getcamerax(),
+      game.getcameray(),
+      waterobject.y
+    );
+  }else{
+    spawnBubble(
+      b.x + b.dimx + game.getcamerax(),
+      b.y + 45 + game.getcameray(),
+      game.getcamerax(),
+      game.getcameray(),
+      waterobject.y
+    );
+  }
+}
+
+function giantRatfishClampToRoom(b){
+  let hitWall = false;
+
+  if (b.roomLeft != null && b.x < b.roomLeft){
+    b.x = b.roomLeft;
+    hitWall = true;
+  }
+  if (b.roomRight != null && b.x + b.dimx > b.roomRight){
+    b.x = b.roomRight - b.dimx;
+    hitWall = true;
+  }
+  if (b.roomTop != null && b.y < b.roomTop){
+    b.y = b.roomTop;
+    b.vy *= -0.2;
+  }
+  if (b.roomBottom != null && b.y + b.dimy > b.roomBottom){
+    b.y = b.roomBottom - b.dimy;
+    b.vy *= -0.2;
+  }
+
+  if(hitWall && b.ai?.state === "charge"){
+    b.ai.state = "stunned";
+    b.ai.timer = GIANT_RATFISH_AI.STUN_FR;
+    b.ai.weakOpen = true;
+    b.vx = 0;
+    b.vy = 0;
+    b.flashTimer = 8;
+    b.flashTimercolor = "rgba(255,255,255,0.7)";
+    cameraShake(8,180);
+
+    for(let i=0;i<10;i++){
+      giantRatfishSpawnBubble(b);
+    }
+  }else if(hitWall){
+    b.vx *= -0.3;
+  }
+}
+function initGiantRatfish(b){
+  if (b.ai) return;
+
+  b.maxhealth = GIANT_RATFISH_AI.HP;
+  b.health = b.maxhealth;
+
+  b.ai = {
+    state: 'idle',
+    dir: (b.fliped ? -1 : 1),
+    timer: 0,
+    cd: 60,
+    phase: 1,
+    bubbleCD: 0,
+    started: false,
+    weakOpen: false
+  };
+
+  b.vx = 0;
+  b.vy = 0;
+
+  if (b.hitcd == null) b.hitcd = 0;
+
+  // sätt egna bounds på objektet i editor om du vill
+        const bounds = giantRatfishAutoBounds(b);
+
+        if (bounds){
+          b.roomLeft = bounds.left;
+          b.roomRight = bounds.right;
+          b.roomTop = bounds.top;
+          b.roomBottom = bounds.bottom;
+        }else{
+          // fallback om raycast inte finns
+          b.roomLeft = b.x - 900;
+          b.roomRight = b.x + 900;
+          b.roomTop = b.y - 350;
+          b.roomBottom = b.y + 350;
+        }
+}
+function updateGiantRatfish(){
+  const B = game.getobjecttype('giantratfish')?.objects || [];
+  const P = game.getobjecttype('swordguy')?.objects?.[0];
+  if (!P) return;
+
+  for (const b of B){
+    if(!b.isonscreen) continue;
+    if(b.isonscreen&&!audio.src.endsWith("boss2.mp3")){audio.src = "sounds/boss2.mp3";audio.play();}
+    initGiantRatfish(b);
+
+    b.dual = 45;
+    b.backwarddual=true;
+    if (b.ai.bubbleCD > 0) b.ai.bubbleCD--;
+    if (b.ai.cd > 0) b.ai.cd--;
+    if (b.hitcd > 0) b.hitcd--;
+
+    const dx = (P.x + P.dimx/2) - (b.x + b.dimx/2);
+    const dy = (P.y + P.dimy/2) - (b.y + b.dimy/2);
+    const len = Math.hypot(dx, dy) || 1;
+    
+    if(!b.ai.weakOpen){
+        if (dx < -5) b.fliped = true;
+        else if (dx > 5) b.fliped = false;
+    }
+    if (b.health <= b.maxhealth * GIANT_RATFISH_AI.PHASE2_AT && b.ai.phase === 1){
+      b.ai.phase = 2;
+      b.ai.cd = 40;
+      b.flashTimer = 10;
+      b.flashTimercolor = "rgba(255,80,80,0.5)";
+      cameraShake(6,140);
+    }
+
+    if(!b.ai.started && Math.abs(dx) < GIANT_RATFISH_AI.START_RANGE){
+      b.ai.started = true;
+      b.ai.state = "patrol";
+      b.ai.timer = 0;
+    }
+
+    if(!b.ai.started) continue;
+
+    if (b.ai.bubbleCD <= 0){
+      giantRatfishSpawnBubble(b);
+      b.ai.bubbleCD = GIANT_RATFISH_AI.BUBBLE_CD_FR;
+    }
+
+    switch (b.ai.state){
+
+      case 'idle': {
+        b.vx *= 0.9;
+        b.vy *= 0.9;
+        break;
+      }
+
+      case 'patrol': {
+        const spd = (b.ai.phase === 1) ? GIANT_RATFISH_AI.SPEED : GIANT_RATFISH_AI.PHASE2_SPEED;
+
+        b.vx *= 0.94;
+        b.vy *= 0.94;
+
+        b.vx += (dx / len) * 0.16;
+        b.vy += (dy / len) * 0.09;
+
+        if (b.vx > spd) b.vx = spd;
+        if (b.vx < -spd) b.vx = -spd;
+        if (b.vy > 2.0) b.vy = 2.0;
+        if (b.vy < -2.0) b.vy = -2.0;
+
+        handleCombat(b, ["swordguy"], GIANT_RATFISH_AI.CONTACT_DMG);
+
+        if (len < 900 && b.ai.cd <= 0){
+            b.ai.state = 'windup';
+            b.ai.timer = GIANT_RATFISH_AI.WINDUP_FR;
+            b.vx *= 0.5;
+            b.vy *= 0.5;
+          }
+        break;
+      }
+
+      case 'windup': {
+        b.vx *= 0.88;
+        b.vy *= 0.88;
+
+        b.vx += -(dx / len) * 0.12;
+        b.vy += -(dy / len) * 0.05;
+
+        b.flashTimer = 4;
+        b.flashTimercolor = "rgba(255, 80, 80, 0.45)";
+
+        b.ai.timer--;
+        if (b.ai.timer <= 0){
+          const cspd = (b.ai.phase === 1) ? 13 : 16;
+
+          b.vx = (dx / len) * cspd;
+          b.vy = (dy / len) * (cspd * 0.45);
+
+          b.ai.state = 'charge';
+          b.ai.timer = (b.ai.phase === 1) ? GIANT_RATFISH_AI.CHARGE_FR : GIANT_RATFISH_AI.PHASE2_CHARGE_FR;
+          b.ai.weakOpen = false;
+          cameraShake(7,120);
+        }
+        break;
+      }
+
+      case 'charge': {
+        handleCombat(b, ["swordguy"], GIANT_RATFISH_AI.CHARGE_DMG);
+
+        b.vx *= 0.995;
+        b.vy *= 0.995;
+
+        b.ai.timer--;
+        if (b.ai.timer <= 0){
+          b.ai.state = 'recover';
+          b.ai.timer = GIANT_RATFISH_AI.RECOVER_FR;
+          b.ai.cd = 55;
+        }
+        break;
+      }
+
+      case 'recover': {
+        handleCombat(b, ["swordguy"], GIANT_RATFISH_AI.CONTACT_DMG);
+
+        b.vx *= 0.90;
+        b.vy *= 0.90;
+
+        b.ai.timer--;
+        if (b.ai.timer <= 0){
+          b.ai.state = 'patrol';
+          b.ai.weakOpen = false;
+        }
+        break;
+      }
+
+      case 'stunned': {
+        b.vx *= 0.82;
+        b.vy *= 0.82;
+
+        b.flashTimer = 5;
+        b.flashTimercolor = "rgba(255,255,255,0.55)";
+
+        b.ai.timer--;
+        if (b.ai.timer <= 0){
+          b.ai.state = 'patrol';
+          b.ai.cd = 45;
+          b.ai.weakOpen = false;
+        }
+        break;
+      }
+    }
+
+    b.x += b.vx;
+    b.y += b.vy;
+
+    giantRatfishClampToRoom(b);
+  }
+}
+function handleGiantRatfishSwordCombat(){
+  const S = game.getobjecttype('sword')?.objects || [];
+  const B = game.getobjecttype('giantratfish')?.objects || [];
+
+  for (const s of S){
+    for (const b of B){
+      if(!b.ai) continue;
+      if(b.hitcd > 0) continue;
+
+      if(game.collideswiths(s,'giantratfish')){
+
+      if (b.ai.state === "stunned" && b.ai.weakOpen){
+        b.health -= 50;
+        b.hitcd = 10;
+
+        b.flashTimer = 10;
+        b.flashTimercolor = "rgba(255,120,120,0.8)";
+
+        spawnDamageNumber(-50, s.x, s.y, { color: "#ff4d4d" });
+        spawnHitParticles(s.x + s.dimx/2, s.y + s.dimy/2, 8, "#ff8080");
+        cameraShake(4,90);
+
+        game.removeobject(game.getobjecttype("sword"), s);
+
+        if (b.health <= 0){
+          for(let i=0;i<18;i++){
+            giantRatfishSpawnBubble(b);
+          }
+
+          const gate = game.getobjecttype('gate')?.objects || [];
+          if(gate[1]){
+            gate[1].counter2 = 1;
+          }
+
+          game.removeobject(game.getobjecttype("giantratfish"), b);
+          return;
+        }
+      }else{
+        b.flashTimer = 5;
+        b.flashTimercolor = "rgba(168, 199, 255, 0.7)";
+        spawnHitParticles(s.x + s.dimx/2, s.y + s.dimy/2, 6, "#a8c7ff");
+        cameraShake(2,60);
+
+        game.removeobject(game.getobjecttype("sword"), s);
+      }
+        }
+    }
+  }
+}
+function giantRatfishAutoBounds(b){
+  const gs = window.G5?.gridStat;
+  const rc = window.G5?.raycastStatics;
+  if (!gs || !rc) return null;
+
+  const cx = b.x+b.dimx/2 ;
+  const cy = b.y ;
+
+  const maxX = 7000;
+  const maxY = 7000;
+
+  const hitL = rc(gs, cx, cy, cx - maxX, cy, { pad: 1 });
+  const hitR = rc(gs, cx, cy, cx + maxX, cy, { pad: 1 });
+  const hitU = rc(gs, cx, cy, cx, cy - maxY, { pad: 1 });
+  const hitD = rc(gs, cx, cy, cx, cy + maxY, { pad: 1 });
+
+  const padX = 24;
+  const padY = 24;
+
+  let left   = b.x - 900;
+  let right  = b.x + 900;
+  let top    = b.y - 350;
+  let bottom = b.y + 350;
+
+  if (hitL && hitL.x != null) left = 100+hitL.x + padX+b.dimx/4;
+  if (hitR && hitR.x != null) right = hitR.x - padX+b.dimx/4;
+  if (hitU && hitU.y != null) top = hitU.y + padY+b.dimy;
+  if (hitD && hitD.y != null) bottom = hitD.y - padY;
 
 
 
-
+  return { left, right, top, bottom };
+}
 
 
         </script>
