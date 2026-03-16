@@ -1,52 +1,16 @@
 /*
- * Name          : joy.js
- * @author       : Roberto D'Amico (Bobboteck)
- * Last modified : 09.06.2020
- * Revision      : 1.1.6
+ * BirdKnight-friendly joystick
+ * Rewritten to work correctly when the game canvas/internal resolution changes.
  *
- * Modification History:
- * Date         Version     Modified By     Description
- * 2021-12-21   2.0.0       Roberto D'Amico New version of the project that integrates the callback functions, while 
- *                                          maintaining compatibility with previous versions. Fixed Issue #27 too, 
- *                                          thanks to @artisticfox8 for the suggestion.
- * 2020-06-09   1.1.6       Roberto D'Amico Fixed Issue #10 and #11
- * 2020-04-20   1.1.5       Roberto D'Amico Correct: Two sticks in a row, thanks to @liamw9534 for the suggestion
- * 2020-04-03               Roberto D'Amico Correct: InternalRadius when change the size of canvas, thanks to 
- *                                          @vanslipon for the suggestion
- * 2020-01-07   1.1.4       Roberto D'Amico Close #6 by implementing a new parameter to set the functionality of 
- *                                          auto-return to 0 position
- * 2019-11-18   1.1.3       Roberto D'Amico Close #5 correct indication of East direction
- * 2019-11-12   1.1.2       Roberto D'Amico Removed Fix #4 incorrectly introduced and restored operation with touch 
- *                                          devices
- * 2019-11-12   1.1.1       Roberto D'Amico Fixed Issue #4 - Now JoyStick work in any position in the page, not only 
- *                                          at 0,0
- * 
- * The MIT License (MIT)
- *
- *  This file is part of the JoyStick Project (https://github.com/bobboteck/JoyStick).
- *	Copyright (c) 2015 Roberto D'Amico (Bobboteck).
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Main fixes:
+ * - Uses getBoundingClientRect() to map touch/mouse from screen space to canvas space
+ * - No hardcoded pageX/pageY thresholds like pageX<500
+ * - No impossible center values like canvas.height-350 on a 300px canvas
+ * - Clamps stick movement to the joystick radius
+ * - Safer multitouch handling via touch identifier
  */
 
-let StickStatus =
-{
+let StickStatus = {
     xPosition: 0,
     yPosition: 0,
     x: 0,
@@ -54,97 +18,98 @@ let StickStatus =
     cardinalDirection: "C"
 };
 
-/**
- * @desc Principal object that draw a joystick, you only need to initialize the object and suggest the HTML container
- * @costructor
- * @param container {String} - HTML object that contains the Joystick
- * @param parameters (optional) - object with following keys:
- *  title {String} (optional) - The ID of canvas (Default value is 'joystick')
- *  width {Int} (optional) - The width of canvas, if not specified is setted at width of container object (Default value is the width of container object)
- *  height {Int} (optional) - The height of canvas, if not specified is setted at height of container object (Default value is the height of container object)
- *  internalFillColor {String} (optional) - Internal color of Stick (Default value is '#00AA00')
- *  internalLineWidth {Int} (optional) - Border width of Stick (Default value is 2)
- *  internalStrokeColor {String}(optional) - Border color of Stick (Default value is '#003300')
- *  externalLineWidth {Int} (optional) - External reference circonference width (Default value is 2)
- *  externalStrokeColor {String} (optional) - External reference circonference color (Default value is '#008000')
- *  autoReturnToCenter {Bool} (optional) - Sets the behavior of the stick, whether or not, it should return to zero position when released (Default value is True and return to zero)
- * @param callback {StickStatus} - 
- */
-var JoyStick = (function(container, parameters, callback)
-{
+var JoyStick = (function (container, parameters, callback) {
     parameters = parameters || {};
-    var title = (typeof parameters.title === "undefined" ? "joystick" : parameters.title),
-        width = (typeof parameters.width === "undefined" ? 0 : parameters.width),
-        height = (typeof parameters.height === "undefined" ? 0 : parameters.height),
-        internalFillColor = (typeof parameters.internalFillColor === "undefined" ? "#AA0000" : parameters.internalFillColor),
-        internalLineWidth = (typeof parameters.internalLineWidth === "undefined" ? 2 : parameters.internalLineWidth),
-        internalStrokeColor = (typeof parameters.internalStrokeColor === "undefined" ? "#330000" : parameters.internalStrokeColor),
-        externalLineWidth = (typeof parameters.externalLineWidth === "undefined" ? 2 : parameters.externalLineWidth),
-        externalStrokeColor = (typeof parameters.externalStrokeColor ===  "undefined" ? "#800000" : parameters.externalStrokeColor),
-        autoReturnToCenter = (typeof parameters.autoReturnToCenter === "undefined" ? true : parameters.autoReturnToCenter);
 
-    callback = callback || function(StickStatus) {};
+    var title = (typeof parameters.title === "undefined" ? "joystick" : parameters.title);
+    var width = (typeof parameters.width === "undefined" ? 300 : parameters.width);
+    var height = (typeof parameters.height === "undefined" ? 300 : parameters.height);
+    var internalFillColor = (typeof parameters.internalFillColor === "undefined" ? "#AA0000" : parameters.internalFillColor);
+    var internalLineWidth = (typeof parameters.internalLineWidth === "undefined" ? 2 : parameters.internalLineWidth);
+    var internalStrokeColor = (typeof parameters.internalStrokeColor === "undefined" ? "#330000" : parameters.internalStrokeColor);
+    var externalLineWidth = (typeof parameters.externalLineWidth === "undefined" ? 2 : parameters.externalLineWidth);
+    var externalStrokeColor = (typeof parameters.externalStrokeColor === "undefined" ? "#800000" : parameters.externalStrokeColor);
+    var autoReturnToCenter = (typeof parameters.autoReturnToCenter === "undefined" ? true : parameters.autoReturnToCenter);
 
-    
+    callback = callback || function () {};
 
-    var canvas = document.getElementById("myCanvas");
+    var canvas = document.getElementById(container) || document.getElementById("myCanvas");
+    if (!canvas) {
+        throw new Error("JoyStick: canvas not found for container/id: " + container);
+    }
+
     canvas.id = title;
-    width = 300; 
-    height = 300; 
     canvas.width = width;
     canvas.height = height;
-    var context=canvas.getContext("2d");
 
-    var pressed = 0; // Bool - 1=Yes - 0=No
+    var context = canvas.getContext("2d");
+    var pressed = 0;
     var circumference = 2 * Math.PI;
-    var internalRadius = (canvas.width-((canvas.width/2)+10))/2;
-    var maxMoveStick = 500000 + 5;
-    var externalRadius = internalRadius + 30;
-    var centerX = 200;
-    var centerY = canvas.height-350;
-    var directionHorizontalLimitPos = canvas.width / 10;
-    var directionHorizontalLimitNeg = directionHorizontalLimitPos * -1;
-    var directionVerticalLimitPos = canvas.height / 10;
-    var directionVerticalLimitNeg = directionVerticalLimitPos * -1;
-    // Used to save current position of stick
-    var movedX=centerX;
-    var movedY=centerY;
 
+    // Geometry
+    var centerX = canvas.width / 2;
+    var centerY = canvas.height / 2;
+    var externalRadius = Math.min(canvas.width, canvas.height) * 0.30;
+    var internalRadius = externalRadius * 0.50;
+    var maxMoveStick = externalRadius - internalRadius;
 
+    var directionHorizontalLimitPos = maxMoveStick * 0.35;
+    var directionHorizontalLimitNeg = -directionHorizontalLimitPos;
+    var directionVerticalLimitPos = maxMoveStick * 0.35;
+    var directionVerticalLimitNeg = -directionVerticalLimitPos;
 
+    var movedX = centerX;
+    var movedY = centerY;
+    var activeTouchId = null;
 
-
-
-
-    // Check if the device support the touch or not
-    if("ontouchstart" in document.documentElement)
-    {
-        canvas.addEventListener("touchstart", onTouchStart, false);
-        document.addEventListener("touchmove", onTouchMove, false);
-        document.addEventListener("touchend", onTouchEnd, false);
+    function getCanvasPos(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
     }
-    else
-    {
-        canvas.addEventListener("mousedown", onMouseDown, false);
-        document.addEventListener("mousemove", onMouseMove, false);
-        document.addEventListener("mouseup", onMouseUp, false);
+
+    function clampStick(posX, posY) {
+        let dx = posX - centerX;
+        let dy = posY - centerY;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist > maxMoveStick) {
+            let angle = Math.atan2(dy, dx);
+            movedX = centerX + Math.cos(angle) * maxMoveStick;
+            movedY = centerY + Math.sin(angle) * maxMoveStick;
+        } else {
+            movedX = posX;
+            movedY = posY;
+        }
     }
-    // Draw the object
-    drawExternal();
-    drawInternal();
 
-    /******************************************************
-     * Private methods
-     *****************************************************/
+    function redraw() {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        drawExternal();
+        drawInternal();
+    }
 
-    /**
-     * @desc Draw the external circle used as reference position
-     */
-    function drawExternal()
-    {
-        centerY = canvas.height-350;
-        if(movedY==(-50))movedY=centerY;
-        
+    function updateStatus() {
+        StickStatus.xPosition = movedX;
+        StickStatus.yPosition = movedY;
+        StickStatus.x = Math.round(((movedX - centerX) / maxMoveStick) * 100);
+        StickStatus.y = Math.round((((movedY - centerY) / maxMoveStick) * -100));
+        StickStatus.cardinalDirection = getCardinalDirection();
+        callback(StickStatus);
+    }
+
+    function resetStick() {
+        movedX = centerX;
+        movedY = centerY;
+        redraw();
+        updateStatus();
+    }
+
+    function drawExternal() {
         context.beginPath();
         context.arc(centerX, centerY, externalRadius, 0, circumference, false);
         context.lineWidth = externalLineWidth;
@@ -152,19 +117,11 @@ var JoyStick = (function(container, parameters, callback)
         context.stroke();
     }
 
-    /**
-     * @desc Draw the internal stick in the current position the user have moved it
-     */
-    function drawInternal()
-    {
+    function drawInternal() {
         context.beginPath();
-
         context.arc(movedX, movedY, internalRadius, 0, circumference, false);
-        // create radial gradient
-        var grd = context.createRadialGradient(centerX, centerY, 5, centerX, centerY, 200);
-        // Light color
+        var grd = context.createRadialGradient(centerX, centerY, 5, centerX, centerY, externalRadius * 2);
         grd.addColorStop(0, internalFillColor);
-        // Dark color
         grd.addColorStop(1, internalStrokeColor);
         context.fillStyle = grd;
         context.fill();
@@ -173,314 +130,154 @@ var JoyStick = (function(container, parameters, callback)
         context.stroke();
     }
 
-    /**
-     * @desc Events for manage touch
-     */
-    let touchId = null;
-    function onTouchStart(event)
-    {
-        
-        
-        
-        if(event.targetTouches[0].pageX<500&&event.targetTouches[0].pageY>500){
-        
-            pressed = 1;
-            touchId = event.targetTouches[0].identifier;
-        }
-        if(event.targetTouches[1].pageX<500&&event.targetTouches[1].pageY>500){
-            pressed = 1;
-            touchId = event.targetTouches[1].identifier;
-            
-        }
-        
-        
-        
-        
-    }
-
-    function onTouchMove(event)
-    {
-        if(pressed === 1 && event.targetTouches[0].target === canvas&& touchId===event.targetTouches[0].identifier)
-        {
-            movedX = event.targetTouches[0].pageX;
-            movedY = event.targetTouches[0].pageY;
-            // Manage offset
-            if(canvas.offsetParent.tagName.toUpperCase() === "BODY")
-            {
-                movedX -= canvas.offsetLeft;
-                movedY -= canvas.offsetTop;
-            }
-            else
-            {
-                movedX -= canvas.offsetParent.offsetLeft;
-                movedY -= canvas.offsetParent.offsetTop;
-            }
-            // Delete canvas
-            context.clearRect(0, 0, canvas.width, canvas.height);
-            // Redraw object
-            drawExternal();
-            drawInternal();
-
-            // Set attribute of callback
-            StickStatus.xPosition = movedX;
-            StickStatus.yPosition = movedY;
-            StickStatus.x = (100*((movedX - centerX)/maxMoveStick)).toFixed();
-            StickStatus.y = ((100*((movedY - centerY)/maxMoveStick))*-1).toFixed();
-            StickStatus.cardinalDirection = getCardinalDirection();
-            callback(StickStatus);
-        }
-        if(pressed === 1 && event.targetTouches[0].target === canvas&& touchId===event.targetTouches[1].identifier){
-            
-            movedX = event.targetTouches[1].pageX;
-            movedY = event.targetTouches[1].pageY;
-            // Manage offset
-            if(canvas.offsetParent.tagName.toUpperCase() === "BODY")
-            {
-                movedX -= canvas.offsetLeft;
-                movedY -= canvas.offsetTop;
-            }
-            else
-            {
-                movedX -= canvas.offsetParent.offsetLeft;
-                movedY -= canvas.offsetParent.offsetTop;
-            }
-            // Delete canvas
-            context.clearRect(0, 0, canvas.width, canvas.height);
-            // Redraw object
-            drawExternal();
-            drawInternal();
-
-            // Set attribute of callback
-            StickStatus.xPosition = movedX;
-            StickStatus.yPosition = movedY;
-            StickStatus.x = (100*((movedX - centerX)/maxMoveStick)).toFixed();
-            StickStatus.y = ((100*((movedY - centerY)/maxMoveStick))*-1).toFixed();
-            StickStatus.cardinalDirection = getCardinalDirection();
-            callback(StickStatus);
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-        }
-        
-        
-        
-        
-    }
-
-    function onTouchEnd(event)
-    {
-        if (event.changedTouches[0].identifier !== touchId) return;
-
-        pressed = 0;
-        // If required reset position store variable
-        if(autoReturnToCenter)
-        {
-            movedX = centerX;
-            movedY = centerY;
-        }
-        // Delete canvas
-        context.clearRect(0, 0, canvas.width, canvas.height);
-        // Redraw object
-        drawExternal();
-        drawInternal();
-
-        // Set attribute of callback
-        StickStatus.xPosition = movedX;
-        StickStatus.yPosition = movedY;
-        StickStatus.x = (100*((movedX - centerX)/maxMoveStick)).toFixed();
-        StickStatus.y = ((100*((movedY - centerY)/maxMoveStick))*-1).toFixed();
-        StickStatus.cardinalDirection = getCardinalDirection();
-        callback(StickStatus);
-    }
-
-    /**
-     * @desc Events for manage mouse
-     */
-    function onMouseDown(event) 
-    {
-        pressed = 1;
-    }
-
-    /* To simplify this code there was a new experimental feature here: https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/offsetX , but it present only in Mouse case not metod presents in Touch case :-( */
-    function onMouseMove(event) 
-    {
-        if(pressed === 1)
-        {
-            movedX = event.pageX;
-            movedY = event.pageY;
-            // Manage offset
-            if(canvas.offsetParent.tagName.toUpperCase() === "BODY")
-            {
-                movedX -= canvas.offsetLeft;
-                movedY -= canvas.offsetTop;
-            }
-            else
-            {
-                movedX -= canvas.offsetParent.offsetLeft;
-                movedY -= canvas.offsetParent.offsetTop;
-            }
-            // Delete canvas
-            context.clearRect(0, 0, canvas.width, canvas.height);
-            // Redraw object
-            drawExternal();
-            drawInternal();
-
-            // Set attribute of callback
-            StickStatus.xPosition = movedX;
-            StickStatus.yPosition = movedY;
-            StickStatus.x = (100*((movedX - centerX)/maxMoveStick)).toFixed();
-            StickStatus.y = ((100*((movedY - centerY)/maxMoveStick))*-1).toFixed();
-            StickStatus.cardinalDirection = getCardinalDirection();
-            callback(StickStatus);
-        }
-    }
-
-    function onMouseUp(event) 
-    {
-        pressed = 0;
-        // If required reset position store variable
-        if(autoReturnToCenter)
-        {
-            movedX = centerX;
-            movedY = centerY;
-        }
-        // Delete canvas
-        context.clearRect(0, 0, canvas.width, canvas.height);
-        // Redraw object
-        drawExternal();
-        drawInternal();
-
-        // Set attribute of callback
-        StickStatus.xPosition = movedX;
-        StickStatus.yPosition = movedY;
-        StickStatus.x = (100*((movedX - centerX)/maxMoveStick)).toFixed();
-        StickStatus.y = ((100*((movedY - centerY)/maxMoveStick))*-1).toFixed();
-        StickStatus.cardinalDirection = getCardinalDirection();
-        callback(StickStatus);
-    }
-
-    function getCardinalDirection()
-    {
+    function getCardinalDirection() {
         let result = "";
-        let orizontal = movedX - centerX;
+        let horizontal = movedX - centerX;
         let vertical = movedY - centerY;
-        
-        if(vertical >= directionVerticalLimitNeg && vertical <= directionVerticalLimitPos)
-        {
+
+        if (vertical >= directionVerticalLimitNeg && vertical <= directionVerticalLimitPos) {
             result = "C";
         }
-        if(vertical < directionVerticalLimitNeg)
-        {
+        if (vertical < directionVerticalLimitNeg) {
             result = "N";
         }
-        if(vertical > directionVerticalLimitPos)
-        {
+        if (vertical > directionVerticalLimitPos) {
             result = "S";
         }
-        
-        if(orizontal < directionHorizontalLimitNeg)
-        {
-            if(result === "C")
-            { 
-                result = "W";
-            }
-            else
-            {
-                result += "W";
-            }
+
+        if (horizontal < directionHorizontalLimitNeg) {
+            result = (result === "C") ? "W" : result + "W";
         }
-        if(orizontal > directionHorizontalLimitPos)
-        {
-            if(result === "C")
-            { 
-                result = "E";
-            }
-            else
-            {
-                result += "E";
-            }
+        if (horizontal > directionHorizontalLimitPos) {
+            result = (result === "C") ? "E" : result + "E";
         }
-        
+
         return result;
     }
 
-    /******************************************************
-     * Public methods
-     *****************************************************/
+    function isInsideActivationZone(pos) {
+        const dx = pos.x - centerX;
+        const dy = pos.y - centerY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        return dist <= externalRadius + internalRadius + 30;
+    }
 
-    /**
-     * @desc The width of canvas
-     * @return Number of pixel width 
-     */
-    this.redraw=function () 
-    {
-    drawExternal();
-    drawInternal();
+    function onTouchStart(event) {
+        for (let i = 0; i < event.changedTouches.length; i++) {
+            const t = event.changedTouches[i];
+            const pos = getCanvasPos(t.clientX, t.clientY);
+
+            if (isInsideActivationZone(pos)) {
+                pressed = 1;
+                activeTouchId = t.identifier;
+                clampStick(pos.x, pos.y);
+                redraw();
+                updateStatus();
+                break;
+            }
+        }
+    }
+
+    function onTouchMove(event) {
+        if (pressed !== 1 || activeTouchId === null) return;
+
+        let activeTouch = null;
+        for (let i = 0; i < event.targetTouches.length; i++) {
+            if (event.targetTouches[i].identifier === activeTouchId) {
+                activeTouch = event.targetTouches[i];
+                break;
+            }
+        }
+
+        if (!activeTouch) return;
+
+        const pos = getCanvasPos(activeTouch.clientX, activeTouch.clientY);
+        clampStick(pos.x, pos.y);
+        redraw();
+        updateStatus();
+    }
+
+    function onTouchEnd(event) {
+        for (let i = 0; i < event.changedTouches.length; i++) {
+            if (event.changedTouches[i].identifier === activeTouchId) {
+                pressed = 0;
+                activeTouchId = null;
+                if (autoReturnToCenter) {
+                    resetStick();
+                }
+                break;
+            }
+        }
+    }
+
+    function onMouseDown(event) {
+        const pos = getCanvasPos(event.clientX, event.clientY);
+        if (!isInsideActivationZone(pos)) return;
+
+        pressed = 1;
+        clampStick(pos.x, pos.y);
+        redraw();
+        updateStatus();
+    }
+
+    function onMouseMove(event) {
+        if (pressed !== 1) return;
+        const pos = getCanvasPos(event.clientX, event.clientY);
+        clampStick(pos.x, pos.y);
+        redraw();
+        updateStatus();
+    }
+
+    function onMouseUp() {
+        pressed = 0;
+        if (autoReturnToCenter) {
+            resetStick();
+        }
+    }
+
+    if ("ontouchstart" in document.documentElement) {
+        canvas.addEventListener("touchstart", onTouchStart, { passive: true });
+        document.addEventListener("touchmove", onTouchMove, { passive: true });
+        document.addEventListener("touchend", onTouchEnd, { passive: true });
+        document.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    } else {
+        canvas.addEventListener("mousedown", onMouseDown, false);
+        document.addEventListener("mousemove", onMouseMove, false);
+        document.addEventListener("mouseup", onMouseUp, false);
+    }
+
+    redraw();
+    updateStatus();
+
+    this.redraw = function () {
+        redraw();
     };
-    this.GetWidth = function () 
-    {
+
+    this.GetWidth = function () {
         return canvas.width;
     };
 
-    /**
-     * @desc The height of canvas
-     * @return Number of pixel height
-     */
-    this.GetHeight = function () 
-    {
+    this.GetHeight = function () {
         return canvas.height;
     };
 
-    /**
-     * @desc The X position of the cursor relative to the canvas that contains it and to its dimensions
-     * @return Number that indicate relative position
-     */
-    this.GetPosX = function ()
-    {
+    this.GetPosX = function () {
         return movedX;
     };
 
-    /**
-     * @desc The Y position of the cursor relative to the canvas that contains it and to its dimensions
-     * @return Number that indicate relative position
-     */
-    this.GetPosY = function ()
-    {
+    this.GetPosY = function () {
         return movedY;
     };
 
-    /**
-     * @desc Normalizzed value of X move of stick
-     * @return Integer from -100 to +100
-     */
-    this.GetX = function ()
-    {
-        return (100*((movedX - centerX)/maxMoveStick)).toFixed();
+    this.GetX = function () {
+        return Math.round(((movedX - centerX) / maxMoveStick) * 100);
     };
 
-    /**
-     * @desc Normalizzed value of Y move of stick
-     * @return Integer from -100 to +100
-     */
-    this.GetY = function ()
-    {
-        return ((100*((movedY - centerY)/maxMoveStick))*-1).toFixed();
+    this.GetY = function () {
+        return Math.round((((movedY - centerY) / maxMoveStick) * -100));
     };
 
-    /**
-     * @desc Get the direction of the cursor as a string that indicates the cardinal points where this is oriented
-     * @return String of cardinal point N, NE, E, SE, S, SW, W, NW and C when it is placed in the center
-     */
-    this.GetDir = function()
-    {
+    this.GetDir = function () {
         return getCardinalDirection();
     };
 });
