@@ -1081,8 +1081,15 @@ class Game5 {
                     let objType = layer.objectype[i3];
                     for (let i4 = 0; i4 < objType.objects.length; i4++) {
                         let object = objType.objects[i4];
-                        let touch0x = e.touches[0].clientX / zoomFactor;
-                        let touch0y = e.touches[0].clientY / zoomFactor;
+                        
+                        const rect = canvas.getBoundingClientRect();
+                        
+              
+                        
+                        const touch0x = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor;
+                        const touch0y = ((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor;
+                        
+                        
                         let calcX = Number(currentMap.camerax) / 100 * Number(layer.moving) + Number(object.x) + (Number(object.dimx) / 2);
                         let calcY = Number(currentMap.cameray) / 100 * Number(layer.moving) + Number(object.y) + (Number(object.dimy) / 2);
                         let calcRot = (-Number(object.rot) * Math.PI) / 180;
@@ -1103,8 +1110,8 @@ class Game5 {
                         }
                         
                         if (e.touches.length > 1) {
-                            let touch1x = e.touches[1].clientX / zoomFactor;
-                            let touch1y = e.touches[1].clientY / zoomFactor;
+                            const touch1x = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor;
+                            const touch1y = ((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor;
                             if (game.collideCircleWithRotatedRectangle(touch1x, touch1y, 10, calcX, calcY, Number(object.dimx), Number(object.dimy), calcRot)) {
                                 object.mousepressed = true;
                                 var units=game.getAllObjects().filter(o => o.selected);
@@ -1166,8 +1173,11 @@ class Game5 {
             if (e.touches.length === 1 && dragSelectStart) {
                 const currentMap = game.maps[game.currentmap];
                 const zoomFactor = 1 + (1 * currentMap.zoom / 100);
-                const x = e.touches[0].clientX / zoomFactor - currentMap.camerax;
-                const y = e.touches[0].clientY / zoomFactor - currentMap.cameray;
+                const rect = canvas.getBoundingClientRect();
+                const x = (((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor)- currentMap.camerax;
+                const y = (((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor)- currentMap.cameray;
+                
+                
                 dragSelectEnd = { x, y };
                 dragWasActive = true;
             }
@@ -1212,8 +1222,9 @@ class Game5 {
                         let objType = layer.objectype[i3];
                         for (let i4 = 0; i4 < objType.objects.length; i4++) {
                             let object = objType.objects[i4];
-                            let touch0x = e.touches[0].clientX / zoomFactor;
-                            let touch0y = e.touches[0].clientY / zoomFactor;
+                            const rect = canvas.getBoundingClientRect();
+                            const touch0x = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor;
+                            const touch0y = ((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor;
                             let calcX = Number(currentMap.camerax) / 100 * Number(layer.moving) + Number(object.x) + (Number(object.dimx) / 2);
                             let calcY = Number(currentMap.cameray) / 100 * Number(layer.moving) + Number(object.y) + (Number(object.dimy) / 2);
                             let calcRot = (-Number(object.rot) * Math.PI) / 180;
