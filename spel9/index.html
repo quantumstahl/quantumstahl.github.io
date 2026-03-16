@@ -694,8 +694,8 @@
                     const water2 = game.getobjecttype('water2')?.objects || [];
                     for (const w of water2){
                        // w.alpha=0.5;
-                        w.water=true;
-                        drawWaterSurface(ctx, w.x+game.getcamerax(), w.dimx, w.y+game.getcameray(), performance.now());
+                       // w.water=true;
+                       // drawWaterSurface(ctx, w.x+game.getcamerax(), w.dimx, w.y+game.getcameray(), performance.now());
                     }
                     
                     
@@ -1062,7 +1062,7 @@
                     }
                     const seaweed = game.getobjecttype('seaweed')?.objects || [];
                     for (const s of seaweed) {
-                          s.water=true;
+                          //s.water=true;
                         
                     }
 
