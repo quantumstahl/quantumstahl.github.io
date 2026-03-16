@@ -88,7 +88,7 @@ var JoyStick = (function (container, parameters, callback) {
     }
 
     function redraw() {
-        if(centerY===0){StickStatus.x = 200;StickStatus.y = canvas.height-350;}
+        if(centerY<0){StickStatus.x = 200;StickStatus.y = canvas.height-350;}
         centerX = 200;
         centerY = canvas.height-350;
         drawExternal();
