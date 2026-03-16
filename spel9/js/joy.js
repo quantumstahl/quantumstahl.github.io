@@ -48,7 +48,7 @@ var JoyStick = (function (container, parameters, callback) {
 
     // Geometry
     var centerX = 200;
-    var centerY = canvas.height-350;
+    var centerY = 0;
     var externalRadius = Math.min(canvas.width, canvas.height) * 0.30;
     var internalRadius = externalRadius * 0.50;
     var maxMoveStick = externalRadius - internalRadius;
@@ -90,6 +90,7 @@ var JoyStick = (function (container, parameters, callback) {
     function redraw() {
         centerX = 200;
         centerY = canvas.height-350;
+        if(centerY===0)resetStick();
         drawExternal();
         drawInternal();
     }
