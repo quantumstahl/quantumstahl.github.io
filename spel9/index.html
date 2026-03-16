@@ -752,8 +752,8 @@
                             ctx.fillStyle = "rgba(0,120,160,0.15)";
                             ctx.fillRect(0,0,canvas.width,canvas.height);
                            // drawUnderwater(ctx, canvas, performance.now());
-                            if(bird.objects[0].fliped)spawnBubble(bird.objects[0].x+game.getcamerax(),bird.objects[0].y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
-                            if(!bird.objects[0].fliped)spawnBubble(bird.objects[0].x+game.getcamerax()+bird.objects[0].dimx,bird.objects[0].y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
+                         //   if(bird.objects[0].fliped)spawnBubble(bird.objects[0].x+game.getcamerax(),bird.objects[0].y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
+                        //    if(!bird.objects[0].fliped)spawnBubble(bird.objects[0].x+game.getcamerax()+bird.objects[0].dimx,bird.objects[0].y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
                             previuswaterx=waterobject.x;
                             previuswaterdimx=waterobject.dimx/game.getobjecttype("water2").images?.[waterobject.animation]?.getimage?.().width;
                         }
@@ -937,8 +937,8 @@
                         const waterobject=game.collideswiths(r,"water2");
                         if(waterobject){
                             r.counter2=0;
-                            if(r.fliped)spawnBubble(r.x+game.getcamerax(),r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
-                            if(!r.fliped)spawnBubble(r.x+game.getcamerax()+r.dimx,r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
+                           // if(r.fliped)spawnBubble(r.x+game.getcamerax(),r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
+                           // if(!r.fliped)spawnBubble(r.x+game.getcamerax()+r.dimx,r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
                         }
                         
                         
