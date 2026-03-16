@@ -1110,8 +1110,8 @@ class Game5 {
                         }
                         
                         if (e.touches.length > 1) {
-                            const touch1x = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor;
-                            const touch1y = ((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor;
+                            const touch1x = ((e.touches[1].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor;
+                            const touch1y = ((e.touches[1].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor;
                             if (game.collideCircleWithRotatedRectangle(touch1x, touch1y, 10, calcX, calcY, Number(object.dimx), Number(object.dimy), calcRot)) {
                                 object.mousepressed = true;
                                 var units=game.getAllObjects().filter(o => o.selected);
