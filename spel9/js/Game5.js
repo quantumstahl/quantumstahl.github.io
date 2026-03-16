@@ -1666,7 +1666,7 @@ class Game5 {
  // ctx.fillStyle = "rgba(0,0,0,0.78)";
  // ctx.fillRect(0,0,W,H);
 
-    if(game.currentmap==2){
+    if(game.currentmap==20){
         
         
      

@@ -693,9 +693,9 @@
                      
                     const water2 = game.getobjecttype('water2')?.objects || [];
                     for (const w of water2){
-                       // w.alpha=0.5;
-                       // w.water=true;
-                       // drawWaterSurface(ctx, w.x+game.getcamerax(), w.dimx, w.y+game.getcameray(), performance.now());
+                        w.alpha=0.5;
+                        w.water=true;
+                        drawWaterSurface(ctx, w.x+game.getcamerax(), w.dimx, w.y+game.getcameray(), performance.now());
                     }
                     
                     
@@ -752,8 +752,8 @@
                             ctx.fillStyle = "rgba(0,120,160,0.15)";
                             ctx.fillRect(0,0,canvas.width,canvas.height);
                            // drawUnderwater(ctx, canvas, performance.now());
-                         //   if(bird.objects[0].fliped)spawnBubble(bird.objects[0].x+game.getcamerax(),bird.objects[0].y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
-                        //    if(!bird.objects[0].fliped)spawnBubble(bird.objects[0].x+game.getcamerax()+bird.objects[0].dimx,bird.objects[0].y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
+                            if(bird.objects[0].fliped)spawnBubble(bird.objects[0].x+game.getcamerax(),bird.objects[0].y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
+                            if(!bird.objects[0].fliped)spawnBubble(bird.objects[0].x+game.getcamerax()+bird.objects[0].dimx,bird.objects[0].y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
                             previuswaterx=waterobject.x;
                             previuswaterdimx=waterobject.dimx/game.getobjecttype("water2").images?.[waterobject.animation]?.getimage?.().width;
                         }
@@ -922,7 +922,101 @@
                     updatesword();
                     updatebubbles();
                     
-                    
+                    const ratfish = game.getobjecttype('ratfish')?.objects || [];
+                    for (const r of ratfish){
+                        if(!r.isonscreen)continue;
+                        if(bird.objects.length===0)continue;
+                       // r.water=true;
+                        r.dual=10;
+                        r.x += r.vx;
+                        r.y += r.vy;
+                        r.vx *= 0.93;
+                        r.vy *= 0.93;
+                        if (Math.abs(r.vx)<0.2) r.vx = 0;
+                        if (Math.abs(r.vy)<0.2) r.vy = 0;
+                        const waterobject=game.collideswiths(r,"water2");
+                        if(waterobject){
+                            r.counter2=0;
+                            if(r.fliped)spawnBubble(r.x+game.getcamerax(),r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
+                            if(!r.fliped)spawnBubble(r.x+game.getcamerax()+r.dimx,r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
+                        }
+                        
+                        
+                        
+                        if(r.counter2 > 0) r.counter2--;
+
+                        if(
+                            r.counter2 <= 0 && !game.collideswiths(r,"sword")&&
+                            !game.collideswiths(r,"swordguy") &&
+                            (game.collideswiths(r,"ground") || !game.collideswiths(r,"water2"))
+                        ){
+                            r.fliped = !r.fliped;
+                            r.counter2 = 60;
+                        }
+                        if(!game.collideswiths(r,"water2"))r.y+=11;
+                        
+                        if(r.alertT>0)r.alertT--;
+                        
+                        if(r.state=="patrol"){
+                            if(r.counter2>=50||r.counter2<=0){
+                                if(r.fliped)r.x-=3;
+                                if(!r.fliped)r.x+=3;
+                            }
+                            let dx = bird.objects[0].x - r.x;
+                            let dy = bird.objects[0].y - r.y;
+                            let len = Math.hypot(dx,dy) || 1;
+                            
+                            
+                            if(len < 440){
+                                if(r.state=="patrol")r.alertT=50;
+                                r.state="alert";
+                                r.counter=0;
+                            }
+                        }
+                        else if(r.state=="alert"){
+                            r.counter++;
+
+                            let dx = bird.objects[0].x - r.x;
+                            let dy = bird.objects[0].y - r.y;
+                            let len = Math.hypot(dx,dy) || 1;
+
+                            if (dx < -5) r.fliped = true;
+                            else if (dx > 5) r.fliped = false;
+
+                            if(r.counter > 50){
+                                r.state="dash";
+                                r.counter=0;
+
+                                r.vx = dx / len * 25;
+                                r.vy = dy / len * 25;
+                            }
+                        }
+                        else if(r.state=="dash"){
+                            if(game.collideswiths(r,"water2")){
+                                
+                                handleCombat(r, ["swordguy"], 2);
+                            }
+                            r.counter++;
+                            if(r.counter > 40){
+                                r.state="cooldown";
+                                r.counter=0;
+                               // r.vx *= 0.3;
+                              //  r.vy *= 0.3;
+                            }
+                        }
+                        else if(r.state=="cooldown"){
+                            r.counter++;
+                          //  r.vx *= 0.92;
+                         //   r.vy *= 0.92;
+                            r.x += r.vx;
+                            r.y += r.vy;
+
+                            if(r.counter > 35){
+                                r.state="patrol";
+                                r.counter=0;
+                            }
+                        }
+                    }
                     
                     const boulders = game.getobjecttype('bolder')?.objects || [];
 
@@ -968,7 +1062,7 @@
                     }
                     const seaweed = game.getobjecttype('seaweed')?.objects || [];
                     for (const s of seaweed) {
-                          //s.water=true;
+                          s.water=true;
                         
                     }
 
