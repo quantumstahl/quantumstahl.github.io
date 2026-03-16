@@ -1069,7 +1069,7 @@
                     
                     
                     if(acount==25&& !inwater)  handleCombat(bird.objects[0], ["rat","archer","tank","bat","mage","warlock","ratfish"], 50);
-                    if(acount==0&& inwater)shootsword(bird.objects[0].x, bird.objects[0].y, bird.objects[0].fliped);
+                    if(acount==1&& inwater)shootsword(bird.objects[0].x, bird.objects[0].y, bird.objects[0].fliped);
                     const arrows = game.getobjecttype('arrow')?.objects || [];
                     for(const a of arrows){
                         handleCombat(a, ["swordguy"], 10);
