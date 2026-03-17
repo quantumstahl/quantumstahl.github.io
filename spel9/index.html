@@ -2082,6 +2082,17 @@ function drawOverworld(ctx){
   
   ctx.drawImage(overworldimage,0,0,canvas.width,canvas.height);
   
+    const isPortrait = canvas.height > canvas.width;
+    if (!isPortrait) {
+
+        xx=canvas.width * 0.88;yy=canvas.height * 0.78;dim=canvas.width * 0.15;
+    }
+    else{
+        xx=canvas.width * 0.82;yy=canvas.height * 0.85;dim=canvas.width * 0.15;
+
+
+    }
+  
   if(game.getobjecttype("abutton")&&mobileAndTabletCheck())ctx.drawImage(game.getobjecttype("abutton").images[0].getimage(),xx,yy,dim,dim);
 
   
