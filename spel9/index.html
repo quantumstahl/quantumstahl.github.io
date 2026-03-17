@@ -290,12 +290,12 @@
                         //canvas.style.height = canvas.height + "px";
                         
                         if(window.innerHeight > window.innerWidth){
-                            canvas.width=900*1.25;
+                            canvas.width=1000*1.25;
                             canvas.height=1600*1.25;  
                         }
                         else{
                             canvas.width=1600*1.40;
-                            canvas.height=900*1.40;
+                            canvas.height=1000*1.40;
                         }
                         canvas.style.position="absolute";
                         canvas.style.width  = document.body.clientWidth + "px";
@@ -695,8 +695,8 @@
       
                 
                 if(bird && gameState !== 'overworld'){
-                    bbutton.objects[0].x=canvas.width-400;bbutton.objects[0].y=canvas.height-400;
-                    abutton.objects[0].x=canvas.width-250;abutton.objects[0].y=canvas.height-250;
+                    bbutton.objects[0].x=canvas.width * 0.80;bbutton.objects[0].y=canvas.height * 0.62;bbutton.objects[0].xdim=canvas.width * 0.045/2;bbutton.objects[0].ydim=canvas.width * 0.045/2;
+                    abutton.objects[0].x=canvas.width * 0.88;abutton.objects[0].y=canvas.height * 0.78;abutton.objects[0].xdim=canvas.width * 0.045/2;abutton.objects[0].ydim=canvas.width * 0.045/2;
                     if(!mobileAndTabletCheck()){abutton.objects[0].x=canvas.width+300;abutton.objects[0].y=canvas.height+400;bbutton.objects[0].x=canvas.width+300;bbutton.objects[0].y=canvas.height+400;}
                    
                 game.updateanimation(ctx);
@@ -3446,7 +3446,7 @@ function updateGiantRatfish(){
   if (!P) return;
 
   for (const b of B){
-    if(!b.isonscreen) continue;
+    //if(!b.isonscreen) continue;
     if(b.isonscreen&&!audio.src.endsWith("boss2.mp3")){audio.src = "sounds/boss2.mp3";audio.play();}
     initGiantRatfish(b);
 
