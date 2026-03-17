@@ -181,7 +181,7 @@ var JoyStick = (function (container, parameters, callback) {
         updateGeometry();
         updateDefaultCenter();
         
-        if(centerY<300){centerX = defaultCenterX; centerY = defaultCenterY;}
+        if(centerY<300){centerX = defaultCenterX; centerY = defaultCenterY;movedX = centerX;movedY = centerY;}
         
         
 
