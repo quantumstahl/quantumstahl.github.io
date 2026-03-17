@@ -188,7 +188,7 @@ var JoyStick = (function (container, parameters, callback) {
             return;
         }
 
-        if (!showBase) return;
+       // if (!showBase) return;
 
         drawExternal();
         drawInternal();
