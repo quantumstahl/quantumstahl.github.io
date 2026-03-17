@@ -31,7 +31,16 @@
 
 
             game = new Game5("Spelet");
-            joy = new JoyStick('myCanvas');
+            const joy = new JoyStick("myCanvas", {
+                title: "joystick",
+                width: canvas.width,
+                height: canvas.height,
+                floating: true,
+                floatingLeftZone: 0.45,
+                autoReturnToCenter: true
+            }, function(status) {
+                // status.x, status.y, status.cardinalDirection
+            });
             var audio = new Audio('sounds/BirdKnight.mp3');
             audio.loop = true;
             let gamewinrestar=false;
