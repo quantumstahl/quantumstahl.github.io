@@ -97,12 +97,12 @@ var JoyStick = (function (container, parameters, callback) {
             centerY = canvas.height * 0.78;
         }
         else{
-            if(centerY!==canvas.height * 0.78){movedX = canvas.width * 0.12;movedY = canvas.height * 0.78;}
+            if(centerY!==canvas.height * 0.78){movedX = canvas.width * 0.18;movedY = canvas.height * 0.85;}
             centerX = canvas.width * 0.18;
             centerY = canvas.height * 0.85;
             
         }
-        externalRadius = Math.min(canvas.width, canvas.height) * 0.05;
+        externalRadius = Math.min(canvas.width, canvas.height) * 0.09;
         internalRadius = externalRadius * 0.50;
         maxMoveStick = externalRadius - internalRadius;
         directionHorizontalLimitPos = maxMoveStick * 0.35;
