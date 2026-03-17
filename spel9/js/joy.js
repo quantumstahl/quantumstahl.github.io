@@ -97,7 +97,7 @@ var JoyStick = (function (container, parameters, callback) {
             centerY = canvas.height * 0.78;
         }
         else{
-            if(centerY!==canvas.height * 0.78){movedX = canvas.width * 0.18;movedY = canvas.height * 0.85;}
+            if(centerY!==canvas.height * 0.85){movedX = canvas.width * 0.18;movedY = canvas.height * 0.85;}
             centerX = canvas.width * 0.18;
             centerY = canvas.height * 0.85;
             
