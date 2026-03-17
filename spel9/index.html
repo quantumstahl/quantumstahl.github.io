@@ -695,8 +695,16 @@
       
                 
                 if(bird && gameState !== 'overworld'){
-                    bbutton.objects[0].x=canvas.width * 0.80;bbutton.objects[0].y=canvas.height * 0.62;bbutton.objects[0].xdim=canvas.width * 0.045/2;bbutton.objects[0].ydim=canvas.width * 0.045/2;
-                    abutton.objects[0].x=canvas.width * 0.88;abutton.objects[0].y=canvas.height * 0.78;abutton.objects[0].xdim=canvas.width * 0.045/2;abutton.objects[0].ydim=canvas.width * 0.045/2;
+                    const isPortrait = canvas.height > canvas.width;
+                    if (!isPortrait) {
+                        bbutton.objects[0].x=canvas.width * 0.80;bbutton.objects[0].y=canvas.height * 0.62;bbutton.objects[0].xdim=canvas.width * 0.045;bbutton.objects[0].ydim=canvas.width * 0.045;
+                        abutton.objects[0].x=canvas.width * 0.88;abutton.objects[0].y=canvas.height * 0.78;abutton.objects[0].xdim=canvas.width * 0.045;abutton.objects[0].ydim=canvas.width * 0.045;
+                    }
+                    else{
+                        bbutton.objects[0].x=canvas.width * 0.70;bbutton.objects[0].y=canvas.height * 0.75;bbutton.objects[0].xdim=canvas.width * 0.045;bbutton.objects[0].ydim=canvas.width * 0.045;
+                        abutton.objects[0].x=canvas.width * 0.82;abutton.objects[0].y=canvas.height * 0.85;abutton.objects[0].xdim=canvas.width * 0.045;abutton.objects[0].ydim=canvas.width * 0.045;
+                        
+                    }
                     if(!mobileAndTabletCheck()){abutton.objects[0].x=canvas.width+300;abutton.objects[0].y=canvas.height+400;bbutton.objects[0].x=canvas.width+300;bbutton.objects[0].y=canvas.height+400;}
                    
                 game.updateanimation(ctx);

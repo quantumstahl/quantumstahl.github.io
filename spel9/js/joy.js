@@ -88,11 +88,27 @@ var JoyStick = (function (container, parameters, callback) {
     }
 
     function redraw() {
-        if(centerY!==canvas.height * 0.78){movedX = canvas.width * 0.12;movedY = canvas.height * 0.78;}
-        centerX = canvas.width * 0.12;
-        centerY = canvas.height * 0.78;
-        externalRadius = Math.min(canvas.width, canvas.height) * 0.30;
+        const isPortrait = canvas.height > canvas.width;
+        
+        
+        if(!isPortrait){
+            if(centerY!==canvas.height * 0.78){movedX = canvas.width * 0.12;movedY = canvas.height * 0.78;}
+            centerX = canvas.width * 0.12;
+            centerY = canvas.height * 0.78;
+        }
+        else{
+            if(centerY!==canvas.height * 0.78){movedX = canvas.width * 0.12;movedY = canvas.height * 0.78;}
+            centerX = canvas.width * 0.18;
+            centerY = canvas.height * 0.85;
+            
+        }
+        externalRadius = Math.min(canvas.width, canvas.height) * 0.05;
         internalRadius = externalRadius * 0.50;
+        maxMoveStick = externalRadius - internalRadius;
+        directionHorizontalLimitPos = maxMoveStick * 0.35;
+        directionHorizontalLimitNeg = -directionHorizontalLimitPos;
+        directionVerticalLimitPos = maxMoveStick * 0.35;
+        directionVerticalLimitNeg = -directionVerticalLimitPos;
         drawExternal();
         drawInternal();
     }
