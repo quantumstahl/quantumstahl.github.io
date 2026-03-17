@@ -123,7 +123,18 @@ var JoyStick = (function (container, parameters, callback) {
             movedY = posY;
         }
     }
-
+    
+    let savedisportrait=canvas.height > canvas.width;
+    function changedir(){
+        const isPortrait = canvas.height > canvas.width;
+        
+        if(isPortrait!==savedisportrait){savedisportrait=isPortrait;return true;}
+        
+        return false;
+        
+    }
+    
+    
     function isInsideActivationZone(pos) {
         const dx = pos.x - centerX;
         const dy = pos.y - centerY;
@@ -181,7 +192,7 @@ var JoyStick = (function (container, parameters, callback) {
         updateGeometry();
         updateDefaultCenter();
         
-        if(centerY<300){centerX = defaultCenterX; centerY = defaultCenterY;movedX = centerX;movedY = centerY;}
+        if(centerY<300||changedir()){centerX = defaultCenterX; centerY = defaultCenterY;movedX = centerX;movedY = centerY;}
         
         
 
