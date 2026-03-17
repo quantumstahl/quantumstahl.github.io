@@ -1649,14 +1649,14 @@ case 'patrol': {
     } 
     if(game.collideswiths(r,'bolder')){r.counter++;}
     else{
-      if (game.collideswith(r,'any','left'))  r.ai.dir = +1;
-      if (game.collideswith(r,'any','right')) r.ai.dir = -1;
+      if (game.collideswith(r,'any','left')){  r.ai.dir = +1;}
+      else if (game.collideswith(r,'any','right')){ r.ai.dir = -1;}
     }
     
     if(r.counter>60){
         r.counter=0;
-        if (game.collideswith(r,'any','left'))  r.ai.dir = +1;
-        if (game.collideswith(r,'any','right')) r.ai.dir = -1;
+        if (game.collideswith(r,'any','left')) { r.ai.dir = +1;}
+        if (game.collideswith(r,'any','right')) {r.ai.dir = -1;}
         
     }
     

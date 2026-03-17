@@ -321,26 +321,60 @@ function _pushCollisionLog(targetRef, otherRef, n, isGhost=false, depth=0, aabbA
    
 const startX = o.x, startY = o.y;
 const wantdx = (o._wantdx||0), wantdy = (o._wantdy||0);
-const predX  = startX + wantdx;
-const predY  = startY + wantdy;
+let predX  = startX + wantdx;
+let predY  = startY + wantdy;
 
 let solidX = predX, solidY = predY, solidW = o.dimx, solidH = o.dimy;
 let insetOffX = 0, insetOffY = 0;
 // ====== DUAL-CUT: dela kroppen i ghost-front + dyn-back ======
 const dualPct = Math.max(0, Math.min(o.dual|0, 100));
 const hasDual = (!isBuilding(o) && !o.ghost && ((o.rot|0) === 0) && dualPct > 0);
-
+const dualPx = Math.max(1, Math.floor(o.dimx * (dualPct / 100)));
 
 let ghostFront = null; // {x,y,w,h}
 if (hasDual){
   const p = dualPct / 100;
-const facing = getDualFacing(o);
-o._dualFacing = facing;
+const wx = (o._wantdx || 0);
+
+// använd verklig rörelseriktning för dual-split
+let moveDir;
+
+  moveDir = getDualFacing(o); // fallback när objektet står still
+
 
 const dir = o.backwarddual
-  ? (facing === "right" ? "left" : "right")
-  : facing;
+  ? (moveDir === "right" ? "left" : "right")
+  : moveDir;
+  // Om dual-sidan bytt håll sedan förra frame:
+// flytta hela kroppen så att solid-delen inte "byter plats" mitt i ett objekt
 
+
+const turnedHoriz =
+  o._lastDualDir &&
+  o._lastDualDir !== dir &&
+  ((o._lastDualDir === "left" && dir === "right") ||
+   (o._lastDualDir === "right" && dir === "left"));
+
+const shouldCompensate =
+  turnedHoriz &&
+  Math.abs(o._wantdx || 0) > 0.001 &&
+  Math.abs(wantdx) >= 0.5;
+
+if (shouldCompensate&&o.compensate==1){
+  if (o._lastDualDir === "right" && dir === "left"){
+    predX -= dualPx;
+    solidX -= dualPx;
+  } else if (o._lastDualDir === "left" && dir === "right"){
+    predX += dualPx;
+    solidX += dualPx;
+  }
+}
+else if(shouldCompensate){
+    o.compensate=1;
+}
+else{o.compensate=0;}
+
+o._lastDualDir = dir;
 const W = o.dimx, H = o.dimy;
 
   if (dir === 'right'){
@@ -1038,23 +1072,40 @@ function pointInObb(px, py, o){
          ly >= -o.h * 0.5 && ly <= o.h * 0.5;
 }
 function getDualFacing(o){
-  // 1) Visuell facing från fliped har högst prioritet
-  if (typeof o.fliped === "boolean"){
-    return o.fliped ? "left" : "right";
+  const wx = (o._wantdx || 0);
+
+  // flipeddir = vad fliped:true betyder för just detta objekt
+  // ex: "left" => fliped true betyder left
+  //     "right" => fliped true betyder right
+
+  if (typeof o.fliped === "boolean") {
+    // Om vi ännu inte vet hur fliped ska tolkas, försök lära från rörelse
+    if (o.flipeddir == null) {
+      if (Math.abs(wx) > 0.001) {
+        const moving = (wx > 0) ? "right" : "left";
+
+        // Om objektet rör sig åt moving när fliped=true,
+        // då betyder fliped=true => moving
+        o.flipeddir = o.fliped ? moving : (moving === "right" ? "left" : "right");
+      }
+    }
+
+    // När vi vet hur fliped ska tolkas
+    if (o.flipeddir === "left") {
+      return o.fliped ? "left" : "right";
+    }
+    if (o.flipeddir === "right") {
+      return o.fliped ? "right" : "left";
+    }
   }
 
-  // 2) Explicit direction
-  const d = (o.direction || "").toString().trim().toLowerCase();
-  if (d === "left" || d === "right") return d;
-
-  // 3) Rörelse som fallback
-  const wx = (o._wantdx || 0);
-  if (Math.abs(wx) > 0.001){
+  // fallback: rörelse
+  if (Math.abs(wx) > 0.001) {
     return (wx > 0) ? "right" : "left";
   }
 
-  // 4) Senast kända
-  if (o._dualFacing === "left" || o._dualFacing === "right"){
+  // fallback: senast kända
+  if (o._dualFacing === "left" || o._dualFacing === "right") {
     return o._dualFacing;
   }
 
@@ -1622,7 +1673,7 @@ class Game5 {
     
     
     updateanimation(ctx) {
-        try {
+        //try {
             updateWaterRipples();
             this.updateUnitMovement();
             
@@ -1772,7 +1823,7 @@ maskCanvas.width = canvas.width;
   
   
         
-        } catch (error) {}
+       // } catch (error) {}
     }
     collitionengine() {
 
@@ -2639,6 +2690,10 @@ class Objectx {
         this.water=false;
         this.wateroutline=false;
         this.state="patrol";
+        this.flipeddir=null;
+        this.turnCooldown=0;
+        this._lastDualDir="right";
+        this.compensate=0;
     }
     collidestest(){
 
