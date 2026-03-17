@@ -1786,6 +1786,7 @@ else{
 maskCanvas.width = canvas.width;
             maskCanvas.height = canvas.height;
             maskCtx.fillStyle = "rgba(0, 0, 0, 0.7)";
+            if(game.currentmap===3)maskCtx.fillStyle = "rgba(0,0,50,0.4)";
             maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
             maskCtx.globalCompositeOperation = "destination-out";
      
@@ -2922,7 +2923,7 @@ function updateAndDrawFX(ctx) {
 function drawSelectRing(ctx, o,zoom, camX, camY){
     
     const isBuilding =
-    o.name === "base" || o.name === "bar" || o.name === "rbase" || o.name === "rbar"|| o.name === "goldmine"|| o.name === "house"|| o.name === "rhouse";
+    o.name === "base" || o.name === "bar" || o.name === "rbase" || o.name === "rbar"|| o.name === "goldmine"|| o.name === "houses"|| o.name === "rhouses";
 
   // Alltid-på, subtil "ground contact" för byggnader (så de inte ser svävande ut)
   if (isBuilding) {
