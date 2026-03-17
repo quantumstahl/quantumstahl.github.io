@@ -180,7 +180,10 @@ var JoyStick = (function (container, parameters, callback) {
     function redraw() {
         updateGeometry();
         updateDefaultCenter();
-
+        
+        if(centerX<300){centerX = defaultCenterX; centerY = defaultCenterY;}
+        
+        
 
         if (!floating) {
             drawExternal();
