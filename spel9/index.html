@@ -37,7 +37,7 @@
             audio.loop = true;
             let gamewinrestar=false;
             let bigrestart=false;
-             
+            let once=true;
              const context = new (window.AudioContext || window.webkitAudioContext)();
              const audio2 = async url => {   
              const source = context.createBufferSource(); 
@@ -54,7 +54,7 @@
                 e.preventDefault();
                 if(gamewinrestar)bigrestart=true;
                 
-		    if(start){gameState = 'overworld';cinematic=false;}		
+		    if(start){if(once){gameState = 'overworld';once=false;}cinematic=false;}		
                     try{if(audio.paused){ 
                         
                         audio.play();start=true;
@@ -92,7 +92,7 @@
             
             
   
-            document.addEventListener('click', (event) => {if(gamewinrestar)bigrestart=true;if(start){gameState = 'overworld';cinematic=false;}	try{if(audio.paused&&gameState!=='game_over'){ audio.play();start=true;}}catch(error){};});
+            document.addEventListener('click', (event) => {if(gamewinrestar)bigrestart=true;if(start){if(once){gameState = 'overworld';once=false;}cinematic=false;}	try{if(audio.paused&&gameState!=='game_over'){ audio.play();start=true;}}catch(error){};});
 
             
             let keyState = {
