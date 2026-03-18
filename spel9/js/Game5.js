@@ -243,7 +243,7 @@ function _pushCollisionLog(targetRef, otherRef, n, isGhost=false, depth=0, aabbA
   targetRef.collideslistandir.push(dir);
   targetRef.collideslistan.push(otherRef?.name || 'any');
 }
-
+    if(game.maps.length===0)return;
     const map = game.maps[game.currentmap];
     let stat = [];
     const dyn  = [];
@@ -1670,12 +1670,11 @@ class Game5 {
         string = string + "Q*?" + "\n";
         return string;
     }
-    
-    
+
     updateanimation(ctx) {
-        try {
+       // try {
             updateWaterRipples();
-            this.updateUnitMovement();
+           // this.updateUnitMovement();
             
             this.collitionengine();
        
@@ -1824,7 +1823,7 @@ maskCanvas.width = canvas.width;
   
   
         
-        } catch (error) {}
+       // } catch (error) {}
     }
     collitionengine() {
 
@@ -2305,6 +2304,7 @@ maskCanvas.width = canvas.width;
 }
     getAllObjects() {
         const list = [];
+            if(game.maps.length===0)return list;
             for (let layer of game.maps[game.currentmap].layer) {
                 for (let objtype of layer.objectype) {
                     list.push(...objtype.objects);
