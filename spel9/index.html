@@ -134,7 +134,7 @@
             showLevelComplete = false;
             let countercleared=0;
             let overworldPlayer = { node:0, from:0, progress:1, speed:0.02, x:0, y:0 };
-            let gameState = 'overworld'; // 'play' | 'level_complete' | 'game_over'| "overworld" 
+            let gameState = 'annat'; // 'play' | 'level_complete' | 'game_over'| "overworld" 
             // === Overworld data ===
             let overworldNodes = [
               {id:0, x:100, y:200, type:"level", cleared:false},
@@ -337,7 +337,7 @@ function gameLoop(time2){
         }
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, canvas.width, canvas.height); 
-        if(gameState !== 'overworld'){game.updateanimation(ctx);drawOverlays(ctx);
+        if(gameState === 'play'||gameState === 'cinematic'){game.updateanimation(ctx);drawOverlays(ctx);
             
             const water2 = game.getobjecttype('water2')?.objects || [];
             for (const w of water2){
@@ -370,6 +370,27 @@ function gameLoop(time2){
             fps();
             }
         }
+        if(gameState==="overworld"||gameState==="play"){
+            if("ontouchstart" in document.documentElement ){
+                    keyState.d=false;keyState.a = false;keyState.w=false;keyState.s = false;
+                    if(joy.GetDir()=="N"){keyState.w = true;}
+                    else if(joy.GetDir()=="NE"){keyState.d = true;}    
+                    else if(joy.GetDir()=="E"){keyState.d = true;}
+                    else if(joy.GetDir()=="SE"){keyState.d = true;}    
+                    else if(joy.GetDir()=="S"){keyState.s = true;}
+                    else if(joy.GetDir()=="SW"){keyState.a = true;}    
+                    else if(joy.GetDir()=="W"){keyState.a = true;}    
+                    else if(joy.GetDir()=="NW"){keyState.a = true;}     
+                    else if(joy.GetDir()=="C") {
+
+                    }
+
+                 joy.redraw();
+                }
+            
+            
+        }
+        
         
         if(start==false){
 
@@ -916,7 +937,7 @@ requestAnimationFrame(gameLoop);
                             notW=false;
                         }
                         if(!keyState.w)notW=true;
-                        //if(game.currentmap==3){if(bird.objects[0].x>300+canvas.width/2)game.setcameraobj(bird.objects[0], canvas.width, null);else{game.maps[game.currentmap].camerax=-300;}ctx.fillStyle="black";;ctx.globalAlpha = 0.6;ctx.fillRect(game.maps[game.currentmap].camerax+300,0,100,canvas.height);ctx.globalAlpha = 1;   }
+                        if(game.currentmap==3){}
                         else if(game.currentmap==2)game.setcameraobj(bird.objects[0], canvas.width, canvas.height);
                         else game.setcameraobj(bird.objects[0], canvas.width, null);
                         bird.objects[0].dual=40;
@@ -1181,22 +1202,7 @@ requestAnimationFrame(gameLoop);
                     
                     
                 }
-                if("ontouchstart" in document.documentElement ){
-                    keyState.d=false;keyState.a = false;keyState.w=false;keyState.s = false;
-                    if(joy.GetDir()=="N"){keyState.w = true;}
-                    else if(joy.GetDir()=="NE"){keyState.d = true;}    
-                    else if(joy.GetDir()=="E"){keyState.d = true;}
-                    else if(joy.GetDir()=="SE"){keyState.d = true;}    
-                    else if(joy.GetDir()=="S"){keyState.s = true;}
-                    else if(joy.GetDir()=="SW"){keyState.a = true;}    
-                    else if(joy.GetDir()=="W"){keyState.a = true;}    
-                    else if(joy.GetDir()=="NW"){keyState.a = true;}     
-                    else if(joy.GetDir()=="C") {
-
-                    }
-
-                 joy.redraw();
-                }
+                
                 
                 
             }   
