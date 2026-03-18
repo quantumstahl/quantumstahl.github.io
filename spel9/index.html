@@ -345,7 +345,7 @@ function gameLoop(time2){
                 w.water=true;
                 drawWaterSurface(ctx, w.x+game.getcamerax(), w.dimx, w.y+game.getcameray(), performance.now());
             }
-            if(gameState !== 'cinematic'){game.getobjecttype("coinicon").objects[0].x=40;game.getobjecttype("coinicon").objects[0].y=100;
+            if(gameState !== 'cinematic'&&game.getobjecttype("swordguy").length>0){game.getobjecttype("coinicon").objects[0].x=40;game.getobjecttype("coinicon").objects[0].y=100;
             ctx.restore();
             ctx.fillStyle="gold";
             ctx.font = "100px serif";
@@ -355,7 +355,7 @@ function gameLoop(time2){
                             ctx.fillStyle = "rgba(0,120,160,0.15)";
                             ctx.fillRect(0,0,canvas.width,canvas.height);
                         }
-            if(game.currentmap==3){ alert("NOOO");if(game.getobjecttype("swordguy").objects[0].x>300+canvas.width/2)game.setcameraobj(game.getobjecttype("swordguy").objects[0], canvas.width, null);else{game.maps[game.currentmap].camerax=-300;}ctx.fillStyle="black";;ctx.globalAlpha = 0.6;ctx.fillRect(game.maps[game.currentmap].camerax+300,0,100,canvas.height);ctx.globalAlpha = 1;   }
+          //  if(game.currentmap==3){if(game.getobjecttype("swordguy").objects[0].x>300+canvas.width/2)game.setcameraobj(game.getobjecttype("swordguy").objects[0], canvas.width, null);else{game.maps[game.currentmap].camerax=-300;}ctx.fillStyle="black";;ctx.globalAlpha = 0.6;ctx.fillRect(game.maps[game.currentmap].camerax+300,0,100,canvas.height);ctx.globalAlpha = 1;   }
             const houseint = game.getobjecttype('houseint')?.objects || [];
                     for (const h of houseint) {
                         if(game.getobjecttype("swordguy").objects[0].x>h.x+100&& game.getobjecttype("swordguy").objects[0].x<h.x+h.dimx-200){
@@ -937,7 +937,7 @@ requestAnimationFrame(gameLoop);
                             notW=false;
                         }
                         if(!keyState.w)notW=true;
-                        if(game.currentmap==3){}
+                        if(game.currentmap==3){if(game.getobjecttype("swordguy").objects[0].x>300+canvas.width/2)game.setcameraobj(game.getobjecttype("swordguy").objects[0], canvas.width, null);else{game.maps[game.currentmap].camerax=-300;}ctx.fillStyle="black";;ctx.globalAlpha = 0.6;ctx.fillRect(game.maps[game.currentmap].camerax+300,0,100,canvas.height);ctx.globalAlpha = 1;   }
                         else if(game.currentmap==2)game.setcameraobj(bird.objects[0], canvas.width, canvas.height);
                         else game.setcameraobj(bird.objects[0], canvas.width, null);
                         bird.objects[0].dual=40;
