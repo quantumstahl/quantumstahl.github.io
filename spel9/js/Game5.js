@@ -1519,6 +1519,7 @@ class Game5 {
       try {
         game.parseMapText(client.responseText);
         game.isLoaded = true;
+        
         resolve();
       } catch (e){ reject(e); }
     };
@@ -1670,13 +1671,16 @@ class Game5 {
         string = string + "Q*?" + "\n";
         return string;
     }
-
+    updatecolli(){
+        this.collitionengine();
+        
+    }
     updateanimation(ctx) {
        // try {
             updateWaterRipples();
            // this.updateUnitMovement();
             
-            this.collitionengine();
+            
        
     
             

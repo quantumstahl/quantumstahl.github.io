@@ -31,6 +31,7 @@
 
 
             game = new Game5("Spelet");
+            
             joy = new JoyStick('myCanvas');
             var audio = new Audio('sounds/BirdKnight.mp3');
             audio.loop = true;
@@ -297,54 +298,59 @@
 let lastTime = 0;
 let accumulator = 0;
 const step = 1/60;
-
+let firstfirst=true;
 function gameLoop(time2){
-    const delta = (time2 - lastTime) / 1000;
-    lastTime = time2;
+    
+    if(game.isLoaded){
+        if(firstfirst){game.currentmap=7;firstfirst=false;}
+        const delta = (time2 - lastTime) / 1000;
+        lastTime = time2;
 
-    accumulator += delta;
-      time=performance.now();
-                    if(!mobileAndTabletCheck()){
-                        canvas.width=1920*1.25;
-                        canvas.height=1080*1.25;
-                        canvas.style.position="absolute";
-                        canvas.style.width  = document.body.clientWidth + "px";
-                        canvas.style.height = document.body.clientHeight-8 + "px";
-                    }
-                    else{
-                       // canvas.width=document.body.clientWidth;
-                     //   canvas.height=document.body.clientHeight-8;
-                       // canvas.style.width  = canvas.width + "px";
-                        //canvas.style.height = canvas.height + "px";
-                        
-                        if(window.innerHeight > window.innerWidth){
-                            canvas.width=1100;
-                            canvas.height=1600;  
-                        }
-                        else{
-                            canvas.width=1600*1.2;
-                            canvas.height=1100*1.2;
-                        }
-                        canvas.style.position="absolute";
-                        canvas.style.width  = document.body.clientWidth + "px";
-                        canvas.style.height = document.body.clientHeight-8 + "px";
-                        
-                        
-                    }
+        accumulator += delta;
+        time=performance.now();
+        if(!mobileAndTabletCheck()){
+            canvas.width=1920*1.25;
+            canvas.height=1080*1.25;
+            canvas.style.position="absolute";
+            canvas.style.width  = document.body.clientWidth + "px";
+            canvas.style.height = document.body.clientHeight-8 + "px";
+        }
+        else{
+           // canvas.width=document.body.clientWidth;
+         //   canvas.height=document.body.clientHeight-8;
+           // canvas.style.width  = canvas.width + "px";
+            //canvas.style.height = canvas.height + "px";
+
+            if(window.innerHeight > window.innerWidth){
+                canvas.width=1100;
+                canvas.height=1600;  
+            }
+            else{
+                canvas.width=1600*1.2;
+                canvas.height=1100*1.2;
+            }
+            canvas.style.position="absolute";
+            canvas.style.width  = document.body.clientWidth + "px";
+            canvas.style.height = document.body.clientHeight-8 + "px";
+
+
+        }
+
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height); 
+        game.updateanimation(ctx);
+        drawHealthBars();
+        fps();
+
+        while(accumulator >= step){
+           
+            update(); // kör alltid i 60 FPS
+             game.updatecolli();
+            accumulator -= step;
+        }
+
     
- 
-    
-    while(accumulator >= step){
-        update(); // kör alltid i 60 FPS
-        accumulator -= step;
     }
-   ctx.fillStyle = "black";
-    ctx.fillRect(0, 0, canvas.width, canvas.height); 
-    game.updateanimation(ctx);
-    drawHealthBars();
-    fps();
-    
-
     requestAnimationFrame(gameLoop);
 }
 
@@ -408,8 +414,7 @@ requestAnimationFrame(gameLoop);
                     ctx.shadowBlur = 0;
                     game.currentmap = 7;
 
-                   // ctx.fillStyle = "black";
-                   // ctx.fillRect(0, 0, canvas.width, canvas.height);
+                   
 
                     cinematicTimer++;
 
@@ -423,7 +428,8 @@ requestAnimationFrame(gameLoop);
                     else if(cinematicTimer > 180){
                         alpha = 1 - ((cinematicTimer - 180) / 60); // fade out
                     }
-
+                    ctx.fillStyle = "black";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
                     ctx.globalAlpha = alpha;
 
                     ctx.fillStyle = "white";
@@ -465,7 +471,8 @@ requestAnimationFrame(gameLoop);
                         else if(cinematicTimer > 980){
                             alpha = 1 - ((cinematicTimer - 980) / 60); // fade out
                         }
-
+                        ctx.fillStyle = "black";
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
                         ctx.globalAlpha = alpha;
 
                         ctx.fillStyle = "white";
