@@ -819,7 +819,7 @@
                             notW=false;
                         }
                         if(!keyState.w)notW=true;
-                        if(game.currentmap==3){if(bird.objects[0].x>300+canvas.width/2)game.setcameraobj(bird.objects[0], canvas.width, null);else{game.maps[game.currentmap].camerax=-300;}   }
+                        if(game.currentmap==3){if(bird.objects[0].x>300+canvas.width/2)game.setcameraobj(bird.objects[0], canvas.width, null);else{game.maps[game.currentmap].camerax=-300;}ctx.fillStyle="black";;ctx.globalAlpha = 0.6;ctx.fillRect(game.maps[game.currentmap].camerax+300,0,100,canvas.height);ctx.globalAlpha = 1;   }
                         else if(game.currentmap==2)game.setcameraobj(bird.objects[0], canvas.width, canvas.height);
                         else game.setcameraobj(bird.objects[0], canvas.width, null);
                         bird.objects[0].dual=40;
@@ -946,117 +946,26 @@
                             bird.objects[0].y=bird.objects[0].y-11; 
                         }
                         
+                   if(game.collideswith(bird.objects[0],"knapp","down")){game.collideswith(bird.objects[0],"knapp","down").animation=1;game.collideswith(bird.objects[0],"knapp","down").counter=1;}
+                    
+
+                    
+                    const houseint = game.getobjecttype('houseint')?.objects || [];
+                    for (const h of houseint) {
+                        if(bird.objects[0].x>h.x+100&& bird.objects[0].x<h.x+h.dimx-200){
+                            h.animation=1;
+                            ctx.fillStyle = "rgba(0,0,0,0.25)";
+                            ctx.fillRect(0,0,canvas.width,canvas.height);
+                        }
+                        else{h.animation=0;}
                         
                     }
-                    updateRats();
-                    updateArchers();
                     
-                    updateArrows();
-                    updateShields();
-                    updateBats();
-                    updateMages();
-                    runScheduled();
-                    updateGiantRatfish();
-                    updateWarlocks();
-                    updateFireballs();
-                    updateFirePillars();
-                    updatesword();
-                    updatebubbles();
                     
-                    const ratfish = game.getobjecttype('ratfish')?.objects || [];
-                    for (const r of ratfish){
-                       // if(!r.isonscreen)continue;
-                        if(bird.objects.length===0)continue;
-                       // r.water=true;
-                        r.dual=10;
-                        r.x += r.vx;
-                        r.y += r.vy;
-                        r.vx *= 0.93;
-                        r.vy *= 0.93;
-                        if (Math.abs(r.vx)<0.2) r.vx = 0;
-                        if (Math.abs(r.vy)<0.2) r.vy = 0;
-                        const waterobject=game.collideswiths(r,"water2");
-                        if(waterobject){
-                            r.counter2=0;
-                            if(r.fliped)spawnBubble(r.x+game.getcamerax(),r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
-                            if(!r.fliped)spawnBubble(r.x+game.getcamerax()+r.dimx,r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
-                        }
-                        
-                        
-                        
-                        if(r.counter2 > 0) r.counter2--;
-
-                        if(
-                            r.counter2 <= 0 && !game.collideswiths(r,"sword")&&
-                            !game.collideswiths(r,"swordguy") &&
-                            (game.collideswiths(r,"ground") || !game.collideswiths(r,"water2"))
-                        ){
-                            r.fliped = !r.fliped;
-                            r.counter2 = 60;
-                        }
-                        if(!game.collideswiths(r,"water2"))r.y+=11;
-                        
-                        if(r.alertT>0)r.alertT--;
-                        
-                        if(r.state=="patrol"){
-                            if(r.counter2>=50||r.counter2<=0){
-                                if(r.fliped)r.x-=3;
-                                if(!r.fliped)r.x+=3;
-                            }
-                            let dx = bird.objects[0].x - r.x;
-                            let dy = bird.objects[0].y - r.y;
-                            let len = Math.hypot(dx,dy) || 1;
-                            
-                            
-                            if(len < 440){
-                                if(r.state=="patrol")r.alertT=50;
-                                r.state="alert";
-                                r.counter=0;
-                            }
-                        }
-                        else if(r.state=="alert"){
-                            r.counter++;
-
-                            let dx = bird.objects[0].x - r.x;
-                            let dy = bird.objects[0].y - r.y;
-                            let len = Math.hypot(dx,dy) || 1;
-
-                            if (dx < -5) r.fliped = true;
-                            else if (dx > 5) r.fliped = false;
-
-                            if(r.counter > 50){
-                                r.state="dash";
-                                r.counter=0;
-
-                                r.vx = dx / len * 25;
-                                r.vy = dy / len * 25;
-                            }
-                        }
-                        else if(r.state=="dash"){
-                            if(game.collideswiths(r,"water2")){
-                                
-                                handleCombat(r, ["swordguy"], 2);
-                            }
-                            r.counter++;
-                            if(r.counter > 40){
-                                r.state="cooldown";
-                                r.counter=0;
-                               // r.vx *= 0.3;
-                              //  r.vy *= 0.3;
-                            }
-                        }
-                        else if(r.state=="cooldown"){
-                            r.counter++;
-                          //  r.vx *= 0.92;
-                         //   r.vy *= 0.92;
-                            r.x += r.vx;
-                            r.y += r.vy;
-
-                            if(r.counter > 35){
-                                r.state="patrol";
-                                r.counter=0;
-                            }
-                        }
+                    
+                    
+                    if(acount==25&& !inwater)  handleCombat(bird.objects[0], ["rat","archer","tank","bat","mage","warlock","ratfish"], 50);
+                    if(acount==1&& inwater)shootsword(bird.objects[0].x, bird.objects[0].y, bird.objects[0].fliped);
                     }
                     
                     const boulders = game.getobjecttype('bolder')?.objects || [];
@@ -1133,25 +1042,7 @@
                           s.water=true;
                         
                     }
-                    if(game.collideswith(bird.objects[0],"knapp","down")){game.collideswith(bird.objects[0],"knapp","down").animation=1;game.collideswith(bird.objects[0],"knapp","down").counter=1;}
-                    
 
-                    
-                    const houseint = game.getobjecttype('houseint')?.objects || [];
-                    for (const h of houseint) {
-                        if(bird.objects[0].x>h.x+100&& bird.objects[0].x<h.x+h.dimx-200){
-                            h.animation=1;
-
-                        }
-                        else{h.animation=0;}
-                        
-                    }
-                    
-                    
-                    
-                    
-                    if(acount==25&& !inwater)  handleCombat(bird.objects[0], ["rat","archer","tank","bat","mage","warlock","ratfish"], 50);
-                    if(acount==1&& inwater)shootsword(bird.objects[0].x, bird.objects[0].y, bird.objects[0].fliped);
                     const arrows = game.getobjecttype('arrow')?.objects || [];
                     for(const a of arrows){
                         handleCombat(a, ["swordguy"], 10);
@@ -1175,6 +1066,20 @@
                     
                 
                 drawOverlays(ctx);
+                updateRats();
+                updateArchers();
+                updateratfish();
+                updateArrows();
+                updateShields();
+                updateBats();
+                updateMages();
+                runScheduled();
+                updateGiantRatfish();
+                updateWarlocks();
+                updateFireballs();
+                updateFirePillars();
+                updatesword();
+                updatebubbles();
                 gameover();
                 }
                 if (gameState==="overworld"){
@@ -1211,6 +1116,107 @@
             };check();
             
 const Heroes = new Set(["swordguy"]); // byggnader
+
+function updateratfish(){
+    
+    const ratfish = game.getobjecttype('ratfish')?.objects || [];
+    for (const r of ratfish){
+       // if(!r.isonscreen)continue;
+        if(bird.objects.length===0)continue;
+       // r.water=true;
+        r.dual=10;
+        r.x += r.vx;
+        r.y += r.vy;
+        r.vx *= 0.93;
+        r.vy *= 0.93;
+        if (Math.abs(r.vx)<0.2) r.vx = 0;
+        if (Math.abs(r.vy)<0.2) r.vy = 0;
+        const waterobject=game.collideswiths(r,"water2");
+        if(waterobject){
+            r.counter2=0;
+            if(r.fliped)spawnBubble(r.x+game.getcamerax(),r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
+            if(!r.fliped)spawnBubble(r.x+game.getcamerax()+r.dimx,r.y+45+game.getcameray(),game.getcamerax(),game.getcameray(),waterobject.y);
+        }
+
+
+
+        if(r.counter2 > 0) r.counter2--;
+
+        if(
+            r.counter2 <= 0 && !game.collideswiths(r,"sword")&&
+            !game.collideswiths(r,"swordguy") &&
+            (game.collideswiths(r,"ground") || !game.collideswiths(r,"water2"))
+        ){
+            r.fliped = !r.fliped;
+            r.counter2 = 60;
+        }
+        if(!game.collideswiths(r,"water2"))r.y+=11;
+
+        if(r.alertT>0)r.alertT--;
+
+        if(r.state=="patrol"){
+            if(r.counter2>=50||r.counter2<=0){
+                if(r.fliped)r.x-=3;
+                if(!r.fliped)r.x+=3;
+            }
+            let dx = bird.objects[0].x - r.x;
+            let dy = bird.objects[0].y - r.y;
+            let len = Math.hypot(dx,dy) || 1;
+
+
+            if(len < 440){
+                if(r.state=="patrol")r.alertT=50;
+                r.state="alert";
+                r.counter=0;
+            }
+        }
+        else if(r.state=="alert"){
+            r.counter++;
+
+            let dx = bird.objects[0].x - r.x;
+            let dy = bird.objects[0].y - r.y;
+            let len = Math.hypot(dx,dy) || 1;
+
+            if (dx < -5) r.fliped = true;
+            else if (dx > 5) r.fliped = false;
+
+            if(r.counter > 50){
+                r.state="dash";
+                r.counter=0;
+
+                r.vx = dx / len * 25;
+                r.vy = dy / len * 25;
+            }
+        }
+        else if(r.state=="dash"){
+            if(game.collideswiths(r,"water2")){
+
+                handleCombat(r, ["swordguy"], 2);
+            }
+            r.counter++;
+            if(r.counter > 40){
+                r.state="cooldown";
+                r.counter=0;
+               // r.vx *= 0.3;
+              //  r.vy *= 0.3;
+            }
+        }
+        else if(r.state=="cooldown"){
+            r.counter++;
+          //  r.vx *= 0.92;
+         //   r.vy *= 0.92;
+            r.x += r.vx;
+            r.y += r.vy;
+
+            if(r.counter > 35){
+                r.state="patrol";
+                r.counter=0;
+            }
+        }
+    }
+}
+
+
 function updatebubbles(){
     for(let b of bubbles){
                         b.x+=b.vx;
@@ -1788,25 +1794,11 @@ function hitStop(fr){
   hitstopFrames = fr;
 }
 function groundSnapGhost(o, oldY){
-  const grounds = game.getobjecttype("ground")?.objects || [];
-  let bestY = Infinity;
 
-  for (const g of grounds){
-    const overlapX = (o.x + o.dimx > g.x) && (o.x < g.x + g.dimx);
-    if (!overlapX) continue;
+    if(game.collideswith(o,"any","ghost"))return true;
+    
+    return false;
 
-    const topY = g.y - o.dimy;
-
-    if (oldY <= topY && o.y >= topY){
-      bestY = Math.min(bestY, topY);
-    }
-  }
-
-  if (bestY < Infinity){
-    o.y = bestY;
-    return true;
-  }
-  return false;
 }
 function getWaterAt(o){
   const waters = game.getobjecttype("water2")?.objects || [];
@@ -1827,11 +1819,33 @@ function updateLoot(player){
 
     for (let i = arr.length - 1; i >= 0; --i){
       const o = arr[i];
+      
+      if(o.vy==0){
+
+        if (type === game.getobjecttype("coin") && game.collideswith(o,"swordguy","ghost")){
+          game.removeobject(type, o);
+          coins++;
+          audio2("sounds/coin.mp3");
+          continue;
+        }
+        if (type === game.getobjecttype("apple") && game.collideswith(o,"swordguy","ghost")){
+          game.removeobject(type, o);
+          player.health = Math.min(player.maxhealth, player.health + 10);
+          audio2("sounds/apple.mp3");
+          continue;
+        }
+      
+
+      }
+      else{
       o.t++;
       if (o.pickDelay > 0) o.pickDelay--;
-      if (o.despawn-- <= 0){
-        game.removeobject(type, o);
-        continue;
+      if (o.despawn != null && o.despawn > 0){
+        o.despawn--;
+        if (o.despawn <= 0){
+          game.removeobject(type, o);
+          continue;
+        }
       }
 
       const water = getWaterAt(o);
@@ -1941,6 +1955,7 @@ function updateLoot(player){
         }
       }
     }
+}
   }
 }
 function updateGoal(player){
@@ -2847,7 +2862,7 @@ function updateMages(){
     }
   }
 }
-function shootFireball(r,dir){
+function shootFireball(r,dir, angle){
   const F = game.getobjecttype("fire");
   const f = game.addobject(F, r.x+(dir*20), r.y+10, 36, 36, 0, (dir<0));
 
@@ -2857,6 +2872,17 @@ function shootFireball(r,dir){
   f.life = 120;  // 2 sek
   f.damage = 12;
 }
+
+function shootFireballFrom(b, dir, angle){
+  const F = game.getobjecttype('fire');
+  const f = game.addobject(F, b.x+b.dimx/2 + dir*22, b.y + 6, 36, 36, 0, (dir<0));
+  const base = WARLOCK_AI.FIREBALL_VX;
+  const vx = dir * base * Math.cos(angle);
+  const vy = base * Math.sin(angle) * -1; // lätt uppåt
+  f.vx = vx; f.vy = vy; f.ay = 0.12; f.life = 120; f.damage = WARLOCK_AI.FIREBALL_DMG;
+}
+
+
 function updateFireballs(){
   const F = game.getobjecttype("fire");
   const P = game.getobjecttype("swordguy")?.objects?.[0];
@@ -2881,9 +2907,10 @@ function updateFireballs(){
     }
 
     // krockar med vägg
-    if (game.collideswith(f,"any","down") || game.collideswith(f,"any","left") || game.collideswith(f,"any","right")){
+    if (game.collideswith(f,"ground","ghost")){
       spawnHitParticles(f.x+f.dimx/2,f.y+f.dimy/2,12,"#ff6600");
-      game.removeobject(F,f);
+      f.vy=0;
+      //game.removeobject(F,f);
     }
   }
 }

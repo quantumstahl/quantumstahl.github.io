@@ -1673,7 +1673,7 @@ class Game5 {
     
     
     updateanimation(ctx) {
-        //try {
+        try {
             updateWaterRipples();
             this.updateUnitMovement();
             
@@ -1824,7 +1824,7 @@ maskCanvas.width = canvas.width;
   
   
         
-       // } catch (error) {}
+        } catch (error) {}
     }
     collitionengine() {
 
