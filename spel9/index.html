@@ -300,20 +300,16 @@ function gameLoop(time){
 
     accumulator += delta;
     
-    update();
+   
     
     
-    if(accumulator >= step){
+    while(accumulator >= step){
          // kör alltid i 60 FPS
          accumulator -= step;
-        requestAnimationFrame(gameLoop);
-        
+          update();
+           
     }
-
-  //  setTimeout(function(){
-   //     update(); // kör alltid i 60 FPS
-    //    requestAnimationFrame(gameLoop);
-//}, 60);
+    requestAnimationFrame(gameLoop);     
     
 }
 
