@@ -363,7 +363,7 @@ var JoyStick = (function (container, parameters, callback) {
     }
 
     // Init
-    updateGeometry();
+  //  updateGeometry();
     updateDefaultCenter();
     centerX = defaultCenterX;
     centerY = defaultCenterY;
@@ -381,7 +381,7 @@ var JoyStick = (function (container, parameters, callback) {
         document.addEventListener("mouseup", onMouseUp, false);
     }
 
-    redraw();
+    //redraw();
     updateStatus();
 
     this.redraw = function () {
