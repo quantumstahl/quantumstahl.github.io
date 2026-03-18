@@ -1223,6 +1223,7 @@ function updateratfish(){
 
 
 function updatebubbles(){
+    if(game.currentmap!==2)bubbles=[];
     for(let b of bubbles){
                         b.x+=b.vx;
                         b.y+=b.vy;
