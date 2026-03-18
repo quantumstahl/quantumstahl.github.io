@@ -370,26 +370,7 @@ function gameLoop(time2){
             fps();
             }
         }
-        if(gameState==="overworld"||gameState==="play"){
-            if("ontouchstart" in document.documentElement ){
-                    keyState.d=false;keyState.a = false;keyState.w=false;keyState.s = false;
-                    if(joy.GetDir()=="N"){keyState.w = true;}
-                    else if(joy.GetDir()=="NE"){keyState.d = true;}    
-                    else if(joy.GetDir()=="E"){keyState.d = true;}
-                    else if(joy.GetDir()=="SE"){keyState.d = true;}    
-                    else if(joy.GetDir()=="S"){keyState.s = true;}
-                    else if(joy.GetDir()=="SW"){keyState.a = true;}    
-                    else if(joy.GetDir()=="W"){keyState.a = true;}    
-                    else if(joy.GetDir()=="NW"){keyState.a = true;}     
-                    else if(joy.GetDir()=="C") {
-
-                    }
-
-                 joy.redraw();
-                }
-            
-            
-        }
+        
         
         
         if(start==false){
@@ -756,6 +737,27 @@ function gameLoop(time2){
 
                   drawOverworld(ctx);
               }
+              if(gameState==="overworld"||gameState==="play"){
+            if("ontouchstart" in document.documentElement ){
+                    keyState.d=false;keyState.a = false;keyState.w=false;keyState.s = false;
+                    if(joy.GetDir()=="N"){keyState.w = true;}
+                    else if(joy.GetDir()=="NE"){keyState.d = true;}    
+                    else if(joy.GetDir()=="E"){keyState.d = true;}
+                    else if(joy.GetDir()=="SE"){keyState.d = true;}    
+                    else if(joy.GetDir()=="S"){keyState.s = true;}
+                    else if(joy.GetDir()=="SW"){keyState.a = true;}    
+                    else if(joy.GetDir()=="W"){keyState.a = true;}    
+                    else if(joy.GetDir()=="NW"){keyState.a = true;}     
+                    else if(joy.GetDir()=="C") {
+
+                    }
+
+                 joy.redraw();
+                }
+            
+            
+        }
+              
         while(accumulator >= step){
             
             update(); // kör alltid i 60 FPS
