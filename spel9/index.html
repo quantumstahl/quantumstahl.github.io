@@ -1795,7 +1795,7 @@ function hitStop(fr){
 }
 function groundSnapGhost(o, oldY){
 
-    if(game.collideswith(o,"any","ghost"))return true;
+    if(game.collideswith(o,"any","ghost")){o.y=oy-10;return true;}
     
     return false;
 
