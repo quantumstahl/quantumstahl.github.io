@@ -291,22 +291,32 @@
 
 
 let lastTime = 0;
-const step = 1000 / 60;
+let accumulator = 0;
+const step = 1/60;
 
 function gameLoop(time){
-    if (!lastTime) lastTime = time;
+    const delta = (time - lastTime) / 1000;
+    lastTime = time;
 
-    if (time - lastTime >= step){
-        update();
-        lastTime += step; // bättre än lastTime = time
+    accumulator += delta;
+    
+    update();
+    
+    
+    while(accumulator >= step){
+         // kör alltid i 60 FPS
+        requestAnimationFrame(gameLoop);
+        accumulator -= step;
     }
 
-    requestAnimationFrame(gameLoop);
+  //  setTimeout(function(){
+   //     update(); // kör alltid i 60 FPS
+    //    requestAnimationFrame(gameLoop);
+//}, 60);
+    
 }
 
 requestAnimationFrame(gameLoop);
-
-
 
 
             function update(){
