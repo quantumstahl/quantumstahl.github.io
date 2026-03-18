@@ -836,7 +836,7 @@ requestAnimationFrame(gameLoop);
                 const coinicon=game.getobjecttype("coinicon");
       
                 
-                if(bird && gameState !== 'overworld'){
+                if(bird && gameState !== 'overworld'&&!outro){
                     const isPortrait = canvas.height > canvas.width;
                     if (!isPortrait) {
                         bbutton.objects[0].x=canvas.width * 0.80;bbutton.objects[0].y=canvas.height * 0.62;bbutton.objects[0].dimx=canvas.width * 0.10;bbutton.objects[0].dimy=canvas.width * 0.10;
