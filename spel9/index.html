@@ -288,7 +288,31 @@
         ctx.restore();
     }
 }
-            var check = function(){
+
+
+let lastTime = 0;
+let accumulator = 0;
+const step = 1/60;
+
+function gameLoop(time){
+    const delta = (time - lastTime) / 1000;
+    lastTime = time;
+
+    accumulator += delta;
+
+    while(accumulator >= step){
+        update(); // kör alltid i 60 FPS
+        accumulator -= step;
+    }
+
+
+    requestAnimationFrame(gameLoop);
+}
+
+requestAnimationFrame(gameLoop);
+
+
+            function update(){
                     
                     time=performance.now();
                     if(!mobileAndTabletCheck()){
@@ -309,8 +333,8 @@
                             canvas.height=1600;  
                         }
                         else{
-                            canvas.width=1600;
-                            canvas.height=1200;
+                            canvas.width=1600*1.2;
+                            canvas.height=1100*1.2;
                         }
                         canvas.style.position="absolute";
                         canvas.style.width  = document.body.clientWidth + "px";
@@ -779,7 +803,6 @@
                     
                     if (hitstopFrames > 0){
                         hitstopFrames--;
-                        requestAnimationFrame(check);
                         return; // stoppa all logik den här framen
                     }
                     
@@ -848,6 +871,7 @@
                             
                             if(climbcounter>0){
                                 if(count<jumplength/2){bird.objects[0].y=bird.objects[0].y-22;count++;}
+                                if(climbcounter==1){count=1000;}
                             }
                             else{
                                 if(count<jumplength){bird.objects[0].y=bird.objects[0].y-22;count++;}
@@ -1116,8 +1140,8 @@
                 
             }   
                 
-                window.requestAnimationFrame(check);   
-            };check();
+               
+            }
             
 const Heroes = new Set(["swordguy"]); // byggnader
 
