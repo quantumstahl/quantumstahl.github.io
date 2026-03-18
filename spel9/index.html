@@ -303,7 +303,7 @@ function gameLoop(time){
    
     
     
-    while(accumulator >= step){
+    if(accumulator >= step){
          // kör alltid i 60 FPS
          accumulator -= step;
           update();
