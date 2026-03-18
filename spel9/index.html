@@ -303,10 +303,11 @@ function gameLoop(time){
     update();
     
     
-    while(accumulator >= step){
+    if(accumulator >= step){
          // kör alltid i 60 FPS
+         accumulator -= step;
         requestAnimationFrame(gameLoop);
-        accumulator -= step;
+        
     }
 
   //  setTimeout(function(){
