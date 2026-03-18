@@ -1126,7 +1126,8 @@ function updateratfish(){
     const ratfish = game.getobjecttype('ratfish')?.objects || [];
     for (const r of ratfish){
        // if(!r.isonscreen)continue;
-        if(bird.objects.length===0)continue;
+        if(game.getobjecttype("swordguy").objects.length===0)continue;
+        const bird= game.getobjecttype("swordguy");
        // r.water=true;
         r.dual=10;
         r.x += r.vx;
