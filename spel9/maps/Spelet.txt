@@ -5799,13 +5799,6 @@ E*?
 images/batrat.png
 E*?
 images/batrat2.png
-F*?
-7359.461538461538
-30.576923076923094
-100
-100
-180
-false
 C*?
 mage
 100
