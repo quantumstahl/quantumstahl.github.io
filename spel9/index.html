@@ -74,6 +74,7 @@
                         if(cinematic){}
                         else if(game.currentmap==1){audio.src = 'sounds/cast4.mp3';}
                         else if(game.currentmap==2){audio.src = 'sounds/water.mp3';}
+                        else if(game.currentmap==3){audio.src = "sounds/town.mp3";}
                         else if(game.currentmap==6){audio.src = 'sounds/drak.mp3';}
                         else{ audio.src = 'sounds/cast3.mp3';}
                         audio.play();
@@ -737,8 +738,11 @@
                         drawWaterSurface(ctx, w.x+game.getcamerax(), w.dimx, w.y+game.getcameray(), performance.now());
                     }
                     
-                    
-                    if(game.currentmap==1){
+                    if(game.currentmap==3){
+                        if(!audio.src.endsWith("town.mp3")){audio.src = "sounds/town.mp3";audio.play();}
+                        
+                    }
+                    else if(game.currentmap==1){
                         if(game.getobjecttype("tank").objects.length===0){
                             
                             const rope = game.getobjecttype('rope')?.objects || [];
@@ -1795,7 +1799,7 @@ function hitStop(fr){
 }
 function groundSnapGhost(o, oldY){
 
-    if(game.collideswith(o,"any","ghost")){o.y=oy-o.dimx;return true;}
+    if(game.collideswith(o,"any","ghost")){o.y=o.y-o.dimx;return true;}
     
     return false;
 
@@ -1820,7 +1824,7 @@ function updateLoot(player){
     for (let i = arr.length - 1; i >= 0; --i){
       const o = arr[i];
       
-      if(o.vy==0){
+      if(o.t==null){
 
         if (type === game.getobjecttype("coin") && game.collideswith(o,"swordguy","ghost")){
           game.removeobject(type, o);
