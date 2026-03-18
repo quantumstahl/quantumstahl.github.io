@@ -54,7 +54,7 @@
                 e.preventDefault();
                 if(gamewinrestar)bigrestart=true;
                 
-		    if(start)cinematic=false;		
+		    if(start){gameState = 'overworld';cinematic=false;}		
                     try{if(audio.paused){ 
                         
                         audio.play();start=true;
@@ -92,7 +92,7 @@
             
             
   
-            document.addEventListener('click', (event) => {if(gamewinrestar)bigrestart=true;if(start)cinematic=false;try{if(audio.paused&&gameState!=='game_over'){ audio.play();start=true;}}catch(error){};});
+            document.addEventListener('click', (event) => {if(gamewinrestar)bigrestart=true;if(start){gameState = 'overworld';cinematic=false;}	try{if(audio.paused&&gameState!=='game_over'){ audio.play();start=true;}}catch(error){};});
 
             
             let keyState = {
@@ -338,10 +338,10 @@ function gameLoop(time2){
 
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, canvas.width, canvas.height); 
-        game.updateanimation(ctx);
+        if(gameState !== 'overworld'){game.updateanimation(ctx);
         drawHealthBars();
         fps();
-
+        }
         while(accumulator >= step){
            
             update(); // kör alltid i 60 FPS
@@ -411,6 +411,7 @@ requestAnimationFrame(gameLoop);
 
                 }
                 else if(cinematic){
+                    gameState = 'cinematic';
                     ctx.shadowBlur = 0;
                     game.currentmap = 7;
 
@@ -552,8 +553,8 @@ requestAnimationFrame(gameLoop);
                         
                     }
                     else{
-                       // ctx.fillStyle = "black";
-                       // ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.fillStyle = "black";
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
                         
                     }
                     
