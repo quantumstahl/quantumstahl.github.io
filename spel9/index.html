@@ -347,9 +347,9 @@ function gameLoop(time2){
                   drawOverworld(ctx);
               }
         while(accumulator >= step){
-           
-            update(); // kör alltid i 60 FPS
             game.updatecolli();
+            update(); // kör alltid i 60 FPS
+            
             accumulator -= step;
         }
 
