@@ -737,7 +737,7 @@ function gameLoop(time2){
 
                   drawOverworld(ctx);
               }
-              if(gameState==="overworld"||gameState==="play"){
+              if(!outro&&(gameState==="overworld"||gameState==="play")){
             if("ontouchstart" in document.documentElement ){
                     keyState.d=false;keyState.a = false;keyState.w=false;keyState.s = false;
                     if(joy.GetDir()=="N"){keyState.w = true;}
@@ -3090,7 +3090,10 @@ function updateWarlocks(){
   for (const b of W){
     initWarlock(b);
     // fas efter HP
-    if(b.isonscreen&&!audio.src.endsWith("drak.mp3")){audio.src = "sounds/drak.mp3";audio.play();}
+    
+
+    
+    if(b.isonscreen&&!audio.src.endsWith("drak.mp3")&&!audio.src.endsWith("win.mp3")){audio.src = "sounds/drak.mp3";audio.play();}
     
     const hpPct = b.health / b.maxHealth;
     
