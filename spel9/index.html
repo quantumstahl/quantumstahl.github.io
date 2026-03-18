@@ -341,6 +341,11 @@ function gameLoop(time2){
             if(gameState !== 'cinematic')drawHealthBars();
             if(gameState !== 'cinematic')fps();
         }
+        if (gameState==="overworld"){
+
+
+                  drawOverworld(ctx);
+              }
         while(accumulator >= step){
            
             update(); // kör alltid i 60 FPS
@@ -1147,7 +1152,7 @@ requestAnimationFrame(gameLoop);
 
                     if(!audio.src.endsWith("COV.mp3")){audio.src = 'sounds/COV.mp3';audio.play();}
                     updateOverworld();
-                    drawOverworld(ctx);
+                  //  drawOverworld(ctx);
                     
                     
                     
