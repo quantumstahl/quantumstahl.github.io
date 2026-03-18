@@ -1672,11 +1672,11 @@ class Game5 {
         return string;
     }
     updatecolli(){
-        this.collitionengine();
+        try {this.collitionengine();} catch (error) {}
         
     }
     updateanimation(ctx) {
-       // try {
+        try {
             updateWaterRipples();
            // this.updateUnitMovement();
             
@@ -1827,7 +1827,7 @@ maskCanvas.width = canvas.width;
   
   
         
-       // } catch (error) {}
+        } catch (error) {}
     }
     collitionengine() {
 
