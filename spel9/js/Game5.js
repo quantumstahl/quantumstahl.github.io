@@ -820,8 +820,8 @@ if (Math.abs(contact.n.x) > 0.9 && (A.ref?._wantdx || 0) !== 0) {
         if (depth <= 0) continue;
         if (depth > MAX_STEP) depth = MAX_STEP;
 
-        G.x -= contact.n.x * depth;
-        G.y -= contact.n.y * depth;
+       // G.x -= contact.n.x * depth;
+       // G.y -= contact.n.y * depth;
 
         // uppdatera cache
         G._aabb = { x:G.x, y:G.y, w:G.w, h:G.h };

@@ -819,7 +819,8 @@
                             notW=false;
                         }
                         if(!keyState.w)notW=true;
-                        if(game.currentmap==2)game.setcameraobj(bird.objects[0], canvas.width, canvas.height);
+                        if(game.currentmap==3){if(bird.objects[0].x>1500)game.setcameraobj(bird.objects[0], canvas.width, null);else{game.maps[game.currentmap].camerax=-300;}   }
+                        else if(game.currentmap==2)game.setcameraobj(bird.objects[0], canvas.width, canvas.height);
                         else game.setcameraobj(bird.objects[0], canvas.width, null);
                         bird.objects[0].dual=40;
                         if(inwater)bird.objects[0].dual=0;
@@ -1133,6 +1134,18 @@
                         
                     }
                     if(game.collideswith(bird.objects[0],"knapp","down")){game.collideswith(bird.objects[0],"knapp","down").animation=1;game.collideswith(bird.objects[0],"knapp","down").counter=1;}
+                    
+
+                    
+                    const houseint = game.getobjecttype('houseint')?.objects || [];
+                    for (const h of houseint) {
+                        if(bird.objects[0].x>h.x+100&& bird.objects[0].x<h.x+h.dimx-200){
+                            h.animation=1;
+
+                        }
+                        else{h.animation=0;}
+                        
+                    }
                     
                     
                     
