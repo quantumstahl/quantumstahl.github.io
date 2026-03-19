@@ -624,7 +624,7 @@ requestAnimationFrame(gameLoop);
                     else if(outroTimer <= 800){
                         let alpha = (outroTimer - 401) / 300;
                         if(alpha > 1) alpha = 1;
-						game.getobjecttype("warlock")?.images[0].speed=0;
+						game.getobjecttype("warlock")?.images[0].speed=500000000;
                      //   ctx.fillStyle = "black";
                      //   ctx.fillRect(0, 0, canvas.width, canvas.height);
 					    game.updateanimation(ctx);
