@@ -204,8 +204,7 @@ const SimSolver = {
   STATIC_INV_MASS: 0.0,
   DYN_INV_MASS: 1.0,
 
-  step(game){
-    
+  step(game,scales){
 
 function _pushCollisionLog(targetRef, otherRef, n, isGhost=false, depth=0, aabbA=null, aabbB=null){
   if (!targetRef) return;
@@ -1671,12 +1670,11 @@ class Game5 {
         string = string + "Q*?" + "\n";
         return string;
     }
-
-    updateanimation(ctx) {
+    updateanimation(ctx,scales) {
         try {
             updateWaterRipples();
            // this.updateUnitMovement();
-            this.collitionengine();
+            this.collitionengine(scales);
             
        
     
@@ -1690,7 +1688,7 @@ class Game5 {
                     for (let i3 = 0; i3 < this.maps[i].layer[i2].objectype.length; i3++) {
                         this.maps[i].layer[i2].objectype[i3].draw(ctx, this.maps[i].zoom, this.maps[i].camerax / 100 * this.maps[i].layer[i2].moving, this.maps[i].cameray / 100 * this.maps[i].layer[i2].moving);
                         for (let i4 = 0; i4 < this.maps[i].layer[i2].objectype[i3].images.length; i4++) {
-                            this.maps[i].layer[i2].objectype[i3].images[i4].updateanimation();
+                            this.maps[i].layer[i2].objectype[i3].images[i4].updateanimation(scales);
                         }
                     }
                 }
@@ -1826,13 +1824,13 @@ maskCanvas.width = canvas.width;
         
         } catch (error) {}
     }
-    collitionengine() {
+    collitionengine(scales) {
 
 
 
 
     // 3. Kör förflyttning + subpixlar
-    SimSolver.step(this);
+    SimSolver.step(this,scales);
 }
     collidepoint(px, py, typeName = "any"){
       const map = game.maps[game.currentmap];
@@ -2579,14 +2577,14 @@ class Sprites {
         this.counter = 0;
         this.speed = 5;
     }
-    updateanimation() {
+    updateanimation(skales) {
         if (this.counter >= this.speed) {
             this.ani++;
             this.counter = 0;
         }
         if (this.ani >= this.images.length)
             this.ani = 0;
-        this.counter++;
+        this.counter=this.counter+(1*skales);
     }
     getimage() {
         try {
