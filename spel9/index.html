@@ -73,6 +73,7 @@
                 if (document.visibilityState === "visible") {
                         if(!cinematic)audio.pause();
                         if(cinematic){}
+						else if(outro){audio.src = 'sounds/win.mp3';}
                         else if(game.currentmap==1){audio.src = 'sounds/cast4.mp3';}
                         else if(game.currentmap==2){audio.src = 'sounds/water.mp3';}
                         else if(game.currentmap==3){audio.src = "sounds/town.mp3";}
