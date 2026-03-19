@@ -622,9 +622,11 @@ function gameLoop(time2){
 
                      //   ctx.fillStyle = "black";
                      //   ctx.fillRect(0, 0, canvas.width, canvas.height);
-                        ctx.globalAlpha = 1-alpha;
+                        ctx.globalAlpha = alpha;
+                        ctx.fillStyle = "black";
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
                         // om du vill visa sista bilden av warlock room lite under
-                       //  game.updateanimation(ctx);
+                         //game.updateanimation(ctx);
          
                     }
                     else if(outroTimer <= 1000){
@@ -838,7 +840,7 @@ requestAnimationFrame(gameLoop);
                 const coinicon=game.getobjecttype("coinicon");
       
                 
-                if(bird && gameState !== 'overworld'&&!outro){
+                if(bird && gameState !== 'overworld'){
                     const isPortrait = canvas.height > canvas.width;
                     if (!isPortrait) {
                         bbutton.objects[0].x=canvas.width * 0.80;bbutton.objects[0].y=canvas.height * 0.62;bbutton.objects[0].dimx=canvas.width * 0.10;bbutton.objects[0].dimy=canvas.width * 0.10;
@@ -849,7 +851,7 @@ requestAnimationFrame(gameLoop);
                         abutton.objects[0].x=canvas.width * 0.80;abutton.objects[0].y=canvas.height * 0.80;abutton.objects[0].dimx=canvas.width * 0.15;abutton.objects[0].dimy=canvas.width * 0.15;
                         
                     }
-                    if(!mobileAndTabletCheck()){abutton.objects[0].x=canvas.width+300;abutton.objects[0].y=canvas.height+400;bbutton.objects[0].x=canvas.width+300;bbutton.objects[0].y=canvas.height+400;}
+                    if(!mobileAndTabletCheck()||outro){abutton.objects[0].x=canvas.width+300;abutton.objects[0].y=canvas.height+400;bbutton.objects[0].x=canvas.width+300;bbutton.objects[0].y=canvas.height+400;}
                    
               //  game.updateanimation(ctx);
                //  drawHealthBars();
@@ -1410,7 +1412,7 @@ function drawHealthBars() {
 
     // defaultvärden om hälsa saknas
     if (o.maxhealth == null&&o.name=="giantratfish"){o.maxhealth = 800;o.health = o.maxhealth;}
-    if (o.maxhealth == null&&o.name=="warlock"){o.maxhealth = 25;o.health = o.maxhealth;}
+    if (o.maxhealth == null&&o.name=="warlock"){o.maxhealth = 2500;o.health = o.maxhealth;}
     if (o.maxhealth == null&&o.name=="tank"){o.maxhealth = 200;o.health = o.maxhealth;}
     if (o.maxhealth == null&&(o.name=="mage"||o.name=="bat")){o.maxhealth = 50;o.health = o.maxhealth;}
     if (o.maxhealth == null){ o.maxhealth = Heroes.has(o.name) ? 30 : 100;o.health = o.maxhealth;}
@@ -3018,7 +3020,7 @@ function updateFireballs(){
 
 // ================== Tunables ==================
 const WARLOCK_AI = {
-  HP: 25,
+  HP: 2500,
 
   SPEED: 1.2,
   SIGHT_X: 9999,
