@@ -305,11 +305,11 @@ function gameLoop(time){
     let deltaMs = time - lastTime;
     lastTime = time;
 
-    if (deltaMs > 100) deltaMs = 100;
+    if (deltaMs > 50) deltaMs = 50;
 
     const scale = deltaMs / (1000 / 60);
 
-    update(1);
+    update(50/(1000 / 60));
     requestAnimationFrame(gameLoop);
 }
 
@@ -1873,7 +1873,7 @@ function updatePhysics(obj,scale,player){
   if (game.collideswith(obj,"any","down")||game.collideswiths(obj,"water2")){
     //obj.vy = 0;
     //obj.y = Math.floor(obj.y/32)*32 - obj.h; // snap to tile
-    obj.vx *= 0.85; // bromsa horisontellt
+    obj.vx *= Math.pow(0.85,scale); // bromsa horisontellt
     if (Math.abs(obj.vx)<0.2) obj.vx = 0;
   }
 }
