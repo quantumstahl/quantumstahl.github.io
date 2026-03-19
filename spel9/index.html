@@ -345,7 +345,9 @@ function gameLoop(time2){
                 w.water=true;
                 drawWaterSurface(ctx, w.x+game.getcamerax(), w.dimx, w.y+game.getcameray(), performance.now());
             }
-            if(gameState !== 'cinematic'&&game.getobjecttype("swordguy").length>0){game.getobjecttype("coinicon").objects[0].x=40;game.getobjecttype("coinicon").objects[0].y=100;
+            if(gameState !== 'cinematic'&&game.getobjecttype("swordguy").objects.length>0){
+           
+             game.getobjecttype("coinicon").objects[0].x=40;game.getobjecttype("coinicon").objects[0].y=100;
             ctx.restore();
             ctx.fillStyle="gold";
             ctx.font = "100px serif";
