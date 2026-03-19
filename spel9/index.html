@@ -337,7 +337,7 @@ function gameLoop(time2){
         }
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, canvas.width, canvas.height); 
-        if(gameState === 'play'||gameState === 'cinematic'){game.updateanimation(ctx);drawOverlays(ctx);
+        if(gameState === 'play'||gameState === 'cinematic'||gameState === 'level_complete' || gameState === 'game_over'){game.updateanimation(ctx);drawOverlays(ctx);
             
             const water2 = game.getobjecttype('water2')?.objects || [];
             for (const w of water2){
