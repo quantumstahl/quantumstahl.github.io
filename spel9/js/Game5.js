@@ -1671,15 +1671,12 @@ class Game5 {
         string = string + "Q*?" + "\n";
         return string;
     }
-    updatecolli(){
-        try {this.collitionengine();} catch (error) {}
-        
-    }
+
     updateanimation(ctx) {
         try {
             updateWaterRipples();
            // this.updateUnitMovement();
-            
+            this.collitionengine();
             
        
     
