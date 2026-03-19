@@ -596,7 +596,7 @@ requestAnimationFrame(gameLoop);
                         // annars kan du tillfälligt flytta objektet
                         warlock.x += dx;
                         warlock.y += dy;
-                        game.updateanimation(ctx);
+                        //game.updateanimation(ctx);
                         warlock.x -= dx;
                         warlock.y -= dy;
 
@@ -626,7 +626,7 @@ requestAnimationFrame(gameLoop);
 
                      //   ctx.fillStyle = "black";
                      //   ctx.fillRect(0, 0, canvas.width, canvas.height);
-                        ctx.globalAlpha = alpha;
+                        ctx.globalAlpha = 1-alpha;
                         ctx.fillStyle = "black";
                         ctx.fillRect(0, 0, canvas.width, canvas.height);
                         // om du vill visa sista bilden av warlock room lite under
