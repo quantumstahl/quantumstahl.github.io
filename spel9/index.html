@@ -450,7 +450,7 @@ requestAnimationFrame(gameLoop);
                         if(cinematicTimer < 860){ 
 
                             
-                            alpha = (cinematicTimer-802) / 60; // fade in ..... funkar inte
+                            alpha = (cinematicTimer-802) / 60; // fade in 
                         }
                         else if(cinematicTimer > 980){
                             alpha = 1 - ((cinematicTimer - 980) / 60); // fade out
@@ -482,7 +482,7 @@ requestAnimationFrame(gameLoop);
                     else if(cinematicTimer > 1401&&cinematicTimer< 1800){
                         game.setcameraobj(game.getobjecttype("swordguy").objects[2], canvas.width, canvas.height);
                         game.maps[7].zoom=1;
-                        //game.updateanimation(ctx);
+                        game.updateanimation(ctx);
                         game.getobjecttype("swordguy").objects[2].animation=0;
                         
                         if(cinematicTimer > 1601)game.getobjecttype("swordguy").objects[2].animation=3;
