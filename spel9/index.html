@@ -739,7 +739,7 @@ function gameLoop(time2){
 
                   drawOverworld(ctx);
               }
-              if(!outro&&(gameState==="overworld"||gameState==="play")){
+              if(!outro&&(gameState==="overworld"||gameState==="play"||gameState === 'level_complete' )){
             if("ontouchstart" in document.documentElement ){
                     keyState.d=false;keyState.a = false;keyState.w=false;keyState.s = false;
                     if(joy.GetDir()=="N"){keyState.w = true;}
