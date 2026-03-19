@@ -1829,11 +1829,13 @@ case 'patrol': {
         r.ai.vx = 0;
         r.animation = 1; // attack animation
 
-        r.ai.timer--;
+        r.ai.timer-=1*scale;
 
         // När halva windupen passerat → träffen går igenom
-        if (r.ai.timer === Math.floor(RAT_AI.WINDUP_FR/2)) {
+        if (r.ai.timer >= Math.floor(RAT_AI.WINDUP_FR/2)) {
           handleCombat(r, ["swordguy"], 10,scale);
+          r.ai.state = 'cooldown';
+          r.ai.timer = RAT_AI.ATTACK_CD_FR;
         }
 
         if (r.ai.timer <= 0) {
@@ -1845,7 +1847,7 @@ case 'patrol': {
 
       case 'cooldown': {
         r.ai.vx = -0.6 * r.ai.dir; // backa liten bit
-        r.ai.timer--;
+        r.ai.timer-=1*scale;
         if (r.ai.timer <= 0) r.ai.state = 'chase';
         break;
       }
@@ -2410,7 +2412,7 @@ function updateArchers(scale){
 
       case "aim": {
      
-         if (dist < ARCHER_AI.ATTACK_RANGE && r.ai.timer===0&&desiredDir===r.ai.dir&&r.ai.canSee){
+         if (dist < ARCHER_AI.ATTACK_RANGE && r.ai.timer<=0&&desiredDir===r.ai.dir&&r.ai.canSee){
           r.ai.state = "windup";
           r.ai.timer = ARCHER_AI.WINDUP_FR;
           r.animation = 1; // sikta
@@ -2420,7 +2422,7 @@ function updateArchers(scale){
       }
 
       case "windup": {
-        r.ai.timer--;
+        r.ai.timer-=1*scale;
         r.animation = 1; // “dra strängen”
         if (r.ai.timer<=0){
           shootArrow(r.x, r.y, r.ai.dir,scale);
@@ -2431,7 +2433,7 @@ function updateArchers(scale){
       }
 
       case "cooldown": {
-        r.ai.timer--;
+        r.ai.timer-=1*scale;
         r.animation = 0; // idle
         if (r.ai.timer<=0) r.ai.state="aim";
         break;
@@ -2685,8 +2687,10 @@ function updateShields(scale){
         r.ai.timer-=1*scale;
 
         // När halva windupen passerat → träffen går igenom
-        if (r.ai.timer === Math.floor(RAT_AI.WINDUP_FR/2)) {
+        if (r.ai.timer >= Math.floor(RAT_AI.WINDUP_FR/2)) {
           handleCombat(r, ["swordguy"], 10,scale);
+          r.ai.state = 'cooldown';
+          r.ai.timer = RAT_AI.ATTACK_CD_FR;
         }
 
         if (r.ai.timer <= 0) {
@@ -2698,7 +2702,7 @@ function updateShields(scale){
 
       case 'cooldown': {
         r.ai.vx = -0.6 * r.ai.dir*scale; // backa liten bit
-        r.ai.timer--;
+        r.ai.timer-=1*scale;
         if (r.ai.timer <= 0) r.ai.state = 'chase';
         break;
       }
