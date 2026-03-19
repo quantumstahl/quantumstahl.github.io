@@ -309,7 +309,7 @@ function gameLoop(time){
 
     const scale = deltaMs / (1000 / 60);
 
-    update(scale);
+    if(game.isLoaded)update(scale);
     requestAnimationFrame(gameLoop);
 }
 
