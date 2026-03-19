@@ -487,7 +487,7 @@ requestAnimationFrame(gameLoop);
                         
                         if(cinematicTimer > 1601)game.getobjecttype("swordguy").objects[2].animation=3;
                         
-                        game.getobjecttype("swordguy").objects[2].x=game.getobjecttype("swordguy").objects[2].x+3;
+                        //game.getobjecttype("swordguy").objects[2].x=game.getobjecttype("swordguy").objects[2].x+3;
                         const rat = game.getobjecttype('rat2')?.objects || [];
                         for (const r of rat) {
                             if(r.fliped)r.x=r.x-2;
@@ -536,8 +536,8 @@ requestAnimationFrame(gameLoop);
                         
                     }
                     else{
-                       // ctx.fillStyle = "black";
-                      //  ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.fillStyle = "black";
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
                         
                     }
                     
