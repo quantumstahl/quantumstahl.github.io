@@ -306,10 +306,12 @@ function gameLoop(time){
     lastTime = time;
 
     if (deltaMs > 50) deltaMs = 50;
-
+   
+   
+   
     const scale = deltaMs / (1000 / 60);
 
-    update(50/(1000 / 60));
+    update(scale);
     requestAnimationFrame(gameLoop);
 }
 
