@@ -778,7 +778,7 @@ requestAnimationFrame(gameLoop);
                     
                     
                     if(game.currentmap==3){
-                        if(!audio.src.endsWith("town.mp3")){audio.src = "sounds/town.mp3";audio.play();}
+                        if(!audio.src.endsWith("town.mp3")&&(!audio.src.endsWith("boss.mp3")||game.getobjecttype("trigger").objects[0].counter5==1)&&(!audio.src.endsWith("vampire.mp3")||game.getobjecttype("batboss").objects.length===0)){audio.src = "sounds/town.mp3";audio.play();}
                         
                     }
                     else if(game.currentmap==1){
@@ -1013,7 +1013,7 @@ requestAnimationFrame(gameLoop);
                     
                     
                     
-                    if(acount>25&& !inwater&&acountcoldown==false){acountcoldown=true;  handleCombat(bird.objects[0], ["rat","archer","tank","bat","mage","warlock","ratfish"], 50,scale);}
+                    if(acount>25&& !inwater&&acountcoldown==false){acountcoldown=true;  handleCombat(bird.objects[0], ["rat","archer","tank","bat","mage","warlock","ratfish","batboss"], 50,scale);}
                     if(acount>1&& inwater&&acountcoldown==false){acountcoldown=true;shootsword(bird.objects[0].x, bird.objects[0].y, bird.objects[0].fliped,scale);}
                     }
                     drawOverlays(ctx);
@@ -1105,13 +1105,14 @@ requestAnimationFrame(gameLoop);
                             
                         }
                         if(game.currentmap==3){
-
+                            game.getobjecttype("portal").objects[0].animation=1;
                             if(t==0 && game.collideswiths(trigger[t],"swordguy")){
                                 trigger[t].counter=1;
                             }
 
                             if(t==0 && trigger[t].counter==1&&bird.objects[0]){
-
+                              
+                                    if(!audio.src.endsWith("boss.mp3")&&trigger[t].counter5==0){audio.src = "sounds/boss.mp3";audio.play();}
                                 // kamera + låsning
                                 if(game.getobjecttype("swordguy").objects[0].x<trigger[t].x+300+((1920*1.25)/2)-canvas.width/2 &&
                                    game.getobjecttype("swordguy").objects[0].x>trigger[t].x-1200+canvas.width/2){
@@ -1200,10 +1201,10 @@ requestAnimationFrame(gameLoop);
                                 }
 
                                 if((trigger[t].wave==2 &&
-                                   trigger[t].add1.health<=0 && trigger[t].add2.health<=0)||true){
+                                   trigger[t].add1.health<=0 && trigger[t].add2.health<=0)){
                                    trigger[t].counter2 += 1*scale;
                                
-                            
+                                   trigger[t].counter5=1;
                                     const rope = game.getobjecttype('rope')?.objects || [];
                                     for (const r of rope){
                                         if(r.counter<400)r.counter+=1*scale;
@@ -1240,24 +1241,17 @@ requestAnimationFrame(gameLoop);
                                 if(trigger[t].boss==null){
                                     trigger[t].boss = game.addobject(
                                         game.getobjecttype("batboss"),
-                                        trigger[t].x+200,
-                                        bird.objects[0].y-350,
-                                        game.getobjecttype("batboss").standarddimx,
-                                        game.getobjecttype("batboss").standarddimy,
+                                        trigger[t].x+600,
+                                        bird.objects[0].y-700,
+                                        200,
+                                        200,
                                         0,
                                         false
                                     );
-
+                                    audio.src = "sounds/vampire.mp3";audio.play();
                                     if(trigger[t].boss){
-                                        trigger[t].boss.health = 250;
-                                        trigger[t].boss.maxhealth = 250;
-                                        trigger[t].boss.ai = {
-                                            state: "hover",
-                                            timer: 0,
-                                            targetx: trigger[t].x,
-                                            targety: bird.objects[0].y-160,
-                                            dir: -1
-                                        };
+                                        trigger[t].boss.health = 500;
+                                        trigger[t].boss.maxhealth = 500;
                                     }
                                 }
 
@@ -1278,20 +1272,20 @@ requestAnimationFrame(gameLoop);
                                     bird.objects[0].x=trigger[t].x-500;
                                     bird.objects[0].vx=0;
                                 }
-                                if(bird.objects[0].x>trigger[t].x+1500){
-                                    bird.objects[0].x=trigger[t].x+1500;
+                                if(bird.objects[0].x>trigger[t].x+3000){
+                                    bird.objects[0].x=trigger[t].x+3000;
                                     bird.objects[0].vx=0;
                                 }
 
                                 // när bossen dör
                                 if(trigger[t].boss && trigger[t].boss.health<=0){
                                     trigger[t].counter=2;
-
+                                    game.getobjecttype("portal").objects[0].animation=0;
                                     // här kan du låsa upp väg vidare / portal / dörr / loot
                                     // exempel:
                                     // game.addobject(game.getobjecttype("coin"), trigger[t].x, bird.objects[0].y-100, ...);
 
-                                    trigger[t].boss=null;
+                                   // trigger[t].boss=null;
                                 }
                             }
                             
@@ -1596,7 +1590,7 @@ function drawHealthBars() {
   const camX = map.camerax;
   const camY = map.cameray;
 
-  const objs = game.getAllObjects().filter(o => o.name=="swordguy"|| o.name=="rat"|| o.name=="archer"|| o.name=="tank"|| o.name=="bat"|| o.name=="mage"|| o.name=="warlock"||o.name=="ratfish"||o.name=="giantratfish");
+  const objs = game.getAllObjects().filter(o => o.name=="swordguy"|| o.name=="rat"|| o.name=="archer"|| o.name=="tank"|| o.name=="bat"|| o.name=="mage"|| o.name=="warlock"||o.name=="ratfish"||o.name=="giantratfish"||o.name=="batboss");
   for (const o of objs) {
       if(!o.isvisable)continue;
 
@@ -1721,6 +1715,10 @@ function warlockFrontOpen(w){
               // shieldState === 'off' ⇒ attack går igenom
             }
           }
+          if(enemyType==="batboss"){
+              target.ai.state="retreat";
+              
+          }
           
         // === DAMAGE ===
         target.health -= damage;
@@ -1736,10 +1734,18 @@ function warlockFrontOpen(w){
         cameraShake(20, 120);       // 120 ms shake
         
         // === KNOCKBACK ===
+        
+        if(unit.name=="batboss"){
+            const dir = (unit.x < target.x) ? +1 : -1;
+            target.vx = dir * 10;  // kastas åt sidan
+            target.vy = -10;       // lite upp i luften
+            
+        }
+        else{
         const dir = (unit.x < target.x) ? +1 : -1;
         target.vx = dir * 20;  // kastas åt sidan
         target.vy = -25;       // lite upp i luften
-
+        }
         // === DÖD ===
         if (target.health <= 0) {
             if(target.name=="swordguy"){
@@ -2266,7 +2272,7 @@ function updateGoal(player,scale){
     }
   }  
   const p = game.collideswith(player, "portal", "ghost");
-  if (gameState !== 'overworld'&&p&&levelCompleteTimer===0){
+  if (gameState !== 'overworld'&&p&&levelCompleteTimer===0&&p.animation===0){
     // Liten effekt innan bytet
     cameraShake(6, 200);
     //hitStop(5);
@@ -3206,6 +3212,12 @@ function updateFireballs(scale){
       f.vy=0;f.ay=0;
       //game.removeobject(F,f);
     }
+    if (game.collideswith(f,"grund2","ghost")){
+      spawnHitParticles(f.x+f.dimx/2,f.y+f.dimy/2,12,"#ff6600");
+      f.vy=0;f.ay=0;
+      //game.removeobject(F,f);
+    }
+    
   }
 }
 
@@ -4053,109 +4065,114 @@ function giantRatfishAutoBounds(b){
 
   return { left, right, top, bottom };
 }
+const BATBOSS_AI = {
+  SIGHT_X: 900,
+  SIGHT_Y: 900,
+  HOVER_SPEED: 1.6,
+  HOVER_FREQ: 0.08,
+  SWOOP_SPEED: 6.6,
+  RETREAT_SPEED: 3.4,
+  SWOOP_COOLDOWN: 70
+  
+
+  
+};
 function updateBatBoss(scale){
-    const bats = game.getobjecttype("batboss")?.objects || [];
-    const bird = game.getobjecttype("swordguy")?.objects || [];
-    if(bird.length===0)return;
+  const bats = game.getobjecttype("batboss")?.objects || [];
+  const player = game.getobjecttype("swordguy")?.objects?.[0];
+  if (!player) return;
 
-    const p = bird[0];
+  for (const b of bats){
+    initBat(b);
+    if(!b.isonscreen) continue;
 
-    for(const b of bats){
-        if(!b.ai){
-            b.ai = {
-                state: "hover",
-                timer: 0,
-                targetx: p.x,
-                targety: p.y-160,
-                dir: -1
-            };
+    const dx = player.x - b.x;
+    const dy = player.y - b.y;
+    const adx = Math.abs(dx), ady = Math.abs(dy);
+    const sgn = dx < 0 ? -1 : 1;
+
+    b.fliped = (sgn < 0);
+    b.direction = b.fliped ? "left" : "right";
+
+    if (b.ai.cd > 0) b.ai.cd -= 1 * scale;
+    b.ai.t += 1 * scale;
+
+    const sees = (adx < BATBOSS_AI.SIGHT_X && ady < BATBOSS_AI.SIGHT_Y);
+
+    switch (b.ai.state){
+
+      case 'perch': {
+        b.animation = 0;
+        b.rot = 180;
+        b.vx = 0;
+        b.vy = 0;
+
+        if (sees){
+          b.ai.state = 'hover';
+          b.ai.homeY = b.y;
         }
+        break;
+      }
 
-        b.ai.timer += 1*scale;
+      case 'hover': {
+        b.animation = 1;
+        b.rot = 0;
 
-        // rikta sprite
-        if(p.x < b.x) b.fliped = true;
-        else b.fliped = false;
+        b.vx = sgn * BATBOSS_AI.HOVER_SPEED * 0.6;
+        b.vy = Math.sin(b.ai.t * BATBOSS_AI.HOVER_FREQ) * 1.2;
 
-        // states
-        if(b.ai.state=="hover"){
-            // hovra ovanför/spela runt spelaren
-            b.ai.targetx = p.x + Math.sin(b.ai.timer/25) * 180;
-            b.ai.targety = p.y - 180 + Math.cos(b.ai.timer/18) * 30;
+        if (game.collideswith(b,"any","left"))  b.vx = Math.abs(b.vx);
+        if (game.collideswith(b,"any","right")) b.vx = -Math.abs(b.vx);
 
-            const dx = b.ai.targetx - b.x;
-            const dy = b.ai.targety - b.y;
-
-            b.vx += dx * 0.01 * scale;
-            b.vy += dy * 0.01 * scale;
-
-            b.vx *= 0.92;
-            b.vy *= 0.92;
-
-            if(b.ai.timer > 90){
-                b.ai.timer = 0;
-                b.ai.state = "dive";
-                b.ai.targetx = p.x;
-                b.ai.targety = p.y - 10;
-            }
+        if (sees && b.ai.cd <= 0 && adx < 260){
+          b.ai.state = 'swoop';
+        } 
+        else if (!sees){
+          b.vy += (b.ai.homeY - b.y) * 0.02 * scale;
         }
-        else if(b.ai.state=="dive"){
-            const dx = b.ai.targetx - b.x;
-            const dy = b.ai.targety - b.y;
+        break;
+      }
 
-            b.vx += dx * 0.02 * scale;
-            b.vy += dy * 0.03 * scale;
+      case 'swoop': {
+        b.animation = 0;
+        b.rot = 0;
 
-            if(Math.abs(dx)<40 && Math.abs(dy)<40){
-                b.ai.state = "rise";
-                b.ai.timer = 0;
-                b.ai.targetx = p.x + (Math.random()<0.5 ? -180 : 180);
-                b.ai.targety = p.y - 220;
-            }
+        const len = Math.max(1, Math.hypot(dx, dy));
+        b.vx = (dx / len) * BATBOSS_AI.SWOOP_SPEED;
+        b.vy = (dy / len) * BATBOSS_AI.SWOOP_SPEED;
 
-            if(b.ai.timer > 45){
-                b.ai.state = "rise";
-                b.ai.timer = 0;
-                b.ai.targetx = p.x + (Math.random()<0.5 ? -180 : 180);
-                b.ai.targety = p.y - 220;
-            }
+        if (b.y > player.y + 20 || len < 32){
+          b.ai.state = 'retreat';
+          b.ai.cd = BATBOSS_AI.SWOOP_COOLDOWN;
         }
-        else if(b.ai.state=="rise"){
-            const dx = b.ai.targetx - b.x;
-            const dy = b.ai.targety - b.y;
+        break;
+      }
 
-            b.vx += dx * 0.015 * scale;
-            b.vy += dy * 0.02 * scale;
+      case 'retreat': {
+        b.animation = 1;
+        b.rot = 0;
 
-            b.vx *= 0.95;
-            b.vy *= 0.95;
+        b.vx = -sgn * BATBOSS_AI.RETREAT_SPEED * 0.6;
+        b.vy = -BATBOSS_AI.RETREAT_SPEED;
 
-            if(Math.abs(dx)<50 && Math.abs(dy)<50){
-                b.ai.state = "hover";
-                b.ai.timer = 0;
-            }
+        if (b.y <= b.ai.homeY){
+          b.y = b.ai.homeY;
+          b.ai.state = 'hover';
         }
-
-        // clamp speed
-        if(b.vx > 12) b.vx = 12;
-        if(b.vx < -12) b.vx = -12;
-        if(b.vy > 12) b.vy = 12;
-        if(b.vy < -12) b.vy = -12;
-
-        b.x += b.vx * scale;
-        b.y += b.vy * scale;
-
-        // kontakt-skada
-        if(game.collideswiths(b,"swordguy")){
-            handleCombat(b, ["swordguy"], 30);
-        }
-
-        // lite animation
-        if(b.ai.state=="dive") b.animation = 1;
-        else b.animation = 0;
+        break;
+      }
     }
-}
 
+    b.x += b.vx * scale;
+    b.y += b.vy * scale;
+
+    if (!b.hitCD || b.hitCD <= 0){
+      handleCombat(b, ["swordguy"], 2, scale);
+      b.hitCD = 25;
+    }
+    if (b.hitCD && b.hitCD > 0) b.hitCD -= 1 * scale;
+  }
+}
         </script>
         
         
