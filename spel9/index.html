@@ -1094,8 +1094,8 @@ requestAnimationFrame(gameLoop);
                             
                             if(t==0&& trigger[t].counter==1){
                 
-                                if(game.getobjecttype("swordguy").objects[0].x<trigger[t].x+300-(1920*1.25)/2&&game.getobjecttype("swordguy").objects[0].x>trigger[t].x-1200+canvas.width/2)game.setcameraobj(game.getobjecttype("swordguy").objects[0], canvas.width, null);
-                                else if(game.getobjecttype("swordguy").objects[0].x>trigger[t].x+300){game.maps[game.currentmap].camerax=(1920*1.25)/2-trigger[t].x-300;}
+                                if(game.getobjecttype("swordguy").objects[0].x<trigger[t].x+300+((1920*1.25)/2)-canvas.width&&game.getobjecttype("swordguy").objects[0].x>trigger[t].x-1200+canvas.width/2)game.setcameraobj(game.getobjecttype("swordguy").objects[0], canvas.width, null);
+                                else if(game.getobjecttype("swordguy").objects[0].x>trigger[t].x+300){game.maps[game.currentmap].camerax=-((1920*1.25)/2)-trigger[t].x-300+canvas.width;}
                                 else if(game.getobjecttype("swordguy").objects[0].x<trigger[t].x-1200+canvas.width/2){game.maps[game.currentmap].camerax=1200-trigger[t].x;}
                                 
                                 
