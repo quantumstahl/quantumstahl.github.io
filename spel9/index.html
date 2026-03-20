@@ -1262,15 +1262,15 @@ requestAnimationFrame(gameLoop);
                                 }
 
                                 // lås kamera ungefär kring takområdet
-                                if(bird.objects[0].x<trigger[t].x+500+((1920*1.25)/2)-canvas.width/2 &&
+                                if(bird.objects[0].x<trigger[t].x+800+((1920*1.25)/2)-canvas.width/2 &&
                                    bird.objects[0].x>trigger[t].x-500+canvas.width/2){
                                     game.setcameraobj(bird.objects[0], canvas.width, null);
                                 }
-                                else if(bird.objects[0].x>trigger[t].x+500+((1920*1.25)/2)-canvas.width/2){
-                                    game.maps[game.currentmap].camerax=-((1920*1.25)/2)-trigger[t].x-500+canvas.width;
+                                else if(bird.objects[0].x>trigger[t].x+800+((1920*1.25)/2)-canvas.width/2){
+                                    game.maps[game.currentmap].camerax=-((1920*1.25)/2)-trigger[t].x-800+canvas.width;
                                 }
-                                else if(bird.objects[0].x<trigger[t].x-2000+canvas.width/2){
-                                    game.maps[game.currentmap].camerax=2000-trigger[t].x;
+                                else if(bird.objects[0].x<trigger[t].x-500+canvas.width/2){
+                                    game.maps[game.currentmap].camerax=500-trigger[t].x;
                                 }
 
                                 // håll spelaren kvar i bossområdet
@@ -1278,8 +1278,8 @@ requestAnimationFrame(gameLoop);
                                     bird.objects[0].x=trigger[t].x-500;
                                     bird.objects[0].vx=0;
                                 }
-                                if(bird.objects[0].x>trigger[t].x+2000){
-                                    bird.objects[0].x=trigger[t].x+2000;
+                                if(bird.objects[0].x>trigger[t].x+1500){
+                                    bird.objects[0].x=trigger[t].x+1500;
                                     bird.objects[0].vx=0;
                                 }
 
