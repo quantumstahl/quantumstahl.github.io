@@ -999,7 +999,7 @@ requestAnimationFrame(gameLoop);
 
                     const houseint = game.getobjecttype('houseint')?.objects || [];
                     for (const h of houseint) {
-                        if(game.getobjecttype("swordguy").objects[0].x>h.x+100&& game.getobjecttype("swordguy").objects[0].x<h.x+h.dimx-200){
+                        if(game.getobjecttype("swordguy").objects[0].x>h.x+120&& game.getobjecttype("swordguy").objects[0].x<h.x+h.dimx-200){
                             h.animation=1;
                             ctx.fillStyle = "rgba(0,0,0,0.25)";
                             ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -1084,6 +1084,36 @@ requestAnimationFrame(gameLoop);
                                 
                                 
                             }
+                            
+                            
+                        }
+                        if(game.currentmap==3){
+              
+                            if(t==0&& game.collideswiths(trigger[t],"swordguy")){trigger[t].counter=1;}
+                            
+                            
+                            if(t==0&& trigger[t].counter==1){
+                
+                                if(game.getobjecttype("swordguy").objects[0].x<trigger[t].x-600+canvas.width/2&&game.getobjecttype("swordguy").objects[0].x>trigger[t].x-1200+canvas.width/2)game.setcameraobj(game.getobjecttype("swordguy").objects[0], canvas.width, null);
+                                else if(game.getobjecttype("swordguy").objects[0].x>trigger[t].x-600+canvas.width/2){game.maps[game.currentmap].camerax=600-trigger[t].x;}
+                                else if(game.getobjecttype("swordguy").objects[0].x<trigger[t].x-1200+canvas.width/2){game.maps[game.currentmap].camerax=1200-trigger[t].x;}
+                                
+                                
+                                if(t.counter2==0){
+                                    
+                                    
+                                }
+                                
+                                
+                                
+                                t.counter2+=1*scale;
+                                
+                                
+                                
+                                
+                                
+                            }
+                            
                             
                             
                         }
