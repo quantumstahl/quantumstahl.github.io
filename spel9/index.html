@@ -1295,7 +1295,7 @@ requestAnimationFrame(gameLoop);
                         
                         
                     }
-                    if(game.currentmap===2&&gate[1].counter2===1){if(gate[1].counter<300){gate[1].y-=1*scale;markStaticsDirty();gate[1].counter+=1*scale;}}
+                    if(gate[1]&&game.currentmap===2&&gate[1].counter2===1){if(gate[1].counter<300){gate[1].y-=1*scale;markStaticsDirty();gate[1].counter+=1*scale;}}
                     
                     
                     const seaweed = game.getobjecttype('seaweed')?.objects || [];
