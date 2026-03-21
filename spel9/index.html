@@ -77,6 +77,8 @@
                         else if(game.currentmap==1){audio.src = 'sounds/cast4.mp3';}
                         else if(game.currentmap==2){audio.src = 'sounds/water.mp3';}
                         else if(game.currentmap==3){audio.src = "sounds/town.mp3";}
+                        else if(game.currentmap==4){audio.src = "sounds/arena.mp3";}
+                        else if(game.currentmap==5){audio.src = "sounds/thunder.mp3";}
                         else if(game.currentmap==6){audio.src = 'sounds/drak.mp3';}
                         else{ audio.src = 'sounds/cast3.mp3';}
                         audio.play();
@@ -804,6 +806,35 @@ requestAnimationFrame(gameLoop);
                         if(!audio.src.endsWith("water.mp3")&&(!audio.src.endsWith("boss2.mp3")||game.getobjecttype("giantratfish").objects.length===0)){audio.src = "sounds/water.mp3";audio.play();}
                         
                     }
+                    else if(game.currentmap==4){
+                        if(audio.src.endsWith("COV.mp3")){audio.src = "sounds/ingen.mp3";}
+                        
+                    }
+                    else if(game.currentmap==5){
+                        if(!audio.src.endsWith("thunder.mp3")){audio.src = "sounds/thunder.mp3";}
+                        game.createlightning();
+                        game.createrain();
+                        
+
+
+                        if(game.lightningTimer == null) game.lightningTimer = 0;
+
+                        game.lightningTimer += 1*scale;
+
+                        if(game.lightningTimer > 120){
+                            game.lightningTimer = 0;
+
+                            const player = game.getobjecttype("swordguy")?.objects?.[0];
+                            if(player){
+                                spawnLightningStrike(player.x + (Math.random()*800 - 200));
+                            }
+                        }
+
+                        
+                        
+                    }
+                    
+                    
                     else{ 
                         if(!audio.src.endsWith("cast4.mp3")&&!audio.src.endsWith("cast3.mp3")&&(!audio.src.endsWith("drak.mp3")||game.getobjecttype("warlock").objects.length===0)){audio.src = "sounds/cast3.mp3";audio.play();}
                     } 
@@ -862,6 +893,9 @@ requestAnimationFrame(gameLoop);
                         }
                         if(!keyState.w)notW=true;
                         if(game.currentmap==3){if(game.getobjecttype("swordguy").objects[0].x>300+canvas.width/2)game.setcameraobj(game.getobjecttype("swordguy").objects[0], canvas.width, null);else{game.maps[game.currentmap].camerax=-300;}ctx.fillStyle="black";;ctx.globalAlpha = 0.6;ctx.fillRect(game.maps[game.currentmap].camerax+300,0,100,canvas.height);ctx.globalAlpha = 1;   }
+                        let stopp=false;
+                        if(game.currentmap==5){if(game.getobjecttype("swordguy").objects[0].x>-400+canvas.width/2)game.setcameraobj(game.getobjecttype("swordguy").objects[0], canvas.width, null);else{game.maps[game.currentmap].camerax=400;stopp=true;}ctx.fillStyle="black";;ctx.globalAlpha = 0.6;ctx.fillRect(game.maps[game.currentmap].camerax-400,0,100,canvas.height);ctx.globalAlpha = 1; }
+                        if(game.currentmap==5){if((game.getobjecttype("swordguy").objects[0].x>game.getobjecttype("portal").objects[0].x-canvas.width/2+350))if(!stopp){game.maps[game.currentmap].camerax=-game.getobjecttype("portal").objects[0].x+canvas.width-350;}ctx.fillStyle="black";;ctx.globalAlpha = 0.6;ctx.fillRect(game.maps[game.currentmap].camerax+game.getobjecttype("portal").objects[0].x+250,0,100,canvas.height);ctx.globalAlpha = 1;   }
                         else if(game.currentmap==2)game.setcameraobj(bird.objects[0], canvas.width, canvas.height);
                         else game.setcameraobj(bird.objects[0], canvas.width, null);
                         bird.objects[0].dual=40;
@@ -1013,7 +1047,7 @@ requestAnimationFrame(gameLoop);
                     
                     
                     
-                    if(acount>25&& !inwater&&acountcoldown==false){acountcoldown=true;  handleCombat(bird.objects[0], ["rat","archer","tank","bat","mage","warlock","ratfish","batboss"], 50,scale);}
+                    if(acount>25&& !inwater&&acountcoldown==false){acountcoldown=true;  handleCombat(bird.objects[0], ["rat","archer","tank","bat","mage","warlock","ratfish","batboss","gladiator"], 50,scale);}
                     if(acount>1&& inwater&&acountcoldown==false){acountcoldown=true;shootsword(bird.objects[0].x, bird.objects[0].y, bird.objects[0].fliped,scale);}
                     }
                     drawOverlays(ctx);
@@ -1033,9 +1067,17 @@ requestAnimationFrame(gameLoop);
                     updatebubbles(scale);
                     gameover(scale);
                     updateBatBoss(scale);
+                    updateGladiator(scale);
+                    updateLightning(scale);
+                    try{drawLightning(ctx,scale);}catch (error) {}
+                    drawFlash(ctx);
+                    
                     const boulders = game.getobjecttype('bolder')?.objects || [];
 
                     for (const b of boulders) {
+                        
+                        if(game.currentmap==5&&!b.isonscreen)continue;
+                        
                         b.vy += 0.8 * scale;
                         if (b.vy > 20) b.vy = 20;
 
@@ -1291,7 +1333,151 @@ requestAnimationFrame(gameLoop);
                             
                             
                         }
-                        
+                        if(game.currentmap==4){
+                            
+                                
+                            
+                            
+                            if(t==0 && game.collideswiths(trigger[t],"swordguy")){
+                                game.getobjecttype("portal").objects[0].animation=1;
+                                const fackla = game.getobjecttype('fackla')?.objects || [];for(const f of fackla){f.animation=1;}
+                                game.getobjecttype("sky").objects[0].animation=0;
+                                game.getobjecttype("arena").objects[0].animation=0;
+                                const public = game.getobjecttype('publik')?.objects || [];for(const p of public){p.animation=0;}
+                                const public2 = game.getobjecttype('publik2')?.objects || [];for(const p of public2){p.animation=0;}
+                                game.getobjecttype("king").objects[0].animation=0;
+                            }
+                            else if(t==0 && !game.collideswiths(trigger[t],"swordguy")){
+                                game.getobjecttype("portal").objects[0].animation=0;
+                                const fackla = game.getobjecttype('fackla')?.objects || [];for(const f of fackla){f.animation=0;}
+                                game.getobjecttype("sky").objects[0].animation=1;
+                                game.getobjecttype("arena").objects[0].animation=2;
+                                const public = game.getobjecttype('publik')?.objects || [];for(const p of public){p.animation=1;}
+                                const public2 = game.getobjecttype('publik2')?.objects || [];for(const p of public2){p.animation=1;}
+                                game.getobjecttype("king").objects[0].animation=1;
+                            }
+                            if(t==1&& game.collideswiths(trigger[t],"swordguy")){
+                                
+                                 if(trigger[t].counter==0){
+                                     game.getobjecttype("gate").objects[0].y+=500;
+                                     game.getobjecttype("gate").objects[1].y+=500;
+                                     markStaticsDirty();
+                                     audio.src = "sounds/arena.mp3";audio.play();
+                                     
+                                 }
+                                
+                                 trigger[t].counter=1;                               
+                                
+                            }
+                            if(t==1&&trigger[t].counter==1){
+                                if(trigger[t].counter5==0)game.getobjecttype("arena").objects[0].animation=1;
+                                
+                                if(trigger[t].wave==undefined) trigger[t].wave=0;
+                                if(trigger[t].wavespawned==undefined) trigger[t].wavespawned=0;
+                                if(trigger[t].add1==undefined) trigger[t].add1=null;
+                                if(trigger[t].add2==undefined) trigger[t].add2=null;
+                                
+                                
+                               // våg 1
+                                if(trigger[t].wave==0 && trigger[t].wavespawned==0){
+                                    trigger[t].counter2 += 1*scale;
+                                    if(trigger[t].counter2>600){
+                                        trigger[t].add1=game.addobject(game.getobjecttype("rat"), trigger[0].x+trigger[0].dimx-110, 450, game.getobjecttype("rat").standarddimx, game.getobjecttype("rat").standarddimy, 0, true);
+                                        trigger[t].add2=game.addobject(game.getobjecttype("rat"), trigger[0].x+trigger[0].dimx-250, 450, game.getobjecttype("rat").standarddimx, game.getobjecttype("rat").standarddimy, 0, true);
+                                        trigger[t].wavespawned=1;
+                                    }
+                               
+                                    
+                                    
+                                }
+                             
+                                
+                                
+                                if(trigger[t].add1&&trigger[t].add2&&trigger[t].wave==0 && trigger[t].wavespawned==1&&trigger[t].add1.health<=0 && trigger[t].add2.health<=0){
+                                    trigger[t].counter2 += 1*scale;
+                                    if(trigger[t].counter2>600){
+                                        trigger[t].wave=1;
+                                        trigger[t].wavespawned=0;
+                                        trigger[t].counter2=0;
+                                    }
+                                }
+
+                                // våg 2
+                                if(trigger[t].wave==1 && trigger[t].wavespawned==0){
+                                    trigger[t].counter2 += 1*scale;
+                                    if(trigger[t].counter2>600){
+                                        trigger[t].add1=game.addobject(game.getobjecttype("archer"), trigger[0].x+trigger[0].dimx-110, 450, game.getobjecttype("rat").standarddimx, game.getobjecttype("rat").standarddimy, 0, true);
+                                        trigger[t].add2=game.addobject(game.getobjecttype("archer"), trigger[0].x+trigger[0].dimx-250, 450, game.getobjecttype("archer").standarddimx, game.getobjecttype("archer").standarddimy, 0, true);
+                                        trigger[t].wavespawned=1;
+                                    }
+                                }
+
+                                if(trigger[t].wave==1 && trigger[t].wavespawned==1&&
+                                   trigger[t].add1.health<=0 && trigger[t].add2.health<=0){
+                                   trigger[t].counter2 += 1*scale;
+                                    if(trigger[t].counter2>600){
+                                        trigger[t].wave=2;
+                                        trigger[t].wavespawned=0;
+                                        trigger[t].counter2=0;
+                                    }
+                                }
+
+                                // våg 3
+                                if(trigger[t].wave==2 && trigger[t].wavespawned==0){
+                                    trigger[t].counter2 += 1*scale;
+                                    if(trigger[t].counter2>600){
+                                        trigger[t].add1=game.addobject(game.getobjecttype("tank"), trigger[0].x+trigger[0].dimx-110, 450, game.getobjecttype("tank").standarddimx, game.getobjecttype("tank").standarddimy, 0, true);
+                                        trigger[t].add2=game.addobject(game.getobjecttype("tank"), trigger[0].x+trigger[0].dimx-250, 450, game.getobjecttype("rat").standarddimx, game.getobjecttype("rat").standarddimy, 0, true);
+                                        trigger[t].wavespawned=1;
+                                    }
+                                }
+
+                                if(trigger[t].wave==2 && trigger[t].wavespawned==1&&
+                                   trigger[t].add1.health<=0 && trigger[t].add2.health<=0){
+                                   trigger[t].counter2 += 1*scale;
+                                    if(trigger[t].counter2>600){
+                                        trigger[t].wave=3;
+                                        trigger[t].wavespawned=0;
+                                        trigger[t].counter2=0;
+                                    }
+                                }
+                                // våg 4 boss
+                                if(trigger[t].wave==3 && trigger[t].wavespawned==0){
+                                    trigger[t].counter2 += 1*scale;
+                                    if(trigger[t].counter2>600){
+                                        trigger[t].add1=game.addobject(game.getobjecttype("gladiator"), trigger[0].x+trigger[0].dimx-160, 450, game.getobjecttype("gladiator").standarddimx, game.getobjecttype("gladiator").standarddimy, 0, true);
+                                        
+                                        trigger[t].wavespawned=1;
+                                    }
+                                }
+
+                                if(trigger[t].wave==3 && trigger[t].wavespawned==1&&
+                                   trigger[t].add1.health<=0){
+                                   trigger[t].counter2 += 1*scale;
+                                    if(trigger[t].counter2>600){
+                                        trigger[t].wave=4;
+                                        trigger[t].wavespawned=0;
+                                        trigger[t].counter2=0;
+                                    }
+                                }
+                                if(trigger[t].wave==4){
+                                    
+                                    if(trigger[t].counter5==0){
+                                        game.getobjecttype("gate").objects[0].y-=500;
+                                        game.getobjecttype("gate").objects[1].y-=500;
+                                        markStaticsDirty();
+                                    }
+                                 trigger[t].counter5=1;  
+                                    
+                                    
+                                }
+                                
+                                
+                              
+                            }
+                            
+                            
+                        }
                         
                         
                     }
@@ -1590,11 +1776,12 @@ function drawHealthBars() {
   const camX = map.camerax;
   const camY = map.cameray;
 
-  const objs = game.getAllObjects().filter(o => o.name=="swordguy"|| o.name=="rat"|| o.name=="archer"|| o.name=="tank"|| o.name=="bat"|| o.name=="mage"|| o.name=="warlock"||o.name=="ratfish"||o.name=="giantratfish"||o.name=="batboss");
+  const objs = game.getAllObjects().filter(o => o.name=="swordguy"|| o.name=="rat"|| o.name=="archer"|| o.name=="tank"|| o.name=="bat"|| o.name=="mage"|| o.name=="warlock"||o.name=="ratfish"||o.name=="giantratfish"||o.name=="batboss"||o.name=="gladiator");
   for (const o of objs) {
       if(!o.isvisable)continue;
 
     // defaultvärden om hälsa saknas
+    if (o.maxhealth == null&&o.name=="gladiator"){o.maxhealth = 800;o.health = o.maxhealth;}
     if (o.maxhealth == null&&o.name=="giantratfish"){o.maxhealth = 800;o.health = o.maxhealth;}
     if (o.maxhealth == null&&o.name=="warlock"){o.maxhealth = 2500;o.health = o.maxhealth;}
     if (o.maxhealth == null&&o.name=="tank"){o.maxhealth = 200;o.health = o.maxhealth;}
@@ -4172,6 +4359,283 @@ function updateBatBoss(scale){
     }
     if (b.hitCD && b.hitCD > 0) b.hitCD -= 1 * scale;
   }
+}
+function updateGladiator(scale){
+    const arr = game.getobjecttype("gladiator")?.objects || [];
+    const player = game.getobjecttype("swordguy")?.objects?.[0];
+    if (!player) return;
+
+    for (const g of arr){
+        if (g.health <= 0) continue;
+
+        if (g.aiInit == null){
+            g.aiInit = 1;
+            g.vx = 0;
+            g.vy = 0;
+            g.jumpCooldown = 0;
+            g.attackCooldown = 0;
+            g.state = "walk";
+            g.speed = 0.35;
+            g.jumpPower = -12;
+            g.gravity = 0.6;
+            g.maxFall = 14;
+            g.attackRange = 300;
+            g.jumpMinRange = 180;
+            g.jumpMaxRange = 450;
+            g.facing = "left";
+            g.dual=10;
+            
+        }
+
+        const dx = player.x - g.x;
+        const dy = player.y - g.y;
+        const adx = Math.abs(dx);
+
+        // facing
+        g.fliped = dx < 0 ? true : false;
+
+        // cooldowns
+        if (g.jumpCooldown > 0) g.jumpCooldown -= 1 * scale;
+        if (g.attackCooldown > 0) g.attackCooldown -= 1 * scale;
+
+        // gravity
+        g.vy += g.gravity * scale;
+        if (g.vy > g.maxFall) g.vy = g.maxFall;
+
+        // står han på mark?
+        const onGround = !!game.collideswith(g, "any", "down");
+
+        // enkel state machine
+        if (g.state == "walk"){
+            // nära = attack
+            if (adx < g.attackRange && g.attackCooldown <= 0 && onGround){
+                g.state = "attack";
+                g.attackTimer = 22;
+                g.vx *= 0.5;
+            }
+            // mellanavstånd = hoppa mot spelaren ibland
+            else if (
+                adx > g.jumpMinRange &&
+                adx < g.jumpMaxRange &&
+                g.jumpCooldown <= 0 &&
+                onGround
+            ){
+                g.state = "jump";
+                g.vy = g.jumpPower;
+
+                // hoppa mot spelaren
+                g.vx = dx < 0 ? -4.2 : 4.2;
+
+                g.jumpCooldown = 90;
+            }
+            else{
+                // vanlig gång
+                const dir = dx < 0 ? -1 : 1;
+                g.vx += dir * g.speed * scale;
+
+                // bromsa lite så han inte glider för mycket
+                if (g.vx > 2.0) g.vx = 2.0;
+                if (g.vx < -2.0) g.vx = -2.0;
+            }
+        }
+        else if (g.state == "jump"){
+            // när han landar -> tillbaka till walk
+            if (onGround && g.vy >= 0){
+                g.state = "walk";
+            }
+        }
+        else if (g.state == "attack"){
+            g.attackTimer -= 1 * scale;
+            g.vx *= 0.85;
+
+            // träff-fönster
+            if (!g.didHit && g.attackTimer < 12 && g.attackTimer > 7){
+                g.didHit = true;
+
+                if (game.collideswiths(g,"swordguy")){
+                    handleCombat(g, ["swordguy"], 5);
+                }
+            }
+
+            if (g.attackTimer <= 0){
+                g.didHit = false;
+                g.attackCooldown = 35;
+                g.state = "walk";
+            }
+        }
+
+        // friktion om inte i hopp
+        if (g.state != "jump"){
+            g.vx *= 0.92;
+        }
+
+        // rörelse
+        g.x += g.vx * scale;
+        g.y += g.vy * scale;
+    }
+}
+
+function spawnLightningStrike(x){
+    if(!game.lightnings) game.lightnings = [];
+
+    game.lightnings.push({
+        x: x,
+        y: 0,
+        state: "warn",
+        timer: 0,
+        duration: 6,
+        height: 2000 // hur långt ner den går
+    });
+}
+let ligtdmg=true;
+function updateLightning(scale){
+    if(!game.lightnings) return;
+
+    for(let i = game.lightnings.length-1; i >= 0; i--){
+        const l = game.lightnings[i];
+
+        l.timer += 1*scale;
+
+        // ⚠️ WARNING PHASE
+        if(l.state == "warn"){
+            if(l.timer > 50){
+                l.state = "strike";
+                l.timer = 0;
+
+                // 💥 DAMAGE när den slår
+                lightningCombat(l.x, 100, scale);
+
+                // flash
+                game.flash = 4;
+            }
+            
+        }
+
+        // ⚡ STRIKE PHASE
+        else if(l.state == "strike"){
+            if(l.timer > l.duration){
+                game.lightnings.splice(i,1);
+            }
+        }
+    }
+}
+function drawLightning(ctx,scale){
+    if(!game.lightnings) return;
+
+    for(const l of game.lightnings){
+
+        if(l.state == "warn"){
+            // ⚠️ visa var blixten kommer slå
+            ctx.fillStyle = "rgba(255,255,255,0.15)";
+            ctx.beginPath();
+            ctx.arc((l.x + game.maps[game.currentmap].camerax)*scale, 500*scale, 80*scale, 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        else if(l.state == "strike"){
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = 4;
+
+            ctx.beginPath();
+            ctx.moveTo((l.x + game.maps[game.currentmap].camerax)*scale, 0);
+            ctx.lineTo((l.x + game.maps[game.currentmap].camerax)*scale, 900*scale);
+            ctx.stroke();
+        }
+    }
+}
+function drawFlash(ctx){
+    if(game.flash > 0){
+        ctx.fillStyle = "rgba(255,255,255,0.2)";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        game.flash--;
+    }
+}
+function lightningCombat(x, damage, scale){
+    const hitTypes = ["swordguy","rat","archer","tank","bat","mage","warlock","gladiator"];
+    const hitWidth = 120;   // hur bred träffzonen är
+    const hitHeight = 2000; // nästan hela höjden
+
+    for (const type of hitTypes){
+        
+        const arr = game.getobjecttype(type)?.objects || [];
+        
+        for (let i = arr.length - 1; i >= 0; i--){
+            if(arr[i].name=="swordguy")damage=10;
+            else damage=100;
+            const target = arr[i];
+            if (!target || target.health <= 0) continue;
+
+            const tx = target.x + target.dimx / 2;
+            const ty = target.y + target.dimy / 2;
+
+            // enkel vertikal kolumn
+            if (
+                tx >= x - hitWidth/2 &&
+                tx <= x + hitWidth/2 &&
+                ty >= 0 &&
+                ty <= hitHeight
+            ){
+                // warlock shield? låt blixt ignorera shield eller blocka, välj själv
+                // just nu: blixten går igenom allt
+
+                target.health -= damage;
+                target.flashTimer = 12 / scale;
+                target.flashTimercolor = "rgba(255,255,255,0.9)";
+
+                spawnDamageNumber(-damage, target.x, target.y, { color: "#cfe8ff" });
+                spawnHitParticles(target.x + target.dimx/2, target.y + target.dimy/2, 10, "#d8ecff");
+
+                hitStop(2);
+                cameraShake(14, 90);
+
+                // knockback bort från strike center
+                const dir = (tx < x) ? -1 : 1;
+                target.vx = dir * 8;
+                target.vy = -12;
+
+                // död
+                if (target.health <= 0) {
+                    if (target.name == "swordguy"){
+                        gameState = 'game_over';
+                        audio.currentTime = 0;
+                        audio.pause();
+                        stateTimer = 150;
+                    }
+
+                    const cx = target.x + target.dimx/2;
+                    const cy = target.y + target.dimy - 30;
+
+                    const c = game.addobject(game.getobjecttype("coin"), cx, cy, 16, 16, 0, false);
+                    c.vx = (Math.random()*2 - 1) * 1.2;
+                    c.vy = -6 - Math.random()*2;
+                    c.ay = 0.6;
+                    c.state = 'air';
+                    c.t = 0;
+                    c.pickDelay = 10;
+                    c.despawn = 60*20;
+
+                    if (Math.random() < 0.3){
+                        const a = game.addobject(game.getobjecttype("apple"), cx+8, cy, 16, 16, 0, false);
+                        a.vx = (Math.random()*2 - 1) * 1.0;
+                        a.vy = -7;
+                        a.ay = 0.6;
+                        a.state = 'air';
+                        a.t = 0;
+                        a.pickDelay = 10;
+                        a.despawn = 60*25;
+                    }
+
+                    if(type == "warlock"){
+                        outro = true;
+                        audio.src = "sounds/win.mp3";
+                        audio.play();
+                    } else {
+                        game.removeobject(game.getobjecttype(type), target);
+                    }
+                }
+            }
+        }
+    }
 }
         </script>
         

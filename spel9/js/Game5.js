@@ -1753,8 +1753,8 @@ class Game5 {
   // 1) mörker overlay
  // ctx.fillStyle = "rgba(0,0,0,0.78)";
  // ctx.fillRect(0,0,W,H);
-
-    if(game.currentmap==2){
+    if(game.currentmap==4){}
+    else if(game.currentmap==2){
     if (!poly || !poly.length) return;
 
     ctx.save();
