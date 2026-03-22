@@ -26,8 +26,24 @@
             document.getElementById("myCanvas").style.width=window.innerWidth;
             document.getElementById("myCanvas").style.height=window.innerHeight;
 
-      
+const overworldShop = {
+    open: false,
+    selected: 0,
+    message: "",
+    messageTimer: 0,
+    pressLock: false,
+    items: [
+        { id: "hp", name: "+1 HP", desc: "Mer max HP", cost: 5, max: 3 },
+        { id: "swordThrow", name: "Sword Throw", desc: "Ibland kastas ett svärd", cost: 8, max: 1 },
+        { id: "speed", name: "Speed Boost", desc: "Snabbare rörelse", cost: 6, max: 3 }
+    ]
+};
 
+const runBuffs = {
+    hp: 0,
+    swordThrow: 0,
+    speed: 0
+};
 
 
             game = new Game5("Spelet");
@@ -122,7 +138,12 @@
                 if (e.key === "d") keyState.d = false;
                 if (e.key === " ") keyState.space = false;
             });
-
+            const owInput = {
+                x: 0,
+                y: 0,
+                pressed: false,
+                justPressed: false
+            };
             
 
             jump=false;
@@ -136,6 +157,7 @@
             coins=0;
             levelCompleteTimer = 0;
             showLevelComplete = false;
+            setupOverworldInput(canvas);
             let countercleared=0;
             let overworldPlayer = { node:0, from:0, progress:1, speed:0.02, x:0, y:0 };
             let gameState = 'annat'; // 'play' | 'level_complete' | 'game_over'| "overworld" 
@@ -2536,9 +2558,10 @@ function moveToNode(next){
 // Uppdatering varje frame
 function updateOverworld(scale){
     
-
     
-    
+    updateOverworldShopButton();
+    updateOverworldShop(scale, coins);
+    owInput.justPressed = false;
     
   const curIdx  = overworldPlayer.node;
   const fromIdx = overworldPlayer.from;
@@ -2559,6 +2582,7 @@ function updateOverworld(scale){
   if (t >= 1){
     handleOverworldInput();
   }
+  
 }
 
 // Input (bara byta nod när man står still)
@@ -2660,7 +2684,8 @@ function drawOverworld(ctx){
  
   
   if(game.getobjecttype("swordguy"))ctx.drawImage(game.getobjecttype("swordguy").images[0].getimage(),overworldPlayer.x,overworldPlayer.y-80,80,80);
-
+  drawOverworldShopButton(ctx);
+    drawOverworldShop(ctx, coins);
 
 }
 
@@ -4636,6 +4661,523 @@ function lightningCombat(x, damage, scale){
             }
         }
     }
+}
+
+
+function getOverworldShopUI(){
+    const panel = {
+        x: canvas.width * 0.06,
+        y: canvas.height * 0.08,
+        w: canvas.width * 0.88,
+        h: canvas.height * 0.72
+    };
+
+    const cardW = panel.w * 0.72;
+    const cardH = panel.h * 0.34;
+    const cardX = panel.x + (panel.w - cardW) / 2;
+    const cardY = panel.y + 90;
+
+    return {
+        panel,
+        card: { x: cardX, y: cardY, w: cardW, h: cardH },
+
+        leftBtn: {
+            x: panel.x + 24,
+            y: panel.y + panel.h - 90,
+            w: 90,
+            h: 60
+        },
+        rightBtn: {
+            x: panel.x + 130,
+            y: panel.y + panel.h - 90,
+            w: 90,
+            h: 60
+        },
+        buyBtn: {
+            x: panel.x + panel.w - 250,
+            y: panel.y + panel.h - 90,
+            w: 100,
+            h: 60
+        },
+        closeBtn: {
+            x: panel.x + panel.w - 130,
+            y: panel.y + panel.h - 90,
+            w: 100,
+            h: 60
+        }
+    };
+}
+function drawOverworldShop(ctx, coins){
+    if(!overworldShop.open) return;
+
+    const ui = getOverworldShopUI();
+    const item = overworldShop.items[overworldShop.selected];
+    const owned = runBuffs[item.id] || 0;
+    const maxed = item.max != null && owned >= item.max;
+
+    ctx.fillStyle = "rgba(0,0,0,0.72)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // panel
+    ctx.fillStyle = "rgba(20,20,28,0.96)";
+    ctx.fillRect(ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h);
+
+    ctx.strokeStyle = "#d8b64e";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h);
+
+    // titel
+    ctx.fillStyle = "#ffd84d";
+    ctx.font = "bold 36px serif";
+    ctx.fillText("SHOP", ui.panel.x + 20, ui.panel.y + 42);
+
+    ctx.fillStyle = "#fff2b8";
+    ctx.font = "24px serif";
+    ctx.fillText("Coins: " + coins, ui.panel.x + ui.panel.w - 150, ui.panel.y + 42);
+
+    // item card
+    ctx.fillStyle = "rgba(90,70,20,0.96)";
+    ctx.fillRect(ui.card.x, ui.card.y, ui.card.w, ui.card.h);
+
+    ctx.strokeStyle = "#ffd84d";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(ui.card.x, ui.card.y, ui.card.w, ui.card.h);
+
+    ctx.fillStyle = "#fff2b8";
+    ctx.font = "bold 32px serif";
+    ctx.fillText(item.name, ui.card.x + 20, ui.card.y + 42);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "24px serif";
+    drawWrappedText(ctx, item.desc, ui.card.x + 20, ui.card.y + 84, ui.card.w - 40, 30);
+
+    ctx.fillStyle = "#ffd84d";
+    ctx.font = "bold 24px serif";
+    ctx.fillText("Cost: " + item.cost, ui.card.x + 20, ui.card.y + ui.card.h - 46);
+
+    ctx.fillStyle = "#9cff9c";
+    ctx.fillText("Owned: " + owned + (item.max != null ? "/" + item.max : ""), ui.card.x + 180, ui.card.y + ui.card.h - 46);
+
+    if(maxed){
+        ctx.fillStyle = "#ff6e6e";
+        ctx.font = "bold 24px serif";
+        ctx.fillText("MAX", ui.card.x + ui.card.w - 70, ui.card.y + 40);
+    }
+
+    // previews
+    ctx.font = "22px serif";
+    for(let i = 0; i < overworldShop.items.length; i++){
+        const px = ui.panel.x + 40 + i * 220;
+        const py = ui.card.y + ui.card.h + 60;
+        ctx.fillStyle = i === overworldShop.selected ? "#ffd84d" : "#888";
+        ctx.fillText(overworldShop.items[i].name, px, py);
+    }
+
+    drawShopButton(ctx, ui.leftBtn, "<");
+    drawShopButton(ctx, ui.rightBtn, ">");
+    drawShopButton(ctx, ui.buyBtn, "BUY");
+    drawShopButton(ctx, ui.closeBtn, "CLOSE");
+
+    if(overworldShop.message){
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 24px serif";
+        ctx.fillText(overworldShop.message, ui.panel.x + 20, ui.panel.y + ui.panel.h + 34);
+    }
+}
+function drawShopButton(ctx, b, text){
+    ctx.fillStyle = "rgba(70,70,85,0.96)";
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+
+    ctx.strokeStyle = "#d8b64e";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(b.x, b.y, b.w, b.h);
+
+    ctx.fillStyle = "#fff2b8";
+    ctx.font = "bold 24px serif";
+    const tw = ctx.measureText(text).width;
+    ctx.fillText(text, b.x + b.w/2 - tw/2, b.y + b.h/2 + 8);
+}
+function updateOverworldShop(scale, coinsObj){
+    if(overworldShop.messageTimer > 0){
+        overworldShop.messageTimer -= 1 * scale;
+        if(overworldShop.messageTimer <= 0){
+            overworldShop.message = "";
+        }
+    }
+
+    if(!overworldShop.open){
+        overworldShop.pressLock = false;
+        return;
+    }
+
+    const ui = getOverworldShopUI();
+
+    if(mousepressed && !overworldShop.pressLock){
+        overworldShop.pressLock = true;
+
+        const x = mousex;
+        const y = mousey;
+
+        if(pointInRect(x, y, ui.leftBtn.x, ui.leftBtn.y, ui.leftBtn.w, ui.leftBtn.h)){
+            overworldShop.selected--;
+            if(overworldShop.selected < 0) overworldShop.selected = overworldShop.items.length - 1;
+        }
+        else if(pointInRect(x, y, ui.rightBtn.x, ui.rightBtn.y, ui.rightBtn.w, ui.rightBtn.h)){
+            overworldShop.selected++;
+            if(overworldShop.selected >= overworldShop.items.length) overworldShop.selected = 0;
+        }
+        else if(pointInRect(x, y, ui.buyBtn.x, ui.buyBtn.y, ui.buyBtn.w, ui.buyBtn.h)){
+            buyOverworldShopItem(coinsObj);
+        }
+        else if(pointInRect(x, y, ui.closeBtn.x, ui.closeBtn.y, ui.closeBtn.w, ui.closeBtn.h)){
+            overworldShop.open = false;
+        }
+    }
+
+    if(!mousepressed){
+        overworldShop.pressLock = false;
+    }
+}
+function buyOverworldShopItem(coinsObj){
+    const item = overworldShop.items[overworldShop.selected];
+    if(!item) return;
+
+    const owned = runBuffs[item.id] || 0;
+
+    if(item.max != null && owned >= item.max){
+        overworldShop.message = "MAXED";
+        overworldShop.messageTimer = 60;
+        return;
+    }
+
+    if(coinsObj.coins < item.cost){
+        overworldShop.message = "NOT ENOUGH COINS";
+        overworldShop.messageTimer = 60;
+        return;
+    }
+
+    coinsObj.coins -= item.cost;
+    runBuffs[item.id] = owned + 1;
+
+    overworldShop.message = "BOUGHT " + item.name;
+    overworldShop.messageTimer = 60;
+}
+function pointInRect(px, py, x, y, w, h){
+    return px >= x && px <= x + w && py >= y && py <= y + h;
+}
+
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight){
+    const words = text.split(" ");
+    let line = "";
+    let yy = y;
+
+    for(let i = 0; i < words.length; i++){
+        const test = line + words[i] + " ";
+        const w = ctx.measureText(test).width;
+        if(w > maxWidth && i > 0){
+            ctx.fillText(line, x, yy);
+            line = words[i] + " ";
+            yy += lineHeight;
+        } else {
+            line = test;
+        }
+    }
+    ctx.fillText(line, x, yy);
+}
+
+
+
+function setupOverworldInput(canvas){
+    function setPointerPos(clientX, clientY){
+        const rect = canvas.getBoundingClientRect();
+        const sx = canvas.width / rect.width;
+        const sy = canvas.height / rect.height;
+
+        owInput.x = (clientX - rect.left) * sx;
+        owInput.y = (clientY - rect.top) * sy;
+    }
+
+    canvas.addEventListener("mousedown", (e) => {
+        setPointerPos(e.clientX, e.clientY);
+        owInput.pressed = true;
+        owInput.justPressed = true;
+    });
+
+    canvas.addEventListener("mousemove", (e) => {
+        setPointerPos(e.clientX, e.clientY);
+    });
+
+    window.addEventListener("mouseup", () => {
+        owInput.pressed = false;
+    });
+
+    canvas.addEventListener("touchstart", (e) => {
+        const t = e.touches[0];
+        if(!t) return;
+        setPointerPos(t.clientX, t.clientY);
+        owInput.pressed = true;
+        owInput.justPressed = true;
+        e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener("touchmove", (e) => {
+        const t = e.touches[0];
+        if(!t) return;
+        setPointerPos(t.clientX, t.clientY);
+        e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener("touchend", () => {
+        owInput.pressed = false;
+    });
+}
+
+function getOverworldShopUI(){
+    const panel = {
+        x: canvas.width * 0.05,
+        y: canvas.height * 0.08,
+        w: canvas.width * 0.90,
+        h: canvas.height * 0.76
+    };
+
+    const gap = 24;
+    const cardW = (panel.w - gap * 4) / 3;
+    const cardH = panel.h * 0.42;
+    const cardY = panel.y + 85;
+
+    const cards = [
+        { x: panel.x + gap, y: cardY, w: cardW, h: cardH },
+        { x: panel.x + gap * 2 + cardW, y: cardY, w: cardW, h: cardH },
+        { x: panel.x + gap * 3 + cardW * 2, y: cardY, w: cardW, h: cardH }
+    ];
+
+    return {
+        panel,
+        cards,
+        closeBtn: {
+            x: panel.x + panel.w - 130,
+            y: panel.y + panel.h - 80,
+            w: 110,
+            h: 56
+        }
+    };
+}
+function updateOverworldShop(scale, saveData){
+    if(overworldShop.messageTimer > 0){
+        overworldShop.messageTimer -= 1 * scale;
+        if(overworldShop.messageTimer <= 0){
+            overworldShop.message = "";
+        }
+    }
+
+    if(!overworldShop.open) return;
+
+    const ui = getOverworldShopUI();
+
+    if(owInput.justPressed){
+        const x = owInput.x;
+        const y = owInput.y;
+
+        // tryck på kort
+        for(let i = 0; i < ui.cards.length; i++){
+            const c = ui.cards[i];
+            if(pointInRect(x, y, c.x, c.y, c.w, c.h)){
+                overworldShop.selected = i;
+                buyOverworldShopItem(i, saveData);
+                return;
+            }
+        }
+
+        // stäng
+        if(pointInRect(x, y, ui.closeBtn.x, ui.closeBtn.y, ui.closeBtn.w, ui.closeBtn.h)){
+            overworldShop.open = false;
+            return;
+        }
+    }
+}
+function buyOverworldShopItem(index, saveData){
+    const item = overworldShop.items[index];
+    if(!item) return;
+
+    const owned = runBuffs[item.id] || 0;
+
+    if(item.max != null && owned >= item.max){
+        overworldShop.message = "MAXED";
+        overworldShop.messageTimer = 60;
+        return;
+    }
+
+    if(saveData < item.cost){
+        overworldShop.message = "NOT ENOUGH COINS";
+        overworldShop.messageTimer = 60;
+        return;
+    }
+
+    saveData -= item.cost;
+    runBuffs[item.id] = owned + 1;
+    overworldShop.selected = index;
+
+    overworldShop.message = "BOUGHT " + item.name;
+    overworldShop.messageTimer = 60;
+}
+function drawOverworldShop(ctx, saveData){
+    if(!overworldShop.open) return;
+
+    const ui = getOverworldShopUI();
+
+    ctx.fillStyle = "rgba(0,0,0,0.72)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "rgba(20,20,28,0.96)";
+    ctx.fillRect(ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h);
+
+    ctx.strokeStyle = "#d8b64e";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h);
+
+    ctx.fillStyle = "#ffd84d";
+    ctx.font = "bold 36px serif";
+    ctx.fillText("SHOP", ui.panel.x + 20, ui.panel.y + 42);
+
+    ctx.fillStyle = "#fff2b8";
+    ctx.font = "24px serif";
+    ctx.fillText("Coins: " + saveData, ui.panel.x + ui.panel.w - 160, ui.panel.y + 42);
+
+    for(let i = 0; i < overworldShop.items.length; i++){
+        const item = overworldShop.items[i];
+        const c = ui.cards[i];
+        const owned = runBuffs[item.id] || 0;
+        const maxed = item.max != null && owned >= item.max;
+        const selected = i === overworldShop.selected;
+
+        ctx.fillStyle = selected ? "rgba(90,70,20,0.96)" : "rgba(55,55,66,0.96)";
+        ctx.fillRect(c.x, c.y, c.w, c.h);
+
+        ctx.strokeStyle = selected ? "#ffd84d" : "#8a8a94";
+        ctx.lineWidth = selected ? 4 : 2;
+        ctx.strokeRect(c.x, c.y, c.w, c.h);
+
+        ctx.fillStyle = "#fff2b8";
+        ctx.font = "bold 28px serif";
+        ctx.fillText(item.name, c.x + 16, c.y + 36);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "22px serif";
+        drawWrappedText(ctx, item.desc, c.x + 16, c.y + 74, c.w - 32, 28);
+
+        ctx.fillStyle = "#ffd84d";
+        ctx.font = "bold 24px serif";
+        ctx.fillText("Cost: " + item.cost, c.x + 16, c.y + c.h - 46);
+
+        ctx.fillStyle = "#9cff9c";
+        ctx.fillText("Owned: " + owned + (item.max != null ? "/" + item.max : ""), c.x + 16, c.y + c.h - 16);
+
+        if(maxed){
+            ctx.fillStyle = "#ff7070";
+            ctx.font = "bold 22px serif";
+            ctx.fillText("MAX", c.x + c.w - 64, c.y + 34);
+        }
+    }
+
+    // close
+    drawShopButton(ctx, ui.closeBtn, "CLOSE");
+
+    if(overworldShop.message){
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 24px serif";
+        ctx.fillText(overworldShop.message, ui.panel.x + 20, ui.panel.y + ui.panel.h - 18);
+    }
+}
+function pointInRect(px, py, x, y, w, h){
+    return px >= x && px <= x + w && py >= y && py <= y + h;
+}
+
+function drawShopButton(ctx, b, text){
+    ctx.fillStyle = "rgba(70,70,85,0.96)";
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+
+    ctx.strokeStyle = "#d8b64e";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(b.x, b.y, b.w, b.h);
+
+    ctx.fillStyle = "#fff2b8";
+    ctx.font = "bold 22px serif";
+    const tw = ctx.measureText(text).width;
+    ctx.fillText(text, b.x + b.w/2 - tw/2, b.y + b.h/2 + 7);
+}
+
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight){
+    const words = text.split(" ");
+    let line = "";
+    let yy = y;
+
+    for(let i = 0; i < words.length; i++){
+        const test = line + words[i] + " ";
+        if(ctx.measureText(test).width > maxWidth && i > 0){
+            ctx.fillText(line, x, yy);
+            line = words[i] + " ";
+            yy += lineHeight;
+        } else {
+            line = test;
+        }
+    }
+    ctx.fillText(line, x, yy);
+}
+function getShopButtonRect(){
+    return {
+        x: canvas.width - 150,
+        y: 20,
+        w: 120,
+        h: 56
+    };
+}
+function drawOverworldShopButton(ctx){
+    if(overworldShop.open) return;
+
+    const b = getShopButtonRect();
+
+    ctx.fillStyle = "rgba(20,20,28,0.92)";
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+
+    ctx.strokeStyle = "#d8b64e";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(b.x, b.y, b.w, b.h);
+
+    ctx.fillStyle = "#fff2b8";
+    ctx.font = "bold 24px serif";
+    const txt = "SHOP";
+    const tw = ctx.measureText(txt).width;
+    ctx.fillText(txt, b.x + b.w/2 - tw/2, b.y + b.h/2 + 8);
+}
+function updateOverworldShopButton(){
+     if(!owInput.justPressed) return;
+
+    console.log("pressed", owInput.x, owInput.y);
+
+    const b = getShopButtonRect();
+    console.log("button", b.x, b.y, b.w, b.h);
+
+    if(pointInRect(owInput.x, owInput.y, b.x, b.y, b.w, b.h)){
+        console.log("SHOP BUTTON HIT");
+        overworldShop.open = true;
+    }
+
+
+    const pad = 12;
+
+    if(pointInRect(
+        owInput.x,
+        owInput.y,
+        b.x - pad,
+        b.y - pad,
+        b.w + pad*2,
+        b.h + pad*2
+    )){
+        overworldShop.open = true;
+    }
+}
+function pointInRect(px, py, x, y, w, h){
+    return px >= x && px <= x + w && py >= y && py <= y + h;
 }
         </script>
         
