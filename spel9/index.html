@@ -913,11 +913,11 @@ requestAnimationFrame(gameLoop);
                             lastWPress = now;
                             notW=false;
                         }
+                        let stopp=false;
                         if(!keyState.w)notW=true;
                         if(game.currentmap==3){if(game.getobjecttype("swordguy").objects[0].x>300+canvas.width/2)game.setcameraobj(game.getobjecttype("swordguy").objects[0], canvas.width, null);else{game.maps[game.currentmap].camerax=-300;}ctx.fillStyle="black";;ctx.globalAlpha = 0.6;ctx.fillRect(game.maps[game.currentmap].camerax+300,0,100,canvas.height);ctx.globalAlpha = 1;   }
-                        let stopp=false;
-                        if(game.currentmap==5){if(game.getobjecttype("swordguy").objects[0].x>-400+canvas.width/2)game.setcameraobj(game.getobjecttype("swordguy").objects[0], canvas.width, null);else{game.maps[game.currentmap].camerax=400;stopp=true;}ctx.fillStyle="black";;ctx.globalAlpha = 0.6;ctx.fillRect(game.maps[game.currentmap].camerax-400,0,100,canvas.height);ctx.globalAlpha = 1; }
-                        if(game.currentmap==5){if((game.getobjecttype("swordguy").objects[0].x>game.getobjecttype("portal").objects[0].x-canvas.width/2+350))if(!stopp){game.maps[game.currentmap].camerax=-game.getobjecttype("portal").objects[0].x+canvas.width-350;}ctx.fillStyle="black";;ctx.globalAlpha = 0.6;ctx.fillRect(game.maps[game.currentmap].camerax+game.getobjecttype("portal").objects[0].x+250,0,100,canvas.height);ctx.globalAlpha = 1;   }
+                        
+                        else if(game.currentmap==5){if(game.getobjecttype("swordguy").objects[0].x>-400+canvas.width/2)game.setcameraobj(game.getobjecttype("swordguy").objects[0], canvas.width, null);else{game.maps[game.currentmap].camerax=400;stopp=true;}ctx.fillStyle="black";;ctx.globalAlpha = 0.6;ctx.fillRect(game.maps[game.currentmap].camerax-400,0,100,canvas.height);ctx.globalAlpha = 1; if((game.getobjecttype("swordguy").objects[0].x>game.getobjecttype("portal").objects[0].x-canvas.width/2+350))if(!stopp){game.maps[game.currentmap].camerax=-game.getobjecttype("portal").objects[0].x+canvas.width-350;}ctx.fillStyle="black";;ctx.globalAlpha = 0.6;ctx.fillRect(game.maps[game.currentmap].camerax+game.getobjecttype("portal").objects[0].x+250,0,100,canvas.height);ctx.globalAlpha = 1;   }
                         else if(game.currentmap==2)game.setcameraobj(bird.objects[0], canvas.width, canvas.height);
                         else game.setcameraobj(bird.objects[0], canvas.width, null);
                         bird.objects[0].dual=40;
@@ -1169,7 +1169,7 @@ requestAnimationFrame(gameLoop);
                             
                         }
                         if(game.currentmap==3){
-                            game.getobjecttype("portal").objects[0].animation=1;
+                            if(game.getobjecttype("portal").objects.length)game.getobjecttype("portal").objects[0].animation=1;
                             if(t==0 && game.collideswiths(trigger[t],"swordguy")){
                                 trigger[t].counter=1;
                             }
