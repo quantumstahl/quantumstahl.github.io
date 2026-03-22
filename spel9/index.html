@@ -125,23 +125,43 @@ const runBuffs = {
                 d: false,
                 space: false
             };
-            
+            canvas.setAttribute("tabindex", "0");
+
+            function focusGame() {
+              canvas.focus();
+              window.focus();
+            }
+
+            canvas.addEventListener("click", focusGame);
+            window.addEventListener("load", focusGame);
+            const blockedKeys = [" ", "Space"];
+
             document.addEventListener("keydown", function(e) {
-                try{if(audio.paused&&gameState!=='game_over'){ if(start)audio.play();}}catch(error){};
+                if (blockedKeys.includes(e.key) || blockedKeys.includes(e.code)) {
+                    e.preventDefault();
+                }
+
                 if (e.key === "w") keyState.w = true;
                 if (e.key === "a") keyState.a = true;
                 if (e.key === "s") keyState.s = true;
                 if (e.key === "d") keyState.d = true;
-                if (e.key === " ") keyState.space = true;
+                if (e.key === " " || e.code === "Space") keyState.space = true;
             });
 
             document.addEventListener("keyup", function(e) {
+                if (blockedKeys.includes(e.key) || blockedKeys.includes(e.code)) {
+                    e.preventDefault();
+                }
+
                 if (e.key === "w") keyState.w = false;
                 if (e.key === "a") keyState.a = false;
                 if (e.key === "s") keyState.s = false;
                 if (e.key === "d") keyState.d = false;
-                if (e.key === " ") keyState.space = false;
+                if (e.key === " " || e.code === "Space") keyState.space = false;
             });
+            window.addEventListener("blur", () => {
+                keyState.w = keyState.a = keyState.s = keyState.d = keyState.space = false;
+              });
             const owInput = {
                 x: 0,
                 y: 0,
@@ -401,7 +421,7 @@ requestAnimationFrame(gameLoop);
                              {id:1, x:canvas.width/2.2, y:canvas.height/2.3, type:"level",  cleared:overworldNodes[1].cleared,prereq:[0]},//0
                              {id:2, x:canvas.width/2.1, y:canvas.height/6.5, type:"level", cleared:overworldNodes[2].cleared,prereq:[1]},//1
                              {id:3, x:canvas.width/1.35, y:canvas.height/2.2, type:"level", cleared:overworldNodes[3].cleared,prereq:[1]}, //1
-                             {id:4, x:canvas.width/2.2, y:canvas.height/1.3, type:"level", cleared:overworldNodes[4].cleared,prereq:[2,3]},//1
+                             {id:4, x:canvas.width/2.2, y:canvas.height/1.3, type:"level", cleared:overworldNodes[4].cleared,prereq:[2.3]},//1
                              {id:5, x:canvas.width/1.3, y:canvas.height/1.4, type:"level", cleared:overworldNodes[5].cleared,prereq:[4]},//4
                              {id:6, x:canvas.width/1.1, y:canvas.height/1.1, type:"level", cleared:overworldNodes[6].cleared,prereq:[5]},//5
                            ];
@@ -5007,7 +5027,7 @@ function getOverworldShopUI(){
         panel,
         cards,
         closeBtn: {
-            x: -110/2+panel.x + panel.w/2,
+            x: panel.x + panel.w/2 - 130/2,
             y: panel.y + panel.h - 80,
             w: 110,
             h: 56
