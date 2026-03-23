@@ -2284,7 +2284,7 @@ case 'patrol': {
       else if (game.collideswith(r,'any','right')){ r.ai.dir = -1;}
     }
     
-    if(r.counter>120){
+    if(r.counter>160){
         r.counter=0;
         if (game.collideswith(r,'any','left')) { r.ai.dir = +1;}
         if (game.collideswith(r,'any','right')) {r.ai.dir = -1;}
