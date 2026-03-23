@@ -319,7 +319,7 @@ const runBuffs = {
                              {id:1, x:canvas.width/2.2, y:canvas.height/2.3, type:"level",  cleared:false,prereq:[0]},//0
                              {id:2, x:canvas.width/2.1, y:canvas.height/6.5, type:"level", cleared:false,prereq:[1]},//1
                              {id:3, x:canvas.width/1.35, y:canvas.height/2.2, type:"level", cleared:false,prereq:[1]}, //1
-                             {id:4, x:canvas.width/2.2, y:canvas.height/1.3, type:"level", cleared:false,prereq:[2,3]},//1
+                             {id:4, x:canvas.width/2.2, y:canvas.height/1.3, type:"level", cleared:false,prereq:[2,3]},//2,3
                              {id:5, x:canvas.width/1.3, y:canvas.height/1.4, type:"level", cleared:false,prereq:[4]},//4
                              {id:6, x:canvas.width/1.1, y:canvas.height/1.1, type:"level", cleared:false,prereq:[5]},//5
                            ];
@@ -421,7 +421,7 @@ requestAnimationFrame(gameLoop);
                              {id:1, x:canvas.width/2.2, y:canvas.height/2.3, type:"level",  cleared:overworldNodes[1].cleared,prereq:[0]},//0
                              {id:2, x:canvas.width/2.1, y:canvas.height/6.5, type:"level", cleared:overworldNodes[2].cleared,prereq:[1]},//1
                              {id:3, x:canvas.width/1.35, y:canvas.height/2.2, type:"level", cleared:overworldNodes[3].cleared,prereq:[1]}, //1
-                             {id:4, x:canvas.width/2.2, y:canvas.height/1.3, type:"level", cleared:overworldNodes[4].cleared,prereq:[2,3]},//1
+                             {id:4, x:canvas.width/2.2, y:canvas.height/1.3, type:"level", cleared:overworldNodes[4].cleared,prereq:[2,3]},//2,3
                              {id:5, x:canvas.width/1.3, y:canvas.height/1.4, type:"level", cleared:overworldNodes[5].cleared,prereq:[4]},//4
                              {id:6, x:canvas.width/1.1, y:canvas.height/1.1, type:"level", cleared:overworldNodes[6].cleared,prereq:[5]},//5
                            ];
@@ -985,6 +985,7 @@ requestAnimationFrame(gameLoop);
 
                             if(game.collideswith(bird.objects[0],"any","down")&&count>2*scale){
                                 count=0;
+                                climbcounter=0;
                                 jump=false;
                             }
                         }
@@ -1582,7 +1583,7 @@ requestAnimationFrame(gameLoop);
                     }
                     const sword = game.getobjecttype('sword')?.objects || [];
                     for(const a of sword){
-                        handleCombat(a, ["rat","archer","tank","bat","mage","warlock","ratfish"], 50,scale);
+                        handleCombat(a, ["rat","archer","tank","bat","mage","warlock","ratfish","batboss","gladiator"], 50,scale);
                     }
                     handleGiantRatfishSwordCombat(scale);
                     
@@ -2011,8 +2012,21 @@ function warlockFrontOpen(w){
         cameraShake(20, 120);       // 120 ms shake
         
         // === KNOCKBACK ===
+        if(unit.name=="ratfish"||unit.name=="giantratfish"){
+            const dir = (unit.x < target.x) ? +1 : -1;
+            target.vx = dir * 40;
+            if (target.y > unit.y) {
+                target.vy = 1 * 40;
+            }
+            else{
+                target.vy = -1 * 40;
+                
+            }
+            
+        }
         
-        if(unit.name=="batboss"){
+        
+        else if(unit.name=="batboss"){
             const dir = (unit.x < target.x) ? +1 : -1;
             target.vx = dir * 10;  // kastas åt sidan
             target.vy = -10;       // lite upp i luften
@@ -2270,7 +2284,7 @@ case 'patrol': {
       else if (game.collideswith(r,'any','right')){ r.ai.dir = -1;}
     }
     
-    if(r.counter>80){
+    if(r.counter>120){
         r.counter=0;
         if (game.collideswith(r,'any','left')) { r.ai.dir = +1;}
         if (game.collideswith(r,'any','right')) {r.ai.dir = -1;}
@@ -2355,6 +2369,8 @@ function updatePhysics(obj,scale,player){
   if (game.collideswith(obj,"any","down")||game.collideswiths(obj,"water2")){
     //obj.vy = 0;
     //obj.y = Math.floor(obj.y/32)*32 - obj.h; // snap to tile
+    if(game.collideswiths(obj,"water2"))obj.vy *= Math.pow(0.85,scale);
+    
     obj.vx *= Math.pow(0.85,scale); // bromsa horisontellt
     if (Math.abs(obj.vx)<0.2) obj.vx = 0;
   }
@@ -5274,7 +5290,7 @@ function spawnShockwaveEffect(player){
     );
 }
 function shockwaveCombat(player, damage, scale){
-    const enemyTypes = ["rat","archer","tank","bat","mage","warlock","gladiator"];
+    const enemyTypes = ["rat","archer","tank","bat","mage","warlock","ratfish","batboss","gladiator"];
     const dir = player.fliped ? -1 : 1;
 
     const px = player.x + player.dimx/2;
