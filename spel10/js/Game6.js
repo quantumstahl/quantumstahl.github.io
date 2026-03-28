@@ -1917,7 +1917,7 @@ class Game6 {
                 const panelY = canvas.height - panelH;
 
                 if ((SelectedWorker) && cursorY >= panelY) {
-                    
+                    return;
                 }
                 else
                     game.issueFormationMove(units, x, y);
