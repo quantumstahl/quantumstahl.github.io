@@ -1936,7 +1936,7 @@ class Game6 {
                 lastPanX = null;
                 lastPanY = null;
             }
-            if(dragedcounter==2){dragedcounter=0;hasdraged=true;}
+            if(dragedcounter>1){dragedcounter=0;hasdraged=true;}
             dragWasActive = false;
             
         });
