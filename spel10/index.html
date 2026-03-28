@@ -335,7 +335,7 @@
                     if (b.state == null) {
                         b.state = "idle";
                         b.isAlive = true;
-                        b.type = "food";
+                        b.type = "none";
                         b.amount = 100;       // eller 20
                         b.gatherTime = 100;
   
@@ -513,6 +513,7 @@ function updateWorker(worker, townhallList, playerResources, scale) {
                 b.flashTimer=30;
                 if (b.hp <= 0) {
                     b.dead=true;
+                    b.type = "food";
                     worker.attackTarget = null;
                     worker.state = "gather";
                     worker.targetResource = b;
