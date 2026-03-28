@@ -189,7 +189,7 @@
 
 
 
-            const playerResources = game.playerResources || (game.playerResources = {wood: 0,food: 0,gold: 0,stone: 0});
+            const playerResources = game.playerResources || (game.playerResources = {wood: 0,food: 1000,gold: 0,stone: 0});
 
 
 
@@ -986,24 +986,31 @@ function updateTownhallTraining(townhall, scale) {
     townhall.trainingTimer += 1 * scale;
 
     if (townhall.trainingTimer >= townhall.trainingTimeMax) {
-        townhall.trainingTimer = 0;
+        const unitType = townhall.trainingQueue[0];
 
-        const unitType = townhall.trainingQueue.shift();
-
+        let spawned = false;
         if (unitType === "worker") {
-            spawnWorkerFromTownhall(townhall);
+            spawned = spawnWorkerFromTownhall(townhall);
+        }
+
+        if (spawned) {
+            townhall.trainingQueue.shift();
+            townhall.trainingTimer = 0;
+        } else {
+            // håll kvar på 100% tills plats finns
+            townhall.trainingTimer = townhall.trainingTimeMax;
         }
     }
-}            
+}        
 function spawnWorkerFromTownhall(townhall) {
-    const spawnX = townhall.x + townhall.dimx + 20;
-    const spawnY = townhall.y + townhall.dimy / 2;
-
     const workerType = game.getobjecttype("worker");
-    if (!workerType) return;
+    if (!workerType) return false;
 
-    const w = game.addobject(workerType, spawnX, spawnY, 40, 40, 0, false);
-    if (!w) return;
+    const pos = findFreeSpawnPosition(townhall, 30, 50);
+    if (!pos) return false;
+
+    const w = game.addobject(workerType, pos.x, pos.y, 30, 50, 0, false);
+    if (!w) return false;
 
     w.state = "idle";
     w.targetResource = null;
@@ -1021,7 +1028,9 @@ function spawnWorkerFromTownhall(townhall) {
     w.iscontrollable = true;
     w.direction = "down";
     w.standingstill = true;
-}            
+
+    return true;
+}        
 function drawTownhallUI(ctx, canvas, selectedTownhall, playerResources) {
     if (!selectedTownhall) return;
 
@@ -1085,7 +1094,7 @@ function pointInRect(px, py, r) {
 function drawTownhallTrainingQueue(ctx, townhall, currentMap) {
     if (!townhall.trainingQueue || townhall.trainingQueue.length === 0) return;
 
-    const iconSize = 22;
+    const iconSize = 30;
     const gap = 4;
     const maxVisible = 8; // valfritt tak
 
@@ -1107,20 +1116,35 @@ function drawTownhallTrainingQueue(ctx, townhall, currentMap) {
 
         const x = startX + i * (iconSize + gap);
 
-        ctx.fillStyle = "rgba(0,0,0,0.7)";
-        ctx.fillRect(x - 2, y - 2, iconSize + 4, iconSize + 4);
-
+       ctx.fillStyle = "rgba(0,0,0,0.7)";
+       ctx.fillRect(x - 2, y - 2, iconSize + 4, iconSize + 4);
+        
+       
         ctx.drawImage(img, x, y, iconSize, iconSize);
 
         // progress bara på första i kön
         if (i === 0 && townhall.trainingTimeMax > 0) {
             const p = Math.min(1, townhall.trainingTimer / townhall.trainingTimeMax);
 
-            ctx.fillStyle = "rgba(255,255,255,0.25)";
-            ctx.fillRect(x, y + iconSize + 2, iconSize, 4);
+           // mörk bakgrund
+            
+            ctx.drawImage(img, x, y, iconSize, iconSize);
+            
+            ctx.fillStyle = "rgba(0,0,0,0.8)";
+            ctx.fillRect(x, y, iconSize, iconSize);
 
-            ctx.fillStyle = "lime";
-            ctx.fillRect(x, y + iconSize + 2, iconSize * p, 4);
+            // progress (full färg)
+            const w = iconSize * p;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x, y, w, iconSize);
+            ctx.clip();
+            
+             ctx.fillStyle = "orange";
+            ctx.fillRect(x, y, iconSize, iconSize);
+            ctx.drawImage(img, x, y, iconSize, iconSize);
+            ctx.restore();
         }
     }
 
@@ -1135,9 +1159,60 @@ function drawTownhallTrainingQueue(ctx, townhall, currentMap) {
         );
     }
 }        
-            
-            
-            
+function isSpawnAreaFree(x, y, w, h) {
+    const all = game.getAllObjects();
+
+    for (const o of all) {
+        if (o.dead) continue;
+        if (!o.selectable) continue; // valfritt filter
+
+        if (
+            x < o.x + o.dimx &&
+            x + w > o.x &&
+            y < o.y + o.dimy &&
+            y + h > o.y
+        ) {
+        
+            return false;
+        }
+    }
+
+    return true;
+}            
+function getTownhallSpawnPositions(townhall, unitW = 30, unitH = 50) {
+    const pad = 20;
+
+    const left = townhall.x - unitW - pad;
+    const right = townhall.x + townhall.dimx + pad;
+    const top = townhall.y - unitH - pad;
+    const bottom = townhall.y + townhall.dimy + pad;
+    const midX = townhall.x + townhall.dimx / 2 - unitW / 2;
+    const midY = townhall.y + townhall.dimy / 2 - unitH / 2;
+
+    return [
+        { x: left,  y: top },     // vänster uppe
+        { x: left,  y: midY },    // vänster mitten
+        { x: left,  y: bottom },  // vänster nere
+
+        { x: midX,  y: top },     // mitten uppe
+        { x: midX,  y: bottom },  // mitten nere
+
+        { x: right, y: top },     // höger uppe
+        { x: right, y: midY },    // höger mitten
+        { x: right, y: bottom }   // höger nere
+    ];
+}         
+function findFreeSpawnPosition(townhall, unitW = 30, unitH = 50) {
+    const spots = getTownhallSpawnPositions(townhall,unitW,unitH);
+
+    for (const p of spots) {
+        if (isSpawnAreaFree(p.x, p.y, unitW, unitH)) {
+            return p;
+        }
+    }
+
+    return null;
+}            
             
             
         </script>
