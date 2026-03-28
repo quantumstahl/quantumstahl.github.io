@@ -1912,7 +1912,15 @@ class Game6 {
                 var units=game.getAllObjects().filter(o => o.selected && o.canMove&&o.iscontrollable);
                 
                 
-                game.issueFormationMove(units, x, y);
+                const SelectedWorker=getSelectedWorker();
+                const panelH = 110;
+                const panelY = canvas.height - panelH;
+
+                if ((SelectedWorker) && cursorY >= panelY) {
+                    
+                }
+                else
+                    game.issueFormationMove(units, x, y);
             }
             if (e.touches.length < 2) {
                 lastPanX = null;
