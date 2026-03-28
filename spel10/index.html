@@ -190,7 +190,7 @@
 
 
 
-            const playerResources = game.playerResources || (game.playerResources = {wood: 1000,food: 0,gold: 0,stone: 1000,pop: 3,popMax: 10});
+            const playerResources = game.playerResources || (game.playerResources = {wood: 1000,food: 1000,gold: 0,stone: 1000,pop: 3,popMax: 10});
             game.buildMode = null;
             const WORKER_BUILD_OPTIONS = [
                 {
@@ -483,7 +483,7 @@
                 
                 if(rightklick){
                     rightklick=false;
-                    if(game.buildMode){game.deselectAll();game.buildMode=null;}
+                    //if(game.buildMode){game.deselectAll();game.buildMode=null;}
                     const selectedWorkers = game.getobjecttype('worker')?.objects?.filter(o => o.selected) || [];
                     const mousepressed = game.getAllObjects().filter(o => o.mousepressed);
                     const isresource = mousepressed.filter(o => o.gatherTime);
