@@ -1639,7 +1639,6 @@ let dragSelectEnd = null;
 let lastPanX = null;
 let lastPanY = null;
 let dragWasActive = false;
-let hasdraged=false;
 let dragedcounter=0;
 let tapTimeout = null;
 let allowSingleTap = true;
@@ -1694,16 +1693,7 @@ class Game6 {
                         const touch0y = ((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor;
                         cursorX=touch0x;
                         cursorY=touch0y;
-                        const SelectedWorker=getSelectedWorker();
-                        const panelH = 110;
-                        const panelY = canvas.height - panelH;
 
-                        if ((SelectedWorker) && cursorY >= panelY) {
-
-                        }
-                        else{
-                            dragedcounter++;
-                        }
                         let calcX = Number(currentMap.camerax) / 100 * Number(layer.moving) + Number(object.x) + (Number(object.dimx) / 2);
                         let calcY = Number(currentMap.cameray) / 100 * Number(layer.moving) + Number(object.y) + (Number(object.dimy) / 2);
                         let calcRot = (-Number(object.rot) * Math.PI) / 180;
@@ -1818,7 +1808,7 @@ class Game6 {
                 dragWasActive = true;
                 
                 
-                hasdraged=false;
+                
             }
             if (e.touches.length === 2 && lastPanX !== null && lastPanY !== null) {
                 const currentMap = game.maps[game.currentmap];
@@ -1936,7 +1926,7 @@ class Game6 {
                 lastPanX = null;
                 lastPanY = null;
             }
-            if(dragedcounter>1){dragedcounter=0;hasdraged=true;}
+           
             dragWasActive = false;
             
         });
