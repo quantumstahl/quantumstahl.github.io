@@ -1664,7 +1664,7 @@ class Game6 {
 
         canvas.addEventListener("touchstart", function(e) {
             e.preventDefault();
-           
+            rightklick=true;
             if (typeof window.allowSelection === "function" && !window.allowSelection()) {
                 return;
             }
@@ -1700,8 +1700,8 @@ class Game6 {
                                     nothing=false;
                                     let canmove=false;
                                     for(let u of units){if(u.iscontrollable)canmove=true;}
-                                    if(canmove==false){for(let u of units){u.selected=false;}object.selected=true; rightklick=true;}
-                                    if(canmove==true&&object.iscontrollable&&object.name!=="sheep"){for(let u of units){u.selected=false;}object.selected=true; rightklick=true;}
+                                    if(canmove==false){for(let u of units){u.selected=false;}object.selected=true;}
+                                    if(canmove==true&&object.iscontrollable&&object.name!=="sheep"){for(let u of units){u.selected=false;}object.selected=true;}
                                 }
                                 
                         }
@@ -1718,8 +1718,8 @@ class Game6 {
                                     nothing=false;
                                     let canmove=false;
                                     for(let u of units){if(u.iscontrollable)canmove=true;}
-                                    if(canmove==false){for(let u of units){u.selected=false;}object.selected=true; rightklick=true;}
-                                    if(canmove==true&&object.iscontrollable&&object.name!=="sheep"){for(let u of units){u.selected=false;}object.selected=true; rightklick=true;}
+                                    if(canmove==false){for(let u of units){u.selected=false;}object.selected=true;}
+                                    if(canmove==true&&object.iscontrollable&&object.name!=="sheep"){for(let u of units){u.selected=false;}object.selected=true;}
                                 }
                             }
                         }
@@ -1730,7 +1730,7 @@ class Game6 {
                 let canmove=false;
                 var units=game.getAllObjects().filter(o => o.selected);
                 for(let u of units){if(u.canMove&&u.iscontrollable)canmove=true;}
-                if(canmove==false){for(let u of units){u.selected=false;} rightklick=true;}
+                if(canmove==false){for(let u of units){u.selected=false;}}
                 
                 
             }

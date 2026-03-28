@@ -375,11 +375,14 @@
                             if(isresource[0].name=="boar"&&!isresource[0].dead ){
                            
                                  orderWorkerAttackBoar(w, isresource[0]);
+                                 w.selected=false;
+                                 
                                 
                             }
                             else{ 
                               
                                 orderWorkerGather(w, isresource[0], townhall);
+                                w.selected=false;
                             }
                         }
                     }
@@ -395,7 +398,7 @@
                 for (const w of worker) {
                     if(!w.dead)w.selectable=true;
                     w.iscontrollable=true;
-                    w.canMove=true;
+               
                     w.fliped=false;
                     
                     if(!w.dead){
