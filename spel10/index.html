@@ -319,7 +319,7 @@
                     }
                     t.isvisable=true;
                     t.gatherTime=100;
-                    
+                    if(t.state==null){t.isUnderConstruction=false;t.state="building";}
                     
                     t.canMove=false;
                     t.selectable=true;
@@ -498,11 +498,14 @@
                     if (selectedWorkers.length > 0 && isresource.length > 0) {
                         for (let w of selectedWorkers) {
                             
-                            if((isresource[0].name=="hus"||isresource[0].name=="townhall")&&!isresource[0].dead ){
-                                clearWorkerOrder(w);
-                                w.state = "buildBuilding";
-                                w.targetBuilding = isresource[0];
-                                w.selected=false;
+                            if((isresource[0].name=="hus"||isresource[0].name=="townhall")&&!isresource[0].dead){
+                                
+                                if(isresource[0].isUnderConstruction ){
+                                    clearWorkerOrder(w);
+                                    w.state = "buildBuilding";
+                                    w.targetBuilding = isresource[0];
+                                    w.selected=false;
+                                }
                                 
                             }
                             
@@ -1488,7 +1491,7 @@ function placeBuilding(x, y, buildingType) {
     b.iscontrollable = false;
     b.isBuilding = true;
     b.isUnderConstruction = true;
-
+    b.state="building";
     b.buildingType = buildingType;
     b.buildProgress = 0;
     b.buildTimer = 0;
