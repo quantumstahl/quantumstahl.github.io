@@ -1492,6 +1492,8 @@ function placeBuilding(x, y, buildingType, builder) {
         clearWorkerOrder(builder);
         builder.state = "buildBuilding";
         builder.targetBuilding = b;
+        builder.targetX=b.x+b.dimx/2;
+        builder.targetY=b.y+b.dimy/2;
     }
 
     markStaticsDirty();
@@ -1499,14 +1501,24 @@ function placeBuilding(x, y, buildingType, builder) {
 }
 function placeBuildingFromBuildMode() {
     if (!game.buildMode) return false;
-
+    disabledrag=true;
     const x = cursorX - game.buildMode.width / 2 - game.getcamerax();
     const y = cursorY - game.buildMode.height / 2 - game.getcameray();
-
-    if (!canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height)||!hasdraged) {
-        return true;
+    
+    if(mobileAndTabletCheck()){
+        if (!canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height)||!hasdraged) {
+            return true;
+        }
+    }
+    else{
+        if (!canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height)) {
+            return true;
+        }
+        
+        
     }
     hasdraged=false;
+    disabledrag=false;
     const builder = getSelectedWorker();
    
     placeBuilding(x, y, game.buildMode.type, builder);

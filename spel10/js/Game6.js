@@ -1643,6 +1643,7 @@ let hasdraged=false;
 let dragedcounter=0;
 let tapTimeout = null;
 let allowSingleTap = true;
+let disabledrag=false;
 const selectenable=true;
 const offscreenCanvas = document.createElement('canvas');
 const offCtx = offscreenCanvas.getContext('2d');
@@ -1765,6 +1766,7 @@ class Game6 {
 
                 dragSelectStart = { x, y };
                 dragSelectEnd = null;
+                if(disabledrag)dragSelectStart = null;
             }
             if (e.touches.length === 2) {
                const rect = canvas.getBoundingClientRect();
@@ -1803,6 +1805,7 @@ class Game6 {
                 cursorY= (((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor);
                 
                 dragSelectEnd = { x, y };
+                if(disabledrag)dragSelectEnd=null;
                 dragWasActive = true;
                 dragedcounter=1;
                 hasdraged=false;
