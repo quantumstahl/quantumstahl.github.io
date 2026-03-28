@@ -1807,7 +1807,17 @@ class Game6 {
                 dragSelectEnd = { x, y };
                 if(disabledrag)dragSelectEnd=null;
                 dragWasActive = true;
-                dragedcounter=1;
+                
+                const SelectedWorker=getSelectedWorker();
+                const panelH = 110;
+                const panelY = canvas.height - panelH;
+
+                if ((SelectedWorker) && cursorY >= panelY) {
+                    
+                }
+                else{
+                    dragedcounter=1;
+                }
                 hasdraged=false;
             }
             if (e.touches.length === 2 && lastPanX !== null && lastPanY !== null) {
@@ -1917,7 +1927,7 @@ class Game6 {
                 const panelY = canvas.height - panelH;
 
                 if ((SelectedWorker) && cursorY >= panelY) {
-                    return;
+                    
                 }
                 else
                     game.issueFormationMove(units, x, y);
