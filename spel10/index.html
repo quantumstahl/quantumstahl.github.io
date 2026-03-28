@@ -197,7 +197,7 @@
 
 
 
-            const playerResources = game.playerResources || (game.playerResources = {wood: 1000,food: 1000,gold: 0,stone: 1000,pop: 3,popMax: 10});
+            const playerResources = game.playerResources || (game.playerResources = {wood: 0,food: 0,gold: 0,stone: 0,pop: 3,popMax: 10});
             game.buildMode = null;
             const WORKER_BUILD_OPTIONS = [
                 {
@@ -221,7 +221,7 @@
                     width: 80,
                     height: 80,
                     cost: { wood: 30 },
-                    buildTime: 240,
+                    buildTime: 900,
                     popMaxBonus: 5,
                     hp: 100
                 },
@@ -232,7 +232,7 @@
                     width: 300,
                     height: 200,
                     cost: { wood: 120, stone: 80 },
-                    buildTime: 500,
+                    buildTime: 2000,
                     popMaxBonus: 0,
                     hp: 400
                 }
@@ -315,7 +315,7 @@
                      if (t.trainingQueue == null) {
                         t.trainingQueue = [];
                         t.trainingTimer = 0;
-                        t.trainingTimeMax = 300; // ca 5 sek vid 60 fps
+                        t.trainingTimeMax = 900; // ca 5 sek vid 60 fps
                     }
                     t.isvisable=true;
                     t.gatherTime=100;
@@ -354,8 +354,8 @@
                     if(g.state==null){
                         g.state="idle";
                         g.type = "gold"; // wood, gold, stone, food
-                        g.amount = 100;
-                        g.gatherTime = 100;
+                        g.amount = 1000;
+                        g.gatherTime = 500;
                     }
                
                 }
@@ -366,8 +366,8 @@
                     if(s.state==null){
                         s.state="idle";
                         s.type = "stone"; // wood, gold, stone, food
-                        s.amount = 100;
-                        s.gatherTime = 100;
+                        s.amount = 1000;
+                        s.gatherTime = 500;
                     }
                  
                 }
@@ -379,7 +379,7 @@
                         b.state="idle";
                         b.type = "food"; // wood, gold, stone, food
                         b.amount = 100;
-                        b.gatherTime = 100;
+                        b.gatherTime = 500;
                     }
        
                 }
@@ -390,7 +390,7 @@
                         t.state="idle";
                         t.type = "wood"; // wood, gold, stone, food
                         t.amount = 100;
-                        t.gatherTime = 100;
+                        t.gatherTime = 500;
                     }
                 }
                 const tree2 = game.getobjecttype('tree2')?.objects || [];
@@ -400,7 +400,7 @@
                         t.state="idle";
                         t.type = "wood"; // wood, gold, stone, food
                         t.amount = 100;
-                        t.gatherTime = 100;
+                        t.gatherTime = 500;
                     }
                 }
                 const sheep = game.getobjecttype('sheep')?.objects || [];
@@ -413,7 +413,7 @@
                         s.state = "idle";
                         s.type = "food";
                         s.amount = 100;       // eller 20
-                        s.gatherTime = 100;
+                        s.gatherTime = 500;
                         s.nearActivated = false;
                     }
                       
@@ -463,7 +463,7 @@
                         b.isAlive = true;
                         b.type = "none";
                         b.amount = 100;       // eller 20
-                        b.gatherTime = 100;
+                        b.gatherTime = 500;
   
 
                         b.spawnX = b.x;
@@ -1211,10 +1211,15 @@ function drawTownhallUI(ctx, canvas, selectedTownhall, playerResources) {
     const by = panelY + 45;
     const bw = 110;
     const bh = 50;
+    
 
-    ctx.fillStyle = "rgba(80,80,80,0.95)";
+    
+    
+    if(playerResources.food<50)ctx.fillStyle = "rgba(60,30,30,0.95)";
+    else ctx.fillStyle = "rgba(30,80,30,0.95)";
     ctx.fillRect(bx, by, bw, bh);
-    ctx.strokeStyle = "white";
+    if(playerResources.food<50)ctx.strokeStyle = "red";
+    else ctx.strokeStyle = "green";
     ctx.strokeRect(bx, by, bw, bh);
 
     ctx.drawImage(game.getobjecttype("worker").images[1].getimage(), bx + 6, by + 6, 22, 22);
@@ -1621,11 +1626,10 @@ function drawWorkerBuildUI(ctx, canvas) {
         const bx = startX + i * (bw + gap);
 
         const canBuy = canAfford(opt.cost);
-
-        ctx.fillStyle = canBuy ? "rgba(80,80,80,0.95)" : "rgba(60,30,30,0.95)";
+        ctx.fillStyle = canBuy ? "rgba(30,80,30,0.95)" : "rgba(60,30,30,0.95)";
         ctx.fillRect(bx, by, bw, bh);
 
-        ctx.strokeStyle = canBuy ? "white" : "red";
+        ctx.strokeStyle = canBuy ? "green" : "red";
         ctx.strokeRect(bx, by, bw, bh);
 
         const img = game.getobjecttype(opt.icon)?.images?.[0]?.getimage();

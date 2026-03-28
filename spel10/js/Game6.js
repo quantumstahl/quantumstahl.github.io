@@ -792,10 +792,12 @@ if (isAxisAlignedRot(d.rot)) {
         o.blockedx=false;
         o.blockedy=false;
      
+     
+     if(!o.slide){
         o.blocked  = movedN > 0.25;
         o.blockedx = o.blocked && Math.abs(d.x - o.x) < Math.abs(wantdx);
         o.blockedy = o.blocked && Math.abs(d.y - o.y) < Math.abs(wantdy);
-    
+     }
         
       
 
@@ -1071,7 +1073,7 @@ function axisAlignedBoxFromProxy(P){
 function solveDynVsStaticsSequential(A, gridStat){
   const o = A.ref;
   if (!o) return;
-
+  o.slide=false;
   const dx = o._wantdx || 0;
   const dy = o._wantdy || 0;
   const dist = Math.hypot(dx, dy);
@@ -1276,6 +1278,7 @@ const goingDownhill = tangent.y > 0.001;
         const dot = stepDx * contact.n.y; // Enkel 2D-tangent projektion
             if(o._wantdy>0)stepDx += dot * Math.abs(contact.n.x);
         else stepDx -= dot * Math.abs(contact.n.x);
+        if(S.ref.rot!==0)o.slide=true;
       }
         if ((S.rot || 0) !== 0 && !isAxisAlignedRot(S.rot)) {
             o._contactNormals.push(contact.n);
@@ -1303,6 +1306,7 @@ if (o._contactNormals.length > 0 && inputLen > DEADZONE) {
     if (Math.abs(inputX) > DEADZONE) {
       const assistY = getSlopeAssistY(o._contactNormals, inputX, 0);
       stepDy += assistY * Math.abs(stepDx) * 1.05;
+      if(S.ref.rot!==0)o.slide=true;
     }
   }
 }
@@ -1484,7 +1488,7 @@ const goingDownhill = tangent.y > 0.001;
         // Om vi krockar i Y, låt oss styra om rörelsen till X
         const dot = stepDy * contact.n.x;
         
-        
+        if(S.ref.rot!==0)o.slide=true;
         if(o._wantdy>0)stepDx += dot * Math.abs(contact.n.x);
         else stepDx -= dot * Math.abs(contact.n.x);
         
@@ -2729,7 +2733,10 @@ maskCanvas.width = canvas.width;
                  obj.y += ((dy / dist) * obj.speed);
                  obj.x += ((dx / dist) * obj.speed);
                  
-                 if (dist > 1){
+                 
+                 
+                 
+                 if (dist > 2 && !obj.wasblocked){
                     if (Math.abs(dx) > Math.abs(dy)) {
                         if(go==true)obj.direction = dx > 0 ? "right" : "left";
                         if(!obj.blockedx||go)obj.directiony=dy > 0 ? "down" : "up";
@@ -2740,8 +2747,8 @@ maskCanvas.width = canvas.width;
                         if(!obj.blockedx||go)obj.directiony=dy > 0 ? "down" : "up";
                     }
                 }
-
-
+                obj.wasblocked=false;
+                if(obj.blocked)obj.wasblocked=true;
                     
     
                 
@@ -2765,8 +2772,8 @@ maskCanvas.width = canvas.width;
                         
                     //    if((obj.blockedx==true&&obj.blockedy==false)||(obj.blockedy==true&&obj.blockedx==false)){
                             
-                            if(obj.blockedcounter==175){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
                             if(obj.blockedcounter==350){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
+                            if(obj.blockedcounter==700){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
                         
                             
                             if(obj.direction=="left"){if(obj.directiony=="up"){obj.y += obj.rakna;}if(obj.directiony=="down"){obj.y -= obj.rakna;}}
@@ -2777,7 +2784,7 @@ maskCanvas.width = canvas.width;
                         
 
                         
-                        if(obj.blockedcounter>525){
+                        if(obj.blockedcounter>1050){
                             obj.blockedcounter=0;
                             
                             
@@ -3297,6 +3304,8 @@ this.hitWallY = false;
 this.slideResolved = false;
 this.standingstill=true;
 this.dead=false;
+this.wasblocked=false;
+this.slide=false;
 
     }
     collidestest(){
