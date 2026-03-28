@@ -75,7 +75,14 @@
                     
                     
             });
-            
+            document.addEventListener("touchend" , function(e) {
+                e.preventDefault();
+                        handleGameUILeftClick(cursorX, cursorY);
+                    
+                    
+                    
+                    
+            });
             
             
             document.addEventListener("visibilitychange", event => {
