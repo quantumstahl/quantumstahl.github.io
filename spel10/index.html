@@ -1522,7 +1522,7 @@ function placeBuildingFromBuildMode() {
     const y = cursorY - game.buildMode.height / 2 - game.getcameray();
     
     if(mobileAndTabletCheck()){
-        if (!canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height)||countercounter<2) {
+        if (!canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height)||countercounter<1) {
             countercounter++;
             return true;
         }
