@@ -40,8 +40,15 @@
                 source.start();
             };
             
-             document.addEventListener('click', (event) => {
-                 try{if(audio.paused){ audio.play();}}catch(error){};
+            document.addEventListener('click', (event) => {
+                try{if(audio.paused){ audio.play();}}catch(error){};
+                 
+                const selectedTownhall = getSelectedTownhall();
+                if (selectedTownhall && selectedTownhall.trainWorkerButton) {
+                    if (pointInRect(cursorX, cursorY, selectedTownhall.trainWorkerButton)) {
+                        queueWorkerTraining(selectedTownhall, playerResources);
+                    }
+                }
                  
              });
             
@@ -216,6 +223,7 @@
                 ctx.font="20px Cinzel";
                 ctx.fillText("Wood: " + playerResources.wood + "   Food: " + playerResources.food + "   Gold: " + playerResources.gold + "   Stone: " + playerResources.stone, 20, 30);
                 
+ 
                 
                 const camSpeed = 15;
                 const currentMap = game.maps[game.currentmap];
@@ -226,10 +234,20 @@
                 if (keyState.d) currentMap.camerax -= camSpeed;
                 
                 
+                const selectedTownhall = getSelectedTownhall();
+                drawTownhallUI(ctx, canvas, selectedTownhall, playerResources);
+                
                 const townhall = game.getobjecttype('townhall')?.objects || [];
                 for (const t of townhall) {
                     t.canMove=false;
                     t.selectable=true;
+                    if (t.trainingQueue == null) {
+                        t.trainingQueue = [];
+                        t.trainingTimer = 0;
+                        t.trainingTimeMax = 300; // ca 5 sek vid 60 fps
+                    }
+                     updateTownhallTraining(t, scale);
+                     drawTownhallTrainingQueue(ctx, t, currentMap);
        
                 }
                 const gold = game.getobjecttype('gold')?.objects || [];
@@ -307,6 +325,11 @@
                         const dx = w.x - s.x;
                         const dy = w.y - s.y;
                         const dist = Math.hypot(dx, dy);
+                        
+                        
+                        
+                        
+                        
 
                         if (dist < 300) s.nearActivated = true;
                             s.iscontrollable = s.nearActivated;
@@ -314,6 +337,12 @@
                     s.fliped=false;
                     
                     if(!s.dead){
+                        if (!s.iscontrollable) {
+                            updatePassiveWander(s, scale, 60, 100, 240);
+                        } else {
+                            s.wanderState = "wait";
+                            s.wanderTimer = 30;
+                        }
                         if(s.iscontrollable){
                             if(s.direction=="down"){s.animation=9;if(s.standingstill)s.animation=8;}
                             if(s.direction=="up"){s.animation=11;if(s.standingstill)s.animation=10;}
@@ -421,6 +450,9 @@
                         if(w.carryType==="wood"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("woodicon"),w.x,w.y-20,30,30,0,false);}   
                         if(w.carryType==="stone"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("stoneicon"),w.x,w.y-20,30,30,0,false);}    
                         if(w.carryType==="gold"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("goldicon"),w.x,w.y-20,30,30,0,false);}        
+                        
+                        
+                        
                         
                         
                         if(w.holdingicon){w.holdingicon.x=w.x;w.holdingicon.y=w.y-20;}
@@ -770,13 +802,14 @@ function updateBoar(boar, scale) {
 
 
     if (boar.state === "idle") {
-        boar.standingstill = true;
-
         const target = getNearestWorkerInRange(boar, boar.aggroRange);
         if (target) {
             boar.targetUnit = target;
             boar.state = "aggro";
+            return;
         }
+
+        updatePassiveWander(boar, scale, 70, 80, 200);
         return;
     }
 
@@ -878,13 +911,225 @@ function orderWorkerAttackBoar(worker, boar) {
     worker.attackTarget = boar;
     worker.state = "attackBoar";
 }            
-            
-            
-            
-            
-            
-            
-            
+function updatePassiveWander(unit, scale, radius = 80, waitMin = 40, waitMax = 140) {
+    if (unit.dead) return;
+
+    if (unit.spawnX == null) unit.spawnX = unit.x;
+    if (unit.spawnY == null) unit.spawnY = unit.y;
+
+    if (unit.wanderTimer == null) unit.wanderTimer = 0;
+    if (unit.wanderState == null) unit.wanderState = "wait"; // "wait" | "move"
+
+    if (unit.wanderState === "wait") {
+        unit.standingstill = true;
+        unit.wanderTimer -= 1 * scale;
+
+        if (unit.wanderTimer <= 0) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * radius;
+
+            unit.wanderTargetX = unit.spawnX + Math.cos(angle) * dist;
+            unit.wanderTargetY = unit.spawnY + Math.sin(angle) * dist;
+
+            unit.targetX = unit.wanderTargetX;
+            unit.targetY = unit.wanderTargetY;
+            unit.wanderState = "move";
+        }
+        return;
+    }
+
+    if (unit.wanderState === "move") {
+        const dx = unit.targetX - unit.x;
+        const dy = unit.targetY - unit.y;
+        const d = Math.hypot(dx, dy);
+
+        if (d < 10) {
+            unit.wanderState = "wait";
+            unit.wanderTimer = waitMin + Math.random() * (waitMax - waitMin);
+            unit.standingstill = true;
+            return;
+        }
+
+        unit.standingstill = false;
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+            unit.direction = dx >= 0 ? "right" : "left";
+        } else {
+            unit.direction = dy >= 0 ? "down" : "up";
+        }
+    }
+}            
+function getSelectedTownhall() {
+    const townhalls = game.getobjecttype('townhall')?.objects || [];
+    return townhalls.find(t => t.selected && !t.dead) || null;
+}
+function queueWorkerTraining(townhall, playerResources) {
+    if (!townhall) return false;
+    if ((playerResources.food || 0) < 50) return false;
+    if (townhall.trainingQueue.length >= 8) return false;
+
+    playerResources.food -= 50;
+    townhall.trainingQueue.push("worker");
+    return true;
+}
+function updateTownhallTraining(townhall, scale) {
+    if (!townhall.trainingQueue || townhall.trainingQueue.length === 0) {
+        townhall.trainingTimer = 0;
+        return;
+    }
+
+    townhall.trainingTimer += 1 * scale;
+
+    if (townhall.trainingTimer >= townhall.trainingTimeMax) {
+        townhall.trainingTimer = 0;
+
+        const unitType = townhall.trainingQueue.shift();
+
+        if (unitType === "worker") {
+            spawnWorkerFromTownhall(townhall);
+        }
+    }
+}            
+function spawnWorkerFromTownhall(townhall) {
+    const spawnX = townhall.x + townhall.dimx + 20;
+    const spawnY = townhall.y + townhall.dimy / 2;
+
+    const workerType = game.getobjecttype("worker");
+    if (!workerType) return;
+
+    const w = game.addobject(workerType, spawnX, spawnY, 40, 40, 0, false);
+    if (!w) return;
+
+    w.state = "idle";
+    w.targetResource = null;
+    w.targetDropoff = null;
+    w.carryType = null;
+    w.carryAmount = 0;
+    w.carryMax = 10;
+    w.gatherTimer = 0;
+    w.jobType = null;
+    w.holdingicon = null;
+    w.attackTarget = null;
+    w.attackTimer = 0;
+    w.hp = 20;
+    w.selectable = true;
+    w.iscontrollable = true;
+    w.direction = "down";
+    w.standingstill = true;
+}            
+function drawTownhallUI(ctx, canvas, selectedTownhall, playerResources) {
+    if (!selectedTownhall) return;
+
+    const panelH = 110;
+    const panelY = canvas.height - panelH;
+
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.fillRect(0, panelY, canvas.width, panelH);
+
+    ctx.strokeStyle = "gold";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, panelY, canvas.width, panelH);
+
+    ctx.fillStyle = "white";
+    ctx.font = "22px Cinzel";
+    ctx.fillText("Town Hall", 20, panelY + 30);
+
+    // worker-knapp
+    const bx = 20;
+    const by = panelY + 45;
+    const bw = 110;
+    const bh = 50;
+
+    ctx.fillStyle = "rgba(80,80,80,0.95)";
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.strokeStyle = "white";
+    ctx.strokeRect(bx, by, bw, bh);
+
+    ctx.drawImage(game.getobjecttype("worker").images[1].getimage(), bx + 6, by + 6, 22, 22);
+
+    ctx.fillStyle = "white";
+    ctx.font = "16px Cinzel";
+    ctx.fillText("Worker", bx + 34, by + 18);
+    ctx.fillText("50 Food", bx + 34, by + 38);
+
+    // spara knappyta för klick
+    selectedTownhall.trainWorkerButton = {
+        x: bx,
+        y: by,
+        w: bw,
+        h: bh
+    };
+
+    // kö-visning
+    ctx.fillStyle = "white";
+    ctx.fillText("Queue: " + selectedTownhall.trainingQueue.length, 140, by + 20);
+
+    if (selectedTownhall.trainingQueue.length > 0) {
+        const p = Math.min(1, selectedTownhall.trainingTimer / selectedTownhall.trainingTimeMax);
+
+        ctx.strokeStyle = "white";
+        ctx.strokeRect(140, by + 28, 140, 14);
+
+        ctx.fillStyle = "lime";
+        ctx.fillRect(140, by + 28, 140 * p, 14);
+    }
+}            
+function pointInRect(px, py, r) {
+    return r && px >= r.x && py >= r.y && px <= r.x + r.w && py <= r.y + r.h;
+}            
+function drawTownhallTrainingQueue(ctx, townhall, currentMap) {
+    if (!townhall.trainingQueue || townhall.trainingQueue.length === 0) return;
+
+    const iconSize = 22;
+    const gap = 4;
+    const maxVisible = 8; // valfritt tak
+
+    const queue = townhall.trainingQueue.slice(0, maxVisible);
+    const totalW = queue.length * iconSize + (queue.length - 1) * gap;
+
+    const startX = townhall.x + currentMap.camerax + townhall.dimx / 2 - totalW / 2;
+    const y = townhall.y + currentMap.cameray - 34;
+
+    for (let i = 0; i < queue.length; i++) {
+        const type = queue[i];
+        let img = null;
+
+        if (type === "worker") {
+            img = game.getobjecttype("worker")?.images?.[1]?.getimage();
+        }
+
+        if (!img) continue;
+
+        const x = startX + i * (iconSize + gap);
+
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.fillRect(x - 2, y - 2, iconSize + 4, iconSize + 4);
+
+        ctx.drawImage(img, x, y, iconSize, iconSize);
+
+        // progress bara på första i kön
+        if (i === 0 && townhall.trainingTimeMax > 0) {
+            const p = Math.min(1, townhall.trainingTimer / townhall.trainingTimeMax);
+
+            ctx.fillStyle = "rgba(255,255,255,0.25)";
+            ctx.fillRect(x, y + iconSize + 2, iconSize, 4);
+
+            ctx.fillStyle = "lime";
+            ctx.fillRect(x, y + iconSize + 2, iconSize * p, 4);
+        }
+    }
+
+    // om kön är längre än maxVisible
+    if (townhall.trainingQueue.length > maxVisible) {
+        ctx.fillStyle = "white";
+        ctx.font = "14px Cinzel";
+        ctx.fillText(
+            "+" + (townhall.trainingQueue.length - maxVisible),
+            startX + maxVisible * (iconSize + gap),
+            y + 16
+        );
+    }
+}        
             
             
             

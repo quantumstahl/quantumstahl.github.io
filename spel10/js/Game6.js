@@ -1684,7 +1684,8 @@ class Game6 {
               
                         const touch0x = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor;
                         const touch0y = ((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor;
-                        
+                        cursorX=touch0x;
+                        cursorY=touch0y;
                         
                         let calcX = Number(currentMap.camerax) / 100 * Number(layer.moving) + Number(object.x) + (Number(object.dimx) / 2);
                         let calcY = Number(currentMap.cameray) / 100 * Number(layer.moving) + Number(object.y) + (Number(object.dimy) / 2);
@@ -1917,6 +1918,8 @@ class Game6 {
             
                         let touch0x = getMousePosOnCanvas(e,canvas).x / zoomFactor;
                         let touch0y = getMousePosOnCanvas(e,canvas).y / zoomFactor;
+                        cursorX=touch0x;
+                        cursorY=touch0y;
                         let calcX = Number(currentMap.camerax) / 100 * Number(layer.moving) + Number(object.x) + (Number(object.dimx) / 2);
                         let calcY = Number(currentMap.cameray) / 100 * Number(layer.moving) + Number(object.y) + (Number(object.dimy) / 2);
                         let calcRot = (-Number(object.rot) * Math.PI) / 180;
@@ -1933,7 +1936,15 @@ class Game6 {
 
             const clickedObj = game.getObjectAt(mouseX - currentMap.camerax, mouseY - currentMap.cameray);
 
-            if (e.button === 0) { // Vänsterklick – välj
+            if (e.button === 0) {
+                const selectedTownhall = getSelectedTownhall();
+                const panelH = 110;
+                const panelY = canvas.height - panelH;
+
+                if (selectedTownhall && cursorY >= panelY) {
+                    return;
+                }
+
                 game.deselectAll();
                 if (clickedObj) clickedObj.selected = true;
             } else if (e.button === 2) { // Högerklick – flytta valda
