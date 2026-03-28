@@ -1765,7 +1765,7 @@ class Game6 {
 
                 dragSelectStart = { x, y };
                 dragSelectEnd = null;
-                if(disabledrag)dragSelectStart = null;
+                
             }
             if (e.touches.length === 2) {
                const rect = canvas.getBoundingClientRect();
@@ -1804,7 +1804,6 @@ class Game6 {
                 cursorY= (((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor);
                 
                 dragSelectEnd = { x, y };
-                if(disabledrag)dragSelectEnd=null;
                 dragWasActive = true;
                 
                 
@@ -1870,7 +1869,7 @@ class Game6 {
                     }
                 }
             }
-            if (dragSelectStart && dragSelectEnd) {
+            if (dragSelectStart && dragSelectEnd && disabledrag===false) {
                 game.deselectAll();
                 const x1 = Math.min(dragSelectStart.x, dragSelectEnd.x);
                 const y1 = Math.min(dragSelectStart.y, dragSelectEnd.y);
@@ -2264,7 +2263,7 @@ class Game6 {
                 }
             }
         }
-            if (dragSelectStart && dragSelectEnd) {
+            if (dragSelectStart && dragSelectEnd&&disabledrag===false) {
       
             ctx.save();
             const zoomFactor = 1 + (1 * this.maps[this.currentmap].zoom / 100);
