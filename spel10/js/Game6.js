@@ -1694,7 +1694,16 @@ class Game6 {
                         const touch0y = ((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor;
                         cursorX=touch0x;
                         cursorY=touch0y;
-                        if(dragedcounter==1){dragedcounter=0;hasdraged=true;}
+                        const SelectedWorker=getSelectedWorker();
+                        const panelH = 110;
+                        const panelY = canvas.height - panelH;
+
+                        if ((SelectedWorker) && cursorY >= panelY) {
+
+                        }
+                        else{
+                            dragedcounter++;
+                        }
                         let calcX = Number(currentMap.camerax) / 100 * Number(layer.moving) + Number(object.x) + (Number(object.dimx) / 2);
                         let calcY = Number(currentMap.cameray) / 100 * Number(layer.moving) + Number(object.y) + (Number(object.dimy) / 2);
                         let calcRot = (-Number(object.rot) * Math.PI) / 180;
@@ -1808,16 +1817,7 @@ class Game6 {
                 if(disabledrag)dragSelectEnd=null;
                 dragWasActive = true;
                 
-                const SelectedWorker=getSelectedWorker();
-                const panelH = 110;
-                const panelY = canvas.height - panelH;
-
-                if ((SelectedWorker) && cursorY >= panelY) {
-                    
-                }
-                else{
-                    dragedcounter=1;
-                }
+                
                 hasdraged=false;
             }
             if (e.touches.length === 2 && lastPanX !== null && lastPanY !== null) {
@@ -1927,7 +1927,7 @@ class Game6 {
                 const panelY = canvas.height - panelH;
 
                 if ((SelectedWorker) && cursorY >= panelY) {
-                    
+                    return;
                 }
                 else
                     game.issueFormationMove(units, x, y);
@@ -1936,7 +1936,7 @@ class Game6 {
                 lastPanX = null;
                 lastPanY = null;
             }
-            
+            if(dragedcounter==2){dragedcounter=0;hasdraged=true;}
             dragWasActive = false;
             
         });
