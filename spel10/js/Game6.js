@@ -1671,7 +1671,7 @@ class Game6 {
         canvas.addEventListener("touchstart", function(e) {
             e.preventDefault();
             rightklick=true;
-            hasdraged=false;
+       
             if (typeof window.allowSelection === "function" && !window.allowSelection()) {
                 return;
             }
