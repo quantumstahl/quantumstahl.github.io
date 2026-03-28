@@ -483,7 +483,7 @@
                 
                 if(rightklick){
                     rightklick=false;
-                    //if(game.buildMode){game.deselectAll();game.buildMode=null;}
+                    if(game.buildMode&&!mobileAndTabletCheck()){game.deselectAll();game.buildMode=null;}
                     const selectedWorkers = game.getobjecttype('worker')?.objects?.filter(o => o.selected) || [];
                     const mousepressed = game.getAllObjects().filter(o => o.mousepressed);
                     const isresource = mousepressed.filter(o => o.gatherTime);
@@ -1496,7 +1496,7 @@ function placeBuildingFromBuildMode() {
     const x = cursorX - game.buildMode.width / 2 - game.getcamerax();
     const y = cursorY - game.buildMode.height / 2 - game.getcameray();
 
-    if (!canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height)) {
+    if (!canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height)&&dragWasActive) {
         return true;
     }
 
