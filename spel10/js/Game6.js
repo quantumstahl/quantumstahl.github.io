@@ -1751,7 +1751,7 @@ class Game6 {
                     let canmove=false;
                     var units=game.getAllObjects().filter(o => o.selected);
                     for(let u of units){if(u.canMove&&u.iscontrollable)canmove=true;}
-                   // if(canmove==false){for(let u of units){u.selected=false;}}
+                    if(canmove==false){for(let u of units){u.selected=false;}}
                 }
                 
             }
