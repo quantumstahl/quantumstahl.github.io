@@ -495,7 +495,7 @@
                     const mousepressed = game.getAllObjects().filter(o => o.mousepressed);
                     const isresource = mousepressed.filter(o => o.gatherTime);
 
-                    if (selectedWorkers.length > 0 && isresource.length > 0) {
+                    if (selectedWorkers.length > 0 && isresource.length > 0 && !game.buildMode)  {
                         for (let w of selectedWorkers) {
                             
                             if((isresource[0].name=="hus"||isresource[0].name=="townhall")&&!isresource[0].dead){
@@ -524,7 +524,7 @@
                             }
                         }
                     }
-                    if(selectedWorkers.length > 0 && isresource.length === 0){
+                    if(selectedWorkers.length > 0 && isresource.length === 0 && !game.buildMode){
                         for (let w of selectedWorkers) {
                            clearWorkerOrder(w);
                         }

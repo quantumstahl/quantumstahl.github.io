@@ -2293,7 +2293,7 @@ class Game6 {
         
         
         if(selectenable==true){
-            if (dragSelectStart && dragSelectEnd) {
+            if (dragSelectStart && dragSelectEnd&&disabledrag===false) {
                 ctx.save();
                 const zoomFactor = 1 + (1 * this.maps[this.currentmap].zoom / 100);
                 ctx.scale(zoomFactor, zoomFactor);
