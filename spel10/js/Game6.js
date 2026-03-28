@@ -1789,14 +1789,14 @@ class Game6 {
                 const currentMap = game.maps[game.currentmap];
                 const rect = canvas.getBoundingClientRect();
                 
-                 const deltaX = (e.touches[0].clientX - rect.left) * (canvas.width / rect.width) - lastPanX;
-                const deltaY = (e.touches[0].clientY - rect.top) * (canvas.height / rect.height) - lastPanY;
+                 const deltaX = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width)) - lastPanX;
+                const deltaY = ((e.touches[0].clientY - rect.top) * (canvas.height / rect.height)) - lastPanY;
                 if(selectenable==true){
                     currentMap.camerax += deltaX;
                     currentMap.cameray += deltaY;
                 }
-                lastPanX = e.touches[0].clientX;
-                lastPanY = e.touches[0].clientY;
+                lastPanX = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width));
+                lastPanY = ((e.touches[0].clientY - rect.top) * (canvas.height / rect.height));
 
                 e.preventDefault(); // förhindra att sidan scrollar
             }
