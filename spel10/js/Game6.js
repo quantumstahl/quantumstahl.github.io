@@ -1741,14 +1741,14 @@ class Game6 {
                 const panelY = canvas.height - panelH;
 
                 if ((selectedTownhall ||SelectedWorker)&& cursorY >= panelY) {
-                    return;
+                    
                 }
-                
-                let canmove=false;
-                var units=game.getAllObjects().filter(o => o.selected);
-                for(let u of units){if(u.canMove&&u.iscontrollable)canmove=true;}
-                if(canmove==false){for(let u of units){u.selected=false;}}
-                
+                else{
+                    let canmove=false;
+                    var units=game.getAllObjects().filter(o => o.selected);
+                    for(let u of units){if(u.canMove&&u.iscontrollable)canmove=true;}
+                    if(canmove==false){for(let u of units){u.selected=false;}}
+                }
                 
             }
             
