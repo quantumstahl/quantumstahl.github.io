@@ -1707,13 +1707,7 @@ class Game6 {
                                 var units=game.getAllObjects().filter(o => o.selected);
                                if(object.selectable&& units.length===0){
                                 object.selected=true;}
-                                if(object.selectable){
-                                    nothing=false;
-                                    let canmove=false;
-                                    for(let u of units){if(u.iscontrollable)canmove=true;}
-                                    if(canmove==false){for(let u of units){u.selected=false;}object.selected=true;}
-                                    if(canmove==true&&object.iscontrollable&&object.name!=="sheep"){for(let u of units){u.selected=false;}object.selected=true;}
-                                }
+                               
                                 
                         }
                         
@@ -1725,13 +1719,7 @@ class Game6 {
                                 var units=game.getAllObjects().filter(o => o.selected);
                                if(object.selectable&& units.length===0){
                                 object.selected=true;}
-                                if(object.selectable){
-                                    nothing=false;
-                                    let canmove=false;
-                                    for(let u of units){if(u.iscontrollable)canmove=true;}
-                                    if(canmove==false){for(let u of units){u.selected=false;}object.selected=true;}
-                                    if(canmove==true&&object.iscontrollable&&object.name!=="sheep"){for(let u of units){u.selected=false;}object.selected=true;}
-                                }
+                                
                             }
                         }
                     }
