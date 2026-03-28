@@ -1496,10 +1496,10 @@ function placeBuildingFromBuildMode() {
     const x = cursorX - game.buildMode.width / 2 - game.getcamerax();
     const y = cursorY - game.buildMode.height / 2 - game.getcameray();
 
-    if (!canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height)&&dragWasActive) {
+    if (!canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height)&&!hasdraged) {
         return true;
     }
-
+    
     const builder = getSelectedWorker();
    
     placeBuilding(x, y, game.buildMode.type, builder);

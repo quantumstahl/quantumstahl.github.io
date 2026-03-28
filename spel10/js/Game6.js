@@ -1639,6 +1639,8 @@ let dragSelectEnd = null;
 let lastPanX = null;
 let lastPanY = null;
 let dragWasActive = false;
+let hasdraged=false;
+let dragedcounter=0;
 let tapTimeout = null;
 let allowSingleTap = true;
 const selectenable=true;
@@ -1669,6 +1671,7 @@ class Game6 {
         canvas.addEventListener("touchstart", function(e) {
             e.preventDefault();
             rightklick=true;
+            hasdraged=false;
             if (typeof window.allowSelection === "function" && !window.allowSelection()) {
                 return;
             }
@@ -1801,6 +1804,8 @@ class Game6 {
                 
                 dragSelectEnd = { x, y };
                 dragWasActive = true;
+                dragedcounter=1;
+                hasdraged=false;
             }
             if (e.touches.length === 2 && lastPanX !== null && lastPanY !== null) {
                 const currentMap = game.maps[game.currentmap];
@@ -1910,7 +1915,7 @@ class Game6 {
                 lastPanX = null;
                 lastPanY = null;
             }
-            
+            if(dragedcounter==1){dragedcounter=0;hasdraged=true;}
             dragWasActive = false;
             
         });
