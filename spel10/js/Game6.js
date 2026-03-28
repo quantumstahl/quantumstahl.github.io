@@ -2745,7 +2745,7 @@ maskCanvas.width = canvas.width;
                 for (let c of obj.collideslistanobj) {
 
 ;
-                   if ((obj.targetObject && c == obj.targetObject)){ obj.blocked=false;obj.blocked1=0;stop=true;} // Ignorera target
+                   if ((obj.targetBuilding && c == obj.targetBuilding)){ obj.blocked=false;obj.blocked1=0;stop=true;} // Ignorera target
                    if(obj.workobject&&c==obj.workobject){ obj.blocked=false;obj.blocked1=0;stop=true;} 
                    if(obj.deliveryTarget&&c==obj.deliveryTarget){obj.blocked=false;obj.blocked1=0;stop=true;}
                 }

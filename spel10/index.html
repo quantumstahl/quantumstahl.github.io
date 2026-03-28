@@ -626,7 +626,7 @@ function updateWorker(worker, townhallList, playerResources, scale) {
     
 
     if (worker.state === "idle") {
-        worker.standingstill = true;
+        
         return;
     }
     if (worker.state === "buildBuilding") {
@@ -635,12 +635,16 @@ function updateWorker(worker, townhallList, playerResources, scale) {
       if (!b || b.dead || !b.isUnderConstruction || b.isFinishing) {
           worker.targetBuilding = null;
           worker.state = "idle";
-          worker.standingstill = true;
+          worker.targetX=null;
+          worker.targetY=null;
+          
           return;
       }
 
       if (game.collideswithanoterobject(worker, b)) {
-       
+
+          
+        
 
           b.buildTimer += 1 * scale;
           b.buildProgress = b.buildTimer / b.buildTimeMax;
@@ -654,13 +658,15 @@ function updateWorker(worker, townhallList, playerResources, scale) {
 
               worker.targetBuilding = null;
               worker.state = "idle";
+              worker.targetX=null;
+               worker.targetY=null;
           }
           return;
       }
 
-      worker.standingstill = false;
-      worker.targetX = b.x + b.dimx / 2;
-      worker.targetY = b.y + b.dimy / 2;
+     // worker.standingstill = false;
+      ///worker.targetX = b.x + b.dimx / 2;
+     /// worker.targetY = b.y + b.dimy / 2;
       return;
   }
     
@@ -1500,10 +1506,8 @@ function placeBuilding(x, y, buildingType) {
        
         w.targetX=b.x+b.dimx/2;
         w.targetY=b.y+b.dimy/2;
-         if (game.collideswithanoterobject(w, b)) {
-          worker.targetX=null;
-          worker.targetY=null;
-        }
+        w.selected=false;
+        
     }
 
     markStaticsDirty();
