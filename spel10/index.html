@@ -1526,7 +1526,7 @@ function placeBuildingFromBuildMode() {
     
     if(mobileAndTabletCheck()){
         if (!canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height)) {
-            countercounter=-1;
+            countercounter=0;
             return true;
         }
         else if(countercounter<1){
