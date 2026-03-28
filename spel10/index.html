@@ -1520,7 +1520,7 @@ function placeBuilding(x, y, buildingType) {
 let countercounter=0;
 function placeBuildingFromBuildMode() {
     if (!game.buildMode) return false;
-    //disabledrag=true;
+    disabledrag=true;
     const x = cursorX - game.buildMode.width / 2 - game.getcamerax();
     const y = cursorY - game.buildMode.height / 2 - game.getcameray();
     
