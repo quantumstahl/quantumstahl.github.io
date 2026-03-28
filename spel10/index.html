@@ -189,7 +189,7 @@
 
 
 
-            const playerResources = game.playerResources || (game.playerResources = {wood: 0,food: 1000,gold: 0,stone: 0});
+            const playerResources = game.playerResources || (game.playerResources = {wood: 0,food: 0,gold: 0,stone: 0});
 
 
 
@@ -222,11 +222,13 @@
                 ctx.fillStyle = "black";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 game.updateanimation(ctx,scale);
-                ctx.fillStyle="rgba(0,0,0,0.5)";
-                ctx.fillRect(10, 10, 420, 30);
-                ctx.fillStyle="red";
-                ctx.font="20px Cinzel";
-                ctx.fillText("Wood: " + playerResources.wood + "   Food: " + playerResources.food + "   Gold: " + playerResources.gold + "   Stone: " + playerResources.stone, 20, 30);
+                ctx.fillStyle = "rgba(0,0,0,0.5)";
+                ctx.fillRect(10, 5, 150, 280);
+                ctx.fillStyle="white";
+                ctx.font="30px Cinzel";
+                ctx.textAlign = "left";
+                ctx.textBaseline = "middle";
+                drawResourcesUI(ctx, playerResources);
                 
  
                 
@@ -1213,7 +1215,36 @@ function findFreeSpawnPosition(townhall, unitW = 30, unitH = 50) {
 
     return null;
 }            
-            
+function drawResourcesUI(ctx, playerResources) {
+    const startX = 25;
+    
+    const iconSize = 60;
+    const spacing = 90;
+
+    const resList = [
+        { type: "wood",  icon: "woodicon" },
+        { type: "food",  icon: "foodicon" },
+        { type: "gold",  icon: "goldicon" },
+        { type: "stone", icon: "stoneicon" }
+    ];
+
+    ctx.font = "18px Cinzel";
+    ctx.textBaseline = "middle";
+
+    for (let i = 0; i < resList.length; i++) {
+        const r = resList[i];
+        const x = startX ;
+        const y = 60+(60 *i);
+        const img = game.getobjecttype(r.icon)?.images?.[0]?.getimage();
+
+        if (img) {
+            ctx.drawImage(img, x, y - iconSize / 2, iconSize, iconSize);
+        }
+
+        ctx.fillStyle = "white";
+        ctx.fillText(playerResources[r.type] || 0, x + iconSize + 6, y);
+    }
+}            
             
         </script>
     </body>  
