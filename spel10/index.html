@@ -55,7 +55,12 @@
             
             document.addEventListener("touchstart" , function(e) {
                 e.preventDefault();
-          
+                    const selectedTownhall = getSelectedTownhall();
+                    if (selectedTownhall && selectedTownhall.trainWorkerButton) {
+                        if (pointInRect(cursorX, cursorY, selectedTownhall.trainWorkerButton)) {
+                            queueWorkerTraining(selectedTownhall, playerResources);
+                        }
+                    }
                 
 		    	
                     try{if(audio.paused){ 
