@@ -1727,6 +1727,15 @@ class Game6 {
                 }
             }
             if(nothing==true){
+                
+                const selectedTownhall = getSelectedTownhall();
+                const panelH = 110;
+                const panelY = canvas.height - panelH;
+
+                if (selectedTownhall && cursorY >= panelY) {
+                    return;
+                }
+                
                 let canmove=false;
                 var units=game.getAllObjects().filter(o => o.selected);
                 for(let u of units){if(u.canMove&&u.iscontrollable)canmove=true;}
