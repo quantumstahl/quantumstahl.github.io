@@ -62,7 +62,7 @@
                             queueWorkerTraining(selectedTownhall, playerResources);
                         }
                     }
-                
+                    handleGameUILeftClick(cursorX, cursorY);
 		    	
                     try{if(audio.paused){ 
                         
@@ -318,6 +318,7 @@
                     t.selectable=true;
                    
                      updateTownhallTraining(t, scale);
+                     drawTownhallTrainingQueue(ctx, t, currentMap);
                        if (!t.isUnderConstruction) continue;
                     t.isvisable=false;
                     const img = game.getobjecttype("townhall")?.images?.[0]?.getimage();

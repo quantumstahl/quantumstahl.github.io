@@ -1688,8 +1688,8 @@ class Game6 {
               
                         const touch0x = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor;
                         const touch0y = ((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor;
-                        cursorX=touch0x- currentMap.camerax;
-                        cursorY=touch0y- currentMap.cameray;
+                        cursorX=touch0x;
+                        cursorY=touch0y;
                         
                         let calcX = Number(currentMap.camerax) / 100 * Number(layer.moving) + Number(object.x) + (Number(object.dimx) / 2);
                         let calcY = Number(currentMap.cameray) / 100 * Number(layer.moving) + Number(object.y) + (Number(object.dimy) / 2);
@@ -1796,8 +1796,8 @@ class Game6 {
                 const x = (((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor)- currentMap.camerax;
                 const y = (((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor)- currentMap.cameray;
 
-                cursorX= x;
-                cursorY= y;
+                cursorX= (((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor);
+                cursorY= (((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor);
                 
                 dragSelectEnd = { x, y };
                 dragWasActive = true;
