@@ -1680,9 +1680,8 @@ class Game6 {
                         let object = objType.objects[i4];
                         
                         const rect = canvas.getBoundingClientRect();
-                        
+                       
               
-                        
                         const touch0x = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor;
                         const touch0y = ((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor;
                         
@@ -1737,14 +1736,22 @@ class Game6 {
             
             
             if (e.touches.length === 1) {
-                const x = e.touches[0].clientX / zoomFactor - currentMap.camerax;
-                const y = e.touches[0].clientY / zoomFactor - currentMap.cameray;
+                
+                const rect = canvas.getBoundingClientRect();
+                       
+              
+                        const x = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor - currentMap.camerax;
+                        const y = ((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor -currentMap.cameray;
+                
+                
+
                 dragSelectStart = { x, y };
                 dragSelectEnd = null;
             }
             if (e.touches.length === 2) {
-                lastPanX = e.touches[0].clientX;
-                lastPanY = e.touches[0].clientY;
+                const rect = canvas.getBoundingClientRect();
+                lastPanX = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor;
+                lastPanY = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor;
             }
             if (e.touches.length === 1) {
                 allowSingleTap = true;
@@ -1780,9 +1787,10 @@ class Game6 {
             }
             if (e.touches.length === 2 && lastPanX !== null && lastPanY !== null) {
                 const currentMap = game.maps[game.currentmap];
-
-                const deltaX = e.touches[0].clientX - lastPanX;
-                const deltaY = e.touches[0].clientY - lastPanY;
+                const rect = canvas.getBoundingClientRect();
+                
+                const deltaX = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor - lastPanX;
+                const deltaY = (((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor) - lastPanY;
                 if(selectenable==true){
                     currentMap.camerax += deltaX;
                     currentMap.cameray += deltaY;
@@ -1871,8 +1879,10 @@ class Game6 {
             if (e.changedTouches.length === 1 && !dragWasActive&&allowSingleTap) {
                 const currentMap = game.maps[game.currentmap];
                 const zoomFactor = 1 + (1 * currentMap.zoom / 100);
-                const x = e.changedTouches[0].clientX / zoomFactor - currentMap.camerax;
-                const y = e.changedTouches[0].clientY / zoomFactor - currentMap.cameray;
+                const rect = canvas.getBoundingClientRect();
+                const x = ((e.changedTouches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor- currentMap.camerax;
+                const y = ((e.changedTouches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor- currentMap.cameray;
+
 
                 var units=game.getAllObjects().filter(o => o.selected && o.canMove&&o.iscontrollable);
                 
