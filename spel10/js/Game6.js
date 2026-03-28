@@ -1750,8 +1750,8 @@ class Game6 {
             }
             if (e.touches.length === 2) {
                 const rect = canvas.getBoundingClientRect();
-                lastPanX = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor;
-                lastPanY = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor;
+                lastPanX = e.touches[0].clientX;
+                lastPanY = e.touches[0].clientY;
             }
             if (e.touches.length === 1) {
                 allowSingleTap = true;
@@ -1789,8 +1789,8 @@ class Game6 {
                 const currentMap = game.maps[game.currentmap];
                 const rect = canvas.getBoundingClientRect();
                 
-                const deltaX = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor - lastPanX;
-                const deltaY = (((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor) - lastPanY;
+                 const deltaX = e.touches[0].clientX - lastPanX;
+                const deltaY = e.touches[0].clientY - lastPanY;
                 if(selectenable==true){
                     currentMap.camerax += deltaX;
                     currentMap.cameray += deltaY;
