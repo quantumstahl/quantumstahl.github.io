@@ -3048,7 +3048,7 @@ class Objecttype {
 
         for (let i = 0; i < this.objects.length; i++) {
           const o = this.objects[i];
-          if(!o.isvisable)continue;
+          //if(!o.isvisable)continue;
           o.isonscreen = false;
 
           // bild?
@@ -3080,7 +3080,7 @@ class Objecttype {
           o.isonscreen = true;
           
           // valfri: selektionsring innan spriten
-          try { drawSelectRing(ctx, o, zoom, camerax, cameray); } catch(e){}
+          if(o.isvisable)try { drawSelectRing(ctx, o, zoom, camerax, cameray); } catch(e){}
 
           // ===== RITA SPRITE =====
           ctx.save();
@@ -3095,7 +3095,7 @@ class Objecttype {
           
           
           if(o.flashTimer>0){ 
-             this.drawTinted(ctx,img,o.flashTimercolor,w,h,o);
+             if(o.isvisable)this.drawTinted(ctx,img,o.flashTimercolor,w,h,o);
              o.flashTimer--;
               
           }
@@ -3106,9 +3106,9 @@ class Objecttype {
 
             if (o.water) {
                 const bob = Math.sin(time * 0.003) * 3;
-                ctx.drawImage(img, -w/2, -h/2+bob,w,h);
+                if(o.isvisable)ctx.drawImage(img, -w/2, -h/2+bob,w,h);
             }
-            else ctx.drawImage(img, -w/2, -h/2,w,h);
+            else{if(o.isvisable) ctx.drawImage(img, -w/2, -h/2,w,h);}
               
               
           }

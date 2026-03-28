@@ -608,6 +608,7 @@ function getNearestTownhall(unit, townhallList) {
     let bestDist = Infinity;
 
     for (const t of townhallList) {
+        if(t.isUnderConstruction)continue;
         const dx = t.x - unit.x;
         const dy = t.y - unit.y;
         const d = dx * dx + dy * dy;
@@ -821,6 +822,7 @@ function updateWorker(worker, townhallList, playerResources, scale) {
         }
 
         if (game.collideswithanoterobject(worker, t)) {
+            if(t.isUnderConstruction)return;
             worker.state = "deposit";
             worker.standingstill = true;
             return;
@@ -1105,7 +1107,7 @@ function getSelectedTownhall() {
     return townhalls.find(t => t.selected && !t.dead) || null;
 }
 function queueWorkerTraining(townhall, playerResources) {
-    if (!townhall) return false;
+    if (!townhall || townhall.isUnderConstruction) return false;
     if ((playerResources.food || 0) < 50) return false;
     if (townhall.trainingQueue.length >= 8) return false;
 
@@ -1178,7 +1180,7 @@ function spawnWorkerFromTownhall(townhall) {
     return true;
 }        
 function drawTownhallUI(ctx, canvas, selectedTownhall, playerResources) {
-    if (!selectedTownhall) return;
+    if (!selectedTownhall||selectedTownhall.isUnderConstruction) return;
 
     const panelH = 110;
     const panelY = canvas.height - panelH;
@@ -1564,45 +1566,6 @@ function finishBuilding(b) {
     }
 
     markStaticsDirty();
-}
-function placeHouse(x, y, builder) {
-    const costWood = 30;
-
-    if (playerResources.wood < costWood) return false;
-
-    playerResources.wood -= costWood;
-
-    const houseType = game.getobjecttype("hus");
-    if (!houseType) return false;
-
-    const h = game.addobject(houseType, x, y, 80, 80, 0, false);
-    if (!h) return false;
-
-    h.selectable = true;
-    h.canMove = false;
-    h.iscontrollable = false;
-    h.hp = 1;
-    h.maxHp = 100;
-    h.isBuilding = true;
-
-    h.isUnderConstruction = true;
-    h.buildProgress = 0;
-    h.buildTimer = 0;
-    h.buildTimeMax = 240;
-
-    h.builder = builder || null;
-    h.popGranted = false;
-
-    // om du vill att den blockerar direkt:
-    markStaticsDirty();
-
-    if (builder && !builder.dead) {
-        clearWorkerOrder(builder);
-        builder.state = "buildHouse";
-        builder.targetBuilding = h;
-    }
-
-    return h;
 }
 function getSelectedWorker() {
     const workers = game.getobjecttype("worker")?.objects || [];
