@@ -3,7 +3,7 @@
         <meta name="viewport" content="user-scalable=no, shrink-to-fit=no">
         <meta charset="utf-8">
         <meta name="keywords" content="mobilspel, mobilegames, js games, javascript games">
-        <link rel="icon" href="images/swordguy.png" type="image/vnd.microsoft.icon" />
+        <link rel="icon" href="images/Workerdown1.png" type="image/vnd.microsoft.icon" />
         <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&display=swap" rel="stylesheet">
 	<title>RTS2</title>
         
@@ -49,6 +49,7 @@
                         queueWorkerTraining(selectedTownhall, playerResources);
                     }
                 }
+                handleGameUILeftClick(cursorX, cursorY);
                  
              });
             
@@ -189,9 +190,46 @@
 
 
 
-            const playerResources = game.playerResources || (game.playerResources = {wood: 0,food: 0,gold: 0,stone: 0});
-
-
+            const playerResources = game.playerResources || (game.playerResources = {wood: 1000,food: 0,gold: 0,stone: 1000,pop: 5,popMax: 10});
+            game.buildMode = null;
+            const WORKER_BUILD_OPTIONS = [
+                {
+                    type: "hus",
+                    label: "House",
+                    icon: "husicon",
+                    cost: { wood: 30 }
+                },
+                {
+                    type: "townhall",
+                    label: "TownHall",
+                    icon: "townhall",
+                    cost: { wood: 120, stone: 80 }
+                }
+            ];
+            const BUILDING_TYPES = {
+                hus: {
+                    imageType: "hus",
+                    foundationType: "husfoundation",
+                    iconType: "husicon",
+                    width: 80,
+                    height: 80,
+                    cost: { wood: 30 },
+                    buildTime: 240,
+                    popMaxBonus: 5,
+                    hp: 100
+                },
+                townhall: {
+                    imageType: "townhall",
+                    foundationType: "townhallfoundation",
+                    iconType: "townhallicon",
+                    width: 300,
+                    height: 200,
+                    cost: { wood: 120, stone: 80 },
+                    buildTime: 500,
+                    popMaxBonus: 0,
+                    hp: 400
+                }
+            };
 
 
             function update(scale){
@@ -223,14 +261,14 @@
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 game.updateanimation(ctx,scale);
                 ctx.fillStyle = "rgba(0,0,0,0.5)";
-                ctx.fillRect(10, 5, 150, 280);
+                ctx.fillRect(10, 5, 150, 350);
                 ctx.fillStyle="white";
                 ctx.font="30px Cinzel";
                 ctx.textAlign = "left";
                 ctx.textBaseline = "middle";
                 drawResourcesUI(ctx, playerResources);
-                
- 
+                drawWorkerBuildUI(ctx, canvas);
+                drawBuildGhost(ctx, game.maps[game.currentmap]);
                 
                 const camSpeed = 15;
                 const currentMap = game.maps[game.currentmap];
@@ -240,21 +278,65 @@
                 if (keyState.a) currentMap.camerax += camSpeed;
                 if (keyState.d) currentMap.camerax -= camSpeed;
                 
-                
+                const houses = game.getobjecttype('hus')?.objects || [];
+                for (const h of houses) {
+                    h.isvisable=true;
+                    h.gatherTime=100;
+                    if (!h.isUnderConstruction) continue;
+                    h.isvisable=false;
+                    const img = game.getobjecttype("hus")?.images?.[0]?.getimage();
+                    if (!img) continue;
+
+                    const drawX = h.x + currentMap.camerax;
+                    const drawY = h.y + currentMap.cameray;
+
+                    // dölj hela huset först med en enkel fill om du behöver
+                    ctx.fillStyle = "rgba(0,0,0,0.15)";
+                    ctx.fillRect(drawX, drawY, h.dimx, h.dimy);
+
+                    // foundation längst ner
+                    ctx.fillStyle = "rgba(80,60,40,0.5)";
+                    ctx.fillRect(drawX, drawY + h.dimy - 8, h.dimx, 8);
+
+                    // rita bara färdig del
+                    drawBuildingProgress(ctx, img, drawX, drawY, h.dimx, h.dimy, h.buildProgress);
+                }
                 const selectedTownhall = getSelectedTownhall();
                 drawTownhallUI(ctx, canvas, selectedTownhall, playerResources);
-                
                 const townhall = game.getobjecttype('townhall')?.objects || [];
                 for (const t of townhall) {
-                    t.canMove=false;
-                    t.selectable=true;
-                    if (t.trainingQueue == null) {
+                     if (t.trainingQueue == null) {
                         t.trainingQueue = [];
                         t.trainingTimer = 0;
                         t.trainingTimeMax = 300; // ca 5 sek vid 60 fps
                     }
+                    t.isvisable=true;
+                    t.gatherTime=100;
+                    
+                    
+                    t.canMove=false;
+                    t.selectable=true;
+                   
                      updateTownhallTraining(t, scale);
-                     drawTownhallTrainingQueue(ctx, t, currentMap);
+                       if (!t.isUnderConstruction) continue;
+                    t.isvisable=false;
+                    const img = game.getobjecttype("townhall")?.images?.[0]?.getimage();
+                    if (!img) continue;
+
+                    const drawX = t.x + currentMap.camerax;
+                    const drawY = t.y + currentMap.cameray;
+
+                    // dölj hela huset först med en enkel fill om du behöver
+                    ctx.fillStyle = "rgba(0,0,0,0.15)";
+                    ctx.fillRect(drawX, drawY, t.dimx, t.dimy);
+
+                    // foundation längst ner
+                    ctx.fillStyle = "rgba(80,60,40,0.5)";
+                    ctx.fillRect(drawX, drawY + t.dimy - 8, t.dimx, 8);
+
+                    // rita bara färdig del
+                    drawBuildingProgress(ctx, img, drawX, drawY, t.dimx, t.dimy, t.buildProgress);
+                  
        
                 }
                 const gold = game.getobjecttype('gold')?.objects || [];
@@ -400,7 +482,7 @@
                 
                 if(rightklick){
                     rightklick=false;
-           
+                    if(game.buildMode){game.deselectAll();game.buildMode=null;}
                     const selectedWorkers = game.getobjecttype('worker')?.objects?.filter(o => o.selected) || [];
                     const mousepressed = game.getAllObjects().filter(o => o.mousepressed);
                     const isresource = mousepressed.filter(o => o.gatherTime);
@@ -408,7 +490,15 @@
                     if (selectedWorkers.length > 0 && isresource.length > 0) {
                         for (let w of selectedWorkers) {
                             
-                            if(isresource[0].name=="boar"&&!isresource[0].dead ){
+                            if((isresource[0].name=="hus"||isresource[0].name=="townhall")&&!isresource[0].dead ){
+                                clearWorkerOrder(w);
+                                w.state = "buildBuilding";
+                                w.targetBuilding = isresource[0];
+                                
+                            }
+                            
+                            
+                            else if(isresource[0].name=="boar"&&!isresource[0].dead ){
                            
                                  orderWorkerAttackBoar(w, isresource[0]);
                                  w.selected=false;
@@ -443,7 +533,7 @@
                         if(w.direction=="right"){w.animation=5;if(w.standingstill)w.animation=4;if(w.state === "gather")w.animation=8;if(w.state === "returnToBase")w.animation=11;}
                         if(w.direction=="left"){w.animation=5;if(w.standingstill)w.animation=4;w.fliped=true;if(w.state === "gather")w.animation=8;if(w.state === "returnToBase")w.animation=11;}
                     
-                        if(w.state === "attackBoar"&& game.collideswithobject(w,"boar")){
+                        if((w.state === "attackBoar"&& game.collideswithobject(w,"boar"))||(w.state === "buildBuilding"&& game.collideswithanoterobject(w,w.targetBuilding))){
                             if(w.direction=="down"){w.animation=6;}
                             if(w.direction=="up"){w.animation=7;}
                             if(w.direction=="right"){w.animation=8;}
@@ -529,6 +619,41 @@ function updateWorker(worker, townhallList, playerResources, scale) {
         worker.standingstill = true;
         return;
     }
+    if (worker.state === "buildBuilding") {
+      const b = worker.targetBuilding;
+
+      if (!b || b.dead || !b.isUnderConstruction || b.isFinishing) {
+          worker.targetBuilding = null;
+          worker.state = "idle";
+          worker.standingstill = true;
+          return;
+      }
+
+      if (game.collideswithanoterobject(worker, b)) {
+          worker.standingstill = true;
+
+          b.buildTimer += 1 * scale;
+          b.buildProgress = b.buildTimer / b.buildTimeMax;
+
+          if (b.buildProgress >= 1) {
+              b.buildProgress = 1;
+              b.isUnderConstruction = false;
+              b.isFinishing = true;
+
+              finishBuilding(b);
+
+              worker.targetBuilding = null;
+              worker.state = "idle";
+          }
+          return;
+      }
+
+      worker.standingstill = false;
+      worker.targetX = b.x + b.dimx / 2;
+      worker.targetY = b.y + b.dimy / 2;
+      return;
+  }
+    
     if (worker.state === "attackBoar") {
         const b = worker.attackTarget;
 
@@ -760,8 +885,8 @@ function clearWorkerOrder(worker) {
     worker.targetDropoff = null;
     worker.jobType = null;
     worker.gatherTimer = 0;
-
-}            
+    worker.targetBuilding = null;
+}         
 function dist2(a, b) {
     const dx = a.x - b.x;
     const dy = a.y - b.y;
@@ -880,6 +1005,7 @@ function updateBoar(boar, scale) {
             if (t.hp <= 0) {
                 t.flashTimer=0;
                 t.dead = true;
+                playerResources.pop -= 1;
                 t.selectable=false;
                 t.animation=12;
                 boar.targetUnit = null;
@@ -1007,9 +1133,19 @@ function updateTownhallTraining(townhall, scale) {
 function spawnWorkerFromTownhall(townhall) {
     const workerType = game.getobjecttype("worker");
     if (!workerType) return false;
+    
 
+    
+    
     const pos = findFreeSpawnPosition(townhall, 30, 50);
     if (!pos) return false;
+
+    if (playerResources.pop >= playerResources.popMax) {
+        // stoppa produktion
+        return;
+    }
+
+    playerResources.pop += 1;
 
     const w = game.addobject(workerType, pos.x, pos.y, 30, 50, 0, false);
     if (!w) return false;
@@ -1225,8 +1361,12 @@ function drawResourcesUI(ctx, playerResources) {
         { type: "wood",  icon: "woodicon" },
         { type: "food",  icon: "foodicon" },
         { type: "gold",  icon: "goldicon" },
-        { type: "stone", icon: "stoneicon" }
+        { type: "stone", icon: "stoneicon" },
+         { type: "pop", icon: "husicon" }
     ];
+
+
+
 
     ctx.font = "18px Cinzel";
     ctx.textBaseline = "middle";
@@ -1242,10 +1382,310 @@ function drawResourcesUI(ctx, playerResources) {
         }
 
         ctx.fillStyle = "white";
-        ctx.fillText(playerResources[r.type] || 0, x + iconSize + 6, y);
+        if(r.type==="pop"){
+            ctx.fillText(playerResources.pop + " / " + playerResources.popMax || 0, x + iconSize + 6, y);
+        }
+        else
+            ctx.fillText(playerResources[r.type] || 0, x + iconSize + 6, y);
     }
-}            
-            
+}
+function startBuild(buildingType) {
+    const def = BUILDING_TYPES[buildingType];
+    if (!def) return false;
+
+    if (!canAfford(def.cost)) return false;
+
+    game.buildMode = {
+        type: buildingType,
+        width: def.width,
+        height: def.height
+    };
+
+    return true;
+}
+function canAfford(cost) {
+    for (const key in cost) {
+        if ((playerResources[key] || 0) < cost[key]) return false;
+    }
+    return true;
+}
+
+function payCost(cost) {
+    for (const key in cost) {
+        playerResources[key] -= cost[key];
+    }
+}
+function drawBuildGhost(ctx, currentMap) {
+    if (!game.buildMode) return;
+
+    const def = BUILDING_TYPES[game.buildMode.type];
+    if (!def) return;
+
+    const x = cursorX - game.buildMode.width / 2 - game.getcamerax();
+    const y = cursorY - game.buildMode.height / 2 - game.getcameray();
+
+    const canPlace = canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height);
+    const img = game.getobjecttype(def.imageType)?.images?.[0]?.getimage();
+    if (!img) return;
+
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.drawImage(
+        img,
+        x + currentMap.camerax,
+        y + currentMap.cameray,
+        game.buildMode.width,
+        game.buildMode.height
+    );
+
+    ctx.strokeStyle = canPlace ? "lime" : "red";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(
+        x + currentMap.camerax,
+        y + currentMap.cameray,
+        game.buildMode.width,
+        game.buildMode.height
+    );
+    ctx.restore();
+}
+function canPlaceBuilding(x, y, w, h) {
+    const hit = isSpawnAreaFree(x, y, w, h);
+    return hit;
+}
+function placeBuilding(x, y, buildingType, builder) {
+    const def = BUILDING_TYPES[buildingType];
+    if (!def) return false;
+   
+    if (!canAfford(def.cost)) return false;
+
+    const foundationType = game.getobjecttype(def.imageType);
+    if (!foundationType) return false;
+
+    payCost(def.cost);
+
+    const b = game.addobject(foundationType, x, y, def.width, def.height, 0, false);
+    if (!b) return false;
+
+    b.selectable = true;
+    b.canMove = false;
+    b.iscontrollable = false;
+    b.isBuilding = true;
+    b.isUnderConstruction = true;
+
+    b.buildingType = buildingType;
+    b.buildProgress = 0;
+    b.buildTimer = 0;
+    b.buildTimeMax = def.buildTime;
+    b.maxHp = def.hp;
+    b.hp = 1;
+    b.popGranted = false;
+
+    if (builder && !builder.dead) {
+        clearWorkerOrder(builder);
+        builder.state = "buildBuilding";
+        builder.targetBuilding = b;
+    }
+
+    markStaticsDirty();
+    return b;
+}
+function placeBuildingFromBuildMode() {
+    if (!game.buildMode) return false;
+
+    const x = cursorX - game.buildMode.width / 2 - game.getcamerax();
+    const y = cursorY - game.buildMode.height / 2 - game.getcameray();
+
+    if (!canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height)) {
+        return true;
+    }
+
+    const builder = getSelectedWorker();
+   
+    placeBuilding(x, y, game.buildMode.type, builder);
+
+    game.buildMode = null;
+    return true;
+}
+function finishBuilding(b) {
+    if (!b || b._finishedOnce) return;
+    b._finishedOnce = true;
+
+    const def = BUILDING_TYPES[b.buildingType];
+    if (!def) return;
+
+    const x = b.x;
+    const y = b.y;
+    const rot = b.rot || 0;
+
+    game.removeobject(game.getobjecttype(b.name), b);
+
+    const finalType = game.getobjecttype(def.imageType);
+    if (!finalType) return;
+
+    const finished = game.addobject(finalType, x, y, def.width, def.height, rot, false);
+    if (!finished) return;
+
+    finished.selectable = true;
+    finished.canMove = false;
+    finished.iscontrollable = false;
+    finished.isBuilding = true;
+    finished.hp = def.hp;
+    finished.maxHp = def.hp;
+
+    if (def.popMaxBonus) {
+        playerResources.popMax += def.popMaxBonus;
+    }
+
+    markStaticsDirty();
+}
+function placeHouse(x, y, builder) {
+    const costWood = 30;
+
+    if (playerResources.wood < costWood) return false;
+
+    playerResources.wood -= costWood;
+
+    const houseType = game.getobjecttype("hus");
+    if (!houseType) return false;
+
+    const h = game.addobject(houseType, x, y, 80, 80, 0, false);
+    if (!h) return false;
+
+    h.selectable = true;
+    h.canMove = false;
+    h.iscontrollable = false;
+    h.hp = 1;
+    h.maxHp = 100;
+    h.isBuilding = true;
+
+    h.isUnderConstruction = true;
+    h.buildProgress = 0;
+    h.buildTimer = 0;
+    h.buildTimeMax = 240;
+
+    h.builder = builder || null;
+    h.popGranted = false;
+
+    // om du vill att den blockerar direkt:
+    markStaticsDirty();
+
+    if (builder && !builder.dead) {
+        clearWorkerOrder(builder);
+        builder.state = "buildHouse";
+        builder.targetBuilding = h;
+    }
+
+    return h;
+}
+function getSelectedWorker() {
+    const workers = game.getobjecttype("worker")?.objects || [];
+    return workers.find(w => w.selected && !w.dead) || null;
+}
+function getCostText(cost) {
+    const parts = [];
+    if (cost.wood) parts.push(cost.wood + " Wood");
+    if (cost.food) parts.push(cost.food + " Food");
+    if (cost.gold) parts.push(cost.gold + " Gold");
+    if (cost.stone) parts.push(cost.stone + " Stone");
+    return parts.join(" ");
+}
+
+function drawWorkerBuildUI(ctx, canvas) {
+    const selectedWorker = getSelectedWorker();
+    if (!selectedWorker) return;
+
+    const panelH = 100;
+    const panelY = canvas.height - panelH;
+
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.fillRect(0, panelY, canvas.width, panelH);
+
+    ctx.strokeStyle = "rgba(255,255,255,0.2)";
+    ctx.strokeRect(0, panelY, canvas.width, panelH);
+
+    const bw = 200;
+    const bh = 60;
+    const startX = 20;
+    const by = panelY + 20;
+    const gap = 14;
+
+    selectedWorker.buildButtons = [];
+
+    for (let i = 0; i < WORKER_BUILD_OPTIONS.length; i++) {
+        const opt = WORKER_BUILD_OPTIONS[i];
+        const bx = startX + i * (bw + gap);
+
+        const canBuy = canAfford(opt.cost);
+
+        ctx.fillStyle = canBuy ? "rgba(80,80,80,0.95)" : "rgba(60,30,30,0.95)";
+        ctx.fillRect(bx, by, bw, bh);
+
+        ctx.strokeStyle = canBuy ? "white" : "red";
+        ctx.strokeRect(bx, by, bw, bh);
+
+        const img = game.getobjecttype(opt.icon)?.images?.[0]?.getimage();
+        if (img) {
+            ctx.drawImage(img, bx + 6, by + 6, 28, 28);
+        }
+
+        ctx.fillStyle = "white";
+        ctx.font = "16px Cinzel";
+        ctx.fillText(opt.label, bx + 40, by + 18);
+
+        ctx.font = "13px Cinzel";
+        ctx.fillText(getCostText(opt.cost), bx + 40, by + 38);
+
+        selectedWorker.buildButtons.push({
+            type: opt.type,
+            x: bx,
+            y: by,
+            w: bw,
+            h: bh
+        });
+    }
+}
+function handleGameUILeftClick(cursorX, cursorY) {
+    const selectedWorker = getSelectedWorker();
+
+    if (selectedWorker && selectedWorker.buildButtons) {
+        for (const btn of selectedWorker.buildButtons) {
+            if (pointInRect(cursorX, cursorY, btn)) {
+                startBuild(btn.type);
+                
+                return true;
+            }
+        }
+    }
+
+    if (game.buildMode) {
+     
+        return placeBuildingFromBuildMode();
+    }
+
+    return false;
+}
+function drawBuildingProgress(ctx, img, x, y, w, h, progress) {
+    progress = Math.max(0, Math.min(1, progress));
+
+    const visibleH = h * progress;
+    if (visibleH <= 0) return;
+
+    const srcX = 0;
+    const srcY = img.height - img.height * progress;
+    const srcW = img.width;
+    const srcH = img.height * progress;
+
+    const dstX = x;
+    const dstY = y + (h - visibleH);
+    const dstW = w;
+    const dstH = visibleH;
+
+    ctx.drawImage(
+        img,
+        srcX, srcY, srcW, srcH,
+        dstX, dstY, dstW, dstH
+    );
+}
         </script>
     </body>  
 </html>

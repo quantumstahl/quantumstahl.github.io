@@ -788,15 +788,15 @@ if (isAxisAlignedRot(d.rot)) {
       const corrx = (d.x - o.x) - wantdx;
       const corry = (d.y - o.y) - wantdy;
       const movedN = Math.hypot(corrx, corry);
-
+        o.blocked=false;
+        o.blockedx=false;
+        o.blockedy=false;
      
         o.blocked  = movedN > 0.25;
         o.blockedx = o.blocked && Math.abs(d.x - o.x) < Math.abs(wantdx);
         o.blockedy = o.blocked && Math.abs(d.y - o.y) < Math.abs(wantdy);
     
-        o.blocked=false;
-        o.blockedx=false;
-        o.blockedy=false;
+        
       
 
       o.x = d.x - (d._insetOffX || 0);
@@ -1646,6 +1646,10 @@ const offscreenCanvas = document.createElement('canvas');
 const offCtx = offscreenCanvas.getContext('2d');
 let waterRipples = [];
 let rightklick=false;
+
+let savecamerax=0;
+let savecameray=0;
+
 class Game6 {
     
     kollitions = [];
@@ -1684,8 +1688,8 @@ class Game6 {
               
                         const touch0x = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor;
                         const touch0y = ((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor;
-                        cursorX=touch0x;
-                        cursorY=touch0y;
+                      //  cursorX=touch0x;
+                      //  cursorY=touch0y;
                         
                         let calcX = Number(currentMap.camerax) / 100 * Number(layer.moving) + Number(object.x) + (Number(object.dimx) / 2);
                         let calcY = Number(currentMap.cameray) / 100 * Number(layer.moving) + Number(object.y) + (Number(object.dimy) / 2);
@@ -1729,10 +1733,11 @@ class Game6 {
             if(nothing==true){
                 
                 const selectedTownhall = getSelectedTownhall();
+                const SelectedWorker=getSelectedWorker();
                 const panelH = 110;
                 const panelY = canvas.height - panelH;
 
-                if (selectedTownhall && cursorY >= panelY) {
+                if ((selectedTownhall ||SelectedWorker)&& cursorY >= panelY) {
                     return;
                 }
                 
@@ -1790,7 +1795,9 @@ class Game6 {
                 const rect = canvas.getBoundingClientRect();
                 const x = (((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor)- currentMap.camerax;
                 const y = (((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor)- currentMap.cameray;
-                
+
+                cursorX= (((e.touches[0].clientX - rect.left) * (canvas.width / rect.width))/ zoomFactor);
+                cursorY= (((e.touches[0].clientY - rect.top) * (canvas.height / rect.height))/ zoomFactor);
                 
                 dragSelectEnd = { x, y };
                 dragWasActive = true;
@@ -1927,8 +1934,8 @@ class Game6 {
             
                         let touch0x = getMousePosOnCanvas(e,canvas).x / zoomFactor;
                         let touch0y = getMousePosOnCanvas(e,canvas).y / zoomFactor;
-                        cursorX=touch0x;
-                        cursorY=touch0y;
+                       // cursorX=touch0x;
+                       // cursorY=touch0y;
                         let calcX = Number(currentMap.camerax) / 100 * Number(layer.moving) + Number(object.x) + (Number(object.dimx) / 2);
                         let calcY = Number(currentMap.cameray) / 100 * Number(layer.moving) + Number(object.y) + (Number(object.dimy) / 2);
                         let calcRot = (-Number(object.rot) * Math.PI) / 180;
@@ -1947,21 +1954,22 @@ class Game6 {
 
             if (e.button === 0) {
                 const selectedTownhall = getSelectedTownhall();
+                const SelectedWorker=getSelectedWorker();
                 const panelH = 110;
                 const panelY = canvas.height - panelH;
 
-                if (selectedTownhall && cursorY >= panelY) {
+                if ((selectedTownhall||SelectedWorker) && cursorY >= panelY) {
                     return;
                 }
 
-                game.deselectAll();
+                if( !game.buildMode)game.deselectAll();
                 if (clickedObj) clickedObj.selected = true;
             } else if (e.button === 2) { // Högerklick – flytta valda
                 rightklick=true;
                 var units=game.getAllObjects().filter(o => o.selected && o.canMove&&o.iscontrollable);
                 
                 
-                game.issueFormationMove(units, mouseX - currentMap.camerax, mouseY - currentMap.cameray);
+                if(game.buildMode===null)game.issueFormationMove(units, mouseX - currentMap.camerax, mouseY - currentMap.cameray);
             }
             if (e.button === 0) {
                 const currentMap = game.maps[game.currentmap];
@@ -2030,6 +2038,10 @@ class Game6 {
                 const y = getMousePosOnCanvas(e,canvas).y / zoomFactor - currentMap.cameray;
                 dragSelectEnd = { x, y };
             }
+            const currentMap = game.maps[game.currentmap];
+                const zoomFactor = 1 + (1 * currentMap.zoom / 100);
+            cursorX= getMousePosOnCanvas(e,canvas).x / zoomFactor;
+            cursorY= getMousePosOnCanvas(e,canvas).y / zoomFactor;
         });
         
         
@@ -2213,10 +2225,10 @@ class Game6 {
     updateanimation(ctx,scales) {
         //try {
             updateWaterRipples();
-            this.updateUnitMovement();
-            this.collitionengine(scales);
             
-       
+            this.collitionengine(scales);
+            this.updateUnitMovement();
+
     
             
             
@@ -2224,6 +2236,8 @@ class Game6 {
        
         for (let i = 0; i < this.maps.length; i++) {
             if (i == this.currentmap) {
+
+                
                 for (let i2 = 0; i2 < this.maps[i].layer.length; i2++) {
                     for (let i3 = 0; i3 < this.maps[i].layer[i2].objectype.length; i3++) {
                         this.maps[i].layer[i2].objectype[i3].draw(ctx, this.maps[i].zoom, this.maps[i].camerax / 100 * this.maps[i].layer[i2].moving, this.maps[i].cameray / 100 * this.maps[i].layer[i2].moving);
@@ -2722,7 +2736,7 @@ maskCanvas.width = canvas.width;
                 let stop=false; 
                 for (let c of obj.collideslistanobj) {
 
-
+;
                    if ((obj.targetObject && c == obj.targetObject)){ obj.blocked=false;obj.blocked1=0;stop=true;} // Ignorera target
                    if(obj.workobject&&c==obj.workobject){ obj.blocked=false;obj.blocked1=0;stop=true;} 
                    if(obj.deliveryTarget&&c==obj.deliveryTarget){obj.blocked=false;obj.blocked1=0;stop=true;}
@@ -3268,6 +3282,7 @@ this.hitWallY = false;
 this.slideResolved = false;
 this.standingstill=true;
 this.dead=false;
+
     }
     collidestest(){
 
