@@ -1701,7 +1701,7 @@ class Game6 {
                                     let canmove=false;
                                     for(let u of units){if(u.iscontrollable)canmove=true;}
                                     if(canmove==false){for(let u of units){u.selected=false;}object.selected=true;}
-                                    if(canmove==true&&object.iscontrollable){for(let u of units){u.selected=false;}object.selected=true;}
+                                    if(canmove==true&&object.iscontrollable&&object.name!=="sheep"){for(let u of units){u.selected=false;}object.selected=true;}
                                 }
                                 
                         }
@@ -1719,7 +1719,7 @@ class Game6 {
                                     let canmove=false;
                                     for(let u of units){if(u.iscontrollable)canmove=true;}
                                     if(canmove==false){for(let u of units){u.selected=false;}object.selected=true;}
-                                    if(canmove==true&&object.iscontrollable){for(let u of units){u.selected=false;}object.selected=true;}
+                                    if(canmove==true&&object.iscontrollable&&object.name!=="sheep"){for(let u of units){u.selected=false;}object.selected=true;}
                                 }
                             }
                         }
