@@ -638,7 +638,7 @@ function updateWorker(worker, townhallList, playerResources, scale) {
       }
 
       if (game.collideswithanoterobject(worker, b)) {
-          worker.standingstill = true;
+       
 
           b.buildTimer += 1 * scale;
           b.buildProgress = b.buildTimer / b.buildTimeMax;
@@ -1460,7 +1460,7 @@ function canPlaceBuilding(x, y, w, h) {
     const hit = isSpawnAreaFree(x, y, w, h);
     return hit;
 }
-function placeBuilding(x, y, buildingType, builder) {
+function placeBuilding(x, y, buildingType) {
     const def = BUILDING_TYPES[buildingType];
     if (!def) return false;
    
@@ -1487,13 +1487,20 @@ function placeBuilding(x, y, buildingType, builder) {
     b.maxHp = def.hp;
     b.hp = 1;
     b.popGranted = false;
-
-    if (builder && !builder.dead) {
-        clearWorkerOrder(builder);
-        builder.state = "buildBuilding";
-        builder.targetBuilding = b;
-        builder.targetX=b.x+b.dimx/2;
-        builder.targetY=b.y+b.dimy/2;
+    const workers = (game.getobjecttype("worker")?.objects || []).filter(o => o.selected);;
+    
+    for(const w of workers) {
+        clearWorkerOrder(w);
+        w.state = "buildBuilding";
+        w.targetBuilding = b;
+        
+       
+        w.targetX=b.x+b.dimx/2;
+        w.targetY=b.y+b.dimy/2;
+         if (game.collideswithanoterobject(w, b)) {
+          worker.targetX=null;
+          worker.targetY=null;
+        }
     }
 
     markStaticsDirty();
