@@ -12,7 +12,18 @@
     </head>
     <body>
         <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
-    
+        
+        <div id="hint-pan" style="
+            position:fixed; bottom:50%; left:50%; transform:translate(-50%, 50%);
+            background:rgba(0,0,0,0.6);
+            color:#fff; padding:6px 10px;
+            border-radius:6px;
+            font:600 50px system-ui, sans-serif;
+            text-align:center;
+            z-index:2000;
+            display:none;">
+        </div>
+        
         <script>
             const isMobile = {Android: function() {return navigator.userAgent.match(/Android/i);},BlackBerry: function() {return navigator.userAgent.match(/BlackBerry/i);},iOS: function() {return navigator.userAgent.match(/iPhone|iPod/i);},Opera: function() {return navigator.userAgent.match(/Opera Mini/i);},Windows: function() {return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i);},any: function() {return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows()|| (navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints && navigator.maxTouchPoints > 1));}};
             function mobileAndTabletCheck() {return isMobile.any();}
@@ -101,7 +112,16 @@
           });
 
 
-            
+            function showPanHint(){
+                const el = document.getElementById("hint-pan");
+                if (el) {
+                  el.innerText = mobileAndTabletCheck()
+                    ? "Use two fingers to pan the map"
+                    : "Use W A S D to move the camera";
+                  el.style.display = "block";
+                  setTimeout(()=> el.style.display = "none", 3000);
+                }
+            } 
             
   
            
@@ -282,7 +302,7 @@
                 }
             };
 
-
+            showPanHint();
             function update(scale){
                 time=performance.now();
                 if(!mobileAndTabletCheck()){
@@ -2033,6 +2053,7 @@ function drawSelectedObjectUI(ctx, canvas) {
         return;
     }
 }
+
 
         </script>
     </body>  
