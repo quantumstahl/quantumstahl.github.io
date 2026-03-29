@@ -1429,9 +1429,11 @@ function drawTownhallUI(ctx, canvas, selectedTownhall, playerResources) {
     const bw = 110;
     const bh = 50;
 
-    ctx.fillStyle = "rgba(80,80,80,0.95)";
+    if(playerResources.food<50)ctx.fillStyle = "rgba(60,30,30,0.95)";
+    else ctx.fillStyle = "rgba(30,80,30,0.95)";
     ctx.fillRect(bx, by, bw, bh);
-    ctx.strokeStyle = "white";
+    if(playerResources.food<50)ctx.strokeStyle = "red";
+    else ctx.strokeStyle = "green";
     ctx.strokeRect(bx, by, bw, bh);
 
     ctx.drawImage(game.getobjecttype("worker").images[1].getimage(), bx + 6, by + 6, 22, 22);
