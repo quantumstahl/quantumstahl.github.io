@@ -1695,6 +1695,7 @@ function payCost(cost) {
 }
 
 let ghoststart=false;
+let countercounter=0;
 function drawBuildGhost(ctx, currentMap) {
     if (!game.buildMode) return;
 
@@ -1704,7 +1705,7 @@ function drawBuildGhost(ctx, currentMap) {
     let x = cursorX - game.buildMode.width / 2 - game.getcamerax();
     let y = cursorY - game.buildMode.height / 2 - game.getcameray();
     
-    if(ghoststart===false){
+    if(countercounter===0){
         x = canvas.width/2 - game.buildMode.width / 2 - game.getcamerax();
         y = canvas.height/2 - game.buildMode.height / 2 - game.getcameray();
         ghoststart=true;
@@ -1786,7 +1787,7 @@ function placeBuilding(x, y, buildingType) {
     return b;
 }
 
-let countercounter=0;
+
 function placeBuildingFromBuildMode() {
     if (!game.buildMode) return false;
     disabledrag=true;
