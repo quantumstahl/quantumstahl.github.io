@@ -218,7 +218,7 @@
 
 
 
-            const playerResources = game.playerResources || (game.playerResources = {wood: 0,food: 0,gold: 0,stone: 0,pop: 3,popMax: 10});
+            const playerResources = game.playerResources || (game.playerResources = {wood: 1000,food: 0,gold: 0,stone: 0,pop: 3,popMax: 10});
             game.buildMode = null;
             const WORKER_BUILD_OPTIONS = [
                 {type: "hus",label: "House",icon: "husicon",cost: { wood: 30 }},
@@ -1693,15 +1693,24 @@ function payCost(cost) {
         playerResources[key] -= cost[key];
     }
 }
+
+let ghoststart=false;
 function drawBuildGhost(ctx, currentMap) {
     if (!game.buildMode) return;
 
     const def = BUILDING_TYPES[game.buildMode.type];
     if (!def) return;
-
-    const x = cursorX - game.buildMode.width / 2 - game.getcamerax();
-    const y = cursorY - game.buildMode.height / 2 - game.getcameray();
-
+    
+    let x = cursorX - game.buildMode.width / 2 - game.getcamerax();
+    let y = cursorY - game.buildMode.height / 2 - game.getcameray();
+    
+    if(ghoststart===false){
+        x = canvas.width/2 - game.buildMode.width / 2 - game.getcamerax();
+        y = canvas.height/2 - game.buildMode.height / 2 - game.getcameray();
+        ghoststart=true;
+    }
+    
+    
     const canPlace = canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height);
     const img = game.getobjecttype(def.imageType)?.images?.[0]?.getimage();
     if (!img) return;
@@ -1806,7 +1815,7 @@ function placeBuildingFromBuildMode() {
     const builder = getSelectedWorker();
    
     placeBuilding(x, y, game.buildMode.type, builder);
-
+    ghoststart=false;
     game.buildMode = null;
     return true;
 }
