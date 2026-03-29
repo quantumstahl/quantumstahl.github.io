@@ -1891,10 +1891,10 @@ function drawWorkerBuildUI(ctx, canvas) {
 
         const canBuy = canAfford(opt.cost);
 
-        ctx.fillStyle = canBuy ? "rgba(80,80,80,0.95)" : "rgba(60,30,30,0.95)";
+        ctx.fillStyle = canBuy ? "rgba(30,80,30,0.95)" : "rgba(60,30,30,0.95)";
         ctx.fillRect(bx, by, bw, bh);
 
-        ctx.strokeStyle = canBuy ? "white" : "red";
+        ctx.strokeStyle = canBuy ? "green" : "red";
         ctx.strokeRect(bx, by, bw, bh);
 
         const img = game.getobjecttype(opt.icon)?.images?.[0]?.getimage();
