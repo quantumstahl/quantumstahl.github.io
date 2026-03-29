@@ -1917,11 +1917,11 @@ class Game6 {
                 
                 
                 const SelectedWorker=getSelectedWorker();
-                const panelH = 110;
+                const panelH = 170;
                 const panelY = canvas.height - panelH;
 
                 if ((SelectedWorker) && cursorY >= panelY) {
-                    
+                    return;
                 }
                 else
                     game.issueFormationMove(units, x, y);
