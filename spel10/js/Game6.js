@@ -1746,7 +1746,7 @@ class Game6 {
                 const panelY = canvas.height - panelH;
 
                 if ((selectedTownhall ||SelectedWorker|| SelectedBuilding)&& cursorY >= panelY) {
-                    
+                    return;
                 }
                 else{
                     let canmove=false;

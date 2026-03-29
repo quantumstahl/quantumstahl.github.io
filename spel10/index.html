@@ -1705,7 +1705,7 @@ function drawBuildGhost(ctx, currentMap) {
     let x = cursorX - game.buildMode.width / 2 - game.getcamerax();
     let y = cursorY - game.buildMode.height / 2 - game.getcameray();
     
-    if(countercounter===0){
+    if(countercounter===0 && mobileAndTabletCheck()){
         x = canvas.width/2 - game.buildMode.width / 2 - game.getcamerax();
         y = canvas.height/2 - game.buildMode.height / 2 - game.getcameray();
         ghoststart=true;
