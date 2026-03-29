@@ -50,6 +50,7 @@
                     }
                 }
                 handleGameUILeftClick(cursorX, cursorY);
+                
                  
              });
             
@@ -349,7 +350,8 @@
                     ctx.fillRect(drawX, drawY + h.dimy - 8, h.dimx, 8);
 
                     // rita bara färdig del
-                    drawBuildingProgress(ctx, img, drawX, drawY, h.dimx, h.dimy, h.buildProgress);
+                    drawunfinished=true;
+                    //drawBuildingProgress(ctx, img, drawX, drawY, h.dimx, h.dimy, h.buildProgress);
                 }
                 const selectedTownhall = getSelectedTownhall();
                 drawTownhallUI(ctx, canvas, selectedTownhall, playerResources);
@@ -387,7 +389,8 @@
                     ctx.fillRect(drawX, drawY + t.dimy - 8, t.dimx, 8);
 
                     // rita bara färdig del
-                    drawBuildingProgress(ctx, img, drawX, drawY, t.dimx, t.dimy, t.buildProgress);
+                    t.drawunfinished=true;
+                    //drawBuildingProgress(ctx, img, drawX, drawY, t.dimx, t.dimy, t.buildProgress);
                   
        
                 }
@@ -418,7 +421,8 @@
                     ctx.fillRect(drawX, drawY + l.dimy - 8, l.dimx, 8);
 
                     // rita bara färdig del
-                    drawBuildingProgress(ctx, img, drawX, drawY, l.dimx, l.dimy, l.buildProgress);
+                    l.drawunfinished=true;
+                    //drawBuildingProgress(ctx, img, drawX, drawY, l.dimx, l.dimy, l.buildProgress);
                   
        
                 }
@@ -449,7 +453,8 @@
                     ctx.fillRect(drawX, drawY + m.dimy - 8, m.dimx, 8);
 
                     // rita bara färdig del
-                    drawBuildingProgress(ctx, img, drawX, drawY, m.dimx, m.dimy, m.buildProgress);
+                    m.drawunfinished=true;
+                    //drawBuildingProgress(ctx, img, drawX, drawY, m.dimx, m.dimy, m.buildProgress);
                   
        
                 }
@@ -480,7 +485,8 @@
                     ctx.fillRect(drawX, drawY + m.dimy - 8, m.dimx, 8);
 
                     // rita bara färdig del
-                    drawBuildingProgress(ctx, img, drawX, drawY, m.dimx, m.dimy, m.buildProgress);
+                    m.drawunfinished=true;
+                    //drawBuildingProgress(ctx, img, drawX, drawY, m.dimx, m.dimy, m.buildProgress);
                   
        
                 }
@@ -488,6 +494,7 @@
                 for (const f of farm) {
                     f.isvisable=true;
                     f.gatherTime=1000;
+                
                     if(f.state==null){f.isUnderConstruction=false;f.state="building";f.type = "food";f.amount = 1000;}
                     
                     f.canMove=false;
@@ -511,7 +518,8 @@
                     ctx.fillRect(drawX, drawY + f.dimy - 8, f.dimx, 8);
 
                     // rita bara färdig del
-                    drawBuildingProgress(ctx, img, drawX, drawY, f.dimx, f.dimy, f.buildProgress);
+                    f.drawunfinished=true;
+                    //drawBuildingProgress(ctx, img, drawX, drawY, f.dimx, f.dimy, f.buildProgress);
                   
        
                 }
@@ -658,7 +666,7 @@
                 
                 if(rightklick){
                     rightklick=false;
-                    if(game.buildMode&&!mobileAndTabletCheck()){game.deselectAll();game.buildMode=null;}
+                    
                     const selectedWorkers = game.getobjecttype('worker')?.objects?.filter(o => o.selected) || [];
                     const mousepressed = game.getAllObjects().filter(o => o.mousepressed);
                     const isresource = mousepressed.filter(o => o.gatherTime);
@@ -688,19 +696,25 @@
                                 
                             }
                             else{ 
-                              
-                                orderWorkerGather(w, isresource[0]);
-                                w.selected=false;
+                                if(isresource[0].name=="farm"){
+                                    if(!isresource[0].slot){orderWorkerGather(w, isresource[0]);w.selected=false;}
+                                    if(isresource[0].name=="farm")isresource[0].slot=w;
+                                }
+                                else{
+                                    orderWorkerGather(w, isresource[0]);w.selected=false;
+                                    
+                                }
                             }
                         }
                     }
                     if(selectedWorkers.length > 0 && isresource.length === 0 && !game.buildMode){
                         for (let w of selectedWorkers) {
+                           if(w.targetResource)w.targetResource.slot=null; 
                            clearWorkerOrder(w);
                         }
 
                     }
-                    
+                    if(game.buildMode&&!mobileAndTabletCheck()){game.deselectAll();game.buildMode=null;}
                 }
                 const worker = game.getobjecttype('worker')?.objects || [];
                 for (const w of worker) {
@@ -834,12 +848,18 @@ function updateWorker(worker, townhallList, playerResources, scale) {
               b.isUnderConstruction = false;
               b.isFinishing = true;
 
-              finishBuilding(b);
-
+              finishBuilding(b,worker);
+              
               worker.targetBuilding = null;
-              worker.state = "idle";
-              worker.targetX=null;
-               worker.targetY=null;
+              
+              if(!b.slot&& b.name=="farm"){b.slot=worker;orderWorkerGather(worker, b);worker.selected=false;}
+              else{
+                 worker.state = "idle";
+                 worker.targetX=null;
+                 worker.targetY=null;
+                 
+              }
+               
           }
           return;
       }
@@ -890,6 +910,7 @@ function updateWorker(worker, townhallList, playerResources, scale) {
         return;
     }
     if (worker.state === "moveToResource") {
+       
         const r = worker.targetResource;
 
         if (!r || (r.dead&&r.name!=="sheep"&&r.name!=="boar") || r.amount <= 0) {
@@ -925,6 +946,8 @@ function updateWorker(worker, townhallList, playerResources, scale) {
             worker.standingstill = true;
             return;
         }
+   
+        
 
         worker.standingstill = false;
         worker.targetX = r.x + r.dimx / 2;
@@ -934,6 +957,12 @@ function updateWorker(worker, townhallList, playerResources, scale) {
 
     if (worker.state === "gather") {
         const r = worker.targetResource;
+        
+        if(r.name==="farm"){
+            worker.targetX = r.x + r.dimx / 2;
+            worker.targetY = r.y + r.dimy / 2;
+            
+        }
         
         if (r.name === "sheep"||r.name === "boar") {
        
@@ -972,10 +1001,9 @@ function updateWorker(worker, townhallList, playerResources, scale) {
 
         worker.standingstill = true;
         worker.gatherTimer += 1 * scale;
-
+        
         if (worker.gatherTimer >= r.gatherTime) {
             worker.gatherTimer = 0;
-
             const take = Math.min(worker.carryMax - worker.carryAmount, 10, r.amount);
             r.amount -= take;
             worker.carryAmount += take;
@@ -986,7 +1014,7 @@ function updateWorker(worker, townhallList, playerResources, scale) {
                 r.animation=100;
                 markStaticsDirty();
             }
-
+            
             if (worker.carryAmount >= worker.carryMax || r.amount <= 0) {
                 worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
                 if (worker.targetDropoff) {
@@ -1001,7 +1029,7 @@ function updateWorker(worker, townhallList, playerResources, scale) {
 
     if (worker.state === "returnToBase") {
         const t = worker.targetDropoff;
-
+        
         if (!t) {
             worker.state = "idle";
             worker.standingstill = true;
@@ -1684,6 +1712,7 @@ function placeBuilding(x, y, buildingType) {
     const workers = (game.getobjecttype("worker")?.objects || []).filter(o => o.selected);;
     
     for(const w of workers) {
+      
         clearWorkerOrder(w);
         w.state = "buildBuilding";
         w.targetBuilding = b;
@@ -1732,7 +1761,7 @@ function placeBuildingFromBuildMode() {
     game.buildMode = null;
     return true;
 }
-function finishBuilding(b) {
+function finishBuilding(b,worker) {
     if (!b || b._finishedOnce) return;
     b._finishedOnce = true;
 
@@ -1743,22 +1772,22 @@ function finishBuilding(b) {
     const y = b.y;
     const rot = b.rot || 0;
 
-    game.removeobject(game.getobjecttype(b.name), b);
+   // game.removeobject(game.getobjecttype(b.name), b);
 
     const finalType = game.getobjecttype(def.imageType);
     if (!finalType) return;
 
-    const finished = game.addobject(finalType, x, y, def.width, def.height, rot, false);
-    if (!finished) return;
+   // const finished = game.addobject(finalType, x, y, def.width, def.height, rot, false);
+   // if (!finished) return;
 
-    finished.selectable = true;
-    finished.canMove = false;
-    finished.iscontrollable = false;
-    finished.isBuilding = true;
-    finished.hp = def.hp;
-    finished.maxHp = def.hp;
-    finished.dropoffTypes = def.dropoffTypes || [];
-    if(finished.name==="farm"){b.type = "food";b.amount = 1000;}
+    b.selectable = true;
+    b.canMove = false;
+    b.iscontrollable = false;
+    b.isBuilding = true;
+    b.hp = def.hp;
+    b.maxHp = def.hp;
+    b.dropoffTypes = def.dropoffTypes || [];
+    if(b.name==="farm"){b.type = "food";b.amount = 1000;b.state="building";}
 
     if (def.popMaxBonus) {
         playerResources.popMax += def.popMaxBonus;
@@ -1783,44 +1812,49 @@ function drawWorkerBuildUI(ctx, canvas) {
     const selectedWorker = getSelectedWorker();
     if (!selectedWorker) return;
 
-    const panelH = 100;
+    const options = WORKER_BUILD_OPTIONS;
+
+    const panelH = 170;
     const panelY = canvas.height - panelH;
 
     ctx.fillStyle = "rgba(0,0,0,0.75)";
     ctx.fillRect(0, panelY, canvas.width, panelH);
 
-    ctx.strokeStyle = "rgba(255,255,255,0.2)";
-    ctx.strokeRect(0, panelY, canvas.width, panelH);
-
-    const bw = 200;
+    const cols = canvas.width < 900 ? 2 : 4;
+    const bw = 170;
     const bh = 60;
+    const gapX = 12;
+    const gapY = 12;
     const startX = 20;
-    const by = panelY + 20;
-    const gap = 14;
+    const startY = panelY + 20;
 
     selectedWorker.buildButtons = [];
 
-    for (let i = 0; i < WORKER_BUILD_OPTIONS.length; i++) {
-        const opt = WORKER_BUILD_OPTIONS[i];
-        const bx = startX + i * (bw + gap);
+    for (let i = 0; i < options.length; i++) {
+        const opt = options[i];
+
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+
+        const bx = startX + col * (bw + gapX);
+        const by = startY + row * (bh + gapY);
 
         const canBuy = canAfford(opt.cost);
-        ctx.fillStyle = canBuy ? "rgba(30,80,30,0.95)" : "rgba(60,30,30,0.95)";
+
+        ctx.fillStyle = canBuy ? "rgba(80,80,80,0.95)" : "rgba(60,30,30,0.95)";
         ctx.fillRect(bx, by, bw, bh);
 
-        ctx.strokeStyle = canBuy ? "green" : "red";
+        ctx.strokeStyle = canBuy ? "white" : "red";
         ctx.strokeRect(bx, by, bw, bh);
 
         const img = game.getobjecttype(opt.icon)?.images?.[0]?.getimage();
-        if (img) {
-            ctx.drawImage(img, bx + 6, by + 6, 28, 28);
-        }
+        if (img) ctx.drawImage(img, bx + 6, by + 6, 28, 28);
 
         ctx.fillStyle = "white";
-        ctx.font = "16px Cinzel";
+        ctx.font = "15px Cinzel";
         ctx.fillText(opt.label, bx + 40, by + 18);
 
-        ctx.font = "13px Cinzel";
+        ctx.font = "12px Cinzel";
         ctx.fillText(getCostText(opt.cost), bx + 40, by + 38);
 
         selectedWorker.buildButtons.push({
@@ -1852,28 +1886,7 @@ function handleGameUILeftClick(cursorX, cursorY) {
 
     return false;
 }
-function drawBuildingProgress(ctx, img, x, y, w, h, progress) {
-    progress = Math.max(0, Math.min(1, progress));
 
-    const visibleH = h * progress;
-    if (visibleH <= 0) return;
-
-    const srcX = 0;
-    const srcY = img.height - img.height * progress;
-    const srcW = img.width;
-    const srcH = img.height * progress;
-
-    const dstX = x;
-    const dstY = y + (h - visibleH);
-    const dstW = w;
-    const dstH = visibleH;
-
-    ctx.drawImage(
-        img,
-        srcX, srcY, srcW, srcH,
-        dstX, dstY, dstW, dstH
-    );
-}
         </script>
     </body>  
 </html>

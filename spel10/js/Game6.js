@@ -1961,6 +1961,8 @@ class Game6 {
 
                         if (game.collideCircleWithRotatedRectangle(touch0x, touch0y, 10, calcX, calcY, Number(object.dimx), Number(object.dimy), calcRot)) {
                             object.mousepressed = true;
+                            
+                            
                         
                         }
                     }
@@ -1977,7 +1979,7 @@ class Game6 {
                 const panelH = 110;
                 const panelY = canvas.height - panelH;
 
-                if ((selectedTownhall||SelectedWorker) && cursorY >= panelY) {
+                if (((selectedTownhall||SelectedWorker) && cursorY >= panelY)||game.buildMode) {
                     return;
                 }
 
@@ -2516,6 +2518,8 @@ maskCanvas.width = canvas.width;
         for (let i = 0; i < obj.collideslistanobj.length; i++) {
             if (obj2 == obj.collideslistanobj[i])
                 return true;
+            if(obj == obj2.collideslistanobj[i])
+                return true;
         }
         return false;
     }
@@ -2734,9 +2738,16 @@ maskCanvas.width = canvas.width;
                  obj.x += ((dx / dist) * obj.speed);
                  
                  
+                let stop=false; 
+                for (let c of obj.collideslistanobj) {
+
+;
+                   if ((obj.targetDropoff && c == obj.targetDropoff)){ obj.blocked=false;obj.blocked1=0;stop=true;} // Ignorera target
+                   if(obj.workobject&&c==obj.workobject){ obj.blocked=false;obj.blocked1=0;stop=true;} 
+                   if(obj.deliveryTarget&&c==obj.deliveryTarget){obj.blocked=false;obj.blocked1=0;stop=true;}
+                }
                  
-                 
-                 if (dist > 2 && !obj.wasblocked){
+                 if (dist > 2 && (!obj.wasblocked||stop===false)){
                     if (Math.abs(dx) > Math.abs(dy)) {
                         if(go==true)obj.direction = dx > 0 ? "right" : "left";
                         if(!obj.blockedx||go)obj.directiony=dy > 0 ? "down" : "up";
@@ -2755,14 +2766,7 @@ maskCanvas.width = canvas.width;
                 
                 
                 
-                let stop=false; 
-                for (let c of obj.collideslistanobj) {
-
-;
-                   if ((obj.targetBuilding && c == obj.targetBuilding)){ obj.blocked=false;obj.blocked1=0;stop=true;} // Ignorera target
-                   if(obj.workobject&&c==obj.workobject){ obj.blocked=false;obj.blocked1=0;stop=true;} 
-                   if(obj.deliveryTarget&&c==obj.deliveryTarget){obj.blocked=false;obj.blocked1=0;stop=true;}
-                }
+            
 
                 //väj åt sidan
 
@@ -2940,8 +2944,10 @@ maskCanvas.width = canvas.width;
         }
     }
 
-    getObjectAt(x, y) {
-    for (let obj of this.getAllObjects()) {
+getObjectAt(x, y) {
+    const objects = this.getAllObjects();
+    for (let i = objects.length - 1; i >= 0; i--) {
+        const obj = objects[i];
         if (
             obj.selectable &&
             x >= obj.x &&
@@ -3123,7 +3129,22 @@ class Objecttype {
                 if(o.isvisable)ctx.drawImage(img, -w/2, -h/2+bob,w,h);
             }
             else{if(o.isvisable) ctx.drawImage(img, -w/2, -h/2,w,h);}
+            
+            if(o.drawunfinished&& !o.isvisable){
+                
               
+
+                // dölj hela huset först med en enkel fill om du behöver
+                ctx.fillStyle = "rgba(0,0,0,0.15)";
+                ctx.fillRect(-w/2, -h/2, w, h);
+
+                // foundation längst ner
+                ctx.fillStyle = "rgba(80,60,40,0.5)";
+                ctx.fillRect(-w/2, -h/2 + h - 8, w, 8);
+                
+                drawBuildingProgress(ctx, img, -w/2, -h/2, w, h, o.buildProgress);
+            }
+        
               
           }
           ctx.restore();
@@ -3306,6 +3327,7 @@ this.standingstill=true;
 this.dead=false;
 this.wasblocked=false;
 this.slide=false;
+this.drawunfinished=false;
 
     }
     collidestest(){
@@ -3698,6 +3720,28 @@ function getRippleOffset(x) {
     }
     
     return extra;
+}
+function drawBuildingProgress(ctx, img, x, y, w, h, progress) {
+    progress = Math.max(0, Math.min(1, progress));
+
+    const visibleH = h * progress;
+    if (visibleH <= 0) return;
+
+    const srcX = 0;
+    const srcY = img.height - img.height * progress;
+    const srcW = img.width;
+    const srcH = img.height * progress;
+
+    const dstX = x;
+    const dstY = y + (h - visibleH);
+    const dstW = w;
+    const dstH = visibleH;
+
+    ctx.drawImage(
+        img,
+        srcX, srcY, srcW, srcH,
+        dstX, dstY, dstW, dstH
+    );
 }
 // Export
 window.G5 = window.G5 || {};
