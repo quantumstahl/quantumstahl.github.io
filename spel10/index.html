@@ -197,21 +197,16 @@
 
 
 
-            const playerResources = game.playerResources || (game.playerResources = {wood: 0,food: 0,gold: 0,stone: 0,pop: 3,popMax: 10});
+            const playerResources = game.playerResources || (game.playerResources = {wood: 1000,food: 0,gold: 0,stone: 0,pop: 3,popMax: 10});
             game.buildMode = null;
             const WORKER_BUILD_OPTIONS = [
-                {
-                    type: "hus",
-                    label: "House",
-                    icon: "husicon",
-                    cost: { wood: 30 }
-                },
-                {
-                    type: "townhall",
-                    label: "TownHall",
-                    icon: "townhall",
-                    cost: { wood: 120, stone: 80 }
-                }
+                {type: "hus",label: "House",icon: "husicon",cost: { wood: 30 }},
+                {type: "townhall",label: "TownHall",icon: "townhall",cost: { wood: 120, stone: 80 }},
+                  { type: "lumbercamp", label: "Lumber", icon: "lumbercamp", cost: { wood: 60 } },
+                  { type: "miningcamp", label: "Mining", icon: "miningcamp", cost: { wood: 60 } },
+                  { type: "mill", label: "WindMill", icon: "mill", cost: { wood: 80 } },
+                  { type: "farm", label: "farm", icon: "farm", cost: { wood: 60 } },
+                
             ];
             const BUILDING_TYPES = {
                 hus: {
@@ -223,7 +218,8 @@
                     cost: { wood: 30 },
                     buildTime: 900,
                     popMaxBonus: 5,
-                    hp: 100
+                    hp: 100,
+                    dropoffTypes: []
                 },
                 townhall: {
                     imageType: "townhall",
@@ -234,7 +230,54 @@
                     cost: { wood: 120, stone: 80 },
                     buildTime: 2000,
                     popMaxBonus: 0,
-                    hp: 400
+                    hp: 400,
+                    dropoffTypes: ["wood", "food", "gold", "stone"]
+                    
+                },
+                lumbercamp: {
+                    imageType: "lumbercamp",
+                    foundationType: "lumbercampfoundation",
+                    iconType: "lumbercampicon",
+                    width: 90,
+                    height: 90,
+                    cost: { wood: 60 },
+                    buildTime: 900,
+                    hp: 150,
+                    dropoffTypes: ["wood"]
+                },
+
+                miningcamp: {
+                    imageType: "miningcamp",
+                    foundationType: "miningcampfoundation",
+                    iconType: "miningcampicon",
+                    width: 90,
+                    height: 90,
+                    cost: { wood: 60 },
+                    buildTime: 900,
+                    hp: 150,
+                    dropoffTypes: ["gold", "stone"]
+                },
+                farm: {
+                    imageType: "farm",
+                    foundationType: "farmfoundation",
+                    iconType: "farmicon",
+                    width: 200,
+                    height: 200,
+                    cost: { wood: 60 },
+                    buildTime: 600,
+                    hp: 120,
+                    dropoffTypes: []
+                },
+                mill: {
+                    imageType: "mill",
+                    foundationType: "windmillfoundation",
+                    iconType: "mill",
+                    width: 100,
+                    height: 100,
+                    cost: { wood: 80 },
+                    buildTime: 1000,
+                    hp: 180,
+                    dropoffTypes: ["food"]
                 }
             };
 
@@ -319,10 +362,11 @@
                     }
                     t.isvisable=true;
                     t.gatherTime=100;
-                    if(t.state==null){t.isUnderConstruction=false;t.state="building";}
+                    if(t.state==null){t.isUnderConstruction=false;t.state="building";t.dropoffTypes = ["wood", "food", "gold", "stone"];}
                     
                     t.canMove=false;
                     t.selectable=true;
+               
                    
                      updateTownhallTraining(t, scale);
                      drawTownhallTrainingQueue(ctx, t, currentMap);
@@ -344,6 +388,130 @@
 
                     // rita bara färdig del
                     drawBuildingProgress(ctx, img, drawX, drawY, t.dimx, t.dimy, t.buildProgress);
+                  
+       
+                }
+                const lumbercamp = game.getobjecttype('lumbercamp')?.objects || [];
+                for (const l of lumbercamp) {
+                    l.isvisable=true;
+                    l.gatherTime=100;
+                    if(l.state==null){l.isUnderConstruction=false;l.state="building";l.dropoffTypes = ["wood"];}
+                    
+                    l.canMove=false;
+                    l.selectable=true;
+                   
+
+                       if (!l.isUnderConstruction) continue;
+                    l.isvisable=false;
+                    const img = game.getobjecttype("lumbercamp")?.images?.[0]?.getimage();
+                    if (!img) continue;
+
+                    const drawX = l.x + currentMap.camerax;
+                    const drawY = l.y + currentMap.cameray;
+
+                    // dölj hela huset först med en enkel fill om du behöver
+                    ctx.fillStyle = "rgba(0,0,0,0.15)";
+                    ctx.fillRect(drawX, drawY, l.dimx, l.dimy);
+
+                    // foundation längst ner
+                    ctx.fillStyle = "rgba(80,60,40,0.5)";
+                    ctx.fillRect(drawX, drawY + l.dimy - 8, l.dimx, 8);
+
+                    // rita bara färdig del
+                    drawBuildingProgress(ctx, img, drawX, drawY, l.dimx, l.dimy, l.buildProgress);
+                  
+       
+                }
+                const miningcamp = game.getobjecttype('miningcamp')?.objects || [];
+                for (const m of miningcamp) {
+                    m.isvisable=true;
+                    m.gatherTime=100;
+                    if(m.state==null){m.isUnderConstruction=false;m.state="building";m.dropoffTypes = ["gold", "stone"];}
+                    
+                    m.canMove=false;
+                    m.selectable=true;
+                   
+
+                       if (!m.isUnderConstruction) continue;
+                    m.isvisable=false;
+                    const img = game.getobjecttype("miningcamp")?.images?.[0]?.getimage();
+                    if (!img) continue;
+
+                    const drawX = m.x + currentMap.camerax;
+                    const drawY = m.y + currentMap.cameray;
+
+                    // dölj hela huset först med en enkel fill om du behöver
+                    ctx.fillStyle = "rgba(0,0,0,0.15)";
+                    ctx.fillRect(drawX, drawY, m.dimx, m.dimy);
+
+                    // foundation längst ner
+                    ctx.fillStyle = "rgba(80,60,40,0.5)";
+                    ctx.fillRect(drawX, drawY + m.dimy - 8, m.dimx, 8);
+
+                    // rita bara färdig del
+                    drawBuildingProgress(ctx, img, drawX, drawY, m.dimx, m.dimy, m.buildProgress);
+                  
+       
+                }
+                const mill = game.getobjecttype('mill')?.objects || [];
+                for (const m of mill) {
+                    m.isvisable=true;
+                    m.gatherTime=100;
+                    if(m.state==null){m.isUnderConstruction=false;m.state="building";m.dropoffTypes = ["food"];}
+                    
+                    m.canMove=false;
+                    m.selectable=true;
+                   
+
+                       if (!m.isUnderConstruction) continue;
+                    m.isvisable=false;
+                    const img = game.getobjecttype("mill")?.images?.[0]?.getimage();
+                    if (!img) continue;
+
+                    const drawX = m.x + currentMap.camerax;
+                    const drawY = m.y + currentMap.cameray;
+
+                    // dölj hela huset först med en enkel fill om du behöver
+                    ctx.fillStyle = "rgba(0,0,0,0.15)";
+                    ctx.fillRect(drawX, drawY, m.dimx, m.dimy);
+
+                    // foundation längst ner
+                    ctx.fillStyle = "rgba(80,60,40,0.5)";
+                    ctx.fillRect(drawX, drawY + m.dimy - 8, m.dimx, 8);
+
+                    // rita bara färdig del
+                    drawBuildingProgress(ctx, img, drawX, drawY, m.dimx, m.dimy, m.buildProgress);
+                  
+       
+                }
+                const farm = game.getobjecttype('farm')?.objects || [];
+                for (const f of farm) {
+                    f.isvisable=true;
+                    f.gatherTime=1000;
+                    if(f.state==null){f.isUnderConstruction=false;f.state="building";f.type = "food";f.amount = 1000;}
+                    
+                    f.canMove=false;
+                    f.selectable=true;
+                   
+
+                       if (!f.isUnderConstruction) continue;
+                    f.isvisable=false;
+                    const img = game.getobjecttype("farm")?.images?.[0]?.getimage();
+                    if (!img) continue;
+
+                    const drawX = f.x + currentMap.camerax;
+                    const drawY = f.y + currentMap.cameray;
+
+                    // dölj hela huset först med en enkel fill om du behöver
+                    ctx.fillStyle = "rgba(0,0,0,0.15)";
+                    ctx.fillRect(drawX, drawY, f.dimx, f.dimy);
+
+                    // foundation längst ner
+                    ctx.fillStyle = "rgba(80,60,40,0.5)";
+                    ctx.fillRect(drawX, drawY + f.dimy - 8, f.dimx, 8);
+
+                    // rita bara färdig del
+                    drawBuildingProgress(ctx, img, drawX, drawY, f.dimx, f.dimy, f.buildProgress);
                   
        
                 }
@@ -498,7 +666,7 @@
                     if (selectedWorkers.length > 0 && isresource.length > 0 && !game.buildMode)  {
                         for (let w of selectedWorkers) {
                             
-                            if((isresource[0].name=="hus"||isresource[0].name=="townhall")&&!isresource[0].dead){
+                            if((isresource[0].name=="hus"||isresource[0].name=="townhall"||isresource[0].name=="mill"||isresource[0].name=="miningcamp"||isresource[0].name=="lumbercamp"||(isresource[0].name=="farm"&&isresource[0].isUnderConstruction))&&!isresource[0].dead){
                                 
                                 if(isresource[0].isUnderConstruction ){
                                     clearWorkerOrder(w);
@@ -521,7 +689,7 @@
                             }
                             else{ 
                               
-                                orderWorkerGather(w, isresource[0], townhall);
+                                orderWorkerGather(w, isresource[0]);
                                 w.selected=false;
                             }
                         }
@@ -600,29 +768,36 @@
                
                 
             }
-function orderWorkerGather(worker, resource, townhallList) {
+function orderWorkerGather(worker, resource) {
     if (!worker || !resource) return;
     if (resource.amount <= 0) return;
 
     worker.targetResource = resource;
     worker.jobType = resource.type;
-    worker.targetDropoff = getNearestTownhall(worker, townhallList);
+    worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
     worker.state = "moveToResource";
 }          
-function getNearestTownhall(unit, townhallList) {
+function getNearestDropoff(unit, resourceType) {
+    const all = game.getAllObjects().filter(o =>
+       
+        o.dropoffTypes &&
+        o.dropoffTypes.includes(resourceType)
+    );
+
     let best = null;
     let bestDist = Infinity;
 
-    for (const t of townhallList) {
-        if(t.isUnderConstruction)continue;
-        const dx = t.x - unit.x;
-        const dy = t.y - unit.y;
+    for (const b of all) {
+        const dx = b.x - unit.x;
+        const dy = b.y - unit.y;
         const d = dx * dx + dy * dy;
+
         if (d < bestDist) {
             bestDist = d;
-            best = t;
+            best = b;
         }
     }
+
     return best;
 }
 function updateWorker(worker, townhallList, playerResources, scale) {
@@ -722,7 +897,7 @@ function updateWorker(worker, townhallList, playerResources, scale) {
 
             // Har vi redan något med oss? Gå hem först.
             if (worker.carryAmount > 0) {
-                worker.targetDropoff = getNearestTownhall(worker, townhallList);
+                worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
                 if (worker.targetDropoff) {
                     worker.state = "returnToBase";
                 } else {
@@ -774,7 +949,7 @@ function updateWorker(worker, townhallList, playerResources, scale) {
             worker.targetResource = null;
 
             if (worker.carryAmount > 0) {
-                worker.targetDropoff = getNearestTownhall(worker, townhallList);
+                worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
                 if (worker.targetDropoff) {
                     worker.state = "returnToBase";
                 } else {
@@ -813,7 +988,7 @@ function updateWorker(worker, townhallList, playerResources, scale) {
             }
 
             if (worker.carryAmount >= worker.carryMax || r.amount <= 0) {
-                worker.targetDropoff = getNearestTownhall(worker, townhallList);
+                worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
                 if (worker.targetDropoff) {
                     worker.state = "returnToBase";
                 } else {
@@ -1582,6 +1757,8 @@ function finishBuilding(b) {
     finished.isBuilding = true;
     finished.hp = def.hp;
     finished.maxHp = def.hp;
+    finished.dropoffTypes = def.dropoffTypes || [];
+    if(finished.name==="farm"){b.type = "food";b.amount = 1000;}
 
     if (def.popMaxBonus) {
         playerResources.popMax += def.popMaxBonus;

@@ -3534,7 +3534,7 @@ function updateAndDrawFX(ctx) {
 
 function drawSelectRing(ctx, o,zoom, camX, camY){
     
-  
+  if(o.name=="farm")return;
 
   // Alltid-på, subtil "ground contact" för byggnader (så de inte ser svävande ut)
   if (o.canMove==false) {
