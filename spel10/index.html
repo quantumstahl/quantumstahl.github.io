@@ -1095,7 +1095,10 @@ function updateWorker(worker, townhallList, playerResources, scale) {
             worker.state = "moveToResource";
         } else {
             const next = getNearestResourceOfType(worker, worker.jobType);
-            if (next) {
+            
+            
+            
+            if (next&&!next.slot) {
                 worker.targetResource = next;
                 worker.state = "moveToResource";
             } else {

@@ -2741,16 +2741,10 @@ maskCanvas.width = canvas.width;
                  
                  
                 let stop=false; 
-                for (let c of obj.collideslistanobj) {
-
-                   if(c.isBuilding){
-                   if ((obj.targetDropoff && c == obj.targetDropoff)){ obj.blocked=false;obj.blocked1=0;stop=true;} // Ignorera target
-                   if(obj.targetBuilding&&c==obj.targetBuilding){ obj.blocked=false;obj.blocked1=0;stop=true;} 
-                   if(obj.targetResource&&c==obj.targetResource){obj.blocked=false;obj.blocked1=0;stop=true;}
-                    }
-                }
+                let isdyn=false;
+             
                  
-                 if (dist > 2 && (!obj.wasblocked||stop===false)){
+                 if (dist > 2){
                     if (Math.abs(dx) > Math.abs(dy)) {
                         if(go==true)obj.direction = dx > 0 ? "right" : "left";
                         if(!obj.blockedx||go)obj.directiony=dy > 0 ? "down" : "up";
@@ -2762,10 +2756,18 @@ maskCanvas.width = canvas.width;
                     }
                 }
                 obj.wasblocked=false;
-                if(obj.blocked)obj.wasblocked=true;
+                //if(obj.blocked)obj.wasblocked=true;
                     
     
-                
+                   for (let c of obj.collideslistanobj) {
+
+                   if(!c.isBuilding){isdyn=true;}
+                   else{
+                   if ((obj.targetDropoff && c == obj.targetDropoff)){ obj.blocked=false;obj.blocked1=0;stop=true;} // Ignorera target
+                   if(obj.targetBuilding&&c==obj.targetBuilding){ obj.blocked=false;obj.blocked1=0;stop=true;} 
+                   if(obj.targetResource&&c==obj.targetResource){obj.blocked=false;obj.blocked1=0;stop=true;}
+                    }
+                }
                 
                 
                 
@@ -2775,7 +2777,7 @@ maskCanvas.width = canvas.width;
 
                 if(stop==false&&obj.blocked){
                         obj.blockedcounter++;
-                        
+                       
                         
                     //    if((obj.blockedx==true&&obj.blockedy==false)||(obj.blockedy==true&&obj.blockedx==false)){
                             
