@@ -1707,7 +1707,7 @@ function drawBuildGhost(ctx, currentMap) {
     
     if(countercounter===0 && mobileAndTabletCheck()){
         x = canvas.width/2 - game.buildMode.width / 2 - game.getcamerax();
-        y = canvas.height-200 - game.buildMode.height / 2 - game.getcameray();
+        y = canvas.height/2 - game.buildMode.height / 2 - game.getcameray();
         ghoststart=true;
     }
     
@@ -1727,7 +1727,7 @@ function drawBuildGhost(ctx, currentMap) {
     );
 
     ctx.strokeStyle = canPlace ? "lime" : "red";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 8;
     ctx.strokeRect(
         x + currentMap.camerax,
         y + currentMap.cameray,
