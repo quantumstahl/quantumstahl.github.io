@@ -1741,10 +1741,11 @@ class Game6 {
                 
                 const selectedTownhall = getSelectedTownhall();
                 const SelectedWorker=getSelectedWorker();
-                const panelH = 110;
+                const SelectedBuilding=getSelectedBuilding();
+                const panelH = 170;
                 const panelY = canvas.height - panelH;
 
-                if ((selectedTownhall ||SelectedWorker)&& cursorY >= panelY) {
+                if ((selectedTownhall ||SelectedWorker|| SelectedBuilding)&& cursorY >= panelY) {
                     
                 }
                 else{
@@ -1976,10 +1977,11 @@ class Game6 {
             if (e.button === 0) {
                 const selectedTownhall = getSelectedTownhall();
                 const SelectedWorker=getSelectedWorker();
-                const panelH = 110;
+                const SelectedBuilding=getSelectedBuilding();
+                const panelH = 170;
                 const panelY = canvas.height - panelH;
 
-                if (((selectedTownhall||SelectedWorker) && cursorY >= panelY)||game.buildMode) {
+                if (((selectedTownhall||SelectedWorker||SelectedBuilding) && cursorY >= panelY)||game.buildMode) {
                     return;
                 }
 
@@ -2743,8 +2745,8 @@ maskCanvas.width = canvas.width;
 
 ;
                    if ((obj.targetDropoff && c == obj.targetDropoff)){ obj.blocked=false;obj.blocked1=0;stop=true;} // Ignorera target
-                   if(obj.workobject&&c==obj.workobject){ obj.blocked=false;obj.blocked1=0;stop=true;} 
-                   if(obj.deliveryTarget&&c==obj.deliveryTarget){obj.blocked=false;obj.blocked1=0;stop=true;}
+                   if(obj.targetBuilding&&c==obj.targetBuilding){ obj.blocked=false;obj.blocked1=0;stop=true;} 
+                   if(obj.targetResource&&c==obj.targetResource){obj.blocked=false;obj.blocked1=0;stop=true;}
                 }
                  
                  if (dist > 2 && (!obj.wasblocked||stop===false)){
