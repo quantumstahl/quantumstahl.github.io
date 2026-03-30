@@ -53,13 +53,6 @@
             
             document.addEventListener('click', (event) => {
                 try{if(audio.paused){ audio.play();}}catch(error){};
-                 
-                const selectedTownhall = getSelectedTownhall();
-                if (selectedTownhall && selectedTownhall.trainWorkerButton) {
-                    if (pointInRect(cursorX, cursorY, selectedTownhall.trainWorkerButton)) {
-                        queueWorkerTraining(selectedTownhall, playerResources);
-                    }
-                }
                 handleGameUILeftClick(cursorX, cursorY);
                 
                  
@@ -68,12 +61,6 @@
             
             document.addEventListener("touchstart" , function(e) {
                 e.preventDefault();
-                    const selectedTownhall = getSelectedTownhall();
-                    if (selectedTownhall && selectedTownhall.trainWorkerButton) {
-                        if (pointInRect(cursorX, cursorY, selectedTownhall.trainWorkerButton)) {
-                            queueWorkerTraining(selectedTownhall, playerResources);
-                        }
-                    }
                     handleGameUILeftClick(cursorX, cursorY);
 		    	
                     try{if(audio.paused){ 
@@ -213,12 +200,40 @@
 
 
 
+            function updatecanvassize(){
+                time=performance.now();
+                if(!mobileAndTabletCheck()){
+                    canvas.width=1920*1.25;
+                    canvas.height=1080*1.25;
+                    canvas.style.position="absolute";
+                    canvas.style.width  = document.body.clientWidth + "px";
+                    canvas.style.height = document.body.clientHeight-8 + "px";
+                }
+                else{
+
+                    if(window.innerHeight > window.innerWidth){
+                        canvas.width=1100;
+                        canvas.height=1600;  
+                    }
+                    else{
+                        canvas.width=1600*1.2;
+                        canvas.height=1100*1.2;
+                    }
+                    canvas.style.position="absolute";
+                    canvas.style.width  = document.body.clientWidth + "px";
+                    canvas.style.height = document.body.clientHeight-8 + "px";
 
 
+                }
+            }
+            const teamResources = game.teamResources || (game.teamResources = {
+                player: { wood: 1000, food: 1000, gold: 1000, stone: 0, pop: 3, popMax: 10 },
+                red:    { wood: 300,  food: 300,  gold: 300,  stone: 0, pop: 3, popMax: 10 },
+                yellow: { wood: 300,  food: 300,  gold: 300,  stone: 0, pop: 3, popMax: 10 },
+                green:  { wood: 300,  food: 300,  gold: 300,  stone: 0, pop: 3, popMax: 10 }
+            });
 
-
-
-            const playerResources = game.playerResources || (game.playerResources = {wood: 0,food: 0,gold: 0,stone: 0,pop: 3,popMax: 10});
+            const playerResources = teamResources.player;
             game.buildMode = null;
             const WORKER_BUILD_OPTIONS = [
                 {type: "hus",label: "House",icon: "husicon",cost: { wood: 30 }},
@@ -227,6 +242,7 @@
                   { type: "miningcamp", label: "Mining", icon: "miningcamp", cost: { wood: 60 } },
                   { type: "mill", label: "WindMill", icon: "mill", cost: { wood: 80 } },
                   { type: "farm", label: "farm", icon: "farm", cost: { wood: 60 } },
+                  {type: "barrack",label: "Barrack",icon: "barrack",cost: { wood: 120 }}
                 
             ];
             const BUILDING_TYPES = {
@@ -299,35 +315,24 @@
                     buildTime: 1000,
                     hp: 180,
                     dropoffTypes: ["food"]
+                },
+                barrack: {
+                    imageType: "barrack",
+                    width: 300,
+                    height: 300,
+                    buildTime: 800,
+                    hp: 300,
+                    cost: { wood: 120 },
+                    dropoffTypes: []
                 }
             };
 
             showPanHint();
+            
+
+            
             function update(scale){
-                time=performance.now();
-                if(!mobileAndTabletCheck()){
-                    canvas.width=1920*1.25;
-                    canvas.height=1080*1.25;
-                    canvas.style.position="absolute";
-                    canvas.style.width  = document.body.clientWidth + "px";
-                    canvas.style.height = document.body.clientHeight-8 + "px";
-                }
-                else{
-
-                    if(window.innerHeight > window.innerWidth){
-                        canvas.width=1100;
-                        canvas.height=1600;  
-                    }
-                    else{
-                        canvas.width=1600*1.2;
-                        canvas.height=1100*1.2;
-                    }
-                    canvas.style.position="absolute";
-                    canvas.style.width  = document.body.clientWidth + "px";
-                    canvas.style.height = document.body.clientHeight-8 + "px";
-
-
-                }
+                updatecanvassize();
                 ctx.fillStyle = "black";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 game.updateanimation(ctx,scale);
@@ -344,17 +349,18 @@
                 const camSpeed = 15;
                 const currentMap = game.maps[game.currentmap];
 
-                if (keyState.w) currentMap.cameray += camSpeed;
-                if (keyState.s) currentMap.cameray -= camSpeed;
-                if (keyState.a) currentMap.camerax += camSpeed;
-                if (keyState.d) currentMap.camerax -= camSpeed;
+                if (keyState.w) if(currentMap.cameray<800)currentMap.cameray += camSpeed;
+                if (keyState.s) if(currentMap.cameray>-2200)currentMap.cameray -= camSpeed;
+                if (keyState.a) if(currentMap.camerax<200)currentMap.camerax += camSpeed;
+                if (keyState.d) if(currentMap.camerax>-6000)currentMap.camerax -= camSpeed;
                 
-                const houses = game.getobjecttype('hus')?.objects || [];
+                const houses = getAllHousesAllTeams();
                 for (const h of houses) {
+                    ensureOwnerByName(h);
                     h.isBuilding=true;
-                    h.owner = "player";
                     h.isvisable=true;
                     h.gatherTime=100;
+                    h.selectable = true;
                     if (!h.isUnderConstruction) continue;
                     h.isvisable=false;
                     const img = game.getobjecttype("hus")?.images?.[0]?.getimage();
@@ -375,18 +381,97 @@
                     h.drawunfinished=true;
                     //drawBuildingProgress(ctx, img, drawX, drawY, h.dimx, h.dimy, h.buildProgress);
                 }
+                const barrack = getAllBarracksAllTeams();
+                for (const b of barrack) {
+                    ensureOwnerByName(b);
+                    if (b.trainingQueue == null) {
+                        b.trainingQueue = [];
+                        b.trainingTimer = 0;
+                        b.trainingTimeMax = 700; // lite snabbare än worker om du vill
+                    }
+
+                    b.isBuilding = true;
+                    b.isvisable = true;
+                    b.gatherTime = 100;
+
+                    if (b.state == null) {
+                        b.isUnderConstruction = false;
+                        b.state = "building";
+                    }
+
+                    b.canMove = false;
+                    b.selectable = true;
+
+                    updateBarrackTraining(b, scale);
+                    drawBarrackTrainingQueue(ctx, b, currentMap);
+
+                    if (!b.isUnderConstruction) continue;
+
+                    b.isvisable = false;
+                    const img = game.getobjecttype("barrack")?.images?.[0]?.getimage();
+                    if (!img) continue;
+
+                    const drawX = b.x + currentMap.camerax;
+                    const drawY = b.y + currentMap.cameray;
+
+                    ctx.fillStyle = "rgba(0,0,0,0.15)";
+                    ctx.fillRect(drawX, drawY, b.dimx, b.dimy);
+
+                    ctx.fillStyle = "rgba(80,60,40,0.5)";
+                    ctx.fillRect(drawX, drawY + b.dimy - 8, b.dimx, 8);
+
+                    b.drawunfinished = true;
+                }
+                const warrior = getAllWarriorsAllTeams();
+                for (const w of warrior) {
+                    ensureOwnerByName(w);
+
+                    w.selectable = true;
+                    w.iscontrollable = (w.owner === "player");
+                    w.fliped = false;
+
+                    if (w.state == null) {
+                        w.state = "idle";
+                        w.hp = 40;
+                        w.maxHp = 40;
+                        w.damage = 8;
+                        w.attackCooldown = 0;
+                        w.targetEnemy = null;
+                        w.direction = "down";
+                        w.standingstill = true;
+                    }
+
+                    if (!w.dead) {
+                        if (w.direction=="down"){w.animation=1;if(w.standingstill)w.animation=0;}
+                        if (w.direction=="up"){w.animation=3;if(w.standingstill)w.animation=2;}
+                        if (w.direction=="right"){w.animation=5;if(w.standingstill)w.animation=4;}
+                        if (w.direction=="left"){w.animation=5;if(w.standingstill)w.animation=4;w.fliped=true;}
+
+                        // attack-pose om du vill
+                        if (w.state === "attackTarget" && w.targetEnemy && game.collideswithanoterobject(w, w.targetEnemy)) {
+                            if (w.direction=="down") w.animation=6;
+                            if (w.direction=="up") w.animation=7;
+                            if (w.direction=="right") w.animation=8;
+                            if (w.direction=="left") { w.animation=8; w.fliped=true; }
+                        }
+                    }
+
+                    updateWarrior(w, scale);
+                }
+                
+                
                 const selectedTownhall = getSelectedTownhall();
                 drawSelectedObjectUI(ctx, canvas)
                 
-                const townhall = game.getobjecttype('townhall')?.objects || [];
+                const townhall = getAllTownhallsAllTeams();
                 for (const t of townhall) {
+                    ensureOwnerByName(t);
                      if (t.trainingQueue == null) {
                         t.trainingQueue = [];
                         t.trainingTimer = 0;
                         t.trainingTimeMax = 900; // ca 5 sek vid 60 fps
                     }
                     t.isBuilding=true;
-                    t.owner = "player";
                     t.isvisable=true;
                     t.gatherTime=100;
                     if(t.state==null){t.isUnderConstruction=false;t.state="building";t.dropoffTypes = ["wood", "food", "gold", "stone"];}
@@ -419,12 +504,12 @@
                   
        
                 }
-                const lumbercamp = game.getobjecttype('lumbercamp')?.objects || [];
+                const lumbercamp =  getAllLumbercampsAllTeams();
                 for (const l of lumbercamp) {
+                    ensureOwnerByName(l);
                     l.isvisable=true;
                     l.gatherTime=100;
                     l.isBuilding=true;
-                    l.owner = "player";
                     if(l.state==null){l.isUnderConstruction=false;l.state="building";l.dropoffTypes = ["wood"];}
                     
                     l.canMove=false;
@@ -453,12 +538,12 @@
                   
        
                 }
-                const miningcamp = game.getobjecttype('miningcamp')?.objects || [];
+                const miningcamp = getAllMiningcampsAllTeams();
                 for (const m of miningcamp) {
+                    ensureOwnerByName(m);
                     m.isvisable=true;
                     m.gatherTime=100;
                     m.isBuilding=true;
-                    m.owner = "player";
                     if(m.state==null){m.isUnderConstruction=false;m.state="building";m.dropoffTypes = ["gold", "stone"];}
                     
                     m.canMove=false;
@@ -487,12 +572,12 @@
                   
        
                 }
-                const mill = game.getobjecttype('mill')?.objects || [];
+                const mill = getAllMillsAllTeams();
                 for (const m of mill) {
+                    ensureOwnerByName(m);
                     m.isvisable=true;
                     m.gatherTime=100;
                     m.isBuilding=true;
-                    m.owner = "player";
                     if(m.state==null){m.isUnderConstruction=false;m.state="building";m.dropoffTypes = ["food"];}
                     
                     m.canMove=false;
@@ -521,12 +606,11 @@
                   
        
                 }
-                const farm = game.getobjecttype('farm')?.objects || [];
+                const farm = getAllFarmsAllTeams();
                 for (const f of farm) {
                     f.isvisable=true;
                     f.gatherTime=1000;
                     f.isBuilding=true;
-                    f.owner = "player";
                     if(f.state==null){f.isUnderConstruction=false;f.state="building";f.type = "food";f.amount = 1000;}
                     
                     f.canMove=false;
@@ -613,53 +697,59 @@
                 }
                 const sheep = game.getobjecttype('sheep')?.objects || [];
                 for (const s of sheep) {
-                    s.selectable=true;
-                    
-                    
-                    
+                    s.selectable = true;
+
                     if (s.state == null) {
                         s.state = "idle";
                         s.type = "food";
-                        s.amount = 100;       // eller 20
+                        s.amount = 100;
                         s.gatherTime = 500;
                         s.nearActivated = false;
+                        s.owner = null; // neutral från start
+                        s.iscontrollable = false;
+                        s.direction = "down";
+                        s.standingstill = true;
                     }
-                      
-                    const worker = game.getobjecttype('worker')?.objects || [];  
-                    for (const w of worker) {
-                        const dx = w.x - s.x;
-                        const dy = w.y - s.y;
-                        const dist = Math.hypot(dx, dy);
-                        
-                        
-                        
-                        
-                        
 
-                        if (dist < 300) s.nearActivated = true;
-                            s.iscontrollable = s.nearActivated;
-                        }
-                    s.fliped=false;
-                    
-                    if(!s.dead){
-                        if (!s.iscontrollable) {
+                    // hitta worker nära
+                    const nearbyWorker = getNearestWorkerInRange(s, 300);
+
+                    // neutral sheep blir ägda av första laget som kommer nära
+                    if (!s.dead && nearbyWorker) {
+                        s.owner = nearbyWorker.owner || "player";
+                    }
+
+                    // sheep är controllable om de har en owner
+                    if(s.owner==="player")s.iscontrollable = true;
+
+                    s.fliped = false;
+
+                    if (!s.dead) {
+                        if (!s.owner) {
                             updatePassiveWander(s, scale, 60, 100, 240);
                         } else {
-                            s.wanderState = "wait";
-                            s.wanderTimer = 30;
+                            if(s.owner!=="player")
+                            updateOwnedSheep(s, scale);
                         }
-                        if(s.iscontrollable){
-                            if(s.direction=="down"){s.animation=9;if(s.standingstill)s.animation=8;}
-                            if(s.direction=="up"){s.animation=11;if(s.standingstill)s.animation=10;}
-                            if(s.direction=="right"){s.animation=7;if(s.standingstill)s.animation=6;}
-                            if(s.direction=="left"){s.animation=7;if(s.standingstill)s.animation=6;s.fliped=true;}
 
+                        const base = getSheepAnimBase(s.owner);
+
+                        if (s.direction == "down") {
+                            s.animation = base + 3;
+                            if (s.standingstill) s.animation = base + 2;
                         }
-                        else{
-                            if(s.direction=="down"){s.animation=3;if(s.standingstill)s.animation=2;}
-                            if(s.direction=="up"){s.animation=5;if(s.standingstill)s.animation=4;}
-                            if(s.direction=="right"){s.animation=1;if(s.standingstill)s.animation=0;}
-                            if(s.direction=="left"){s.animation=1;if(s.standingstill)s.animation=0;s.fliped=true;}
+                        if (s.direction == "up") {
+                            s.animation = base + 5;
+                            if (s.standingstill) s.animation = base + 4;
+                        }
+                        if (s.direction == "right") {
+                            s.animation = base + 1;
+                            if (s.standingstill) s.animation = base + 0;
+                        }
+                        if (s.direction == "left") {
+                            s.animation = base + 1;
+                            if (s.standingstill) s.animation = base + 0;
+                            s.fliped = true;
                         }
                     }
                 }
@@ -700,13 +790,14 @@
                     rightklick=false;
                     
                     const selectedWorkers = game.getobjecttype('worker')?.objects?.filter(o => o.selected) || [];
+                    const selectedWarriors = game.getobjecttype('warrior')?.objects?.filter(o => o.selected) || [];
                     const mousepressed = game.getAllObjects().filter(o => o.mousepressed);
                     const isresource = mousepressed.filter(o => o.gatherTime);
 
                     if (selectedWorkers.length > 0 && isresource.length > 0 && !game.buildMode)  {
                         for (let w of selectedWorkers) {
                             
-                            if((isresource[0].name=="hus"||isresource[0].name=="townhall"||isresource[0].name=="mill"||isresource[0].name=="miningcamp"||isresource[0].name=="lumbercamp"||(isresource[0].name=="farm"&&isresource[0].isUnderConstruction))&&!isresource[0].dead){
+                            if((isresource[0].name=="barrack"||isresource[0].name=="hus"||isresource[0].name=="townhall"||isresource[0].name=="mill"||isresource[0].name=="miningcamp"||isresource[0].name=="lumbercamp"||(isresource[0].name=="farm"&&isresource[0].isUnderConstruction))&&!isresource[0].dead){
                                 
                                 if(isresource[0].isUnderConstruction ){
                                     clearWorkerOrder(w);
@@ -739,20 +830,42 @@
                             }
                         }
                     }
+                     // NYTT: warriors attackerar boar
+                    if (selectedWarriors.length > 0 && isresource.length > 0 && !game.buildMode) {
+                        if (isresource[0].name === "boar" && !isresource[0].dead) {
+                            for (let w of selectedWarriors) {
+                                orderWarriorAttackBoar(w, isresource[0]);
+                                w.selected = false;
+                            }
+                        }
+                    }
+
                     if(selectedWorkers.length > 0 && isresource.length === 0 && !game.buildMode){
                         for (let w of selectedWorkers) {
-                           if(w.targetResource)w.targetResource.slot=null; 
-                           clearWorkerOrder(w);
+                            if(w.targetResource) w.targetResource.slot=null;
+                            clearWorkerOrder(w);
                         }
-
                     }
-                    if(game.buildMode&&!mobileAndTabletCheck()){game.deselectAll();game.buildMode=null;}
+
+                    if(selectedWarriors.length > 0 && isresource.length === 0 && !game.buildMode){
+                        for (let w of selectedWarriors) {
+                            w.targetEnemy = null;
+                            w.state = "idle";
+                      
+                        }
+                    }
+
+                    if(game.buildMode && !mobileAndTabletCheck()){
+                        game.deselectAll();
+                        game.buildMode=null;
+                    }
                 }
-                const worker = game.getobjecttype('worker')?.objects || [];
+                const worker = getAllWorkersAllTeams();
                 for (const w of worker) {
-                    if(!w.dead)w.selectable=true;
-                    w.iscontrollable=true;
-               
+                    ensureOwnerByName(w);
+
+                    w.selectable = true;
+                    w.iscontrollable = (w.owner === "player");
                     w.fliped=false;
                     
                     if(!w.dead){
@@ -804,16 +917,15 @@
                         w.attackTimer = 0;
                     }
                     
-                    updateWorker(w, townhall, playerResources,scale);
-                    
+                    updateWorker(w, townhall, teamResources[w.owner || "player"], scale);
+                    updateTeamAI("red", scale);
+                   // updateTeamAI("yellow", scale);
+                   // updateTeamAI("green", scale);
                     
                     
                 }
-                
-                
-               
-                
-            }
+         
+        }
 function orderWorkerGather(worker, resource) {
     if (!worker || !resource) return;
     if (resource.amount <= 0) return;
@@ -824,8 +936,11 @@ function orderWorkerGather(worker, resource) {
     worker.state = "moveToResource";
 }          
 function getNearestDropoff(unit, resourceType) {
+    const owner = unit.owner || "player";
+
     const all = game.getAllObjects().filter(o =>
-       
+        !o.dead &&
+        o.owner === owner &&
         o.dropoffTypes &&
         o.dropoffTypes.includes(resourceType)
     );
@@ -1118,13 +1233,16 @@ function getNearestResourceOfType(unit, type) {
     const all = game.getAllObjects().filter(o =>
         o.type === type &&
         o.amount > 0 &&
-        !o.dead
+        !o.dead &&
+        (!o.owner || o.owner === "neutral" || o.owner !== unit.owner)
     );
 
     let best = null;
     let bestDist = Infinity;
 
     for (const r of all) {
+        if (r.slot && r.slot !== unit) continue;
+
         const rx = r.x + r.dimx / 2;
         const ry = r.y + r.dimy / 2;
         const dx = rx - unit.x;
@@ -1137,8 +1255,8 @@ function getNearestResourceOfType(unit, type) {
         }
     }
 
-    return best;        
-}            
+    return best;
+}       
 function clearWorkerOrder(worker) {
     worker.state = "idle";
     worker.targetResource = null;
@@ -1152,22 +1270,29 @@ function dist2(a, b) {
     const dy = a.y - b.y;
     return dx * dx + dy * dy;
 }            
-function getNearestWorkerInRange(boar, range) {
-    const workers = game.getobjecttype('worker')?.objects || [];
+function getNearestUnitInRange(boar, range) {
+    const owners = ["player", "red", "yellow", "green"];
+    let units = [];
+
+    for (const owner of owners) {
+        units.push(...getTeamObjects("worker", owner));
+        units.push(...getTeamObjects("warrior", owner));
+    }
+
     let best = null;
     let bestDist = range * range;
 
-    for (const w of workers) {
-        if (w.dead) continue;
-        const d = dist2(boar, w);
+    for (const u of units) {
+        if (!u || u.dead) continue;
+        const d = dist2(boar, u);
         if (d < bestDist) {
             bestDist = d;
-            best = w;
+            best = u;
         }
     }
 
     return best;
-}            
+}  
 function moveBoarTowards(boar, tx, ty) {
     boar.targetX = tx;
     boar.targetY = ty;
@@ -1194,7 +1319,7 @@ function updateBoar(boar, scale) {
 
 
     if (boar.state === "idle") {
-        const target = getNearestWorkerInRange(boar, boar.aggroRange);
+        const target = getNearestUnitInRange(boar, boar.aggroRange);
         if (target) {
             boar.targetUnit = target;
             boar.state = "aggro";
@@ -1263,11 +1388,15 @@ function updateBoar(boar, scale) {
             // t.vy = -1;
 
             if (t.hp <= 0) {
-                t.flashTimer=0;
+                t.flashTimer = 0;
                 t.dead = true;
                 playerResources.pop -= 1;
-                t.selectable=false;
-                t.animation=12;
+                if (playerResources.pop < 0) playerResources.pop = 0;
+                t.selectable = false;
+
+                if (t.name === "worker") t.animation = 12;
+                if (t.name === "warrior") t.animation = 12; // byt om warrior har annan dödsanim
+
                 boar.targetUnit = null;
                 boar.state = "return";
             }
@@ -1362,6 +1491,7 @@ function queueWorkerTraining(townhall, playerResources) {
     if (townhall.trainingQueue.length >= 8) return false;
 
     playerResources.food -= 50;
+   
     townhall.trainingQueue.push("worker");
     return true;
 }
@@ -1391,25 +1521,25 @@ function updateTownhallTraining(townhall, scale) {
     }
 }        
 function spawnWorkerFromTownhall(townhall) {
-    const workerType = game.getobjecttype("worker");
-    if (!workerType) return false;
-    
+    const owner = townhall.owner || "player";
+    const resources = teamResources[owner];
 
-    
-    
+    const workerType = getTeamObjectType("worker", owner);
+    if (!workerType) return false;
+
     const pos = findFreeSpawnPosition(townhall, 30, 50);
     if (!pos) return false;
 
-    if (playerResources.pop >= playerResources.popMax) {
-        // stoppa produktion
-        return;
+    if (resources.pop >= resources.popMax) {
+        return false;
     }
 
-    playerResources.pop += 1;
+    resources.pop += 1;
 
     const w = game.addobject(workerType, pos.x, pos.y, 30, 50, 0, false);
     if (!w) return false;
 
+    w.owner = owner;
     w.state = "idle";
     w.targetResource = null;
     w.targetDropoff = null;
@@ -1422,13 +1552,13 @@ function spawnWorkerFromTownhall(townhall) {
     w.attackTarget = null;
     w.attackTimer = 0;
     w.hp = 20;
-    w.selectable = true;
-    w.iscontrollable = true;
+    w.selectable = owner === "player";
+    w.iscontrollable = owner === "player";
     w.direction = "down";
     w.standingstill = true;
 
     return true;
-}        
+}    
 function drawTownhallUI(ctx, canvas, selectedTownhall, playerResources) {
     if (!selectedTownhall) return;
 
@@ -1513,9 +1643,11 @@ function pointInRect(px, py, r) {
 function drawTownhallTrainingQueue(ctx, townhall, currentMap) {
     if (!townhall.trainingQueue || townhall.trainingQueue.length === 0) return;
 
+    const owner = townhall.owner || "player";
+
     const iconSize = 30;
     const gap = 4;
-    const maxVisible = 8; // valfritt tak
+    const maxVisible = 8;
 
     const queue = townhall.trainingQueue.slice(0, maxVisible);
     const totalW = queue.length * iconSize + (queue.length - 1) * gap;
@@ -1528,46 +1660,39 @@ function drawTownhallTrainingQueue(ctx, townhall, currentMap) {
         let img = null;
 
         if (type === "worker") {
-            img = game.getobjecttype("worker")?.images?.[1]?.getimage();
+            img = getTeamObjectType("worker", owner)?.images?.[1]?.getimage();
         }
 
         if (!img) continue;
 
         const x = startX + i * (iconSize + gap);
 
-       ctx.fillStyle = "rgba(0,0,0,0.7)";
-       ctx.fillRect(x - 2, y - 2, iconSize + 4, iconSize + 4);
-        
-       
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.fillRect(x - 2, y - 2, iconSize + 4, iconSize + 4);
+
         ctx.drawImage(img, x, y, iconSize, iconSize);
 
-        // progress bara på första i kön
         if (i === 0 && townhall.trainingTimeMax > 0) {
             const p = Math.min(1, townhall.trainingTimer / townhall.trainingTimeMax);
 
-           // mörk bakgrund
-            
             ctx.drawImage(img, x, y, iconSize, iconSize);
-            
             ctx.fillStyle = "rgba(0,0,0,0.8)";
             ctx.fillRect(x, y, iconSize, iconSize);
 
-            // progress (full färg)
             const w = iconSize * p;
 
             ctx.save();
             ctx.beginPath();
             ctx.rect(x, y, w, iconSize);
             ctx.clip();
-            
-             ctx.fillStyle = "orange";
+
+            ctx.fillStyle = "orange";
             ctx.fillRect(x, y, iconSize, iconSize);
             ctx.drawImage(img, x, y, iconSize, iconSize);
             ctx.restore();
         }
     }
 
-    // om kön är längre än maxVisible
     if (townhall.trainingQueue.length > maxVisible) {
         ctx.fillStyle = "white";
         ctx.font = "14px Cinzel";
@@ -1740,8 +1865,35 @@ function drawBuildGhost(ctx, currentMap) {
     ctx.restore();
 }
 function canPlaceBuilding(x, y, w, h) {
-    const hit = isSpawnAreaFree(x, y, w, h);
-    return hit;
+    const all = game.getAllObjects();
+
+    for (const o of all) {
+        if (!o || o.dead) continue;
+
+        // ignorera rena effekter / ikoner om du vill
+        if (o.holdingicon) continue;
+
+        // byggnader, resurser, units, foundations - allt som tar plats ska blockera
+        const blocksPlacement =
+            o.isBuilding ||
+            o.name === "tree" ||
+            o.name === "tree2" ||
+            o.name === "gold" ||
+            o.name === "stone" ||
+            o.name === "berry" ||
+            o.name === "sheep" ||
+            o.name === "boar" ||
+            o.name.includes("worker") ||
+            o.name.includes("warrior");
+
+        if (!blocksPlacement) continue;
+
+      if (rectsOverlap(x, y, w, h, o.x, o.y, o.dimx, o.dimy, 10)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 function placeBuilding(x, y, buildingType) {
     const def = BUILDING_TYPES[buildingType];
@@ -1951,6 +2103,27 @@ function handleGameUILeftClick(cursorX, cursorY) {
         return false;
     }
 
+    const selectedBarrack = getSelectedBarrack();
+    if (selectedBarrack) {
+        if (
+            selectedBarrack.trainWarriorButton &&
+            pointInRect(cursorX, cursorY, selectedBarrack.trainWarriorButton)
+        ) {
+            queueWarriorTraining(selectedBarrack, playerResources);
+            return true;
+        }
+
+        if (
+            selectedBarrack.deleteButton &&
+            pointInRect(cursorX, cursorY, selectedBarrack.deleteButton)
+        ) {
+            destroyBuilding(selectedBarrack);
+            return true;
+        }
+
+        return false;
+    }
+
     const selectedWorker = getSelectedWorker();
     if (selectedWorker && selectedWorker.buildButtons) {
         for (const btn of selectedWorker.buildButtons) {
@@ -1978,11 +2151,17 @@ function handleGameUILeftClick(cursorX, cursorY) {
 
 function getSelectedBuilding() {
     const all = game.getAllObjects();
-    return all.find(o => o.selected && o.isBuilding && o.owner === "player" && !o.dead) || null;
+    return all.find(o =>
+        o.selected &&
+        o.isBuilding &&
+        o.owner === "player" &&
+        !o.dead &&
+        o.name !== "townhall"
+    ) || null;
 }
 function drawBuildingUI(ctx, canvas) {
     const b = getSelectedBuilding();
-    if (!b) return;
+    if (!b&& b.name=="barrack") return;
 
     const panelH = 100;
     const panelY = canvas.height - panelH;
@@ -2054,6 +2233,12 @@ function drawSelectedObjectUI(ctx, canvas) {
         return;
     }
 
+    const selectedBarrack = getSelectedBarrack();
+    if (selectedBarrack) {
+        drawBarrackUI(ctx, canvas, selectedBarrack, playerResources);
+        return;
+    }
+
     const selectedWorker = getSelectedWorker();
     if (selectedWorker) {
         drawWorkerBuildUI(ctx, canvas);
@@ -2066,8 +2251,794 @@ function drawSelectedObjectUI(ctx, canvas) {
         return;
     }
 }
+function updateWarrior(warrior, scale) {
+    if (warrior.dead) return;
+
+    if (warrior.attackCooldown == null) warrior.attackCooldown = 0;
+    if (warrior.damage == null) warrior.damage = 8;
+    if (warrior.hp == null) warrior.hp = 40;
+    if (warrior.state == null) warrior.state = "idle";
+
+    if (warrior.attackCooldown > 0) {
+        warrior.attackCooldown -= 1 * scale;
+        if (warrior.attackCooldown < 0) warrior.attackCooldown = 0;
+    }
+
+    if (warrior.state === "idle") {
+        warrior.standingstill = true;
+        return;
+    }
+
+    if (warrior.state === "move") {
+        if (warrior.targetX == null || warrior.targetY == null) {
+            warrior.state = "idle";
+            warrior.standingstill = true;
+            return;
+        }
+
+        const dx = warrior.targetX - warrior.x;
+        const dy = warrior.targetY - warrior.y;
+        const d = Math.hypot(dx, dy);
+
+        if (d < 10) {
+            warrior.state = "idle";
+            warrior.standingstill = true;
+            return;
+        }
+
+        warrior.standingstill = false;
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+            warrior.direction = dx >= 0 ? "right" : "left";
+        } else {
+            warrior.direction = dy >= 0 ? "down" : "up";
+        }
+        return;
+    }
+
+    if (warrior.state === "attackTarget") {
+        const t = warrior.targetEnemy;
+
+        if (!t || t.dead || t.hp <= 0) {
+            warrior.targetEnemy = null;
+            warrior.state = "idle";
+            warrior.targetX = null;
+            warrior.targetY = null;
+            warrior.standingstill = true;
+            return;
+        }
+
+        warrior.targetX = t.x + t.dimx / 2;
+        warrior.targetY = t.y + t.dimy / 2;
+
+        const dx = warrior.targetX - warrior.x;
+        const dy = warrior.targetY - warrior.y;
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+            warrior.direction = dx >= 0 ? "right" : "left";
+        } else {
+            warrior.direction = dy >= 0 ? "down" : "up";
+        }
+
+        if (!game.collideswithanoterobject(warrior, t)) {
+            warrior.standingstill = false;
+            return;
+        }
+
+        warrior.standingstill = true;
+
+        if (warrior.attackCooldown <= 0) {
+            warrior.attackCooldown = 40;
+            t.hp = (t.hp || 40) - warrior.damage;
+            t.flashTimer = 30;
+
+            if (t.hp <= 0) {
+                t.hp = 0;
+                t.dead = true;
+
+                if (t.name === "boar") {
+                    t.animation = 6;
+                    t.type = "food";
+                } else if (t.name.includes("worker")) {
+                    t.animation = 12;
+                } else if (t.name.includes("warrior")) {
+                    t.animation = 12;
+                }
+
+                if (t.owner && teamResources[t.owner] && (t.name.includes("worker") || t.name.includes("warrior"))) {
+                    teamResources[t.owner].pop -= 1;
+                    if (teamResources[t.owner].pop < 0) teamResources[t.owner].pop = 0;
+                }
+
+                warrior.targetEnemy = null;
+                warrior.state = "idle";
+                warrior.targetX = null;
+                warrior.targetY = null;
+            }
+        }
+
+        return;
+    }
+}
+function queueWarriorTraining(barrack, playerResources) {
+    if (!barrack || barrack.isUnderConstruction) return false;
+    if ((playerResources.food || 0) < 60) return false;
+    if ((playerResources.gold || 0) < 20) return false;
+    if (barrack.trainingQueue.length >= 8) return false;
+    if (playerResources.pop >= playerResources.popMax) return false;
+
+    playerResources.food -= 60;
+    playerResources.gold -= 20;
+
+    barrack.trainingQueue.push("warrior");
+    return true;
+}
+function updateBarrackTraining(barrack, scale) {
+    if (!barrack.trainingQueue || barrack.trainingQueue.length === 0) {
+        barrack.trainingTimer = 0;
+        return;
+    }
+
+    barrack.trainingTimer += 1 * scale;
+
+    if (barrack.trainingTimer >= barrack.trainingTimeMax) {
+        const unitType = barrack.trainingQueue[0];
+
+        let spawned = false;
+        if (unitType === "warrior") {
+            spawned = spawnWarriorFromBarrack(barrack);
+        }
+
+        if (spawned) {
+            barrack.trainingQueue.shift();
+            barrack.trainingTimer = 0;
+        } else {
+            barrack.trainingTimer = barrack.trainingTimeMax;
+        }
+    }
+}
+function spawnWarriorFromBarrack(barrack) {
+    const owner = barrack.owner || "player";
+    const resources = teamResources[owner];
+    const warriorType = getTeamObjectType("warrior", owner);
+    if (!warriorType) return false;
+
+    const pos = findFreeSpawnPosition(barrack, 30, 50);
+    if (!pos) return false;
+
+    if (resources.pop >= resources.popMax) return false;
+
+    resources.pop += 1;
+
+    const w = game.addobject(warriorType, pos.x, pos.y, 30, 50, 0, false);
+    if (!w) return false;
+
+    w.owner = owner;
+    w.state = "idle";
+    w.hp = 40;
+    w.maxHp = 40;
+    w.damage = 6;
+    w.attackRange = 28;
+    w.attackCooldown = 0;
+    w.moveSpeed = 1.2;
+    w.targetEnemy = null;
+    w.selectable = owner === "player";
+    w.iscontrollable = owner === "player";
+    w.direction = "down";
+    w.standingstill = true;
+
+    return true;
+}
+function drawBarrackTrainingQueue(ctx, barrack, currentMap) {
+    if (!barrack.trainingQueue || barrack.trainingQueue.length === 0) return;
+
+    const owner = barrack.owner || "player";
+
+    const iconSize = 30;
+    const gap = 4;
+    const maxVisible = 8;
+
+    const queue = barrack.trainingQueue.slice(0, maxVisible);
+    const totalW = queue.length * iconSize + (queue.length - 1) * gap;
+
+    const startX = barrack.x + currentMap.camerax + barrack.dimx / 2 - totalW / 2;
+    const y = barrack.y + currentMap.cameray - 34;
+
+    for (let i = 0; i < queue.length; i++) {
+        const type = queue[i];
+        let img = null;
+
+        if (type === "warrior") {
+            img = getTeamObjectType("warrior", owner)?.images?.[1]?.getimage();
+        }
+
+        if (!img) continue;
+
+        const x = startX + i * (iconSize + gap);
+
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.fillRect(x - 2, y - 2, iconSize + 4, iconSize + 4);
+
+        ctx.drawImage(img, x, y, iconSize, iconSize);
+
+        if (i === 0 && barrack.trainingTimeMax > 0) {
+            const p = Math.min(1, barrack.trainingTimer / barrack.trainingTimeMax);
+
+            ctx.drawImage(img, x, y, iconSize, iconSize);
+            ctx.fillStyle = "rgba(0,0,0,0.8)";
+            ctx.fillRect(x, y, iconSize, iconSize);
+
+            const w = iconSize * p;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x, y, w, iconSize);
+            ctx.clip();
+
+            ctx.fillStyle = "orange";
+            ctx.fillRect(x, y, iconSize, iconSize);
+            ctx.drawImage(img, x, y, iconSize, iconSize);
+            ctx.restore();
+        }
+    }
+}
+function drawBarrackUI(ctx, canvas, selectedBarrack, playerResources) {
+    if (!selectedBarrack) return;
+
+    const panelH = 110;
+    const panelY = canvas.height - panelH;
+
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.fillRect(0, panelY, canvas.width, panelH);
+
+    ctx.strokeStyle = "gold";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, panelY, canvas.width, panelH);
+
+    ctx.fillStyle = "white";
+    ctx.font = "22px Cinzel";
+    ctx.fillText("Barrack", 20, panelY + 30);
+
+    const bx = 20;
+    const by = panelY + 45;
+    const bw = 130;
+    const bh = 50;
+
+    const canBuy = playerResources.food >= 60 && playerResources.gold >= 20 && playerResources.pop < playerResources.popMax;
+
+    ctx.fillStyle = canBuy ? "rgba(30,80,30,0.95)" : "rgba(60,30,30,0.95)";
+    ctx.fillRect(bx, by, bw, bh);
+
+    ctx.strokeStyle = canBuy ? "green" : "red";
+    ctx.strokeRect(bx, by, bw, bh);
+
+    const img = game.getobjecttype("warrior")?.images?.[1]?.getimage();
+    if (img) ctx.drawImage(img, bx + 6, by + 6, 22, 22);
+
+    ctx.fillStyle = "white";
+    ctx.font = "16px Cinzel";
+    ctx.fillText("Warrior", bx + 34, by + 18);
+    ctx.fillText("60F 20G", bx + 34, by + 38);
+
+    selectedBarrack.trainWarriorButton = {
+        x: bx,
+        y: by,
+        w: bw,
+        h: bh
+    };
+
+    ctx.fillStyle = "white";
+    ctx.fillText("Queue: " + selectedBarrack.trainingQueue.length, 170, by + 20);
+
+    if (selectedBarrack.trainingQueue.length > 0) {
+        const p = Math.min(1, selectedBarrack.trainingTimer / selectedBarrack.trainingTimeMax);
+
+        ctx.strokeStyle = "white";
+        ctx.strokeRect(170, by + 28, 140, 14);
+
+        ctx.fillStyle = "lime";
+        ctx.fillRect(170, by + 28, 140 * p, 14);
+    }
+
+    const bw2 = 90;
+    const bh2 = 40;
+    const bx2 = canvas.width - bw2 - 20;
+    const by2 = panelY + 15;
+
+    ctx.fillStyle = "rgba(120,30,30,0.95)";
+    ctx.fillRect(bx2, by2, bw2, bh2);
+    ctx.strokeStyle = "white";
+    ctx.strokeRect(bx2, by2, bw2, bh2);
+
+    ctx.fillStyle = "white";
+    ctx.font = "16px Cinzel";
+    ctx.fillText("Delete", bx2 + 14, by2 + 24);
+
+    selectedBarrack.deleteButton = { x: bx2, y: by2, w: bw2, h: bh2 };
+}
+function getSelectedBarrack() {
+    const barracks = game.getobjecttype('barrack')?.objects || [];
+    return barracks.find(b => b.selected && !b.dead) || null;
+}
+function orderWarriorAttackBoar(warrior, boar) {
+    if (!warrior || !boar || boar.dead) return;
+
+    warrior.targetEnemy = boar;
+    warrior.state = "attackTarget";
+    warrior.targetX = boar.x + boar.dimx / 2;
+    warrior.targetY = boar.y + boar.dimy / 2;
+}
+function getPrefixForOwner(owner) {
+    if (owner === "red") return "r";
+    if (owner === "yellow") return "y";
+    if (owner === "green") return "g";
+    return "";
+}
+
+function getOwnerFromName(name) {
+    if (!name) return "neutral";
+    if (name.startsWith("r")) return "red";
+    if (name.startsWith("y")) return "yellow";
+    if (name.startsWith("g")) return "green";
+    return "player";
+}
+
+function getTeamObjectType(baseName, owner) {
+    const prefix = getPrefixForOwner(owner);
+    return game.getobjecttype(prefix + baseName);
+}
+
+function getTeamObjects(baseName, owner) {
+    return getTeamObjectType(baseName, owner)?.objects || [];
+}
+
+function getAllTeamUnits(owner) {
+    return [
+        ...getTeamObjects("worker", owner),
+        ...getTeamObjects("warrior", owner)
+    ].filter(o => !o.dead);
+}
+
+function getEnemyOwners(owner) {
+    if (owner === "player") return ["red", "yellow", "green"];
+    return ["player", "red", "yellow", "green"].filter(o => o !== owner);
+}
+function ensureOwnerByName(obj) {
+    if (!obj.owner) obj.owner = getOwnerFromName(obj.name);
+}
+const aiBrains = game.aiBrains || (game.aiBrains = {
+    red:    { thinkTimer: 0, attackTimer: 0, targetOwner: "player" },
+    yellow: { thinkTimer: 0, attackTimer: 0, targetOwner: "player" },
+    green:  { thinkTimer: 0, attackTimer: 0, targetOwner: "player" }
+});
+function queueWorkerTrainingForTeam(townhall, resources) {
+    if (!townhall || townhall.isUnderConstruction) return false;
+    if ((resources.food || 0) < 50) return false;
+    if (townhall.trainingQueue.length >= 8) return false;
+    if (resources.pop >= resources.popMax) return false;
+
+    resources.food -= 50;
+    townhall.trainingQueue.push("worker");
+    return true;
+}
+
+function queueWarriorTrainingForTeam(barrack, resources) {
+    if (!barrack || barrack.isUnderConstruction) return false;
+    if ((resources.food || 0) < 60) return false;
+    if ((resources.gold || 0) < 20) return false;
+    if (barrack.trainingQueue.length >= 8) return false;
+    if (resources.pop >= resources.popMax) return false;
+
+    resources.food -= 60;
+    resources.gold -= 20;
+    barrack.trainingQueue.push("warrior");
+    return true;
+}
+function placeBuildingForOwner(x, y, buildingType, owner, builder) {
+    const def = BUILDING_TYPES[buildingType];
+    if (!def) return false;
+
+    const resources = teamResources[owner];
+    if (!resources) return false;
+    if (!canAffordForTeam(def.cost, resources)) return false;
+
+    const objType = getTeamObjectType(def.imageType, owner);
+    if (!objType) return false;
+
+    payCostForTeam(def.cost, resources);
+
+    const b = game.addobject(objType, x, y, def.width, def.height, 0, false);
+    if (!b) return false;
+
+    b.owner = owner;
+    b.selectable = owner === "player";
+    b.canMove = false;
+    b.iscontrollable = false;
+    b.isBuilding = true;
+    b.isUnderConstruction = true;
+    b.state = "building";
+    b.buildingType = buildingType;
+    b.buildProgress = 0;
+    b.buildTimer = 0;
+    b.buildTimeMax = def.buildTime;
+    b.maxHp = def.hp;
+    b.hp = 1;
+    b.popGranted = false;
+    b.cost = def.cost;
+
+    if (builder) {
+        clearWorkerOrder(builder);
+        builder.state = "buildBuilding";
+        builder.targetBuilding = b;
+        builder.targetX = b.x + b.dimx / 2;
+        builder.targetY = b.y + b.dimy / 2;
+    }
+
+    markStaticsDirty();
+    return b;
+}
+
+function canAffordForTeam(cost, resources) {
+    for (const key in cost) {
+        if ((resources[key] || 0) < cost[key]) return false;
+    }
+    return true;
+}
+
+function payCostForTeam(cost, resources) {
+    for (const key in cost) {
+        resources[key] -= cost[key];
+    }
+}
+function findBuildSpotNear(base, w, h, tries = 30, radius = 260) {
+    for (let i = 0; i < tries; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 120 + Math.random() * radius;
+
+        const x = Math.floor(base.x + base.dimx / 2 + Math.cos(angle) * dist - w / 2);
+        const y = Math.floor(base.y + base.dimy / 2 + Math.sin(angle) * dist - h / 2);
+
+        if (canPlaceBuilding(x, y, w, h)) {
+            return { x, y };
+        }
+    }
+    return null;
+}
+function updateTeamAI(owner, scale) {
+    const brain = aiBrains[owner];
+    const resources = teamResources[owner];
+    if (!brain || !resources) return;
+
+    brain.thinkTimer -= 1 * scale;
+    brain.attackTimer -= 1 * scale;
+
+    if (brain.thinkTimer > 0) return;
+    brain.thinkTimer = 60; // tänk ca 1 gång/sek
+
+    const workers = getTeamObjects("worker", owner).filter(w => !w.dead);
+    const townhalls = getTeamObjects("townhall", owner).filter(b => !b.dead);
+    const barracks = getTeamObjects("barrack", owner).filter(b => !b.dead);
+    const houses = getTeamObjects("hus", owner).filter(b => !b.dead);
+    const warriors = getTeamObjects("warrior", owner).filter(w => !w.dead);
+
+    const mainTownhall = townhalls[0];
+    if (!mainTownhall) return;
+
+    // 1. se till att idle workers jobbar
+    for (const w of workers) {
+        ensureOwnerByName(w);
+
+        if (w.state === "idle") {
+            let wantedType = null;
+
+            if ((resources.wood || 0) < 120) wantedType = "wood";
+            else if ((resources.food || 0) < 120) wantedType = "food";
+            else if ((resources.gold || 0) < 80) wantedType = "gold";
+            else wantedType = "wood";
+
+            const res = getNearestResourceOfType(w, wantedType);
+            if (res) {
+                if (res.name === "boar") orderWorkerAttackBoar(w, res);
+                else orderWorkerGather(w, res);
+            }
+        }
+    }
+
+    // 2. pop cap -> bygg hus
 
 
+const needHouse = resources.pop >= resources.popMax - 1;
+const houseAlreadyPlanned = hasBuildingOfTypeUnderConstruction(owner, "hus");
+
+const freeWorker = getBuilderWorkerForTeam(owner);
+
+if (needHouse && !houseAlreadyPlanned && freeWorker && canAffordForTeam(BUILDING_TYPES.hus.cost, resources)) {
+    const spot = findBuildSpotNear(
+        mainTownhall,
+        BUILDING_TYPES.hus.width,
+        BUILDING_TYPES.hus.height
+    );
+
+    if (spot) {
+        placeBuildingForOwner(spot.x, spot.y, "hus", owner, freeWorker);
+        return;
+    }
+}
+
+    // 3. bygg barrack om ingen finns
+    const barrackPlanned = hasBuildingOfTypeUnderConstruction(owner, "barrack");
+
+    if (barracks.length === 0 && !barrackPlanned && freeWorker && canAffordForTeam(BUILDING_TYPES.barrack.cost, resources)) {
+        const spot = findBuildSpotNear(mainTownhall, BUILDING_TYPES.barrack.width, BUILDING_TYPES.barrack.height);
+        if (spot) {
+            placeBuildingForOwner(spot.x, spot.y, "barrack", owner, freeWorker);
+            return;
+        }
+    }
+
+    // 4. träna workers upp till 5
+    if (workers.length < 5 && townhalls.length > 0) {
+        queueWorkerTrainingForTeam(townhalls[0], resources);
+    }
+
+    // 5. träna warriors
+    for (const b of barracks) {
+        if (warriors.length < 10) {
+            queueWarriorTrainingForTeam(b, resources);
+        }
+    }
+
+    // 6. attack wave
+    if (warriors.length >= 4 && brain.attackTimer <= 0) {
+        const target = getAttackTargetForOwner(owner);
+        if (target) {
+            for (const w of warriors) {
+                orderWarriorAttackTarget(w, target);
+            }
+            brain.attackTimer = 600; // vänta innan nästa stora order
+        }
+    }
+}
+function isEnemy(a, b) {
+    if (!a || !b) return false;
+    if (a.dead || b.dead) return false;
+    if (!a.owner || !b.owner) return false;
+    return a.owner !== b.owner;
+}
+
+function getAttackTargetForOwner(owner) {
+    const enemies = [];
+
+    for (const enemyOwner of getEnemyOwners(owner)) {
+        enemies.push(...getTeamObjects("warrior", enemyOwner));
+        enemies.push(...getTeamObjects("worker", enemyOwner));
+        enemies.push(...getTeamObjects("townhall", enemyOwner));
+        enemies.push(...getTeamObjects("barrack", enemyOwner));
+        enemies.push(...getTeamObjects("hus", enemyOwner));
+    }
+
+    let best = null;
+    let bestDist = Infinity;
+    const myTownhall = getTeamObjects("townhall", owner)[0];
+    if (!myTownhall) return enemies.find(e => !e.dead) || null;
+
+    for (const e of enemies) {
+        if (!e || e.dead) continue;
+        const d = dist2(myTownhall, e);
+        if (d < bestDist) {
+            bestDist = d;
+            best = e;
+        }
+    }
+
+    return best;
+}
+
+function orderWarriorAttackTarget(warrior, target) {
+    if (!warrior || !target || target.dead) return;
+    warrior.targetEnemy = target;
+    warrior.state = "attackTarget";
+    warrior.targetX = target.x + target.dimx / 2;
+    warrior.targetY = target.y + target.dimy / 2;
+}
+function getAllObjectsOfBaseTypeAllTeams(baseName) {
+    return [
+        ...getTeamObjects(baseName, "player"),
+        ...getTeamObjects(baseName, "red"),
+        ...getTeamObjects(baseName, "yellow"),
+        ...getTeamObjects(baseName, "green")
+    ];
+}
+
+function getAllWorkersAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("worker");
+}
+
+function getAllWarriorsAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("warrior");
+}
+
+function getAllTownhallsAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("townhall");
+}
+
+function getAllBarracksAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("barrack");
+}
+
+function getAllHousesAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("hus");
+}
+
+function getAllLumbercampsAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("lumbercamp");
+}
+
+function getAllMiningcampsAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("miningcamp");
+}
+
+function getAllMillsAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("mill");
+}
+function getAllBuildingsForTeam(owner) {
+    return [
+        ...getTeamObjects("townhall", owner),
+        ...getTeamObjects("barrack", owner),
+        ...getTeamObjects("hus", owner),
+        ...getTeamObjects("lumbercamp", owner),
+        ...getTeamObjects("miningcamp", owner),
+        ...getTeamObjects("mill", owner),
+        ...getTeamObjects("farm", owner)
+    ];
+}
+function getAllUnitsForTeam(owner) {
+    return [
+        ...getTeamObjects("worker", owner),
+        ...getTeamObjects("warrior", owner)
+    ];
+}
+function getAliveObjectsOfBaseTypeAllTeams(baseName) {
+    return getAllObjectsOfBaseTypeAllTeams(baseName).filter(o => !o.dead);
+}
+
+function getAliveWorkersAllTeams() {
+    return getAliveObjectsOfBaseTypeAllTeams("worker");
+}
+
+function getAliveWarriorsAllTeams() {
+    return getAliveObjectsOfBaseTypeAllTeams("warrior");
+}
+
+function getAliveTownhallsAllTeams() {
+    return getAliveObjectsOfBaseTypeAllTeams("townhall");
+}
+
+function getAliveBarracksAllTeams() {
+    return getAliveObjectsOfBaseTypeAllTeams("barrack");
+}
+function getAllFarmsAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("farm");
+}
+function countBuildingsOfType(owner, buildingType, includeUnderConstruction = true) {
+    const list = getTeamObjects(buildingType, owner) || [];
+    if (includeUnderConstruction) return list.filter(b => !b.dead).length;
+    return list.filter(b => !b.dead && !b.isUnderConstruction).length;
+}
+function hasBuildingOfTypeUnderConstruction(owner, buildingType) {
+    const list = getTeamObjects(buildingType, owner) || [];
+    return list.some(b => !b.dead && b.isUnderConstruction);
+}
+function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh, pad = 0) {
+    return (
+        ax < bx + bw + pad &&
+        ax + aw > bx - pad &&
+        ay < by + bh + pad &&
+        ay + ah > by - pad
+    );
+}
+function getBuilderWorkerForTeam(owner) {
+    const workers = getTeamObjects("worker", owner).filter(w => !w.dead);
+
+    // 1. bästa fallet: idle
+    let w = workers.find(w =>
+        w.state === "idle" &&
+        !w.targetBuilding
+    );
+    if (w) return w;
+
+    // 2. annars ta en som samlar / är på väg till resurs
+    w = workers.find(w =>
+        !w.targetBuilding &&
+        (
+            w.state === "moveToResource" ||
+            w.state === "gather" ||
+            w.state === "returnToBase" ||
+            w.state === "deposit"
+        )
+    );
+    if (w) return w;
+
+    // 3. sista utväg: vad som helst som inte redan bygger
+    w = workers.find(w =>
+        !w.targetBuilding &&
+        w.state !== "buildBuilding" &&
+        w.state !== "attackBoar"
+    );
+    return w || null;
+}
+function getSheepAnimBase(owner) {
+    if (owner === "player") return 6;
+    if (owner === "red") return 12;
+    if (owner === "green") return 18;
+    if (owner === "yellow") return 24;
+    return 0; // neutral
+}
+function getNearestWorkerInRange(unit, range) {
+    const workers = getAllWorkersAllTeams().filter(w => !w.dead);
+    let best = null;
+    let bestDist = range * range;
+
+    for (const w of workers) {
+        ensureOwnerByName(w);
+
+        const dx = w.x - unit.x;
+        const dy = w.y - unit.y;
+        const d = dx * dx + dy * dy;
+
+        if (d < bestDist) {
+            bestDist = d;
+            best = w;
+        }
+    }
+
+    return best;
+}
+function getNearestTownhallForOwner(unit, owner) {
+    const townhalls = getTeamObjects("townhall", owner).filter(t => !t.dead);
+
+    let best = null;
+    let bestDist = Infinity;
+
+    for (const t of townhalls) {
+        const tx = t.x + t.dimx / 2;
+        const ty = t.y + t.dimy / 2;
+        const dx = tx - unit.x;
+        const dy = ty - unit.y;
+        const d = dx * dx + dy * dy;
+
+        if (d < bestDist) {
+            bestDist = d;
+            best = t;
+        }
+    }
+
+    return best;
+}
+function updateOwnedSheep(s, scale) {
+    const townhall = getNearestTownhallForOwner(s, s.owner);
+    if (!townhall) {
+       
+        return;
+    }
+
+    const tx = townhall.x + townhall.dimx / 2;
+    const ty = townhall.y + townhall.dimy / 2;
+
+    const dx = tx - s.x;
+    const dy = ty - s.y;
+    const dist = Math.hypot(dx, dy);
+
+    // stanna en bit från townhallen
+    if (dist < 200) {
+        s.targetX = null;
+        s.targetY = null;
+        return;
+    }
+
+    s.targetX = tx;
+    s.targetY = ty;
+}
         </script>
     </body>  
 </html>

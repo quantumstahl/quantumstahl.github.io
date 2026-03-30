@@ -1821,8 +1821,19 @@ class Game6 {
                  const deltaX = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width)) - lastPanX;
                 const deltaY = ((e.touches[0].clientY - rect.top) * (canvas.height / rect.height)) - lastPanY;
                 if(selectenable==true){
+                    
+                    
+                    
+                    
                     currentMap.camerax += deltaX;
                     currentMap.cameray += deltaY;
+                    
+                    if(currentMap.cameray>=800)currentMap.cameray=800;
+                    if(currentMap.cameray<=-2200)currentMap.cameray=-2200;
+                    if(currentMap.camerax>=200)currentMap.camerax=200;
+                    if(currentMap.camerax<=-6000)currentMap.camerax=-6000;
+                    
+                    
                 }
                 lastPanX = ((e.touches[0].clientX - rect.left) * (canvas.width / rect.width));
                 lastPanY = ((e.touches[0].clientY - rect.top) * (canvas.height / rect.height));
@@ -3565,10 +3576,13 @@ function drawSelectRing(ctx, o,zoom, camX, camY){
 
   // Alltid-på, subtil "ground contact" för byggnader (så de inte ser svävande ut)
   if (o.canMove==false) {
-    const cx=o.x+o.dimx/2, cy=o.y+o.dimy*0.75;
+    let cx=o.x+o.dimx/2, cy=o.y+o.dimy*0.75;
+    if(o.name=="barrack"||o.name=="rbarrack"||o.name=="ybarrack"||o.name=="gbarrack")cy=o.y+o.dimy*0.50;
     ctx.save(); ctx.globalAlpha=0.6;
     ctx.scale(1 + (1 * zoom / 100), 1 + (1 * zoom / 100));
-    ctx.beginPath(); ctx.ellipse(cx+camX, cy+camY, o.dimx*0.45, o.dimy*0.35, 0, 0, Math.PI*2);
+    ctx.beginPath(); 
+    ctx.ellipse(cx+camX, cy+camY, o.dimx*0.45, o.dimy*0.35, 0, 0, Math.PI*2);
+    
     ctx.fillStyle="rgba(0,0,0,.9)"; ctx.fill(); ctx.restore();
   }  
   else if(o.selectable&&!o.dead){  
