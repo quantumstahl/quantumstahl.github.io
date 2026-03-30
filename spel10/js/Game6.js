@@ -1831,7 +1831,7 @@ class Game6 {
                     if(currentMap.cameray>=800)currentMap.cameray=800;
                     if(currentMap.cameray<=-2200)currentMap.cameray=-2200;
                     if(currentMap.camerax>=200)currentMap.camerax=200;
-                    if(currentMap.camerax<=-6000)currentMap.camerax=-6000;
+                    if(currentMap.camerax<=-6000-2400+canvas.width)currentMap.camerax=-6000-2400+canvas.width;
                     
                     
                 }

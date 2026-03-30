@@ -1975,37 +1975,36 @@ function placeBuildingFromBuildMode() {
     game.buildMode = null;
     return true;
 }
-function finishBuilding(b,worker) {
+function finishBuilding(b, worker) {
     if (!b || b._finishedOnce) return;
     b._finishedOnce = true;
 
     const def = BUILDING_TYPES[b.buildingType];
     if (!def) return;
 
-    const x = b.x;
-    const y = b.y;
-    const rot = b.rot || 0;
-
-   // game.removeobject(game.getobjecttype(b.name), b);
-
-    const finalType = game.getobjecttype(def.imageType);
-    if (!finalType) return;
-
-   // const finished = game.addobject(finalType, x, y, def.width, def.height, rot, false);
-   // if (!finished) return;
+    const owner = b.owner || "player";
+    const resources = teamResources[owner];
+    if (!resources) return;
 
     b.selectable = true;
     b.canMove = false;
     b.iscontrollable = false;
     b.isBuilding = true;
+    b.isUnderConstruction = false;
+    b.isFinishing = false;
     b.hp = def.hp;
     b.maxHp = def.hp;
     b.dropoffTypes = def.dropoffTypes || [];
     b.cost = def.cost;
-    if(b.name==="farm"){b.type = "food";b.amount = 1000;b.state="building";}
+
+    if (b.name.includes("farm") || b.buildingType === "farm") {
+        b.type = "food";
+        b.amount = 1000;
+        b.state = "building";
+    }
 
     if (def.popMaxBonus) {
-        playerResources.popMax += def.popMaxBonus;
+        resources.popMax += def.popMaxBonus;
     }
 
     markStaticsDirty();
@@ -2201,25 +2200,26 @@ function destroyBuilding(obj) {
     const objtype = game.getobjecttype(obj.name);
     if (!objtype) return false;
 
-    // Om foundation/under construction
+    const owner = obj.owner || "player";
+    const resources = teamResources[owner];
+    if (!resources) return false;
+
+    // refund
     if (obj.isUnderConstruction && obj.cost) {
-        if (obj.cost.wood)  playerResources.wood  += obj.cost.wood;
-        if (obj.cost.food)  playerResources.food  += obj.cost.food;
-        if (obj.cost.gold)  playerResources.gold  += obj.cost.gold;
-        if (obj.cost.stone) playerResources.stone += obj.cost.stone;
-    }
-    // Om färdig byggnad
-    else if (obj.cost) {
-        if (obj.cost.wood)  playerResources.wood  += Math.floor(obj.cost.wood * 0.5);
-        if (obj.cost.food)  playerResources.food  += Math.floor(obj.cost.food * 0.5);
-        if (obj.cost.gold)  playerResources.gold  += Math.floor(obj.cost.gold * 0.5);
-        if (obj.cost.stone) playerResources.stone += Math.floor(obj.cost.stone * 0.5);
+        if (obj.cost.wood)  resources.wood  += obj.cost.wood;
+        if (obj.cost.food)  resources.food  += obj.cost.food;
+        if (obj.cost.gold)  resources.gold  += obj.cost.gold;
+        if (obj.cost.stone) resources.stone += obj.cost.stone;
+    } else if (obj.cost) {
+        if (obj.cost.wood)  resources.wood  += Math.floor(obj.cost.wood * 0.5);
+        if (obj.cost.food)  resources.food  += Math.floor(obj.cost.food * 0.5);
+        if (obj.cost.gold)  resources.gold  += Math.floor(obj.cost.gold * 0.5);
+        if (obj.cost.stone) resources.stone += Math.floor(obj.cost.stone * 0.5);
     }
 
-    // Om huset påverkar pop cap
-    if (obj.buildingType === "hus" || obj.name === "hus") {
-        playerResources.popMax -= 5;
-        if (playerResources.popMax < 0) playerResources.popMax = 0;
+    if (obj.buildingType === "hus" || obj.name.endsWith("hus") || obj.name === "hus" || obj.name === "rhus" || obj.name === "yhus" || obj.name === "ghus") {
+        resources.popMax -= 5;
+        if (resources.popMax < 0) resources.popMax = 0;
     }
 
     game.removeobject(objtype, obj);
