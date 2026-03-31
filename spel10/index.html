@@ -807,7 +807,7 @@
                     const selectedWarriors = game.getobjecttype('warrior')?.objects?.filter(o => o.selected) || [];
                     const mousepressed = game.getAllObjects().filter(o => o.mousepressed);
                     const isresource = mousepressed.filter(o => o.gatherTime);
-                    const isEnemy = clickedObjects.filter(o =>o.selectable &&isEnemyOf(selectedWarriors[0], o));
+                    const isEnemy = mousepressed.filter(o =>o.selectable &&isEnemyOf(selectedWarriors[0], o));
 
                     if (selectedWorkers.length > 0 && isresource.length > 0 && !game.buildMode)  {
                         for (let w of selectedWorkers) {
