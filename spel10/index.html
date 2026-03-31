@@ -210,7 +210,6 @@
                     canvas.style.height = document.body.clientHeight-8 + "px";
                 }
                 else{
-                    const dpr = window.devicePixelRatio || 1;
                     if(window.innerHeight > window.innerWidth){
                         canvas.width=Math.floor(1100*dpr);
                         canvas.height=Math.floor(1600*dpr);  
@@ -220,7 +219,7 @@
                         canvas.height=Math.floor(1100*1.2*dpr);
                     }
                     canvas.style.position="absolute";
-                    canvas.style.width  = document.body.clientWidth + "px";
+                    canvas.style.width  = document.body.clientWidth-1 + "px";
                     canvas.style.height = document.body.clientHeight + "px";
 
 
@@ -228,8 +227,6 @@
 
 
 
-
-ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
                 }
             }
