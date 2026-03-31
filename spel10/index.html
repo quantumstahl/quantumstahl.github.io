@@ -335,7 +335,7 @@
                 updatecanvassize();
                 ctx.fillStyle = "black";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
+                game.updateanimation(ctx,scale);
                 ctx.fillStyle = "rgba(0,0,0,0.5)";
                 ctx.fillRect(10, 5, 150, 350);
                 ctx.fillStyle="white";
@@ -807,6 +807,7 @@
                     const selectedWarriors = game.getobjecttype('warrior')?.objects?.filter(o => o.selected) || [];
                     const mousepressed = game.getAllObjects().filter(o => o.mousepressed);
                     const isresource = mousepressed.filter(o => o.gatherTime);
+                    const isEnemy = clickedObjects.filter(o =>o.selectable &&isEnemyOf(selectedWarriors[0], o));
 
                     if (selectedWorkers.length > 0 && isresource.length > 0 && !game.buildMode)  {
                         for (let w of selectedWorkers) {
@@ -845,8 +846,15 @@
                         }
                     }
                      // NYTT: warriors attackerar boar
-                    if (selectedWarriors.length > 0 && isresource.length > 0 && !game.buildMode) {
-                        if (isresource[0].name === "boar" && !isresource[0].dead) {
+                    if (selectedWarriors.length > 0 && !game.buildMode) {
+
+                        if (isEnemy.length > 0 && !isEnemy[0].dead) {
+                            for (let w of selectedWarriors) {
+                                orderWarriorAttackTarget(w, isEnemy[0]);
+                                w.selected = false;
+                            }
+                        }
+                        else if (isresource.length > 0 && isresource[0].name === "boar" && !isresource[0].dead) {
                             for (let w of selectedWarriors) {
                                 orderWarriorAttackBoar(w, isresource[0]);
                                 w.selected = false;
@@ -861,14 +869,13 @@
                         }
                     }
 
-                    if(selectedWarriors.length > 0 && isresource.length === 0 && !game.buildMode){
+                    if(selectedWarriors.length > 0 && !game.buildMode){
                         for (let w of selectedWarriors) {
                             w.targetEnemy = null;
                             w.state = "idle";
                       
                         }
                     }
-
                     if(game.buildMode && !mobileAndTabletCheck()){
                         game.deselectAll();
                         game.buildMode=null;
@@ -938,7 +945,7 @@
                     
                     
                 }
-         game.updateanimation(ctx,scale);
+        
         }
 function orderWorkerGather(worker, resource) {
     if (!worker || !resource) return;
@@ -1857,7 +1864,7 @@ function drawBuildGhost(ctx, currentMap) {
     }
     
     
-    const canPlace = canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height);
+    const canPlace = canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height,true);
     const img = game.getobjecttype(def.imageType)?.images?.[0]?.getimage();
     if (!img) return;
 
@@ -1881,7 +1888,7 @@ function drawBuildGhost(ctx, currentMap) {
     );
     ctx.restore();
 }
-function canPlaceBuilding(x, y, w, h) {
+function canPlaceBuilding(x, y, w, h,player) {
     const all = game.getAllObjects();
 
     for (const o of all) {
@@ -1904,10 +1911,9 @@ function canPlaceBuilding(x, y, w, h) {
             o.name.includes("warrior");
 
         if (!blocksPlacement) continue;
-
-      if (rectsOverlap(x, y, w, h, o.x, o.y, o.dimx, o.dimy, 100)) {
-            return false;
-        }
+       if(player){if (rectsOverlap(x, y, w, h, o.x, o.y, o.dimx, o.dimy, 0)) {return false;}}
+       else{if (rectsOverlap(x, y, w, h, o.x, o.y, o.dimx, o.dimy, 100)) {return false;}}
+      
     }
 
     return true;
@@ -1967,7 +1973,7 @@ function placeBuildingFromBuildMode() {
     const y = cursorY - game.buildMode.height / 2 - game.getcameray();
     
     if(mobileAndTabletCheck()){
-        if (!canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height)) {
+        if (!canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height,true)) {
             countercounter=1;
             return true;
         }
@@ -1977,7 +1983,7 @@ function placeBuildingFromBuildMode() {
         }
     }
     else{
-        if (!canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height)) {
+        if (!canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height,true)) {
             return true;
         }
         
@@ -3225,6 +3231,10 @@ function sendIdleWarriorsToRally(owner) {
             }
         }
     }
+}
+function isEnemyOf(a, b) {
+    if (!a || !b) return false;
+    if (a.dead || b.dead) return false;
 }
         </script>
     </body>  
