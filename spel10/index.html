@@ -210,22 +210,35 @@
                     canvas.style.height = document.body.clientHeight-8 + "px";
                 }
                 else{
-                    const dpr = window.devicePixelRatio || 1;
+
                     if(window.innerHeight > window.innerWidth){
-                        canvas.width=Math.floor(1100* dpr);
-                        canvas.height=Math.floor(1600* dpr); 
+                        canvas.width=1100;
+                        canvas.height=1600;  
                     }
                     else{
-                        canvas.width=Math.floor(1600*1.2* dpr);
-                        canvas.height=Math.floor(1100*1.2* dpr);
+                        canvas.width=1600*1.2;
+                        canvas.height=1100*1.2;
                     }
-                    canvas.style.position="absolute";
-                    canvas.style.width  = document.body.clientWidth + "px";
+              
+                    canvas.style.width  = document.body.clientWidth-1 + "px";
                     canvas.style.height = document.body.clientHeight + "px";
 
 
 
 
+
+const dpr = window.devicePixelRatio || 1;
+
+const rectWidth = document.body.clientWidth;
+const rectHeight = document.body.clientHeight - 8;
+
+canvas.style.width = rectWidth + "px";
+canvas.style.height = rectHeight + "px";
+
+canvas.width = Math.floor(rectWidth * dpr);
+canvas.height = Math.floor(rectHeight * dpr);
+
+ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
                 }
             }
