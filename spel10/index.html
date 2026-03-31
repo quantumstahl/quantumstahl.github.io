@@ -845,6 +845,13 @@
                             }
                         }
                     }
+                    if(selectedWarriors.length > 0 && !game.buildMode){
+                        for (let w of selectedWarriors) {
+                            w.targetEnemy = null;
+                            w.state = "idle";
+                      
+                        }
+                    }
                      // NYTT: warriors attackerar boar
                     if (selectedWarriors.length > 0 && !game.buildMode) {
 
@@ -869,13 +876,7 @@
                         }
                     }
 
-                    if(selectedWarriors.length > 0 && !game.buildMode){
-                        for (let w of selectedWarriors) {
-                            w.targetEnemy = null;
-                            w.state = "idle";
-                      
-                        }
-                    }
+                    
                     if(game.buildMode && !mobileAndTabletCheck()){
                         game.deselectAll();
                         game.buildMode=null;
