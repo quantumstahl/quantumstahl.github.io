@@ -335,7 +335,7 @@
                 updatecanvassize();
                 ctx.fillStyle = "black";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                game.updateanimation(ctx,scale);
+                
                 ctx.fillStyle = "rgba(0,0,0,0.5)";
                 ctx.fillRect(10, 5, 150, 350);
                 ctx.fillStyle="white";
@@ -353,6 +353,20 @@
                 if (keyState.s) if(currentMap.cameray>-2200)currentMap.cameray -= camSpeed;
                 if (keyState.a) if(currentMap.camerax<200)currentMap.camerax += camSpeed;
                 if (keyState.d) if(currentMap.camerax>-6000)currentMap.camerax -= camSpeed;
+                
+                
+                if (game.needsPathRebuild) {
+                    game.rebuildPathfinding({
+                        isBlocker: (o) => {
+                            if (!o || o.dead) return false;
+                            return o.isBuilding || o.name === "tree" || o.name === "tree2" || o.name === "stone" || o.name === "gold" || o.name === "river"|| o.name === "berry";
+                        },
+                        cell: 32,
+                        inflate: 10,
+                        bucket: 96
+                    });
+                }
+                
                 
                 const houses = getAllHousesAllTeams();
                 for (const h of houses) {
@@ -398,7 +412,7 @@
                         b.isUnderConstruction = false;
                         b.state = "building";
                     }
-
+                    ensureBarrackRallyPoint(b);
                     b.canMove = false;
                     b.selectable = true;
 
@@ -924,7 +938,7 @@
                     
                     
                 }
-         
+         game.updateanimation(ctx,scale);
         }
 function orderWorkerGather(worker, resource) {
     if (!worker || !resource) return;
@@ -1230,12 +1244,15 @@ function updateWorker(worker, townhallList, playerResources, scale) {
 function getNearestResourceOfType(unit, type) {
     if (!type) return null;
 
-    const all = game.getAllObjects().filter(o =>
-        o.type === type &&
-        o.amount > 0 &&
-        !o.dead &&
-        (!o.owner || o.owner === "neutral" || o.owner !== unit.owner)
-    );
+    const all = game.getAllObjects().filter(o => {
+        if (o.amount <= 0 || o.type !== type) return false;
+
+        if (o.name === "sheep") {
+            return !o.owner || o.owner === "neutral" || o.owner === unit.owner;
+        }
+
+        return true; // vanliga träd/guld/sten får alla ta
+    });
 
     let best = null;
     let bestDist = Infinity;
@@ -1256,7 +1273,7 @@ function getNearestResourceOfType(unit, type) {
     }
 
     return best;
-}       
+}    
 function clearWorkerOrder(worker) {
     worker.state = "idle";
     worker.targetResource = null;
@@ -1888,7 +1905,7 @@ function canPlaceBuilding(x, y, w, h) {
 
         if (!blocksPlacement) continue;
 
-      if (rectsOverlap(x, y, w, h, o.x, o.y, o.dimx, o.dimy, 10)) {
+      if (rectsOverlap(x, y, w, h, o.x, o.y, o.dimx, o.dimy, 100)) {
             return false;
         }
     }
@@ -2269,63 +2286,79 @@ function updateWarrior(warrior, scale) {
         return;
     }
 
-    if (warrior.state === "move") {
-        if (warrior.targetX == null || warrior.targetY == null) {
-            warrior.state = "idle";
-            warrior.standingstill = true;
-            return;
-        }
+if (warrior.state === "move") {
+    if (warrior.path && warrior.path.length > 0) {
+        game.followPath(warrior, { reachDist: 16 });
+    }
 
-        const dx = warrior.targetX - warrior.x;
-        const dy = warrior.targetY - warrior.y;
-        const d = Math.hypot(dx, dy);
-
-        if (d < 10) {
-            warrior.state = "idle";
-            warrior.standingstill = true;
-            return;
-        }
-
-        warrior.standingstill = false;
-
-        if (Math.abs(dx) > Math.abs(dy)) {
-            warrior.direction = dx >= 0 ? "right" : "left";
-        } else {
-            warrior.direction = dy >= 0 ? "down" : "up";
-        }
+    if (warrior.targetX == null || warrior.targetY == null) {
+        warrior.state = "idle";
+        warrior.standingstill = true;
         return;
     }
 
-    if (warrior.state === "attackTarget") {
-        const t = warrior.targetEnemy;
+    const dx = warrior.targetX - warrior.x;
+    const dy = warrior.targetY - warrior.y;
+    const d = Math.hypot(dx, dy);
 
-        if (!t || t.dead || t.hp <= 0) {
-            warrior.targetEnemy = null;
-            warrior.state = "idle";
-            warrior.targetX = null;
-            warrior.targetY = null;
-            warrior.standingstill = true;
-            return;
-        }
+    if (d < 10 && (!warrior.path || warrior.path.length === 0)) {
+        warrior.state = "idle";
+        warrior.standingstill = true;
+        return;
+    }
 
-        warrior.targetX = t.x + t.dimx / 2;
-        warrior.targetY = t.y + t.dimy / 2;
+    warrior.standingstill = false;
 
-        const dx = warrior.targetX - warrior.x;
-        const dy = warrior.targetY - warrior.y;
+    if (Math.abs(dx) > Math.abs(dy)) {
+        warrior.direction = dx >= 0 ? "right" : "left";
+    } else {
+        warrior.direction = dy >= 0 ? "down" : "up";
+    }
+    return;
+}
+
+if (warrior.state === "attackTarget") {
+    const t = warrior.targetEnemy;
+
+
+if (warrior.path && warrior.path.length > 0) {
+    ctx.strokeStyle = "yellow";
+    ctx.beginPath();
+    ctx.moveTo(warrior.x + game.getcamerax(), warrior.y + game.getcameray());
+
+    for (let i = warrior.pathIndex || 0; i < warrior.path.length; i++) {
+        const p = warrior.path[i];
+        ctx.lineTo(p.x + game.getcamerax(), p.y + game.getcameray());
+    }
+
+    ctx.stroke();
+}
+
+
+
+    if (!t || t.dead || t.hp <= 0) {
+        warrior.targetEnemy = null;
+        warrior.state = "idle";
+        warrior.targetX = null;
+        warrior.targetY = null;
+        game.clearPath(warrior);
+        warrior.standingstill = true;
+        return;
+    }
+
+    // Om vi redan är framme -> slå
+    if (game.collideswithanoterobject(warrior, t)) {
+        warrior.standingstill = true;
+        game.clearPath(warrior);
+
+        const dx = (t.x + t.dimx / 2) - warrior.x;
+        const dy = (t.y + t.dimy / 2) - warrior.y;
 
         if (Math.abs(dx) > Math.abs(dy)) {
             warrior.direction = dx >= 0 ? "right" : "left";
         } else {
             warrior.direction = dy >= 0 ? "down" : "up";
         }
-
-        if (!game.collideswithanoterobject(warrior, t)) {
-            warrior.standingstill = false;
-            return;
-        }
-
-        warrior.standingstill = true;
 
         if (warrior.attackCooldown <= 0) {
             warrior.attackCooldown = 40;
@@ -2354,11 +2387,62 @@ function updateWarrior(warrior, scale) {
                 warrior.state = "idle";
                 warrior.targetX = null;
                 warrior.targetY = null;
+                game.clearPath(warrior);
             }
         }
 
         return;
     }
+
+    // Repath ibland mot rörligt mål
+    if (warrior.repathTimer == null) warrior.repathTimer = 0;
+    warrior.repathTimer -= 1 * scale;
+
+    if (warrior.repathTimer <= 0 || !warrior.path || warrior.path.length === 0) {
+        const tx = t.x + t.dimx / 2;
+        const ty = t.y + t.dimy / 2;
+
+        const ddx = tx - (warrior._lastPathGoalX ?? tx);
+        const ddy = ty - (warrior._lastPathGoalY ?? ty);
+        const moved = Math.hypot(ddx, ddy);
+
+        if (!warrior.path || warrior.path.length === 0 || moved > 40) {
+            warrior._lastPathGoalX = tx;
+            warrior._lastPathGoalY = ty;
+            game.pathUnitTo(warrior, tx, ty);
+        }
+
+        warrior.repathTimer = 75;
+    }
+if (warrior._lastPathRef !== warrior.path) {
+    warrior._lastPathRef = warrior.path;
+    warrior._lastPathIndex = warrior.pathIndex ?? 0;
+} else {
+    if ((warrior.pathIndex ?? 0) < (warrior._lastPathIndex ?? 0)) {
+        console.log("BACKWARDS PATH BUG");
+    }
+    warrior._lastPathIndex = warrior.pathIndex ?? 0;
+}
+    if (warrior.path && warrior.path.length > 0) {
+        game.followPath(warrior, { reachDist: 6 });
+    } else {
+        warrior.targetX = t.x + t.dimx / 2;
+        warrior.targetY = t.y + t.dimy / 2;
+    }
+
+    const dx = warrior.targetX - warrior.x;
+    const dy = warrior.targetY - warrior.y;
+
+    warrior.standingstill = false;
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+        warrior.direction = dx >= 0 ? "right" : "left";
+    } else {
+        warrior.direction = dy >= 0 ? "down" : "up";
+    }
+
+    return;
+}
 }
 function queueWarriorTraining(barrack, playerResources) {
     if (!barrack || barrack.isUnderConstruction) return false;
@@ -2406,7 +2490,9 @@ function spawnWarriorFromBarrack(barrack) {
     const pos = findFreeSpawnPosition(barrack, 30, 50);
     if (!pos) return false;
 
-    if (resources.pop >= resources.popMax) return false;
+    if (resources.pop >= resources.popMax) {
+        return false;
+    }
 
     resources.pop += 1;
 
@@ -2422,10 +2508,20 @@ function spawnWarriorFromBarrack(barrack) {
     w.attackCooldown = 0;
     w.moveSpeed = 1.2;
     w.targetEnemy = null;
-    w.selectable = owner === "player";
+    w.selectable = true;
     w.iscontrollable = owner === "player";
     w.direction = "down";
     w.standingstill = true;
+
+    ensureBarrackRallyPoint(barrack);
+
+    // AI-warriors går till rally direkt
+    if (owner !== "player") {
+        w.state = "move";
+        w.targetX = barrack.rallyX;
+        w.targetY = barrack.rallyY;
+        w.standingstill = false;
+    }
 
     return true;
 }
@@ -2724,6 +2820,9 @@ function updateTeamAI(owner, scale) {
     const mainTownhall = townhalls[0];
     if (!mainTownhall) return;
 
+
+
+
     // 1. se till att idle workers jobbar
     for (const w of workers) {
         ensureOwnerByName(w);
@@ -2787,7 +2886,11 @@ if (needHouse && !houseAlreadyPlanned && freeWorker && canAffordForTeam(BUILDING
             queueWarriorTrainingForTeam(b, resources);
         }
     }
-
+    const threat = getNearestThreatToOwner(owner, 280);
+    if (threat) {
+        sendTeamWarriorsToDefend(owner, threat, 4);
+    }
+    sendIdleWarriorsToRally(owner);
     // 6. attack wave
     if (warriors.length >= 4 && brain.attackTimer <= 0) {
         const target = getAttackTargetForOwner(owner);
@@ -2836,10 +2939,13 @@ function getAttackTargetForOwner(owner) {
 
 function orderWarriorAttackTarget(warrior, target) {
     if (!warrior || !target || target.dead) return;
+
     warrior.targetEnemy = target;
     warrior.state = "attackTarget";
-    warrior.targetX = target.x + target.dimx / 2;
-    warrior.targetY = target.y + target.dimy / 2;
+    warrior.repathTimer = 0;
+    warrior._lastPathGoalX = null;
+    warrior._lastPathGoalY = null;
+    game.pathUnitTo(warrior, target.x + target.dimx / 2, target.y + target.dimy / 2);
 }
 function getAllObjectsOfBaseTypeAllTeams(baseName) {
     return [
@@ -3030,7 +3136,7 @@ function updateOwnedSheep(s, scale) {
     const dist = Math.hypot(dx, dy);
 
     // stanna en bit från townhallen
-    if (dist < 200) {
+    if (dist < 300) {
         s.targetX = null;
         s.targetY = null;
         return;
@@ -3038,6 +3144,87 @@ function updateOwnedSheep(s, scale) {
 
     s.targetX = tx;
     s.targetY = ty;
+}
+function getNearestThreatToOwner(owner, range = 300) {
+    const myUnits = [
+        ...getTeamObjects("worker", owner),
+        ...getTeamObjects("warrior", owner),
+        ...getTeamObjects("townhall", owner),
+        ...getTeamObjects("barrack", owner),
+        ...getTeamObjects("hus", owner)
+    ].filter(o => !o.dead);
+
+    const boars = game.getobjecttype("boar")?.objects || [];
+    const enemyOwners = getEnemyOwners(owner);
+
+    let threats = [...boars.filter(b => !b.dead)];
+
+    for (const eo of enemyOwners) {
+        threats.push(...getTeamObjects("worker", eo).filter(o => !o.dead));
+        threats.push(...getTeamObjects("warrior", eo).filter(o => !o.dead));
+    }
+
+    let bestThreat = null;
+    let bestDist = range * range;
+
+    for (const my of myUnits) {
+        for (const t of threats) {
+            const dx = my.x - t.x;
+            const dy = my.y - t.y;
+            const d = dx * dx + dy * dy;
+
+            if (d < bestDist) {
+                bestDist = d;
+                bestThreat = t;
+            }
+        }
+    }
+
+    return bestThreat;
+}
+function sendTeamWarriorsToDefend(owner, threat, maxCount = 4) {
+    if (!threat || threat.dead) return;
+
+    const warriors = getTeamObjects("warrior", owner)
+        .filter(w => !w.dead)
+        .slice(0, maxCount);
+
+    for (const w of warriors) {
+        w.targetEnemy = threat;
+        w.state = "attackTarget";
+        w.targetX = threat.x + threat.dimx / 2;
+        w.targetY = threat.y + threat.dimy / 2;
+    }
+}
+function ensureBarrackRallyPoint(barrack) {
+    if (barrack.rallyX != null && barrack.rallyY != null) return;
+
+    barrack.rallyX = barrack.x + barrack.dimx / 2 + 140;
+    barrack.rallyY = barrack.y + barrack.dimy / 2 + 140;
+}
+function sendIdleWarriorsToRally(owner) {
+    const barracks = getTeamObjects("barrack", owner).filter(b => !b.dead && !b.isUnderConstruction);
+    if (barracks.length === 0) return;
+
+    const rallyBarrack = barracks[0];
+    ensureBarrackRallyPoint(rallyBarrack);
+
+    const warriors = getTeamObjects("warrior", owner).filter(w => !w.dead);
+
+    for (const w of warriors) {
+        if (w.state === "idle") {
+            const dx = (rallyBarrack.rallyX || 0) - w.x;
+            const dy = (rallyBarrack.rallyY || 0) - w.y;
+            const d = Math.hypot(dx, dy);
+
+            if (d > 30) {
+                w.state = "move";
+                w.targetX = rallyBarrack.rallyX;
+                w.targetY = rallyBarrack.rallyY;
+                w.standingstill = false;
+            }
+        }
+    }
 }
         </script>
     </body>  

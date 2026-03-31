@@ -845,7 +845,7 @@ function aabbOverlapRect(a, b){
 let _gridStat = null, _gridGhost = null;
 let _statStamp = 0, _ghostStamp = 0;
 
-function markStaticsDirty(){ _statStamp++; }  // call when you move/rotate/add/remove statics
+function markStaticsDirty(){ _statStamp++;game.needsPathRebuild = true; }  // call when you move/rotate/add/remove statics
 function markGhostsDirty(){  _ghostStamp++; } // call when ghost volumes change
 
 function _ensureStaticGrids(stat, ghosts){
@@ -2730,21 +2730,46 @@ maskCanvas.width = canvas.width;
           ctx.fillRect(x, y, 6, 16);
         }
     }
-    updateUnitMovement() {
-        const objects = this.getAllObjects();
+updateUnitMovement() {
+    const objects = this.getAllObjects();
 
-        for (let obj of objects) {
-            if (obj.targetX !== null && obj.targetY !== null) {
+    for (let obj of objects) {
+        if (obj.targetX == null || obj.targetY == null){ continue;}
+
+        const dx = obj.targetX - obj.x;
+        const dy = obj.targetY - obj.y;
+        const dist = Math.hypot(dx, dy);
+
+        // PATH-UNITS: enkel och stabil rörelse
+        if (obj.path && obj.path.length > 0) {
+            if (dist < 0.001) {
+                obj.standingstill = true;
+                continue;
+            }
+
+            const step = Math.min(obj.speed || 1, dist);
+            obj.x += (dx / dist) * step;
+            obj.y += (dy / dist) * step;
+            obj.standingstill = false;
+
+            if (Math.abs(dx) > Math.abs(dy)) {
+                obj.direction = dx > 0 ? "right" : "left";
+            } else {
+                obj.direction = dy > 0 ? "down" : "up";
+            }
+
+            continue;
+        }
+
+        // GAMMAL LOGIK för units utan path
 
                 let go=false;
                 if(obj.pretargetX!==obj.targetX||obj.pretargetY!==obj.targetY){go=true;}
                 
                 obj.pretargetX=obj.targetX;
                 obj.pretargetY=obj.targetY;
+                    
 
-                const dx = obj.targetX - obj.x;
-                const dy = obj.targetY - obj.y;
-                const dist = Math.sqrt(dx*dx + dy*dy);
                 obj.standingstill=false;
                 if(dist<2){obj.standingstill=true;continue;}
                  obj.y += ((dy / dist) * obj.speed);
@@ -2792,8 +2817,8 @@ maskCanvas.width = canvas.width;
                         
                     //    if((obj.blockedx==true&&obj.blockedy==false)||(obj.blockedy==true&&obj.blockedx==false)){
                             
+                            if(obj.blockedcounter==175){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
                             if(obj.blockedcounter==350){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
-                            if(obj.blockedcounter==700){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
                         
                             
                             if(obj.direction=="left"){if(obj.directiony=="up"){obj.y += obj.rakna;}if(obj.directiony=="down"){obj.y -= obj.rakna;}}
@@ -2804,7 +2829,7 @@ maskCanvas.width = canvas.width;
                         
 
                         
-                        if(obj.blockedcounter>1050){
+                        if(obj.blockedcounter>525){
                             obj.blockedcounter=0;
                             
                             
@@ -2826,13 +2851,8 @@ maskCanvas.width = canvas.width;
 
 
 
-            } else {
-                obj.targetX = null;
-                obj.targetY = null;
-            }
-            
-        }
-    }
+            } 
+}
     isPathClear(worker) {
     const dx = worker.targetX - worker.x;
     const dy = worker.targetY - worker.y;
@@ -3010,7 +3030,168 @@ getObjectAt(x, y) {
 
   return pts;
 }
-  
+//---------------------pathfinding
+pathfinding = {
+    raw: [],
+    prepped: [],
+    index: null,
+    key: "",
+    options: {
+        cell: 32,
+        inflate: 10,
+        pad: 320,
+        maxGrid: 256,
+        smooth: true,
+        bucket: 96,
+        isBlocker: null
+    }
+};
+
+needsPathRebuild = true;
+rebuildPathfinding = function(opt = {}) {
+    const pf = this.pathfinding;
+    pf.options = { ...pf.options, ...opt };
+
+    const isBlocker = pf.options.isBlocker || function() { return false; };
+    const all = this.getAllObjects();
+    const raw = [];
+
+    for (const o of all) {
+        if (!isBlocker(o)) continue;
+
+        raw.push({
+            cx: o.x + o.dimx / 2,
+            cy: o.y + o.dimy / 2,
+            w: o.dimx,
+            h: o.dimy,
+            angleRad: (o.rot || 0) * Math.PI / 180
+        });
+    }
+
+    pf.raw = raw;
+    pf.prepped = raw.map(prepOBB);
+    pf.index = buildObbIndex(pf.prepped, pf.options.bucket || 96);
+    pf.key = "nav_" + pf.prepped.length + "_" + Date.now();
+
+    this.needsPathRebuild = false;
+};
+findPath = function(startX, startY, goalX, goalY, opt = {}) {
+    const pf = this.pathfinding;
+
+    if (this.needsPathRebuild || !pf.index) {
+        this.rebuildPathfinding(opt);
+    }
+
+    const options = { ...pf.options, ...opt };
+
+    return findPathOBB(
+        { x: startX, y: startY },
+        { x: goalX, y: goalY },
+        null,
+        {
+            cell: options.cell,
+            inflate: options.inflate,
+            pad: options.pad,
+            maxGrid: options.maxGrid,
+            smooth: options.smooth,
+            obbIndex: pf.index,
+            obbKey: pf.key
+        }
+    );
+};
+assignPath = function(unit, path) {
+    if (!unit) return;
+
+    if (!Array.isArray(path) || path.length === 0) {
+        unit.path = null;
+        unit.pathIndex = 1;
+        return;
+    }
+
+    unit.path = path.slice();
+    unit.pathIndex = 1;
+
+    // hoppa över startnoder som redan ligger nära unit
+    while (unit.pathIndex < unit.path.length) {
+        const p = unit.path[unit.pathIndex];
+        const dx = p.x - unit.x;
+        const dy = p.y - unit.y;
+        const d = Math.hypot(dx, dy);
+
+        if (d > 8) break;
+        unit.pathIndex++;
+    }
+
+    if (unit.pathIndex >= unit.path.length) {
+        unit.path = null;
+        unit.pathIndex = 1;
+        unit.targetX = null;
+        unit.targetY = null;
+        return;
+    }
+
+    unit.targetX = unit.path[unit.pathIndex].x;
+    unit.targetY = unit.path[unit.pathIndex].y;
+    unit.standingstill = false;
+};
+clearPath = function(unit) {
+    if (!unit) return;
+    unit.path = null;
+    unit.pathIndex = 1;
+};
+followPath = function(unit, opt = {}) {
+    if (!unit || !unit.path || unit.path.length === 0) return false;
+
+    const reachDist = opt.reachDist ?? 6;
+
+    if (unit.pathIndex == null) unit.pathIndex = 1;
+
+    if (unit.pathIndex >= unit.path.length) {
+        unit.path = null;
+        unit.pathIndex = 1;
+        return false;
+    }
+
+    let p = unit.path[unit.pathIndex];
+    let dx = p.x - unit.x;
+    let dy = p.y - unit.y;
+    let d = Math.hypot(dx, dy);
+
+    if (d <= reachDist) {
+        unit.pathIndex++;
+
+        if (unit.pathIndex >= unit.path.length) {
+            unit.path = null;
+            unit.pathIndex = 1;
+            return false;
+        }
+
+        p = unit.path[unit.pathIndex];
+    }
+
+    unit.targetX = p.x;
+    unit.targetY = p.y;
+    unit.standingstill = false;
+    return true;
+};
+pathUnitTo = function(unit, tx, ty, opt = {}) {
+    if (!unit) return null;
+
+    const path = this.findPath(unit.x, unit.y, tx, ty, opt);
+
+    if (path && path.length > 0) {
+        this.assignPath(unit, path);
+        return path;
+    }
+
+    unit.path = null;
+    unit.pathIndex = 1;
+    unit.targetX = tx;
+    unit.targetY = ty;
+    unit.standingstill = false;
+    return null;
+};
+
 }
 
 class Maps {
@@ -3765,4 +3946,452 @@ function drawBuildingProgress(ctx, img, x, y, w, h, progress) {
 // Export
 window.G5 = window.G5 || {};
 window.G5.raycastStaticsHit = raycastStaticsHit;
+
+
+
+// === ROBUST & OPTIMERAD findPathOBB =====================================
+function findPathOBB(start, goal, obbs, opt = {}) {
+  const cell    = opt.cell ?? 24;
+  const inflate = opt.inflate ?? 16;
+  const pad     = opt.pad ?? 240;
+  const maxGrid = opt.maxGrid ?? 512;
+  const smooth  = opt.smooth ?? true;
+
+  // Prepp/index
+  const idx        = opt.obbIndex || (window.__OBB_CACHE && window.__OBB_CACHE.index) || null;
+  const allPrepped = (idx && idx.prepped) ? idx.prepped : (obbs || []).map(prepOBB);
+  const obbKey     = opt.obbKey || (window.__OBB_CACHE && window.__OBB_CACHE.key) || (`len:${allPrepped.length}`);
+
+
+if (!window.__GRID_CACHE) window.__GRID_CACHE = new Map();
+const GRID_CACHE_MAX = 64;
+
+function gridCacheKey(minx, miny, maxx, maxy, cell, inflatePx, obbKey){
+  // aligna bounds till cellstorleken för fler träffar
+  const ax = Math.floor(minx/cell), ay = Math.floor(miny/cell);
+  const bx = Math.floor(maxx/cell), by = Math.floor(maxy/cell);
+  return `${ax},${ay},${bx},${by}|c${cell}|i${inflatePx}|${obbKey}`;
+}
+function gridCacheGet(k){
+  const m = window.__GRID_CACHE, v = m.get(k);
+  if (!v) return null; m.delete(k); m.set(k,v); return v;
+}
+function gridCacheSet(k, grid){
+  const m = window.__GRID_CACHE; m.set(k, grid);
+  if (m.size > GRID_CACHE_MAX){ const first = m.keys().next().value; m.delete(first); }
+}
+
+
+  // Mini-planerare så vi kan göra retries med olika hinder/snap
+  function planWith(obstacles, snapR = 12, smoothInput) {
+    // 1) Bounds (korridor + aktuella hinder)
+    let minx = Math.min(start.x, goal.x) - pad;
+    let miny = Math.min(start.y, goal.y) - pad;
+    let maxx = Math.max(start.x, goal.x) + pad;
+    let maxy = Math.max(start.y, goal.y) + pad;
+    for (const O of obstacles) {
+      const b = O.bounds;
+      if (b.x1 < minx) minx = b.x1; if (b.y1 < miny) miny = b.y1;
+      if (b.x2 > maxx) maxx = b.x2; if (b.y2 > maxy) maxy = b.y2;
+    }
+    ({minx, miny, maxx, maxy} = clampBoundsToGrid(minx, miny, maxx, maxy, cell, maxGrid));
+
+    // 2) Grid
+    const gKey = gridCacheKey(minx, miny, maxx, maxy, cell, inflate, obbKey);
+    let grid = gridCacheGet(gKey);
+    if (!grid){
+      grid = buildGridOBB(minx, miny, maxx, maxy, cell, obstacles, inflate);
+      gridCacheSet(gKey, grid);
+    }
+
+    // 3) Snap
+    let Sg = snapToWalkable(grid, worldToGrid(grid, start), snapR);
+    let Gg = snapToWalkable(grid, worldToGrid(grid, goal ), snapR);
+
+    // 4) Cache
+    const key = `${grid.minx|0},${grid.miny|0},${grid.w}x${grid.h}|${Sg.gx},${Sg.gy}->${Gg.gx},${Gg.gy}|${obbKey}`;
+    const cached = cacheGet ? cacheGet(key) : null;
+    if (cached) return cached;
+
+    // 5) A*
+    const raw = astar(grid, Sg, Gg, 1.05);
+    if (!raw) return null;
+
+    // 6) Smooth
+    const cells = smooth ? smoothPath(grid, raw, smoothInput) : raw;
+
+    // 7) Världs-punkter
+    const path  = cells.map(c => gridToWorld(grid, c.gx, c.gy));
+    if (cacheSet) cacheSet(key, path);
+    return path;
+  }
+
+  // === Bygg "relevant" hinderlista för korridoren ===
+  let relevant;
+  if (idx) {
+    const x1 = Math.min(start.x, goal.x) - pad;
+    const y1 = Math.min(start.y, goal.y) - pad;
+    const x2 = Math.max(start.x, goal.x) + pad;
+    const y2 = Math.max(start.y, goal.y) + pad;
+    relevant = queryObbsInAABB(idx, x1, y1, x2, y2);
+    if (!relevant || !relevant.length) relevant = allPrepped; // fall back: aldrig tom
+  } else {
+    const x1 = Math.min(start.x, goal.x) - pad;
+    const y1 = Math.min(start.y, goal.y) - pad;
+    const x2 = Math.max(start.x, goal.x) + pad;
+    const y2 = Math.max(start.y, goal.y) + pad;
+    relevant = allPrepped.filter(O => !(O.bounds.x2 < x1 || O.bounds.x1 > x2 || O.bounds.y2 < y1 || O.bounds.y1 > y2));
+    if (!relevant.length) relevant = allPrepped;
+  }
+
+  // === Försök med växande tolerans (snabbast först) ======================
+  // 1) Korridor, normal snap
+  let path = planWith(relevant, 12, idx || relevant);
+  if (path) return path;
+
+  // 2) Korridor, större snap (hjälper när start/mål ligger nära uppblåst hinder)
+  path = planWith(relevant, 36, idx || relevant);
+  if (path) return path;
+
+  // 3) Safe mode: alla hinder, normal snap
+  path = planWith(allPrepped, 12, idx || allPrepped);
+  if (path) return path;
+
+  // 4) Safe mode: alla hinder, ännu större snap
+  return planWith(allPrepped, 48, idx || allPrepped);
+}
+
+// ---------------- Grid & rasterisering ----------------
+
+function buildGridOBB(minx, miny, maxx, maxy, cell, OBBs, inflatePx) {
+  const w = Math.max(1, Math.ceil((maxx - minx) / cell));
+  const h = Math.max(1, Math.ceil((maxy - miny) / cell));
+  const walk = new Uint8Array(w*h); walk.fill(1);
+
+  for (const O of OBBs) {
+    const b = O.bounds;
+    const gx1 = Math.max(0, Math.floor((b.x1 - minx - inflatePx) / cell));
+    const gy1 = Math.max(0, Math.floor((b.y1 - miny - inflatePx) / cell));
+    const gx2 = Math.min(w-1, Math.floor((b.x2 - minx + inflatePx) / cell));
+    const gy2 = Math.min(h-1, Math.floor((b.y2 - miny + inflatePx) / cell));
+    for (let gy=gy1; gy<=gy2; gy++) {
+      const cy = miny + gy*cell + cell/2;
+      for (let gx=gx1; gx<=gx2; gx++) {
+        const cx = minx + gx*cell + cell/2;
+        if (pointInOBBInflated(cx, cy, O, inflatePx)) walk[gy*w + gx] = 0;
+      }
+    }
+  }
+
+  // ❌ ta bort dilation:
+  // const padCells = Math.max(0, Math.ceil(inflatePx / cell));
+  // if (padCells > 0) dilate(walk, w, h, padCells);
+
+  return { w, h, minx, miny, cell, walk };
+}
+
+function pointInOBBInflated(x, y, O, inflate){
+  const dx=x-O.cx, dy=y-O.cy;
+  const lx =  O.cos*dx + O.sin*dy;
+  const ly = -O.sin*dx + O.cos*dy;
+  // L∞-clearance: lägg på inflate i båda leden
+  return Math.abs(lx) <= (O.hw + inflate) && Math.abs(ly) <= (O.hh + inflate);
+}
+
+function worldToGrid(grid, p) {
+  let gx = Math.floor((p.x - grid.minx) / grid.cell);
+  let gy = Math.floor((p.y - grid.miny) / grid.cell);
+  gx = Math.max(0, Math.min(grid.w-1, gx));
+  gy = Math.max(0, Math.min(grid.h-1, gy));
+  return { gx, gy };
+}
+function gridToWorld(grid, gx, gy) {
+  return {
+    x: grid.minx + gx*grid.cell + grid.cell/2,
+    y: grid.miny + gy*grid.cell + grid.cell/2
+  };
+}
+
+function snapToWalkable(grid, cell, maxR) {
+  const {w,h,walk} = grid;
+  const start = cell.gy*w + cell.gx;
+  if (walk[start]) return cell;
+  const seen = new Uint8Array(w*h);
+  const q = [{gx:cell.gx, gy:cell.gy, d:0}];
+  seen[start]=1;
+  const DIRS=[[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+  for (let i=0;i<q.length;i++){
+    const c=q[i], idx=c.gy*w+c.gx;
+    if (walk[idx]) return {gx:c.gx, gy:c.gy};
+    if (c.d>=maxR) continue;
+    for (const [ox,oy] of DIRS){
+      const nx=c.gx+ox, ny=c.gy+oy;
+      if(nx<0||ny<0||nx>=w||ny>=h) continue;
+      const n=ny*w+nx; if(seen[n]) continue;
+      seen[n]=1; q.push({gx:nx, gy:ny, d:c.d+1});
+    }
+  }
+  return cell;
+}
+
+function dilate(walk, w, h, r) {
+  const out = walk.slice();
+  for (let gy=0; gy<h; gy++) {
+    for (let gx=0; gx<w; gx++) {
+      if (!walk[gy*w+gx]) {
+        for (let oy=-r; oy<=r; oy++) {
+          const yy=gy+oy; if (yy<0||yy>=h) continue;
+          for (let ox=-r; ox<=r; ox++) {
+            const xx=gx+ox; if (xx<0||xx>=w) continue;
+            out[yy*w+xx]=0;
+          }
+        }
+      }
+    }
+  }
+  walk.set(out);
+}
+
+// Klipp rasterstorlek till maxCells×maxCells
+function clampBoundsToGrid(minx, miny, maxx, maxy, cell, maxCells) {
+  let w = Math.ceil((maxx - minx) / cell);
+  let h = Math.ceil((maxy - miny) / cell);
+  if (w <= maxCells && h <= maxCells) return {minx, miny, maxx, maxy};
+  const cx=(minx+maxx)/2, cy=(miny+maxy)/2;
+  const halfW=(maxCells*cell)/2, halfH=(maxCells*cell)/2;
+  return { minx:cx-halfW, miny:cy-halfH, maxx:cx+halfW, maxy:cy+halfH };
+}
+
+// ---------------- A* (8-neighbors, corner-cut prevention) ----------------
+// === A* workspace (återanvänd arrays, undvik GC) ===
+const __ASTAR_WS = { g:new Float32Array(0), f:new Float32Array(0),
+  came:new Int32Array(0), pos:new Int32Array(0), heap:[] };
+function wsEnsure(N){
+  if (__ASTAR_WS.g.length < N){
+    __ASTAR_WS.g    = new Float32Array(N);
+    __ASTAR_WS.f    = new Float32Array(N);
+    __ASTAR_WS.came = new Int32Array(N);
+    __ASTAR_WS.pos  = new Int32Array(N);
+  }
+  __ASTAR_WS.g.fill(Infinity, 0, N);
+  __ASTAR_WS.f.fill(Infinity, 0, N);
+  __ASTAR_WS.came.fill(-1, 0, N);
+  __ASTAR_WS.pos.fill(-1, 0, N);
+  __ASTAR_WS.heap.length = 0;
+  return __ASTAR_WS;
+}
+
+// === Liten LRU-cache för paths (sparar massor när många jagar samma mål) ===
+if (!window.__PATH_CACHE) window.__PATH_CACHE = new Map();
+const PATH_CACHE_MAX = 300;
+function cacheKey(grid, Sg, Gg, obbKey){
+  return `${grid.minx|0},${grid.miny|0},${grid.w}x${grid.h}|${Sg.gx},${Sg.gy}->${Gg.gx},${Gg.gy}|${obbKey||""}`;
+}
+function cacheGet(k){ const v=window.__PATH_CACHE.get(k); if(!v) return null; window.__PATH_CACHE.delete(k); window.__PATH_CACHE.set(k,v); return v; }
+function cacheSet(k,v){ window.__PATH_CACHE.set(k,v); if(window.__PATH_CACHE.size>PATH_CACHE_MAX){ const f=window.__PATH_CACHE.keys().next().value; window.__PATH_CACHE.delete(f);} }
+
+function astar(grid, Sg, Gg, W = 1.05) {
+  const {w,h,walk} = grid;
+  const N = w*h, sIdx=Sg.gy*w+Sg.gx, gIdx=Gg.gy*w+Gg.gx;
+  if (!walk[sIdx] || !walk[gIdx]) return null;
+
+  const ws = wsEnsure(N);
+  const gScore=ws.g, fScore=ws.f, came=ws.came, pos=ws.pos, heap=ws.heap;
+
+  const swap=(i,j)=>{ const a=heap[i],b=heap[j]; heap[i]=b; heap[j]=a; pos[a]=j; pos[b]=i; };
+  const up=(i)=>{ while(i>0){ const p=(i-1)>>1; if(fScore[heap[p]]<=fScore[heap[i]]) break; swap(i,p); i=p; } };
+  const down=(i)=>{ for(;;){ let l=i*2+1,r=l+1,m=i;
+    if(l<heap.length&&fScore[heap[l]]<fScore[heap[m]]) m=l;
+    if(r<heap.length&&fScore[heap[r]]<fScore[heap[m]]) m=r;
+    if(m===i) break; swap(i,m); i=m; } };
+  const push=(idx)=>{ heap.push(idx); pos[idx]=heap.length-1; up(heap.length-1); };
+  const pop =()=>{ const t=heap[0], last=heap.pop(); if(heap.length){heap[0]=last; pos[last]=0; down(0);} pos[t]=-1; return t; };
+  const dec =(idx)=> up(pos[idx]);
+
+  function heur(idx){
+    const gx=idx%w, gy=(idx-gx)/w;
+    const dx=Math.abs(gx-Gg.gx), dy=Math.abs(gy-Gg.gy);
+    const F=Math.SQRT2-1; 
+    return W * ((dx<dy)? F*dx+dy : F*dy+dx); // Octile * weight
+  }
+
+  gScore[sIdx]=0; fScore[sIdx]=heur(sIdx); push(sIdx);
+  const walkAt=(x,y)=>walk[y*w+x];
+
+  while (heap.length) {
+    const cur=pop();
+    if (cur===gIdx) {
+      const out=[]; for(let u=cur; u!==-1; u=came[u]){ const gx=u%w, gy=(u-gx)/w; out.push({gx,gy}); }
+      out.reverse(); return out;
+    }
+    const cgx=cur%w, cgy=(cur-cgx)/w, gc=gScore[cur];
+
+    for (let oy=-1; oy<=1; oy++) for (let ox=-1; ox<=1; ox++){
+      if (!ox && !oy) continue;
+      const nx=cgx+ox, ny=cgy+oy;
+      if (nx<0||ny<0||nx>=w||ny>=h) continue;
+      if (!walkAt(nx,ny)) continue;
+      if (ox&&oy){ if(!walkAt(cgx,ny) || !walkAt(nx,cgy)) continue; } // anti corner cut
+      const nIdx=ny*w+nx, cost=(ox&&oy)?Math.SQRT2:1, tent=gc+cost;
+      if (tent<gScore[nIdx]){
+        const old=fScore[nIdx];
+        came[nIdx]=cur; gScore[nIdx]=tent; fScore[nIdx]=tent+heur(nIdx);
+        if (pos[nIdx]===-1) push(nIdx); else if (fScore[nIdx]<old) dec(nIdx);
+      }
+    }
+  }
+  return null;
+}
+
+// ---------------- Smoothing & LOS mot OBB ----------------
+
+function losBlockedOBB(A, B, idxOrArray) {
+  const x1 = Math.min(A.x,B.x), x2 = Math.max(A.x,B.x);
+  const y1 = Math.min(A.y,B.y), y2 = Math.max(A.y,B.y);
+  const list = (idxOrArray && idxOrArray.table)
+    ? queryObbsInAABB(idxOrArray, x1,y1,x2,y2)
+    : (idxOrArray || []);
+  for (let i=0;i<list.length;i++){
+    const O = list[i], b = O.bounds;
+    if (x2 < b.x1 || x1 > b.x2 || y2 < b.y1 || y1 > b.y2) continue; // coarse AABB
+    if (segmentHitsOBB(A,B,O)) return true;
+  }
+  return false;
+}
+
+function gridRayClear(grid, A, B){
+  // A, B i världskord → grid index
+  let a = worldToGrid(grid, A), b = worldToGrid(grid, B);
+  let x0=a.gx, y0=a.gy, x1=b.gx, y1=b.gy;
+  const dx=Math.abs(x1-x0), sx=x0<x1?1:-1;
+  const dy=-Math.abs(y1-y0), sy=y0<y1?1:-1;
+  let err=dx+dy, e2, w=grid.w, walk=grid.walk;
+  for(;;){
+    if (!walk[y0*w + x0]) return false;
+    if (x0===x1 && y0===y1) break;
+    e2 = 2*err;
+    if (e2 >= dy){ err += dy; x0 += sx; }
+    if (e2 <= dx){ err += dx; y0 += sy; }
+  }
+  return true;
+}
+
+function smoothPath(grid, pathCells, idxOrArray) {
+  if (!pathCells || pathCells.length <= 2) return pathCells;
+  const out=[pathCells[0]];
+  let i=0;
+  while (i < pathCells.length-1) {
+    let j=pathCells.length-1;
+    const Pi=gridToWorld(grid, pathCells[i].gx, pathCells[i].gy);
+    for (; j>i+1; j--) {
+      const Pj=gridToWorld(grid, pathCells[j].gx, pathCells[j].gy);
+      // billig check först
+      if (!gridRayClear(grid, Pi, Pj)) continue;
+      // exakt OBB-LOS bara vid “kandidat”
+      if (!losBlockedOBB(Pi, Pj, idxOrArray)) break;
+    }
+    out.push(pathCells[j]); i=j;
+  }
+  return out;
+}
+
+// ---------------- OBB-geo ----------------
+// === OBB prep + spatial index ===========================================
+let __OBB_ID_SEQ = 1;
+function prepOBB(s) {
+  // Tidig retur om redan preppad
+  if (s && s.kind === 'obb' && typeof s.cos === 'number') return s;
+
+  const angle = s.angleRad || 0;
+  const c = Math.cos(angle), t = Math.sin(angle);
+  const hw = s.w * 0.5, hh = s.h * 0.5, cx = s.cx, cy = s.cy;
+
+  const corners = [
+    {x: cx - hw*c + hh*t, y: cy - hw*t - hh*c},
+    {x: cx + hw*c + hh*t, y: cy + hw*t - hh*c},
+    {x: cx + hw*c - hh*t, y: cy + hw*t + hh*c},
+    {x: cx - hw*c - hh*t, y: cy - hw*t + hh*c},
+  ];
+  let x1=Infinity, y1=Infinity, x2=-Infinity, y2=-Infinity;
+  for (let i=0;i<4;i++){ const p=corners[i];
+    if (p.x<x1) x1=p.x; if (p.y<y1) y1=p.y;
+    if (p.x>x2) x2=p.x; if (p.y>y2) y2=p.y;
+  }
+  const ob = { kind:'obb', cx, cy, hw, hh, cos:c, sin:t, bounds:{x1,y1,x2,y2} };
+  ob._id = s._id || (__OBB_ID_SEQ++);
+  return ob;
+}
+
+// Bygger ett enkelt uniformt grid-index för OBB:er (för snabb LOS/filter)
+function buildObbIndex(prepped, bucket = 96){
+  if (!prepped || !prepped.length) return { table:[], gx1:0, gy1:0, W:0, H:0, bucket, prepped };
+  let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+  for (const o of prepped){ const b=o.bounds;
+    if (b.x1<minx) minx=b.x1; if (b.y1<miny) miny=b.y1;
+    if (b.x2>maxx) maxx=b.x2; if (b.y2>maxy) maxy=b.y2;
+  }
+  const gx1 = Math.floor(minx/bucket), gy1 = Math.floor(miny/bucket);
+  const gx2 = Math.floor(maxx/bucket), gy2 = Math.floor(maxy/bucket);
+  const W = Math.max(1, gx2-gx1+1), H = Math.max(1, gy2-gy1+1);
+  const table = new Array(W*H); for (let i=0;i<table.length;i++) table[i]=[];
+  function push(bx,by,ob){ table[(by-gy1)*W + (bx-gx1)].push(ob); }
+  for (const ob of prepped){
+    const b=ob.bounds;
+    const bx1=Math.floor(b.x1/bucket), by1=Math.floor(b.y1/bucket);
+    const bx2=Math.floor(b.x2/bucket), by2=Math.floor(b.y2/bucket);
+    for (let by=by1; by<=by2; by++) for (let bx=bx1; bx<=bx2; bx++) push(bx,by,ob);
+  }
+  return { table, gx1, gy1, W, H, bucket, prepped };
+}
+function queryObbsInAABB(idx, x1,y1,x2,y2){
+  if (!idx || !idx.table.length) return [];
+  const bx1 = Math.max(0, Math.floor(x1/idx.bucket) - idx.gx1);
+  const by1 = Math.max(0, Math.floor(y1/idx.bucket) - idx.gy1);
+  const bx2 = Math.min(idx.W-1, Math.floor(x2/idx.bucket) - idx.gx1);
+  const by2 = Math.min(idx.H-1, Math.floor(y2/idx.bucket) - idx.gy1);
+  const seen = new Set(); const out=[];
+  for (let by=by1; by<=by2; by++){
+    for (let bx=bx1; bx<=bx2; bx++){
+      const cell = idx.table[by*idx.W+bx];
+      for (let i=0;i<cell.length;i++){
+        const ob = cell[i];
+        if (!seen.has(ob._id)) { seen.add(ob._id); out.push(ob); }
+      }
+    }
+  }
+  return out;
+}
+
+function pointInOBB(x,y,O){
+  // rotera in i lokala box-koordinater (vinkel = -angle)
+  const dx=x-O.cx, dy=y-O.cy;
+  const lx =  O.cos*dx + O.sin*dy;
+  const ly = -O.sin*dx + O.cos*dy;
+  return Math.abs(lx) <= O.hw && Math.abs(ly) <= O.hh;
+}
+
+function segmentHitsOBB(A,B,O){
+  // transformera segmentet till OBB:ens lokala coords
+  const Ax =  O.cos*(A.x-O.cx) + O.sin*(A.y-O.cy);
+  const Ay = -O.sin*(A.x-O.cx) + O.cos*(A.y-O.cy);
+  const Bx =  O.cos*(B.x-O.cx) + O.sin*(B.y-O.cy);
+  const By = -O.sin*(B.x-O.cx) + O.cos*(B.y-O.cy);
+  return segmentAABB(Ax,Ay,Bx,By, -O.hw,-O.hh, O.hw,O.hh);
+}
+
+// Liang–Barsky i lokala coords
+function segmentAABB(x0,y0,x1,y1, rx1,ry1,rx2,ry2){
+  const dx=x1-x0, dy=y1-y0;
+  let t0=0,t1=1;
+  const p=[-dx,dx,-dy,dy], q=[x0-rx1,rx2-x0,y0-ry1,ry2-y0];
+  for(let i=0;i<4;i++){
+    if (p[i]===0){ if (q[i]<0) return false; }
+    else{
+      const r=q[i]/p[i];
+      if (p[i]<0){ if (r>t1) return false; if (r>t0) t0=r; }
+      else       { if (r<t0) return false; if (r<t1) t1=r; }
+    }
+  }
+  return true;
+}
 
