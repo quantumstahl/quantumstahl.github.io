@@ -444,7 +444,7 @@
                 for (const w of warrior) {
                     ensureOwnerByName(w);
 
-                    w.selectable = true;
+                    if(!w.dead)w.selectable = true;
                     w.iscontrollable = (w.owner === "player");
                     w.fliped = false;
 
@@ -891,7 +891,7 @@
                 for (const w of worker) {
                     ensureOwnerByName(w);
 
-                    w.selectable = true;
+                    if(!w.dead)w.selectable = true;
                     w.iscontrollable = (w.owner === "player");
                     w.fliped=false;
                     
@@ -1418,6 +1418,7 @@ function updateBoar(boar, scale) {
             // t.vy = -1;
 
             if (t.hp <= 0) {
+                t.selectable=false;
                 t.flashTimer = 0;
                 t.dead = true;
                 playerResources.pop -= 1;
@@ -2364,8 +2365,10 @@ if (warrior.path && warrior.path.length > 0) {
                     t.type = "food";
                 } else if (t.name.includes("worker")) {
                     t.animation = 12;
+                    t.selectable=false;
                 } else if (t.name.includes("warrior")) {
                     t.animation = 9;
+                    t.selectable=false;
                 }
                 if(t.isBuilding)game.removeobject(game.getobjecttype(t.name),t);
                 if (t.owner && teamResources[t.owner] && (t.name.includes("worker") || t.name.includes("warrior"))) {
