@@ -845,28 +845,22 @@
                             }
                         }
                     }
-                    if(selectedWarriors.length > 0 && !game.buildMode){
-                        for (let w of selectedWarriors) {
-                            w.targetEnemy = null;
-                            w.state = "idle";
-                      
-                        }
-                    }
+                    
                      // NYTT: warriors attackerar boar
                     if (selectedWarriors.length > 0 && !game.buildMode) {
-
-                        if (isEnemy.length > 0 && !isEnemy[0].dead) {
-                            for (let w of selectedWarriors) {
-                                orderWarriorAttackTarget(w, isEnemy[0]);
-                                w.selected = false;
-                            }
-                        }
-                        else if (isresource.length > 0 && isresource[0].name === "boar" && !isresource[0].dead) {
+if (isresource.length > 0 && isresource[0].name === "boar" && !isresource[0].dead) {
                             for (let w of selectedWarriors) {
                                 orderWarriorAttackBoar(w, isresource[0]);
                                 w.selected = false;
                             }
                         }
+                        else if (isEnemy.length > 0 && !isEnemy[0].dead) {
+                            for (let w of selectedWarriors) {
+                                orderWarriorAttackTarget(w, isEnemy[0]);
+                                w.selected = false;
+                            }
+                        }
+                        
                     }
 
                     if(selectedWorkers.length > 0 && isresource.length === 0 && !game.buildMode){
