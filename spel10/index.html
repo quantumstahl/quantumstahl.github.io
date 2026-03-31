@@ -211,17 +211,23 @@
                 }
                 else{
 
-                    if(window.innerHeight > window.innerWidth){
-                        canvas.width=1100;
-                        canvas.height=1600;  
-                    }
-                    else{
-                        canvas.width=1600*1.2;
-                        canvas.height=1100*1.2;
-                    }
-                    canvas.style.position="absolute";
-                    canvas.style.width  = document.body.clientWidth + "px";
-                    canvas.style.height = document.body.clientHeight-8 + "px";
+                    const dpr = window.devicePixelRatio || 1;
+
+const rectWidth = document.body.clientWidth;
+const rectHeight = document.body.clientHeight - 8;
+
+canvas.style.width = rectWidth + "px";
+canvas.style.height = rectHeight + "px";
+
+canvas.width = Math.floor(rectWidth * dpr);
+canvas.height = Math.floor(rectHeight * dpr);
+
+ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+
+
+
+
 
 
                 }
