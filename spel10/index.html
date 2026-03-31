@@ -475,7 +475,7 @@
                 
                 
                 const selectedTownhall = getSelectedTownhall();
-                drawSelectedObjectUI(ctx, canvas)
+                drawSelectedObjectUI(ctx, canvas);
                 
                 const townhall = getAllTownhallsAllTeams();
                 for (const t of townhall) {
@@ -807,7 +807,7 @@
                     const selectedWarriors = game.getobjecttype('warrior')?.objects?.filter(o => o.selected) || [];
                     const mousepressed = game.getAllObjects().filter(o => o.mousepressed);
                     const isresource = mousepressed.filter(o => o.gatherTime);
-                    const isEnemy = clickedObjects.filter(o =>o.selectable &&isEnemyOf(selectedWarriors[0], o));
+                    const isEnemy = mousepressed.filter(o =>o.selectable &&isEnemyOf(selectedWarriors[0], o));
 
                     if (selectedWorkers.length > 0 && isresource.length > 0 && !game.buildMode)  {
                         for (let w of selectedWorkers) {
@@ -847,19 +847,19 @@
                     }
                      // NYTT: warriors attackerar boar
                     if (selectedWarriors.length > 0 && !game.buildMode) {
-
-                        if (isEnemy.length > 0 && !isEnemy[0].dead) {
-                            for (let w of selectedWarriors) {
-                                orderWarriorAttackTarget(w, isEnemy[0]);
-                                w.selected = false;
-                            }
-                        }
-                        else if (isresource.length > 0 && isresource[0].name === "boar" && !isresource[0].dead) {
+                         if (isresource.length > 0 && isresource[0].name === "boar" && !isresource[0].dead) {
                             for (let w of selectedWarriors) {
                                 orderWarriorAttackBoar(w, isresource[0]);
                                 w.selected = false;
                             }
                         }
+                        else if (isEnemy.length > 0 && !isEnemy[0].dead) {
+                            for (let w of selectedWarriors) {
+                                orderWarriorAttackTarget(w, isEnemy[0]);
+                                w.selected = false;
+                            }
+                        }
+                       
                     }
 
                     if(selectedWorkers.length > 0 && isresource.length === 0 && !game.buildMode){
@@ -869,10 +869,12 @@
                         }
                     }
 
-                    if(selectedWarriors.length > 0 && !game.buildMode){
+                    if(selectedWarriors.length > 0 && !game.buildMode &&isresource.length === 0 &&isEnemy.length === 0 ){
                         for (let w of selectedWarriors) {
                             w.targetEnemy = null;
                             w.state = "idle";
+                            w.targetX=cursorX-game.getcamerax();
+                            w.targetY=cursorY-game.getcameray();;
                       
                         }
                     }
@@ -1418,8 +1420,11 @@ function updateBoar(boar, scale) {
                 if (playerResources.pop < 0) playerResources.pop = 0;
                 t.selectable = false;
 
-                if (t.name === "worker") t.animation = 12;
-                if (t.name === "warrior") t.animation = 12; // byt om warrior har annan dödsanim
+                if (t.name.includes("worker")) {
+                    t.animation = 12;
+                } else if (t.name.includes("warrior")) {
+                    t.animation = 9;
+                }
 
                 boar.targetUnit = null;
                 boar.state = "return";
@@ -2303,24 +2308,7 @@ if (warrior.state === "move") {
         return;
     }
 
-    const dx = warrior.targetX - warrior.x;
-    const dy = warrior.targetY - warrior.y;
-    const d = Math.hypot(dx, dy);
 
-    if (d < 10 && (!warrior.path || warrior.path.length === 0)) {
-        warrior.state = "idle";
-        warrior.standingstill = true;
-        return;
-    }
-
-    warrior.standingstill = false;
-
-    if (Math.abs(dx) > Math.abs(dy)) {
-        warrior.direction = dx >= 0 ? "right" : "left";
-    } else {
-        warrior.direction = dy >= 0 ? "down" : "up";
-    }
-    return;
 }
 
 if (warrior.state === "attackTarget") {
@@ -2354,17 +2342,9 @@ if (warrior.path && warrior.path.length > 0) {
 
     // Om vi redan är framme -> slå
     if (game.collideswithanoterobject(warrior, t)) {
-        warrior.standingstill = true;
         game.clearPath(warrior);
 
-        const dx = (t.x + t.dimx / 2) - warrior.x;
-        const dy = (t.y + t.dimy / 2) - warrior.y;
 
-        if (Math.abs(dx) > Math.abs(dy)) {
-            warrior.direction = dx >= 0 ? "right" : "left";
-        } else {
-            warrior.direction = dy >= 0 ? "down" : "up";
-        }
 
         if (warrior.attackCooldown <= 0) {
             warrior.attackCooldown = 40;
@@ -2381,9 +2361,9 @@ if (warrior.path && warrior.path.length > 0) {
                 } else if (t.name.includes("worker")) {
                     t.animation = 12;
                 } else if (t.name.includes("warrior")) {
-                    t.animation = 12;
+                    t.animation = 9;
                 }
-
+                if(t.isBuilding)game.removeobject(game.getobjecttype(t.name),t);
                 if (t.owner && teamResources[t.owner] && (t.name.includes("worker") || t.name.includes("warrior"))) {
                     teamResources[t.owner].pop -= 1;
                     if (teamResources[t.owner].pop < 0) teamResources[t.owner].pop = 0;
@@ -2709,9 +2689,9 @@ function ensureOwnerByName(obj) {
     if (!obj.owner) obj.owner = getOwnerFromName(obj.name);
 }
 const aiBrains = game.aiBrains || (game.aiBrains = {
-    red:    { thinkTimer: 0, attackTimer: 0, targetOwner: "player" },
-    yellow: { thinkTimer: 0, attackTimer: 0, targetOwner: "player" },
-    green:  { thinkTimer: 0, attackTimer: 0, targetOwner: "player" }
+    red:    { thinkTimer: 0, attackTimer: 0, defendTarget: null, mode: "idle" },
+    yellow: { thinkTimer: 0, attackTimer: 0, defendTarget: null, mode: "idle" },
+    green:  { thinkTimer: 0, attackTimer: 0, defendTarget: null, mode: "idle" }
 });
 function queueWorkerTrainingForTeam(townhall, resources) {
     if (!townhall || townhall.isUnderConstruction) return false;
@@ -2812,30 +2792,43 @@ function updateTeamAI(owner, scale) {
     if (!brain || !resources) return;
 
     brain.thinkTimer -= 1 * scale;
-    brain.attackTimer -= 1 * scale;
-
     if (brain.thinkTimer > 0) return;
-    brain.thinkTimer = 60; // tänk ca 1 gång/sek
+    brain.thinkTimer = 30;
 
     const workers = getTeamObjects("worker", owner).filter(w => !w.dead);
-    const townhalls = getTeamObjects("townhall", owner).filter(b => !b.dead);
-    const barracks = getTeamObjects("barrack", owner).filter(b => !b.dead);
-    const houses = getTeamObjects("hus", owner).filter(b => !b.dead);
     const warriors = getTeamObjects("warrior", owner).filter(w => !w.dead);
+    const townhalls = getTeamObjects("townhall", owner).filter(t => !t.dead);
+    const barracks = getTeamObjects("barrack", owner).filter(b => !b.dead);
 
     const mainTownhall = townhalls[0];
     if (!mainTownhall) return;
 
+    // --- 1. Försvarsläge prioriteras ---
+    if (brain.defendTarget && isThreatStillRelevant(owner, brain.defendTarget, 320)) {
+        brain.mode = "defend";
+        sendTeamWarriorsToDefend(owner, brain.defendTarget, 4);
+        return; // attackera inte bas samtidigt
+    } else {
+        brain.defendTarget = null;
+        if (brain.mode === "defend") brain.mode = "idle";
+    }
 
+    // --- 2. Leta nytt hot ---
+    const threat = getNearestThreatToOwner(owner, 280);
+    if (threat) {
+        brain.defendTarget = threat;
+        brain.mode = "defend";
+        sendTeamWarriorsToDefend(owner, threat, 4);
+        return; // attackera inte bas samtidigt
+    }
 
+    // --- 3. Om inget hot: vanlig AI ---
+    brain.mode = "normal";
 
-    // 1. se till att idle workers jobbar
+    // workers jobbar
     for (const w of workers) {
-        ensureOwnerByName(w);
-
         if (w.state === "idle") {
             let wantedType = null;
-
             if ((resources.wood || 0) < 120) wantedType = "wood";
             else if ((resources.food || 0) < 120) wantedType = "food";
             else if ((resources.gold || 0) < 80) wantedType = "gold";
@@ -2849,64 +2842,53 @@ function updateTeamAI(owner, scale) {
         }
     }
 
-    // 2. pop cap -> bygg hus
+    const builder = getBuilderWorkerForTeam(owner);
 
+    const needHouse = resources.pop >= resources.popMax - 1;
+    const houseAlreadyPlanned = hasBuildingOfTypeUnderConstruction(owner, "hus");
 
-const needHouse = resources.pop >= resources.popMax - 1;
-const houseAlreadyPlanned = hasBuildingOfTypeUnderConstruction(owner, "hus");
-
-const freeWorker = getBuilderWorkerForTeam(owner);
-
-if (needHouse && !houseAlreadyPlanned && freeWorker && canAffordForTeam(BUILDING_TYPES.hus.cost, resources)) {
-    const spot = findBuildSpotNear(
-        mainTownhall,
-        BUILDING_TYPES.hus.width,
-        BUILDING_TYPES.hus.height
-    );
-
-    if (spot) {
-        placeBuildingForOwner(spot.x, spot.y, "hus", owner, freeWorker);
-        return;
-    }
-}
-
-    // 3. bygg barrack om ingen finns
-    const barrackPlanned = hasBuildingOfTypeUnderConstruction(owner, "barrack");
-
-    if (barracks.length === 0 && !barrackPlanned && freeWorker && canAffordForTeam(BUILDING_TYPES.barrack.cost, resources)) {
-        const spot = findBuildSpotNear(mainTownhall, BUILDING_TYPES.barrack.width, BUILDING_TYPES.barrack.height);
+    if (needHouse && !houseAlreadyPlanned && builder && canAffordForTeam(BUILDING_TYPES.hus.cost, resources)) {
+        const spot = findBuildSpotNear(mainTownhall, BUILDING_TYPES.hus.width, BUILDING_TYPES.hus.height);
         if (spot) {
-            placeBuildingForOwner(spot.x, spot.y, "barrack", owner, freeWorker);
+            placeBuildingForOwner(spot.x, spot.y, "hus", owner, builder);
             return;
         }
     }
 
-    // 4. träna workers upp till 5
+    const barrackPlanned = hasBuildingOfTypeUnderConstruction(owner, "barrack");
+    if (barracks.length === 0 && !barrackPlanned && builder && canAffordForTeam(BUILDING_TYPES.barrack.cost, resources)) {
+        const spot = findBuildSpotNear(mainTownhall, BUILDING_TYPES.barrack.width, BUILDING_TYPES.barrack.height);
+        if (spot) {
+            placeBuildingForOwner(spot.x, spot.y, "barrack", owner, builder);
+            return;
+        }
+    }
+
     if (workers.length < 5 && townhalls.length > 0) {
         queueWorkerTrainingForTeam(townhalls[0], resources);
     }
 
-    // 5. träna warriors
     for (const b of barracks) {
         if (warriors.length < 10) {
             queueWarriorTrainingForTeam(b, resources);
         }
     }
-    const threat = getNearestThreatToOwner(owner, 280);
-    if (threat) {
-        sendTeamWarriorsToDefend(owner, threat, 4);
-    }
+
     sendIdleWarriorsToRally(owner);
-    // 6. attack wave
+
     if (warriors.length >= 4 && brain.attackTimer <= 0) {
         const target = getAttackTargetForOwner(owner);
         if (target) {
             for (const w of warriors) {
                 orderWarriorAttackTarget(w, target);
             }
-            brain.attackTimer = 600; // vänta innan nästa stora order
+            brain.attackTimer = 600;
+            brain.mode = "attack";
         }
     }
+
+    brain.attackTimer -= 30;
+    if (brain.attackTimer < 0) brain.attackTimer = 0;
 }
 function isEnemy(a, b) {
     if (!a || !b) return false;
@@ -3196,10 +3178,8 @@ function sendTeamWarriorsToDefend(owner, threat, maxCount = 4) {
         .slice(0, maxCount);
 
     for (const w of warriors) {
-        w.targetEnemy = threat;
-        w.state = "attackTarget";
-        w.targetX = threat.x + threat.dimx / 2;
-        w.targetY = threat.y + threat.dimy / 2;
+        if (w.targetEnemy === threat && w.state === "attackTarget") continue;
+        orderWarriorAttackTarget(w, threat);
     }
 }
 function ensureBarrackRallyPoint(barrack) {
@@ -3235,6 +3215,29 @@ function sendIdleWarriorsToRally(owner) {
 function isEnemyOf(a, b) {
     if (!a || !b) return false;
     if (a.dead || b.dead) return false;
+    return a.owner !== b.owner;
+}
+function isThreatStillRelevant(owner, threat, range = 320) {
+    if (!threat || threat.dead) return false;
+
+    const myThings = [
+        ...getTeamObjects("worker", owner),
+        ...getTeamObjects("warrior", owner),
+        ...getTeamObjects("townhall", owner),
+        ...getTeamObjects("barrack", owner),
+        ...getTeamObjects("hus", owner)
+    ].filter(o => !o.dead);
+
+    const range2 = range * range;
+
+    for (const o of myThings) {
+        const dx = o.x - threat.x;
+        const dy = o.y - threat.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 <= range2) return true;
+    }
+
+    return false;
 }
         </script>
     </body>  

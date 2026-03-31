@@ -435,15 +435,8 @@ for (let it = 0; it < this.ITER; it++) {
     const A = dyn[ai];
    // if (A._solvedStatics) continue;
 
-// --- applicera queued step-up smooth ---
-if (A.ref && A.ref._stepRemain > 0) {
-  const STEP_PER_FRAME = 100; // testa 1..3
-  const take = Math.min(STEP_PER_FRAME, A.ref._stepRemain);
-  A.y -= take;
-  A.ref._stepRemain -= take;
-  A._aabb = { x:A.x, y:A.y, w:A.w, h:A.h };
-}
-if (A.ref && A.ref._stepLock > 0) A.ref._stepLock--;
+
+
 
 
 
@@ -478,72 +471,11 @@ if (isAxisAlignedRot(A.rot) && isAxisAlignedRot(B.rot)) {
       // --- Skip MTV om överlappningen ligger endast i ghost-delen ---
 
      
-A.ref.blbl=true;
+
                     
 
 
 
-
-//NYTT
-if (Math.abs(contact.n.x) > 0.9 && (A.ref?._wantdx || 0) !== 0) {
-  // Guard 1: bara om vi inte är på väg uppåt (om du har vy)
-  // if ((A.ref?._vy || 0) < -0.001) { /* hoppar upp */ } else ...
-
-  // Guard 2: bara om det finns "mark" nära framför fötterna efter step.
-  // (Detta hindrar att man klättrar upp på en ren vägg.)
-  const wantdx = (A.ref?._wantdx || 0);
-  const dir = wantdx > 0 ? 1 : -1;
-
-  // Spara nuvarande pos
-  const x0 = A.x, y0 = A.y;
-
-  // Vi letar minsta step som funkar
-  let best = 0;
-
-  for (let step = 1; step <= STEP_MAX; step++) {
-    const test = { x: x0, y: y0 - step, w: A.w, h: A.h, rot: A.rot||0 };
-
-    // Måste vara fri från just B
-    if (obbObbMTV(test, B)) continue;
-
-    // Måste vara fri från andra statics i närheten
-    const near2 = gridStat.query(_aabbFrom(test.x,test.y,test.w,test.h,test.rot||0));
-    let ok = true;
-    for (let k=0;k<near2.length;k++){
-      const S = near2[k];
-      if (S === B) continue;
-      if (obbObbMTV(test, S)) { ok = false; break; }
-    }
-    if (!ok) continue;
-
-    // ✅ LEDGE-GUARD:
-    // Efter step, kolla att vi INTE står "inne i" en vägg som fortsätter uppåt precis framför oss.
-    // Vi kollar en smal "probe" framför kroppen och lite ner mot fötterna.
-    // Om probe:n kolliderar: det är troligen en ren vägg -> step avbryts.
-    const PROBE_W = 2;       // tunn
-    const PROBE_H = Math.min(6, A.h * 0.25);
-    const PROBE_X = test.x + (dir > 0 ? (test.w - PROBE_W) : 0);
-    const PROBE_Y = test.y + test.h - PROBE_H;
-
-    const probe = { x: PROBE_X + dir * 1, y: PROBE_Y, w: PROBE_W, h: PROBE_H, rot: 0 };
-    const nearP = gridStat.query(_aabbFrom(probe.x,probe.y,probe.w,probe.h,0));
-    let hitsWall = false;
-    for (let k=0;k<nearP.length;k++){
-      const S = nearP[k];
-      if (obbObbMTV(probe, S)) { hitsWall = true; break; }
-    }
-    if (hitsWall) continue;
-
-    best = step;
-    break; // minsta step hittad
-  }
-
-  if (best > 0) {
-    A.ref._stepRemain = (A.ref._stepRemain || 0) + best-10;
-  A.ref._stepLock = 100; // 1-3 frames: hindra att AI flippar pga sidlogg i samma hörn
-  continue;
-  }
-}
 
 
       
@@ -785,25 +717,39 @@ if (isAxisAlignedRot(d.rot)) {
 
 
    
-      const corrx = (d.x - o.x) - wantdx;
-      const corry = (d.y - o.y) - wantdy;
+      const corrx = (d.x - (d.sx || d.x)) - wantdx;
+      const corry = (d.y - (d.sy || d.y)) - wantdy;
       const movedN = Math.hypot(corrx, corry);
         o.blocked=false;
         o.blockedx=false;
         o.blockedy=false;
      
-     
+    
      if(!o.slide){
-        o.blocked  = movedN > 0.25;
+        o.blocked  = movedN > 0;
         o.blockedx = o.blocked && Math.abs(d.x - o.x) < Math.abs(wantdx);
         o.blockedy = o.blocked && Math.abs(d.y - o.y) < Math.abs(wantdy);
      }
         
       
+      o.savedx=o.x;
+      o.savedy=o.y;
+      
+      
+      
 
       o.x = d.x - (d._insetOffX || 0);
         o.y = d.y - (d._insetOffY || 0);
         o.freex = o.x; o.freey = o.y;
+        
+        o.stuck=false;
+        var diff = Math.abs( o.savedx - o.x );
+        var diff2 = Math.abs( o.savedy - o.y );
+        if( diff2 < 0.1 &&diff < 0.1) {
+            o.stuck=true;
+        }
+        
+        
     }
 
     
@@ -1086,6 +1032,34 @@ const baseSy = dy / steps;
   // börja från startposition för solid-delen
   A.x = (A.sx || 0) + (A._insetOffX || 0);
   A.y = (A.sy || 0) + (A._insetOffY || 0);
+  
+  
+  if (A.ref && A.ref._stepRemain !== 0) {
+  const STEP_PER_FRAME = 100;
+  const remain = A.ref._stepRemain;
+
+  if (remain > 0) {
+    const take = Math.min(STEP_PER_FRAME, remain);
+    A.y += take;
+    A.ref._stepRemain -= take;
+    if (A.ref._stepRemain < 0.001) A.ref._stepRemain = 0;
+  } else {
+    const take = Math.min(STEP_PER_FRAME, -remain);
+    A.y -= take;
+    A.ref._stepRemain += take;
+    if (A.ref._stepRemain > -0.001) A.ref._stepRemain = 0;
+  }
+
+  A._aabb = { x: A.x, y: A.y, w: A.w, h: A.h };
+}
+if (A.ref && A.ref._stepLock > 0) A.ref._stepLock--;
+  
+  
+  
+  
+  
+  
+  
 
   if (isAxisAlignedRot(A.rot)) {
     A._corners = null;
@@ -1139,9 +1113,8 @@ o._contactNormals.length = 0;
         if (!contact) continue;
         
 
-
 //NYTT
-if (Math.abs(contact.n.x) > 0.9 && (A.ref?._wantdx || 0) !== 0) {
+if (o.stuck&&o.blockedy&&Math.abs(contact.n.x) > 0.9 && (A.x - (A.sx || A.x) || 0) !== 0) {
   const wantdx = (A.ref?._wantdx || 0);
   const moveX = A.x - (A.sx || A.x);
 const dir = moveX >= 0 ? 1 : -1;
@@ -1163,9 +1136,17 @@ if (dir > 0) {
   tangent = (t1.x <= t2.x) ? t1 : t2;
 }
 
-const goingUphill = tangent.y < -0.001;
-const goingDownhill = tangent.y > 0.001;
+let goingUphill = false;
+let goingDownhill = false;
 
+if (Math.abs((S.rot || 0) % 90) > 0.001) {
+  goingUphill = tangent.y < -0.001;
+  goingDownhill = tangent.y > 0.001;
+} else {
+  // raka objekt / sömfall: avgör med probes istället
+  goingUphill = true;
+  goingDownhill = true;
+}
   for (let step = 1; step <= STEP_MAX; step++) {
 
     // =========================
@@ -1246,7 +1227,8 @@ const goingDownhill = tangent.y > 0.001;
 
   if (best > 0) {
     if (useStepDown) {
-      A.ref._stepRemain = (A.ref._stepRemain || 0) - best ;
+     if (Math.abs((S.rot || 0) % 90) > 0.001) A.ref._stepRemain = (A.ref._stepRemain || 0) - best ;
+     else{  A.ref._stepRemain = (A.ref._stepRemain || 0) - best +10;}
     } else {
       A.ref._stepRemain = (A.ref._stepRemain || 0) + best - 10;
     }
@@ -1351,7 +1333,7 @@ if (o._contactNormals.length > 0 && inputLen > DEADZONE) {
 
 
 //NYTT
-if (Math.abs(contact.n.x) > 0.9 && (A.ref?._wantdx || 0) !== 0) {
+if (o.stuck&&o.blockedy&&Math.abs(contact.n.x) > 0.9 && (A.x - (A.sx || A.x) || 0) !== 0) {
   const wantdx = (A.ref?._wantdx || 0);
   const moveX = A.x - (A.sx || A.x);
 const dir = moveX >= 0 ? 1 : -1;
@@ -1373,9 +1355,17 @@ if (dir > 0) {
   tangent = (t1.x <= t2.x) ? t1 : t2;
 }
 
-const goingUphill = tangent.y < -0.001;
-const goingDownhill = tangent.y > 0.001;
+let goingUphill = false;
+let goingDownhill = false;
 
+if (Math.abs((S.rot || 0) % 90) > 0.001) {
+  goingUphill = tangent.y < -0.001;
+  goingDownhill = tangent.y > 0.001;
+} else {
+  // raka objekt / sömfall: avgör med probes istället
+  goingUphill = true;
+  goingDownhill = true;
+}
 
 
   for (let step = 1; step <= STEP_MAX; step++) {
@@ -1458,7 +1448,8 @@ const goingDownhill = tangent.y > 0.001;
 
   if (best > 0) {
     if (useStepDown) {
-      A.ref._stepRemain = (A.ref._stepRemain || 0) - best ;
+     if (Math.abs((S.rot || 0) % 90) > 0.001) A.ref._stepRemain = (A.ref._stepRemain || 0) - best ;
+      else{  A.ref._stepRemain = (A.ref._stepRemain || 0) - best +10;}
     } else {
       A.ref._stepRemain = (A.ref._stepRemain || 0) + best - 10;
     }
@@ -1510,6 +1501,14 @@ const goingDownhill = tangent.y > 0.001;
       }
     }
   }
+
+
+
+
+
+
+
+
 
   A._solvedStatics = true;
 }
@@ -2261,7 +2260,7 @@ class Game6 {
             updateWaterRipples();
             
             this.collitionengine(scales);
-            this.updateUnitMovement();
+            this.updateUnitMovement(scales);
 
     
             
@@ -2730,38 +2729,18 @@ maskCanvas.width = canvas.width;
           ctx.fillRect(x, y, 6, 16);
         }
     }
-updateUnitMovement() {
+updateUnitMovement(scale) {
     const objects = this.getAllObjects();
 
     for (let obj of objects) {
         if (obj.targetX == null || obj.targetY == null){ continue;}
-
+        if(obj.name=="worker"&&obj.blocked)console.log("ja");
         const dx = obj.targetX - obj.x;
         const dy = obj.targetY - obj.y;
         const dist = Math.hypot(dx, dy);
 
-        // PATH-UNITS: enkel och stabil rörelse
-        if (obj.path && obj.path.length > 0) {
-            if (dist < 0.001) {
-                obj.standingstill = true;
-                continue;
-            }
 
-            const step = Math.min(obj.speed || 1, dist);
-            obj.x += (dx / dist) * step;
-            obj.y += (dy / dist) * step;
-            obj.standingstill = false;
-
-            if (Math.abs(dx) > Math.abs(dy)) {
-                obj.direction = dx > 0 ? "right" : "left";
-            } else {
-                obj.direction = dy > 0 ? "down" : "up";
-            }
-
-            continue;
-        }
-
-        // GAMMAL LOGIK för units utan path
+    
 
                 let go=false;
                 if(obj.pretargetX!==obj.targetX||obj.pretargetY!==obj.targetY){go=true;}
@@ -2772,14 +2751,16 @@ updateUnitMovement() {
 
                 obj.standingstill=false;
                 if(dist<2){obj.standingstill=true;continue;}
-                 obj.y += ((dy / dist) * obj.speed);
-                 obj.x += ((dx / dist) * obj.speed);
+                 obj.y += ((dy / dist) * obj.speed*scale);
+                 obj.x += ((dx / dist) * obj.speed*scale);
                  
                  
                 let stop=false; 
                 let isdyn=false;
              
                  
+                 
+                 if(obj.wasblocked==false){
                  if (dist > 2){
                     if (Math.abs(dx) > Math.abs(dy)) {
                         if(go==true)obj.direction = dx > 0 ? "right" : "left";
@@ -2791,8 +2772,9 @@ updateUnitMovement() {
                         if(!obj.blockedx||go)obj.directiony=dy > 0 ? "down" : "up";
                     }
                 }
+                 }
                 obj.wasblocked=false;
-                //if(obj.blocked)obj.wasblocked=true;
+                if(obj.blocked)obj.wasblocked=true;
                     
     
                    for (let c of obj.collideslistanobj) {
@@ -2817,8 +2799,8 @@ updateUnitMovement() {
                         
                     //    if((obj.blockedx==true&&obj.blockedy==false)||(obj.blockedy==true&&obj.blockedx==false)){
                             
-                            if(obj.blockedcounter==175){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
                             if(obj.blockedcounter==350){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
+                            if(obj.blockedcounter==700){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
                         
                             
                             if(obj.direction=="left"){if(obj.directiony=="up"){obj.y += obj.rakna;}if(obj.directiony=="down"){obj.y -= obj.rakna;}}
@@ -2829,7 +2811,7 @@ updateUnitMovement() {
                         
 
                         
-                        if(obj.blockedcounter>525){
+                        if(obj.blockedcounter>1050){
                             obj.blockedcounter=0;
                             
                             
@@ -3525,7 +3507,9 @@ this.dead=false;
 this.wasblocked=false;
 this.slide=false;
 this.drawunfinished=false;
-
+this.savedx=x;
+this.savedy=y;
+this.stuck=false;
     }
     collidestest(){
 
