@@ -2750,7 +2750,7 @@ updateUnitMovement(scale) {
                     
 
                 obj.standingstill=false;
-                if(dist<2){obj.standingstill=true;continue;}
+                if(dist<2){obj.standingstill=true;obj.targetX=null;obj.targetY=null;continue;}
                  obj.y += ((dy / dist) * obj.speed*scale);
                  obj.x += ((dx / dist) * obj.speed*scale);
                  
@@ -3510,6 +3510,7 @@ this.drawunfinished=false;
 this.savedx=x;
 this.savedy=y;
 this.stuck=false;
+this.sistabit=false;
     }
     collidestest(){
 

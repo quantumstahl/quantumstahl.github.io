@@ -945,12 +945,13 @@
                     }
                     
                     updateWorker(w, townhall, teamResources[w.owner || "player"], scale);
-                    updateTeamAI("red", scale);
-                   // updateTeamAI("yellow", scale);
-                   // updateTeamAI("green", scale);
+                    
                     
                     
                 }
+                updateTeamAI("red", scale);
+                updateTeamAI("yellow", scale);
+                updateTeamAI("green", scale);
         
         }
 function orderWorkerGather(worker, resource) {
@@ -959,9 +960,16 @@ function orderWorkerGather(worker, resource) {
 
     worker.targetResource = resource;
     worker.jobType = resource.type;
-    worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
+    worker.targetDropoff = getNearestDropoff(worker, resource.type);
     worker.state = "moveToResource";
-}          
+
+    const p = getApproachPoint(worker, resource, 18);
+    if (p) {
+        if(!worker.sistabit)requestUnitPath(worker, p.x, p.y);
+    }
+    if(worker.targetX&&!worker.sistabit){worker.targetX=resource.x+resource.dimx/2;worker.targetY=resource.y+resource.dimy/2;}
+    if(worker.targetX=== null){worker.targetX=resource.x+resource.dimx/2;worker.targetY=resource.y+resource.dimy/2;worker.sistabit=true;}
+}        
 function getNearestDropoff(unit, resourceType) {
     const owner = unit.owner || "player";
 
@@ -991,143 +999,167 @@ function getNearestDropoff(unit, resourceType) {
 function updateWorker(worker, townhallList, playerResources, scale) {
     if(worker.dead)return;
     const speed = 1.0;
-    
+    drawUnitPathDebug(ctx, worker, "cyan");
 
     if (worker.state === "idle") {
         
         return;
     }
-    if (worker.state === "buildBuilding") {
-      const b = worker.targetBuilding;
+if (worker.state === "buildBuilding") {
+    const b = worker.targetBuilding;
 
-      if (!b || b.dead || !b.isUnderConstruction || b.isFinishing) {
-          worker.targetBuilding = null;
-          worker.state = "idle";
-          worker.targetX=null;
-          worker.targetY=null;
-          
-          return;
-      }
-
-      if (game.collideswithanoterobject(worker, b)) {
-
-          
-        
-
-          b.buildTimer += 1 * scale;
-          b.buildProgress = b.buildTimer / b.buildTimeMax;
-
-          if (b.buildProgress >= 1) {
-              b.buildProgress = 1;
-              b.isUnderConstruction = false;
-              b.isFinishing = true;
-
-              finishBuilding(b,worker);
-              
-              worker.targetBuilding = null;
-              
-              if(!b.slot&& b.name=="farm"){b.slot=worker;orderWorkerGather(worker, b);worker.selected=false;}
-              else{
-                 worker.state = "idle";
-                 worker.targetX=null;
-                 worker.targetY=null;
-                 
-              }
-               
-          }
-          return;
-      }
-
-     // worker.standingstill = false;
-      ///worker.targetX = b.x + b.dimx / 2;
-     /// worker.targetY = b.y + b.dimy / 2;
-      return;
-  }
-    
-    if (worker.state === "attackBoar") {
-        const b = worker.attackTarget;
-
-        if (!b || b.dead || b.state === "dead" || b.hp <= 0) {
-            
-            worker.attackTarget = null;
-            worker.state = "gather";
-            worker.targetResource = b;
-            worker.jobType = "food";
-            return;
-        }
-
-        if (game.collideswithanoterobject(worker, b)) {
-            
-            worker.standingstill = true;
-            worker.attackTimer = (worker.attackTimer || 0) + 1 * scale;
-
-            if (worker.attackTimer >= 60) {
-                worker.attackTimer = 0;
-                b.hp -= 5;
-                b.flashTimer=30;
-                if (b.hp <= 0) {
-                    b.dead=true;
-                    b.type = "food";
-                    worker.attackTarget = null;
-                    worker.state = "gather";
-                    worker.targetResource = b;
-                    worker.jobType = "food";
-                    
-                }
-            }
-            return;
-        }
-
-        worker.standingstill = false;
-        worker.targetX = b.x + b.dimx / 2;
-        worker.targetY = b.y + b.dimy / 2;
+    if (!b || b.dead || !b.isUnderConstruction || b.isFinishing) {
+        worker.targetBuilding = null;
+        worker.state = "idle";
+        worker.targetX = null;
+        worker.targetY = null;
+        worker.sistabit=false;
+        clearUnitPath(worker);
         return;
     }
-    if (worker.state === "moveToResource") {
-       
-        const r = worker.targetResource;
 
-        if (!r || (r.dead&&r.name!=="sheep"&&r.name!=="boar") || r.amount <= 0) {
-            worker.targetResource = null;
+    if (game.collideswithanoterobject(worker, b)) {
+        worker.sistabit=false;
+        clearUnitPath(worker);
 
-            // Har vi redan något med oss? Gå hem först.
-            if (worker.carryAmount > 0) {
-                worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
-                if (worker.targetDropoff) {
-                    worker.state = "returnToBase";
-                } else {
-                    worker.state = "idle";
-                }
+        b.buildTimer += 1 * scale;
+        b.buildProgress = b.buildTimer / b.buildTimeMax;
+
+        if (b.buildProgress >= 1) {
+            b.buildProgress = 1;
+            b.isUnderConstruction = false;
+            b.isFinishing = true;
+
+            finishBuilding(b, worker);
+            worker.targetBuilding = null;
+
+            if (!b.slot && b.name == "farm") {
+                b.slot = worker;
+                orderWorkerGather(worker, b);
+                worker.selected = false;
+              
             } else {
-                // Hitta nästa resurs av samma typ
-                const next = getNearestResourceOfType(worker, worker.jobType);
-                if (next) {
-                    worker.targetResource = next;
-                    worker.state = "moveToResource";
-                } else {
-                    worker.state = "idle";
-                    worker.jobType = null;
-                }
+                worker.state = "idle";
+                worker.targetX = null;
+                worker.targetY = null;
+                worker.standingstill = true;
+         
             }
-
+        } else {
             worker.standingstill = true;
-            return;
+         
         }
 
-        if (game.collideswithanoterobject(worker, r)) {
-            worker.state = "gather";
-            worker.gatherTimer = 0;
-            worker.standingstill = true;
-            return;
-        }
-   
-        
-
-        worker.standingstill = false;
-        worker.targetX = r.x + r.dimx / 2;
-        worker.targetY = r.y + r.dimy / 2;
         return;
     }
+
+    const p = getApproachPoint(worker, b, 20);
+    if (p&&(!worker.sistabit)) {
+        worker.targetX = p.x;
+        worker.targetY = p.y;
+    }
+    if(worker.targetX&&!worker.sistabit)updateUnitPathMovement(worker, scale, { reachDist: 18, repathEvery: 40 });
+    if(worker.targetX=== null){worker.targetX=b.x+b.dimx/2;worker.targetY=b.y+b.dimy/2;}
+    return;
+}
+    
+if (worker.state === "attackBoar") {
+    const b = worker.attackTarget;
+
+    if (!b || b.dead || b.state === "dead" || b.hp <= 0) {
+        worker.attackTarget = null;
+        worker.state = "gather";
+        worker.targetResource = b;
+        worker.jobType = "food";
+        clearUnitPath(worker);
+        return;
+    }
+
+    if (game.collideswithanoterobject(worker, b)) {
+        clearUnitPath(worker);
+        worker.standingstill = true;
+        worker.attackTimer = (worker.attackTimer || 0) + 1 * scale;
+
+        if (worker.attackTimer >= 60) {
+            worker.attackTimer = 0;
+            b.hp -= 5;
+            b.flashTimer = 30;
+
+            if (b.hp <= 0) {
+                b.dead = true;
+                b.type = "food";
+                worker.attackTarget = null;
+                worker.state = "gather";
+                worker.targetResource = b;
+                worker.jobType = "food";
+                worker.sistabit=false;
+            }
+        }
+        return;
+    }
+
+    worker.targetX = b.x + b.dimx / 2;
+    worker.targetY = b.y + b.dimy / 2;
+    updateUnitPathMovement(worker, scale, { reachDist: 14, repathEvery: 25, movedThreshold: 12 });
+    return;
+}
+if (worker.state === "moveToResource") {
+    const r = worker.targetResource;
+
+    if (!r || (r.dead && r.name !== "sheep" && r.name !== "boar") || r.amount <= 0) {
+        worker.targetResource = null;
+        clearUnitPath(worker);
+
+        if (worker.carryAmount > 0) {
+            worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
+            if (worker.targetDropoff) {
+                worker.state = "returnToBase";
+                worker.sistabit=false;
+                requestUnitPath(
+                    worker,
+                    worker.targetDropoff.x + worker.targetDropoff.dimx / 2,
+                    worker.targetDropoff.y + worker.targetDropoff.dimy / 2
+                );
+            } else {
+                worker.state = "idle";
+                worker.sistabit=false;
+            }
+        } else {
+            const next = getNearestResourceOfType(worker, worker.jobType);
+            if (next) {
+                worker.targetResource = next;
+                worker.state = "moveToResource";
+                worker.sistabit=false;
+                requestUnitPath(worker, next.x + next.dimx / 2, next.y + next.dimy / 2);
+            } else {
+                worker.state = "idle";
+                worker.sistabit=false;
+                worker.jobType = null;
+            }
+        }
+
+        worker.standingstill = true;
+        return;
+    }
+
+    if (game.collideswithanoterobject(worker, r)) {
+        clearUnitPath(worker);
+        worker.state = "gather";
+        worker.sistabit=false;
+        worker.gatherTimer = 0;
+        worker.standingstill = true;
+        return;
+    }
+
+const p = getApproachPoint(worker, r, 18);
+if (p&&(worker.sistabit==false)) {
+    worker.targetX = p.x;
+    worker.targetY = p.y;
+}
+    if(worker.targetX&&!worker.sistabit)updateUnitPathMovement(worker, scale, { reachDist: 16, repathEvery: 50 });
+    if(worker.targetX=== null){worker.targetX=r.x+r.dimx/2;worker.targetY=r.y+r.dimy/2;worker.sistabit=true;}
+    return;
+}
 
     if (worker.state === "gather") {
         const r = worker.targetResource;
@@ -1155,17 +1187,21 @@ function updateWorker(worker, townhallList, playerResources, scale) {
                 worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
                 if (worker.targetDropoff) {
                     worker.state = "returnToBase";
+                    worker.sistabit=false;
                 } else {
                     worker.state = "idle";
+                    worker.sistabit=false;
                 }
             } else {
                 const next = getNearestResourceOfType(worker, worker.jobType);
                 if (next) {
                     worker.targetResource = next;
                     worker.state = "moveToResource";
+                    worker.sistabit=false;
                 } else {
                     worker.state = "idle";
                     worker.jobType = null;
+                    worker.sistabit=false;
                 }
             }
 
@@ -1193,66 +1229,89 @@ function updateWorker(worker, townhallList, playerResources, scale) {
                 worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
                 if (worker.targetDropoff) {
                     worker.state = "returnToBase";
+                    worker.sistabit=false;
                 } else {
                     worker.state = "idle";
+                    worker.sistabit=false;
                 }
             }
         }
         return;
     }
 
-    if (worker.state === "returnToBase") {
-        const t = worker.targetDropoff;
-        
-        if (!t) {
-            worker.state = "idle";
-            worker.standingstill = true;
-            return;
-        }
+if (worker.state === "returnToBase") {
+    const t = worker.targetDropoff;
 
-        if (game.collideswithanoterobject(worker, t)) {
-            if(t.isUnderConstruction)return;
-            worker.state = "deposit";
-            worker.standingstill = true;
-            return;
-        }
-
-        worker.standingstill = false;
-        worker.targetX = t.x + t.dimx / 2;
-        worker.targetY = t.y + t.dimy / 2;
+    if (!t || t.dead) {
+        worker.state = "idle";
+        worker.sistabit=false;
+        worker.standingstill = true;
+        clearUnitPath(worker);
         return;
     }
 
-    if (worker.state === "deposit") {
-        if (worker.carryAmount > 0 && worker.carryType) {
-            playerResources[worker.carryType] =
-                (playerResources[worker.carryType] || 0) + worker.carryAmount;
-        }
-
-        worker.carryAmount = 0;
-        worker.carryType = null;
-
-        // Försök fortsätta med samma resurstyp
-        if (worker.targetResource  && worker.targetResource.amount > 0) {
-            worker.state = "moveToResource";
-        } else {
-            const next = getNearestResourceOfType(worker, worker.jobType);
-            
-            
-            
-            if (next&&!next.slot) {
-                worker.targetResource = next;
-                worker.state = "moveToResource";
-            } else {
-                worker.state = "idle";
-                worker.targetResource = null;
-                worker.jobType = null;
-            }
-        }
-
+    if (game.collideswithanoterobject(worker, t)) {
+        clearUnitPath(worker);
+        if (t.isUnderConstruction) return;
+        worker.state = "deposit";
+        worker.sistabit=false;
         worker.standingstill = true;
         return;
     }
+
+    const p = getApproachPoint(worker, t, 20);
+    if (p&&(!worker.sistabit)) {
+        worker.targetX = p.x;
+        worker.targetY = p.y;
+    }
+    if(worker.targetX&&!worker.sistabit)updateUnitPathMovement(worker, scale, { reachDist: 18, repathEvery: 50 });
+    
+    if(worker.targetX=== null){worker.targetX=t.x+t.dimx/2;worker.targetY=t.y+t.dimy/2;worker.sistabit=true;}
+    return;
+}
+
+if (worker.state === "deposit") {
+    clearUnitPath(worker);
+
+    if (worker.carryAmount > 0 && worker.carryType) {
+        playerResources[worker.carryType] =
+            (playerResources[worker.carryType] || 0) + worker.carryAmount;
+    }
+
+    worker.carryAmount = 0;
+    worker.carryType = null;
+
+    if (worker.targetResource && worker.targetResource.amount > 0) {
+        worker.state = "moveToResource";
+        worker.sistabit=false;
+        requestUnitPath(
+            worker,
+            worker.targetResource.x + worker.targetResource.dimx / 2,
+            worker.targetResource.y + worker.targetResource.dimy / 2
+        );
+    } else {
+        const next = getNearestResourceOfType(worker, worker.jobType);
+
+        if (next && !next.slot) {
+            worker.targetResource = next;
+            worker.state = "moveToResource";
+            worker.sistabit=false;
+            requestUnitPath(
+                worker,
+                next.x + next.dimx / 2,
+                next.y + next.dimy / 2
+            );
+        } else {
+            worker.state = "idle";
+            worker.targetResource = null;
+            worker.jobType = null;
+            worker.sistabit=false;
+        }
+    }
+
+    worker.standingstill = true;
+    return;
+}
 }
 function getNearestResourceOfType(unit, type) {
     if (!type) return null;
@@ -1288,13 +1347,22 @@ function getNearestResourceOfType(unit, type) {
     return best;
 }    
 function clearWorkerOrder(worker) {
+    if (!worker) return;
+
+    if (worker.targetResource && worker.targetResource.slot === worker) {
+        worker.targetResource.slot = null;
+    }
+
     worker.state = "idle";
     worker.targetResource = null;
     worker.targetDropoff = null;
     worker.jobType = null;
     worker.gatherTimer = 0;
     worker.targetBuilding = null;
-}         
+    worker.attackTarget = null;
+
+    clearUnitPath(worker);
+}       
 function dist2(a, b) {
     const dx = a.x - b.x;
     const dy = a.y - b.y;
@@ -1463,10 +1531,17 @@ function updateBoar(boar, scale) {
 }            
 function orderWorkerAttackBoar(worker, boar) {
     if (!worker || !boar || boar.state === "dead") return;
+
     clearWorkerOrder(worker);
     worker.attackTarget = boar;
     worker.state = "attackBoar";
-}            
+
+    requestUnitPath(
+        worker,
+        boar.x + boar.dimx / 2,
+        boar.y + boar.dimy / 2
+    );
+}        
 function updatePassiveWander(unit, scale, radius = 80, waitMin = 40, waitMax = 140) {
     if (unit.dead) return;
 
@@ -1965,8 +2040,7 @@ function placeBuilding(x, y, buildingType) {
         w.targetBuilding = b;
         
        
-        w.targetX=b.x+b.dimx/2;
-        w.targetY=b.y+b.dimy/2;
+        requestUnitPath(w, b.x + b.dimx / 2, b.y + b.dimy / 2);
         w.selected=false;
         
     }
@@ -2759,8 +2833,7 @@ function placeBuildingForOwner(x, y, buildingType, owner, builder) {
         clearWorkerOrder(builder);
         builder.state = "buildBuilding";
         builder.targetBuilding = b;
-        builder.targetX = b.x + b.dimx / 2;
-        builder.targetY = b.y + b.dimy / 2;
+        requestUnitPath(builder, b.x + b.dimx / 2, b.y + b.dimy / 2);
     }
 
     markStaticsDirty();
@@ -2809,6 +2882,22 @@ function updateTeamAI(owner, scale) {
 
     const mainTownhall = townhalls[0];
     if (!mainTownhall) return;
+
+const unfinished = getUnfinishedBuildingsNeedingBuilder(owner);
+for (const b of unfinished) {
+    if (!hasAliveBuilderAssigned(b)) {
+        const builder = getBuilderWorkerForTeam(owner);
+        if (builder) {
+            clearWorkerOrder(builder);
+            builder.state = "buildBuilding";
+            builder.targetBuilding = b;
+            builder.targetX = b.x + b.dimx / 2;
+            builder.targetY = b.y + b.dimy / 2;
+        }
+        return;
+    }
+}
+
 
     // --- 1. Försvarsläge prioriteras ---
     if (brain.defendTarget && isThreatStillRelevant(owner, brain.defendTarget, 320)) {
@@ -3245,6 +3334,176 @@ function isThreatStillRelevant(owner, threat, range = 320) {
     }
 
     return false;
+}
+function clearUnitPath(unit) {
+    if (!unit) return;
+    if (game.clearPath) game.clearPath(unit);
+    unit.path = null;
+    unit.pathIndex = 0;
+    unit._lastPathGoalX = null;
+    unit._lastPathGoalY = null;
+    unit.repathTimer = 0;
+}
+
+function requestUnitPath(unit, tx, ty) {
+    if (!unit) return;
+    unit.targetX = tx;
+    unit.targetY = ty;
+    unit.repathTimer = 0;
+    unit._lastPathGoalX = null;
+    unit._lastPathGoalY = null;
+}
+
+function updateUnitPathMovement(unit, scale, options = {}) {
+    if (!unit || unit.dead) return;
+
+    const reachDist = options.reachDist ?? 14;
+    const repathEvery = options.repathEvery ?? 45;
+    const movedThreshold = options.movedThreshold ?? 24;
+
+    if (unit.targetX == null || unit.targetY == null) {
+        unit.standingstill = true;
+        clearUnitPath(unit);
+        return;
+    }
+
+    if (unit.repathTimer == null) unit.repathTimer = 0;
+    unit.repathTimer -= 1 * scale;
+
+    const gx = unit.targetX;
+    const gy = unit.targetY;
+
+    const dxGoal = gx - (unit._lastPathGoalX ?? gx);
+    const dyGoal = gy - (unit._lastPathGoalY ?? gy);
+    const goalMoved = Math.hypot(dxGoal, dyGoal);
+
+    if (
+        unit.repathTimer <= 0 ||
+        !unit.path ||
+        unit.path.length === 0 ||
+        goalMoved > movedThreshold
+    ) {
+        unit._lastPathGoalX = gx;
+        unit._lastPathGoalY = gy;
+        game.pathUnitTo(unit, gx, gy);
+        unit.repathTimer = repathEvery;
+    }
+
+    if (unit.path && unit.path.length > 0) {
+        game.followPath(unit, { reachDist });
+    }
+
+    const dx = (unit.targetX ?? unit.x) - unit.x;
+    const dy = (unit.targetY ?? unit.y) - unit.y;
+
+    if (Math.hypot(dx, dy) < 4) {
+        unit.standingstill = true;
+    } else {
+        unit.standingstill = false;
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+            unit.direction = dx >= 0 ? "right" : "left";
+        } else {
+            unit.direction = dy >= 0 ? "down" : "up";
+        }
+    }
+}
+function drawUnitPathDebug(ctx, unit, color = "yellow") {
+    if (!unit || !unit.path || unit.path.length === 0) return;
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(unit.x + game.getcamerax(), unit.y + game.getcameray());
+
+    for (let i = unit.pathIndex || 0; i < unit.path.length; i++) {
+        const p = unit.path[i];
+        ctx.lineTo(p.x + game.getcamerax(), p.y + game.getcameray());
+    }
+
+    ctx.stroke();
+
+    for (let i = unit.pathIndex || 0; i < unit.path.length; i++) {
+        const p = unit.path[i];
+        ctx.beginPath();
+        ctx.arc(
+            p.x + game.getcamerax(),
+            p.y + game.getcameray(),
+            4,
+            0,
+            Math.PI * 2
+        );
+        ctx.fillStyle = color;
+        ctx.fill();
+    }
+}
+function getApproachPoint(unit, target, margin = 12) {
+    if (!unit || !target) return null;
+margin= 0;
+    const points = [
+        // vänster
+        { x: target.x - margin, y: target.y + target.dimy / 2 },
+        // höger
+        { x: target.x + target.dimx + margin, y: target.y + target.dimy / 2 },
+        // uppe
+        { x: target.x + target.dimx / 2, y: target.y - margin },
+        // nere
+        { x: target.x + target.dimx / 2, y: target.y + target.dimy + margin },
+
+        // hörn
+        { x: target.x - margin, y: target.y - margin },
+        { x: target.x + target.dimx + margin, y: target.y - margin },
+        { x: target.x - margin, y: target.y + target.dimy + margin },
+        { x: target.x + target.dimx + margin, y: target.y + target.dimy + margin }
+    ];
+
+    let best = null;
+    let bestDist = Infinity;
+
+    for (const p of points) {
+        const dx = p.x - unit.x;
+        const dy = p.y - unit.y;
+        const d = dx * dx + dy * dy;
+
+        if (d < bestDist) {
+            bestDist = d;
+            best = p;
+        }
+    }
+
+    return best;
+}
+function moveDirectTo(unit, tx, ty) {
+    unit.targetX = tx;
+    unit.targetY = ty;
+
+    const dx = tx - unit.x;
+    const dy = ty - unit.y;
+
+    unit.standingstill = false;
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+        unit.direction = dx >= 0 ? "right" : "left";
+    } else {
+        unit.direction = dy >= 0 ? "down" : "up";
+    }
+}
+function unitHasActivePath(unit) {
+    return !!(unit.path && unit.pathIndex != null && unit.pathIndex < unit.path.length);
+}
+function getUnfinishedBuildingsNeedingBuilder(owner) {
+    return getAllBuildingsForTeam(owner).filter(b =>
+        b && !b.dead && b.isUnderConstruction && !b.isFinishing
+    );
+}
+
+function hasAliveBuilderAssigned(building) {
+    const workers = getTeamObjects("worker", building.owner || "player");
+    return workers.some(w =>
+        !w.dead &&
+        w.state === "buildBuilding" &&
+        w.targetBuilding === building
+    );
 }
         </script>
     </body>  
