@@ -166,17 +166,45 @@ function obbObbMTV(A, B){
   return { n, depth: bestDepth };
 }
 
-function circleCircleMTV(A,B){
-  const ax=A.x+A.w*0.5, ay=A.y+A.h*0.5;
-  const bx=B.x+B.w*0.5, by=B.y+B.h*0.5;
-  const dx=bx-ax, dy=by-ay;
-  const d2 = dx*dx + dy*dy;
-  const rA = Math.min(A.w,A.h)*0.5*1.2;
-  const rB = Math.min(B.w,B.h)*0.5*1.2;
-  const R  = rA + rB;
-  if (d2 > R*R) return null;         // snabb exit
-  const dist = Math.sqrt(d2) || 1;
-  return { n:{x:dx/dist, y:dy/dist}, depth: R - dist };
+function circleCircleMTV(A, B) {
+  const ar = (A.radius != null) ? A.radius : Math.min(A.w, A.h) * 0.5;
+  const br = (B.radius != null) ? B.radius : Math.min(B.w, B.h) * 0.5;
+
+  let dx = B.x - A.x;
+  let dy = B.y - A.y;
+  let distSq = dx * dx + dy * dy;
+  const r = ar + br;
+
+  if (distSq >= r * r) return null;
+
+  let dist = Math.sqrt(distSq);
+  let nx, ny;
+
+  if (dist > 0.0001) {
+    nx = dx / dist;
+    ny = dy / dist;
+  } else {
+    // exakt overlap: ta normal från relativ rörelse
+    const rvx = (B.ref?._wantdx || 0) - (A.ref?._wantdx || 0);
+    const rvy = (B.ref?._wantdy || 0) - (A.ref?._wantdy || 0);
+    const rl = Math.hypot(rvx, rvy);
+
+    if (rl > 0.0001) {
+      nx = rvx / rl;
+      ny = rvy / rl;
+    } else {
+      // sista fallback: stabil riktning från id
+      nx = (A.id < B.id) ? 1 : -1;
+      ny = 0;
+    }
+
+    dist = 0;
+  }
+
+  return {
+    n: { x: nx, y: ny },
+    depth: r - dist
+  };
 }
 
 
@@ -543,14 +571,15 @@ if (A.ref && B.type === 'static' && !isAxisAlignedRot(B.rot)) {
       if (A.ref) _pushCollisionLog(A.ref, (B.ref || B), n, false, dpth, A._aabb, B._aabb);
       if (B.ref) _pushCollisionLog(B.ref, (A.ref || A), { x: -n.x, y: -n.y }, false, dpth, A._aabb, B._aabb);
     }
-
-    // --------- A mot andra dynamics ---------
+    
+// --------- A mot andra dynamics ---------
     tmpDyn.length = 0;
     const nearDyn = gridDyn.query(aAABB, tmpDyn);
 
     for (let bi = 0; bi < nearDyn.length; bi++) {
       const B = nearDyn[bi];
-
+      A.ref.wasdynblocked=false;
+      B.ref.wasdynblocked=false;
       // Change B: behandla varje par exakt en gång
       if (B.id <= A.id) continue;
       if (!shouldCollide(A, B)) continue;
@@ -598,8 +627,11 @@ if (A.ref && B.type === 'static' && !isAxisAlignedRot(B.rot)) {
 
       if (A.ref) _pushCollisionLog(A.ref, (B.ref || B), n, false, dpth, A._aabb, B._aabb);
       if (B.ref) _pushCollisionLog(B.ref, (A.ref || A), { x: -n.x, y: -n.y }, false, dpth, A._aabb, B._aabb);
+      A.ref.wasdynblocked=true;
+      B.ref.wasdynblocked=true;
     }
   }
+
 
   // — Applicera och uppdatera cache inför nästa iteration —
 
@@ -2734,7 +2766,6 @@ updateUnitMovement(scale) {
 
     for (let obj of objects) {
         if (obj.targetX == null || obj.targetY == null){ continue;}
-        if(obj.name=="worker"&&obj.blocked)console.log("ja");
         const dx = obj.targetX - obj.x;
         const dy = obj.targetY - obj.y;
         const dist = Math.hypot(dx, dy);
@@ -2749,8 +2780,8 @@ updateUnitMovement(scale) {
                 obj.pretargetY=obj.targetY;
                     
 
-                obj.standingstill=false;
-                if(dist<2){obj.standingstill=true;obj.targetX=null;obj.targetY=null;continue;}
+            
+                if(dist<2||obj.standingstill){obj.targetX=null;obj.targetY=null;continue;}
                  obj.y += ((dy / dist) * obj.speed*scale);
                  obj.x += ((dx / dist) * obj.speed*scale);
                  
@@ -2760,31 +2791,67 @@ updateUnitMovement(scale) {
              
                  
                  
-                 if(obj.wasblocked==false){
-                 if (dist > 2){
-                    if (Math.abs(dx) > Math.abs(dy)) {
-                        if(go==true)obj.direction = dx > 0 ? "right" : "left";
-                        if(!obj.blockedx||go)obj.directiony=dy > 0 ? "down" : "up";
-                        if(!obj.blockedy||go)obj.directionx=dx > 0 ? "right" : "left";
-                    } else {
-                        if(go==true)obj.direction = dy > 0 ? "down" : "up";
-                        if(!obj.blockedy||go)obj.directionx=dx > 0 ? "right" : "left";
-                        if(!obj.blockedx||go)obj.directiony=dy > 0 ? "down" : "up";
-                    }
-                }
-                 }
+           
+            if (dist > 2) {
+    const absdx = Math.abs(dx);
+    const absdy = Math.abs(dy);
+
+    // normal riktning
+   
+
+    // om vi är blockerade i x-led och försöker gå i x-led:
+    if (absdx > absdy && obj.blockedx) {
+        if (!obj.avoidDir) {
+            if(obj.wasdynblocked){
+                if(obj.direction==="right"||obj.direction==="down")obj.avoidDir ="down" ;
+                else obj.avoidDir = "up";
+            }
+            else obj.avoidDir = dy > 0 ? "down" : "up";
+           // else obj.avoidDir = Math.floor(Math.random() * 2) >0 ? "down" : "up";
+          //  else obj.avoidDir = dy > 0 ? "up" : "down";
+            obj.avoidTimer = 2;
+        }
+        obj.direction = obj.avoidDir;
+    }
+
+    // om vi är blockerade i y-led och försöker gå i y-led:
+    else if (absdy >= absdx && obj.blockedy) {
+        if (!obj.avoidDir) {
+            if(obj.wasdynblocked){
+                if(obj.direction==="down"||obj.direction==="right")obj.avoidDir = "right";
+                else obj.avoidDir = "left";
+            }
+            else obj.avoidDir = dx > 0 ? "right" : "left";
+          //  else obj.avoidDir = Math.floor(Math.random() * 2) >0 ? "right" : "left";
+            obj.avoidTimer = 2;
+        }
+        obj.direction = obj.avoidDir;
+    }
+    else{
+        if (absdx > absdy) obj.direction = dx > 0 ? "right" : "left";
+        else obj.direction = dy > 0 ? "down" : "up";
+        obj.avoidDir=null;
+    }
+    // håll kvar sidvalet lite
+    if (obj.avoidTimer > 0) {
+        obj.avoidTimer--;
+        obj.direction = obj.avoidDir;
+    } else {
+       // obj.avoidDir = null;
+    }
+}
+    
+    
                 obj.wasblocked=false;
                 if(obj.blocked)obj.wasblocked=true;
                     
     
                    for (let c of obj.collideslistanobj) {
 
-                   if(!c.isBuilding){isdyn=true;}
-                   else{
-                   if ((obj.targetDropoff && c == obj.targetDropoff)){ obj.blocked=false;obj.blocked1=0;stop=true;} // Ignorera target
-                   if(obj.targetBuilding&&c==obj.targetBuilding){ obj.blocked=false;obj.blocked1=0;stop=true;} 
-                   if(obj.targetResource&&c==obj.targetResource){obj.blocked=false;obj.blocked1=0;stop=true;}
-                    }
+                 //  if ((obj.targetDropoff && c == obj.targetDropoff)){stop=true;} // Ignorera target
+                   if(obj.targetBuilding&&c==obj.targetBuilding){ stop=true;} 
+                 //  if(obj.targetResource&&c==obj.targetResource){stop=true;}
+                    
                 }
                 
                 
@@ -2799,14 +2866,14 @@ updateUnitMovement(scale) {
                         
                     //    if((obj.blockedx==true&&obj.blockedy==false)||(obj.blockedy==true&&obj.blockedx==false)){
                             
-                            if(obj.blockedcounter==350){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
-                            if(obj.blockedcounter==700){if(Math.floor(Math.random() * 2)==0){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}}
+                      //      if(obj.blockedcounter==350){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}
+                        //    if(obj.blockedcounter==700){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}
                         
                             
-                            if(obj.direction=="left"){if(obj.directiony=="up"){obj.y += obj.rakna;}if(obj.directiony=="down"){obj.y -= obj.rakna;}}
-                            if(obj.direction=="right"){if(obj.directiony=="up"){obj.y -= obj.rakna;}if(obj.directiony=="down"){obj.y += obj.rakna;}}
-                            if(obj.direction=="up"){if(obj.directionx=="left"){obj.x += obj.rakna2;}if(obj.directionx=="right"){obj.x -= obj.rakna2;}}
-                            if(obj.direction=="down"){if(obj.directionx=="left"){obj.x -= obj.rakna2;}if(obj.directionx=="right"){obj.x += obj.rakna2;}}
+                            if(obj.direction=="left"){obj.x -= Math.abs(obj.rakna2);}
+                            if(obj.direction=="right"){obj.x += Math.abs(obj.rakna2);}
+                            if(obj.direction=="up"){obj.y -= Math.abs(obj.rakna);}
+                            if(obj.direction=="down"){obj.y += Math.abs(obj.rakna);}
                         //}
                         
 
@@ -2818,18 +2885,7 @@ updateUnitMovement(scale) {
                         }
 
                 }
-                else{obj.blockedcounter=0;
-                    if (dist > 1){
-                    if (Math.abs(dx) > Math.abs(dy)) {
-                        obj.direction = dx > 0 ? "right" : "left";
-                    } else {
-                        obj.direction = dy > 0 ? "down" : "up";
 
-                    }
-                }
-                
-                
-                }
 
 
 
@@ -2879,6 +2935,7 @@ updateUnitMovement(scale) {
     // Beräkna medelpunkt för enheterna
     let avgX = 0, avgY = 0;
     for (let u of units) {
+        u.standingstill=false;
         avgX += u.x;
         avgY += u.y;
     }
@@ -3511,6 +3568,7 @@ this.savedx=x;
 this.savedy=y;
 this.stuck=false;
 this.sistabit=false;
+this.wasdynblocked=false;
     }
     collidestest(){
 
