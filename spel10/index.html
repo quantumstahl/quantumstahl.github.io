@@ -1213,8 +1213,7 @@ if (p&&(worker.sistabit==false)) {
             worker.carryType = r.type;
 
             if (r.amount <= 0) {
-                r.dead = true;
-                r.animation=100;
+                game.removeobject(game.getobjecttype(r.name),r);
                 markStaticsDirty();
             }
             
@@ -2760,8 +2759,17 @@ function getAllTeamUnits(owner) {
 }
 
 function getEnemyOwners(owner) {
-    if (owner === "player") return ["red", "yellow", "green"];
-    return ["player", "red", "yellow", "green"].filter(o => o !== owner);
+    const faction = getFaction(owner);
+
+    if (faction === "player") {
+        return ["red", "yellow", "green"];
+    }
+
+    if (faction === "ai") {
+        return ["player"];
+    }
+
+    return [];
 }
 function ensureOwnerByName(obj) {
     if (!obj.owner) obj.owner = getOwnerFromName(obj.name);
@@ -2986,8 +2994,13 @@ for (const b of unfinished) {
 function isEnemy(a, b) {
     if (!a || !b) return false;
     if (a.dead || b.dead) return false;
-    if (!a.owner || !b.owner) return false;
-    return a.owner !== b.owner;
+
+    const fa = getFaction(a.owner);
+    const fb = getFaction(b.owner);
+
+    if (fa === "neutral" || fb === "neutral") return false;
+
+    return fa !== fb;
 }
 
 function getAttackTargetForOwner(owner) {
@@ -3297,10 +3310,7 @@ function sendIdleWarriorsToRally(owner) {
             const d = Math.hypot(dx, dy);
 
             if (d > 30) {
-                w.state = "move";
-                w.targetX = rallyBarrack.rallyX;
-                w.targetY = rallyBarrack.rallyY;
-                w.standingstill = false;
+                orderUnitMove(w, rallyBarrack.rallyX, rallyBarrack.rallyY);
             }
         }
     }
@@ -3308,7 +3318,13 @@ function sendIdleWarriorsToRally(owner) {
 function isEnemyOf(a, b) {
     if (!a || !b) return false;
     if (a.dead || b.dead) return false;
-    return a.owner !== b.owner;
+
+    const fa = getFaction(a.owner);
+    const fb = getFaction(b.owner);
+
+    if (fa === "neutral" || fb === "neutral") return false;
+
+    return fa !== fb;
 }
 function isThreatStillRelevant(owner, threat, range = 320) {
     if (!threat || threat.dead) return false;
@@ -3501,6 +3517,22 @@ function hasAliveBuilderAssigned(building) {
         w.state === "buildBuilding" &&
         w.targetBuilding === building
     );
+}
+function getFaction(owner) {
+    if (owner === "player") return "player";
+    if (owner === "red" || owner === "yellow" || owner === "green") return "ai";
+    return "neutral";
+}
+function orderUnitMove(unit, x, y) {
+    if (!unit) return;
+
+    unit.state = "move";
+    unit.targetX = x;
+    unit.targetY = y;
+    unit.standingstill = false;
+
+    if (game.clearPath) game.clearPath(unit);
+    game.pathUnitTo(unit, x, y);
 }
         </script>
     </body>  
