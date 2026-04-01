@@ -363,7 +363,7 @@
                     game.rebuildPathfinding({
                         isBlocker: (o) => {
                             if (!o || o.dead) return false;
-                            return o.isBuilding || o.name === "tree" || o.name === "tree2" || o.name === "stone" || o.name === "gold" || o.name === "river"|| o.name === "berry";
+                            return o.isBuilding || o.name === "tree" || o.name === "stone" || o.name === "gold" || o.name === "river"|| o.name === "berry";
                         },
                         cell: 32,
                         inflate: 10,
@@ -701,16 +701,7 @@
                         t.type = "wood"; // wood, gold, stone, food
                         t.amount = 100;
                         t.gatherTime = 500;
-                    }
-                }
-                const tree2 = game.getobjecttype('tree2')?.objects || [];
-                for (const t of tree2) {
-                    t.selectable=true;
-                    if(t.state==null){
-                        t.state="idle";
-                        t.type = "wood"; // wood, gold, stone, food
-                        t.amount = 100;
-                        t.gatherTime = 500;
+                        t.animation = Math.floor(Math.random() * 2); // 0,1
                     }
                 }
                 const sheep = game.getobjecttype('sheep')?.objects || [];
@@ -1104,7 +1095,7 @@ if (worker.state === "attackBoar") {
     return;
 }
 if (worker.state === "moveToResource") {
-    const r = worker.targetResource;
+    let r = worker.targetResource;
 
     if (!r || (r.dead && r.name !== "sheep" && r.name !== "boar") || r.amount <= 0) {
         worker.targetResource = null;
@@ -1141,9 +1132,11 @@ if (worker.state === "moveToResource") {
         worker.standingstill = true;
         return;
     }
-
-    if (game.collideswithanoterobject(worker, r)) {
+    const collideobject=game.collideswiths(worker,r.name);
+    if (collideobject) {
         clearUnitPath(worker);
+        r=collideobject;
+        worker.targetResource=collideobject;
         worker.state = "gather";
         worker.sistabit=false;
         worker.gatherTimer = 0;
@@ -1486,12 +1479,16 @@ function updateBoar(boar, scale) {
             // t.vy = -1;
 
             if (t.hp <= 0) {
-                t.selectable=false;
+                t.selectable = false;
                 t.flashTimer = 0;
                 t.dead = true;
-                playerResources.pop -= 1;
-                if (playerResources.pop < 0) playerResources.pop = 0;
-                t.selectable = false;
+
+                const owner = t.owner || "player";
+                const res = teamResources[owner];
+                if (res) {
+                    res.pop -= 1;
+                    if (res.pop < 0) res.pop = 0;
+                }
 
                 if (t.name.includes("worker")) {
                     t.animation = 12;
