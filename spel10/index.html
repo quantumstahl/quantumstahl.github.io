@@ -21,7 +21,12 @@
             font:600 50px system-ui, sans-serif;
             text-align:center;
             z-index:2000;
-            display:none;">
+            display:none;
+
+            user-select:none;
+            pointer-events:none;
+            -webkit-user-select: none;
+        ">
         </div>
         
         <script>
@@ -124,15 +129,18 @@
             canvas.setAttribute("tabindex", "0");
 
             function focusGame() {
-              canvas.focus();
-              window.focus();
+                window.focus();
+               
+              
             }
 
             canvas.addEventListener("click", focusGame);
             window.addEventListener("load", focusGame);
+
+            
             const blockedKeys = [" ", "Space"];
 
-            document.addEventListener("keydown", function(e) {
+            window.addEventListener("keydown", function(e) {
                 if (blockedKeys.includes(e.key) || blockedKeys.includes(e.code)) {
                     e.preventDefault();
                 }
@@ -144,7 +152,7 @@
                 
             });
 
-            document.addEventListener("keyup", function(e) {
+            window.addEventListener("keyup", function(e) {
                 if (blockedKeys.includes(e.key) || blockedKeys.includes(e.code)) {
                     e.preventDefault();
                 }
@@ -158,8 +166,9 @@
             window.addEventListener("blur", () => {
                 keyState.w = keyState.a = keyState.s = keyState.d = false;
               });
-
-
+              
+            let last=0;
+            let savedframes=0;
             function fps() {
                 frames++;
                 const now = performance.now();
@@ -169,7 +178,7 @@
                     last = now;
                 }
                 ctx.font="20px Cinzel";
-                ctx.fillText("fps:" +savedframes,100,200);
+                ctx.fillText("fps:" +savedframes,20,20);
             }
 
 
@@ -231,10 +240,10 @@
                 }
             }
             const teamResources = game.teamResources || (game.teamResources = {
-                player: { wood: 1000, food: 1000, gold: 1000, stone: 0, pop: 3, popMax: 10 },
-                red:    { wood: 300,  food: 300,  gold: 300,  stone: 0, pop: 3, popMax: 10 },
-                yellow: { wood: 300,  food: 300,  gold: 300,  stone: 0, pop: 3, popMax: 10 },
-                green:  { wood: 300,  food: 300,  gold: 300,  stone: 0, pop: 3, popMax: 10 }
+                player: { wood: 1000, food: 0, gold: 0, stone: 0, pop: 3, popMax: 10 },
+                red:    { wood: 0,  food: 0,  gold: 0,  stone: 0, pop: 3, popMax: 10 },
+                yellow: { wood: 0,  food: 0,  gold: 0,  stone: 0, pop: 3, popMax: 10 },
+                green:  { wood: 0,  food: 0,  gold: 0,  stone: 0, pop: 3, popMax: 10 }
             });
 
             const playerResources = teamResources.player;
@@ -246,7 +255,8 @@
                   { type: "miningcamp", label: "Mining", icon: "miningcamp", cost: { wood: 60 } },
                   { type: "mill", label: "WindMill", icon: "mill", cost: { wood: 80 } },
                   { type: "farm", label: "farm", icon: "farm", cost: { wood: 60 } },
-                  {type: "barrack",label: "Barrack",icon: "barrack",cost: { wood: 120 }}
+                  {type: "barrack",label: "Barrack",icon: "barrack",cost: { wood: 120 }},
+                  {type: "tower",label: "Tower",icon: "tower",cost: { wood: 80, stone: 50 }}
                 
             ];
             const BUILDING_TYPES = {
@@ -328,6 +338,15 @@
                     hp: 300,
                     cost: { wood: 120 },
                     dropoffTypes: []
+                },
+                tower: {
+                    width: 50,
+                    height: 200,
+                    hp: 120,
+                    buildTime: 500,
+                    imageType: "tower",
+                    cost: { wood: 80, stone: 50 },
+                    dropoffTypes: []
                 }
             };
 
@@ -349,7 +368,7 @@
                 drawResourcesUI(ctx, playerResources);
                 drawWorkerBuildUI(ctx, canvas);
                 drawBuildGhost(ctx, game.maps[game.currentmap]);
-                
+                fps();
                 const camSpeed = 15;
                 const currentMap = game.maps[game.currentmap];
 
@@ -363,14 +382,59 @@
                     game.rebuildPathfinding({
                         isBlocker: (o) => {
                             if (!o || o.dead) return false;
-                            return o.isBuilding || o.name === "tree" || o.name === "stone" || o.name === "gold" || o.name === "river"|| o.name === "berry";
+                            return (o.isBuilding&&(o.name!=="farm"&&o.name!=="rfarm"&&o.name!=="gfarm"&&o.name!=="yfarm")) || o.name === "tree" || o.name === "stone" || o.name === "gold" || o.name === "river"|| o.name === "berry";
                         },
                         cell: 32,
                         inflate: 10,
                         bucket: 96
                     });
                 }
-                
+                const arrows = getAllArrowsAllTeams();
+                for (const a of arrows) {
+                    updateArrow(a, scale);
+                }
+                const towers = getAllTowersAllTeams();
+                for (const t of towers) {
+                    ensureOwnerByName(t);
+
+                    
+
+                     t.isBuilding = true;
+                     t.isvisable = true;
+                     t.canMove = false;
+                     t.selectable = true;
+                     t.bottomsolid=35;
+                     if (t.state == null) t.state = "idle";
+                     if (t.isUnderConstruction == null) t.isUnderConstruction = false;
+
+                     if (t.hp == null) t.hp = 120;
+                     if (t.maxHp == null) t.maxHp = 120;
+
+                     if (t.attackRange == null) t.attackRange = 600;
+                     if (t.damage == null) t.damage = 6;
+                     if (t.attackCooldown == null) t.attackCooldown = 0;
+                     if (t.attackSpeed == null) t.attackSpeed = 60;
+                     if (t.targetEnemy == null) t.targetEnemy = null;
+
+                     if(!t.isUnderConstruction)updateTower(t, scale);
+
+                    if (!t.isUnderConstruction) continue;
+
+                    t.isvisable = false;
+                    const img = game.getobjecttype("tower")?.images?.[0]?.getimage();
+                    if (!img) continue;
+
+                    const drawX = t.x + currentMap.camerax;
+                    const drawY = t.y + currentMap.cameray;
+
+                    ctx.fillStyle = "rgba(0,0,0,0.15)";
+                    ctx.fillRect(drawX, drawY, t.dimx, t.dimy);
+
+                    ctx.fillStyle = "rgba(80,60,40,0.5)";
+                    ctx.fillRect(drawX, drawY + t.dimy - 8, t.dimx, 8);
+
+                    t.drawunfinished = true;
+                }
                 
                 const houses = getAllHousesAllTeams();
                 for (const h of houses) {
@@ -457,6 +521,11 @@
                         w.targetEnemy = null;
                         w.direction = "down";
                         w.standingstill = true;
+
+                        w.autoAttackRange = 180;
+                        w.resumeMoveAfterAttack = false;
+                        w.resumeX = null;
+                        w.resumeY = null;
                     }
 
                     if (!w.dead) {
@@ -865,16 +934,22 @@
                             if(w.targetResource) w.targetResource.slot=null;
                             clearWorkerOrder(w);
                             w.standingstill=false;
+                            w.state = "move";
+                            w.targetX=cursorX-game.getcamerax();
+                            w.targetY=cursorY-game.getcameray();;
+                            game.pathUnitTo(w, cursorX-game.getcamerax(), cursorY-game.getcameray());
                         }
                     }
 
                     if(selectedWarriors.length > 0 && !game.buildMode &&isresource.length === 0 &&isEnemy.length === 0 ){
                         for (let w of selectedWarriors) {
                             w.targetEnemy = null;
-                            w.state = "idle";
+                            w.state = "move";
                             w.targetX=cursorX-game.getcamerax();
                             w.targetY=cursorY-game.getcameray();;
                             w.standingstill=false;
+                            game.pathUnitTo(w, cursorX-game.getcamerax(), cursorY-game.getcameray());
+               
                       
                         }
                     }
@@ -1002,15 +1077,35 @@ function updateWorker(worker, townhallList, playerResources, scale) {
         
         return;
     }
+    if (worker.state === "move") {
+
+
+        if (worker.path && worker.path.length > 0) {
+            game.followPath(worker, { reachDist: 25 });
+        }
+
+        if (worker.targetX == null || worker.targetY == null) {
+            worker.state = "idle";
+            worker.standingstill = true;
+            
+        }
+
+        return;
+    }
 if (worker.state === "buildBuilding") {
     const b = worker.targetBuilding;
-
+    
+    
+    
+    
+    
     if (!b || b.dead || !b.isUnderConstruction || b.isFinishing) {
         worker.targetBuilding = null;
         worker.state = "idle";
         worker.targetX = null;
         worker.targetY = null;
         worker.sistabit=false;
+        worker.standingstill=false;
         clearUnitPath(worker);
         return;
     }
@@ -1024,6 +1119,7 @@ if (worker.state === "buildBuilding") {
 
         if (b.buildProgress >= 1) {
             worker.sistabit=false;
+            worker.standingstill=false;
              worker.standingstill = true;
             b.buildProgress = 1;
             b.isUnderConstruction = false;
@@ -1053,10 +1149,8 @@ if (worker.state === "buildBuilding") {
     }
 
     const p = getApproachPoint(worker, b, 20);
-    
-    if(worker.targetX&&!worker.sistabit&&!worker.blocked){worker.targetX = p.x;worker.targetY = p.y;updateUnitPathMovement(worker, scale, { reachDist: 18, repathEvery: 40 });}  
-    else if(worker.blocked){worker.targetX=b.x+b.dimx/2;worker.targetY=b.y+b.dimy/2;worker.sistabit=false;}
-    else if(worker.standingstill){worker.targetX=b.x+b.dimx/2;worker.targetY=b.y+b.dimy/2;worker.standingstill = false;worker.sistabit=true;}
+    if(!worker.standingstill&&!worker.sistabit){worker.targetX = p.x;worker.targetY = p.y;updateUnitPathMovement(worker, scale, { reachDist: 25, repathEvery: 500 });}  
+    else{worker.targetX=b.x+b.dimx/2;worker.targetY=b.y+b.dimy/2;worker.standingstill = false;worker.sistabit=true;}
     return;
 }
     
@@ -1090,6 +1184,7 @@ if (worker.state === "attackBoar") {
                 worker.targetResource = b;
                 worker.jobType = "food";
                 worker.sistabit=false;
+                worker.standingstill=false;
             }
         }
         return;
@@ -1097,7 +1192,7 @@ if (worker.state === "attackBoar") {
 
     worker.targetX = b.x + b.dimx / 2;
     worker.targetY = b.y + b.dimy / 2;
-    updateUnitPathMovement(worker, scale, { reachDist: 14, repathEvery: 25, movedThreshold: 12 });
+    updateUnitPathMovement(worker, scale, { reachDist: 25, repathEvery: 25, movedThreshold: 12 });
     return;
 }
 if (worker.state === "moveToResource") {
@@ -1112,6 +1207,7 @@ if (worker.state === "moveToResource") {
             if (worker.targetDropoff) {
                 worker.state = "returnToBase";
                 worker.sistabit=false;
+                worker.standingstill=false;
                 requestUnitPath(
                     worker,
                     worker.targetDropoff.x + worker.targetDropoff.dimx / 2,
@@ -1120,6 +1216,7 @@ if (worker.state === "moveToResource") {
             } else {
                 worker.state = "idle";
                 worker.sistabit=false;
+                worker.standingstill=false;
             }
         } else {
             const next = getNearestResourceOfType(worker, worker.jobType);
@@ -1127,32 +1224,49 @@ if (worker.state === "moveToResource") {
                 worker.targetResource = next;
                 worker.state = "moveToResource";
                 worker.sistabit=false;
+                worker.standingstill=false;
                 requestUnitPath(worker, next.x + next.dimx / 2, next.y + next.dimy / 2);
             } else {
                 worker.state = "idle";
-                worker.sistabit=false;
+                worker.sistabit=false;worker.standingstill=false;
                 worker.jobType = null;
             }
         }
 
-        worker.standingstill = true;
+        
         return;
     }
-    const collideobject=game.collideswiths(worker,r.name);
-    if (collideobject) {
-        clearUnitPath(worker);
-        r=collideobject;
-        worker.targetResource=collideobject;
-        worker.state = "gather";
-        worker.sistabit=false;
-        worker.gatherTimer = 0;
-        worker.standingstill = true;
-        return;
+    
+    if(r.name=="farm"||r.name=="rfarm"||r.name=="gfarm"||r.name=="yfarm"){
+        if (game.collideswithanoterobject(worker,r)) {
+            clearUnitPath(worker);
+            worker.state = "gather";
+            worker.sistabit=false;
+            worker.standingstill=false;
+            worker.gatherTimer = 0;
+            worker.standingstill = true;
+            return;
+        }
+        
+        
+    }
+    else{
+        const collideobject=game.collideswiths(worker,r.name);
+        if (collideobject) {
+            clearUnitPath(worker);
+            r=collideobject;
+            worker.targetResource=collideobject;
+            worker.state = "gather";
+            worker.sistabit=false;
+            worker.standingstill=false;
+            worker.gatherTimer = 0;
+            worker.standingstill = true;
+            return;
+        }
     }
 
     const p = getApproachPoint(worker, r, 18);
-    if(worker.targetX&&!worker.sistabit&&!worker.blocked){worker.targetX = p.x;worker.targetY = p.y;updateUnitPathMovement(worker, scale, { reachDist: 16, repathEvery: 50 });}
-    else if(worker.blocked){worker.targetX=r.x+r.dimx/2;worker.targetY=r.y+r.dimy/2;worker.sistabit=false;}
+    if(!worker.standingstill&&!worker.sistabit){worker.targetX = p.x;worker.targetY = p.y;updateUnitPathMovement(worker, scale, { reachDist: 25, repathEvery: 500 });}
     else if(worker.standingstill){worker.targetX=r.x+r.dimx/2;worker.targetY=r.y+r.dimy/2;worker.standingstill = false;worker.sistabit=true;}   
     
     return;
@@ -1160,10 +1274,14 @@ if (worker.state === "moveToResource") {
 
     if (worker.state === "gather") {
         const r = worker.targetResource;
-        
-        if(r.name==="farm"){
-            worker.targetX = r.x + r.dimx / 2;
-            worker.targetY = r.y + r.dimy / 2;
+        worker.standingstill = true;
+        if(r.name==="farm"||r.name==="rfarm"||r.name==="gfarm"||r.name==="yfarm"){
+         
+            worker.standingstill=false;
+            
+            worker.targetX = r.x + (r.dimx / 2)-(worker.dimx / 2);
+            worker.targetY = r.y + (r.dimy / 2)-(worker.dimy / 2);
+         
             
         }
         
@@ -1185,9 +1303,11 @@ if (worker.state === "moveToResource") {
                 if (worker.targetDropoff) {
                     worker.state = "returnToBase";
                     worker.sistabit=false;
+                    worker.standingstill=false;
                 } else {
                     worker.state = "idle";
                     worker.sistabit=false;
+                    worker.standingstill=false;
                 }
             } else {
                 const next = getNearestResourceOfType(worker, worker.jobType);
@@ -1195,18 +1315,20 @@ if (worker.state === "moveToResource") {
                     worker.targetResource = next;
                     worker.state = "moveToResource";
                     worker.sistabit=false;
+                    worker.standingstill=false;
                 } else {
                     worker.state = "idle";
                     worker.jobType = null;
                     worker.sistabit=false;
+                    worker.standingstill=false;
                 }
             }
 
-            worker.standingstill = true;
+        
             return;
         }
 
-        worker.standingstill = true;
+        
         worker.gatherTimer += 1 * scale;
         
         if (worker.gatherTimer >= r.gatherTime) {
@@ -1226,9 +1348,11 @@ if (worker.state === "moveToResource") {
                 if (worker.targetDropoff) {
                     worker.state = "returnToBase";
                     worker.sistabit=false;
+                    worker.standingstill=false;
                 } else {
                     worker.state = "idle";
                     worker.sistabit=false;
+                    worker.standingstill=false;
                 }
             }
         }
@@ -1241,6 +1365,7 @@ if (worker.state === "returnToBase") {
     if (!t || t.dead) {
         worker.state = "idle";
         worker.sistabit=false;
+        worker.standingstill=false;
         worker.standingstill = true;
         clearUnitPath(worker);
         return;
@@ -1251,14 +1376,14 @@ if (worker.state === "returnToBase") {
         if (t.isUnderConstruction) return;
         worker.state = "deposit";
         worker.sistabit=false;
+        worker.standingstill=false;
         worker.standingstill = true;
         return;
     }
 
     const p = getApproachPoint(worker, t, 20);
-    if(worker.targetX&&!worker.sistabit&&!worker.blocked){worker.targetX = p.x;worker.targetY = p.y;updateUnitPathMovement(worker, scale, { reachDist: 18, repathEvery: 50 });}
-    else if(worker.blocked){worker.targetX=t.x+t.dimx/2;worker.targetY=t.y+t.dimy/2;worker.sistabit=false;}
-    else if(worker.standingstill){worker.targetX=t.x+t.dimx/2;worker.targetY=t.y+t.dimy/2;worker.standingstill = false;worker.sistabit=true;}
+    if(!worker.standingstill&&!worker.sistabit){worker.targetX = p.x;worker.targetY = p.y;updateUnitPathMovement(worker, scale, { reachDist: 25, repathEvery: 500 });}
+    else{worker.targetX=t.x+t.dimx/2;worker.targetY=t.y+t.dimy/2;worker.standingstill = false;worker.sistabit=true;}
     
     return;
 }
@@ -1277,6 +1402,7 @@ if (worker.state === "deposit") {
     if (worker.targetResource && worker.targetResource.amount > 0) {
         worker.state = "moveToResource";
         worker.sistabit=false;
+        worker.standingstill=false;
         requestUnitPath(
             worker,
             worker.targetResource.x + worker.targetResource.dimx / 2,
@@ -1289,6 +1415,7 @@ if (worker.state === "deposit") {
             worker.targetResource = next;
             worker.state = "moveToResource";
             worker.sistabit=false;
+            worker.standingstill=false;
             requestUnitPath(
                 worker,
                 next.x + next.dimx / 2,
@@ -1299,10 +1426,12 @@ if (worker.state === "deposit") {
             worker.targetResource = null;
             worker.jobType = null;
             worker.sistabit=false;
+            worker.standingstill=false;
+            
         }
     }
 
-    worker.standingstill = true;
+   
     return;
 }
 }
@@ -1315,7 +1444,7 @@ function getNearestResourceOfType(unit, type) {
         if (o.name === "sheep") {
             return !o.owner || o.owner === "neutral" || o.owner === unit.owner;
         }
-
+        if(o.name==="farm"||o.name==="rfarm"||o.name==="gfarm"||o.name==="yfarm")return false;
         return true; // vanliga träd/guld/sten får alla ta
     });
 
@@ -1537,7 +1666,7 @@ function orderWorkerAttackBoar(worker, boar) {
 }        
 function updatePassiveWander(unit, scale, radius = 80, waitMin = 40, waitMax = 140) {
     if (unit.dead) return;
-
+ 
     if (unit.spawnX == null) unit.spawnX = unit.x;
     if (unit.spawnY == null) unit.spawnY = unit.y;
 
@@ -1557,6 +1686,7 @@ function updatePassiveWander(unit, scale, radius = 80, waitMin = 40, waitMax = 1
 
             unit.targetX = unit.wanderTargetX;
             unit.targetY = unit.wanderTargetY;
+            unit.standingstill = false;
             unit.wanderState = "move";
         }
         return;
@@ -1983,7 +2113,6 @@ function canPlaceBuilding(x, y, w, h,player) {
             o.name === "boar" ||
             o.name.includes("worker") ||
             o.name.includes("warrior");
-
         if (!blocksPlacement) continue;
        if(player){if (rectsOverlap(x, y, w, h, o.x, o.y, o.dimx, o.dimy, 0)) {return false;}}
        else{if (rectsOverlap(x, y, w, h, o.x, o.y, o.dimx, o.dimy, 100)) {return false;}}
@@ -2026,6 +2155,8 @@ function placeBuilding(x, y, buildingType) {
       
         clearWorkerOrder(w);
         w.state = "buildBuilding";
+       w.sistabit=false;
+        w.standingstill=false;
         w.targetBuilding = b;
         
        
@@ -2354,10 +2485,32 @@ function updateWarrior(warrior, scale) {
     if (warrior.damage == null) warrior.damage = 8;
     if (warrior.hp == null) warrior.hp = 40;
     if (warrior.state == null) warrior.state = "idle";
+    if (warrior.autoAttackRange == null) warrior.autoAttackRange = 180;
 
     if (warrior.attackCooldown > 0) {
         warrior.attackCooldown -= 1 * scale;
         if (warrior.attackCooldown < 0) warrior.attackCooldown = 0;
+    }
+
+    if (warrior.path && warrior.path.length > 0) {
+        ctx.strokeStyle = "yellow";
+        ctx.beginPath();
+        ctx.moveTo(warrior.x + game.getcamerax(), warrior.y + game.getcameray());
+
+        for (let i = warrior.pathIndex || 0; i < warrior.path.length; i++) {
+            const p = warrior.path[i];
+            ctx.lineTo(p.x + game.getcamerax(), p.y + game.getcameray());
+        }
+
+        ctx.stroke();
+    }
+
+
+    // AUTOATTACK: testa innan idle/move logik
+    if (warrior.state === "idle" || warrior.state === "move") {
+        if (tryAutoAttack(warrior)) {
+            return;
+        }
     }
 
     if (warrior.state === "idle") {
@@ -2367,134 +2520,101 @@ function updateWarrior(warrior, scale) {
 
 if (warrior.state === "move") {
     if (warrior.path && warrior.path.length > 0) {
-        game.followPath(warrior, { reachDist: 16 });
-    }
-
-    if (warrior.targetX == null || warrior.targetY == null) {
-        warrior.state = "idle";
-        warrior.standingstill = true;
-        return;
-    }
-
-
-}
-
-if (warrior.state === "attackTarget") {
-    const t = warrior.targetEnemy;
-
-
-if (warrior.path && warrior.path.length > 0) {
-    ctx.strokeStyle = "yellow";
-    ctx.beginPath();
-    ctx.moveTo(warrior.x + game.getcamerax(), warrior.y + game.getcameray());
-
-    for (let i = warrior.pathIndex || 0; i < warrior.path.length; i++) {
-        const p = warrior.path[i];
-        ctx.lineTo(p.x + game.getcamerax(), p.y + game.getcameray());
-    }
-
-    ctx.stroke();
-}
-
-
-
-    if (!t || t.dead || t.hp <= 0) {
-        warrior.targetEnemy = null;
+        game.followPath(warrior, { reachDist: 25 });
+        warrior.standingstill = false;
+    } else {
+        // ingen path kvar = klar
         warrior.state = "idle";
         warrior.targetX = null;
         warrior.targetY = null;
-        game.clearPath(warrior);
         warrior.standingstill = true;
-        return;
     }
 
-    // Om vi redan är framme -> slå
-    if (game.collideswithanoterobject(warrior, t)) {
-        game.clearPath(warrior);
+    console.log("move");
 
-
-
-        if (warrior.attackCooldown <= 0) {
-            warrior.attackCooldown = 40;
-            t.hp = (t.hp || 40) - warrior.damage;
-            t.flashTimer = 30;
-
-            if (t.hp <= 0) {
-                t.hp = 0;
-                t.dead = true;
-
-                if (t.name === "boar") {
-                    t.animation = 6;
-                    t.type = "food";
-                } else if (t.name.includes("worker")) {
-                    t.animation = 12;
-                    t.selectable=false;
-                } else if (t.name.includes("warrior")) {
-                    t.animation = 9;
-                    t.selectable=false;
-                }
-                if(t.isBuilding)game.removeobject(game.getobjecttype(t.name),t);
-                if (t.owner && teamResources[t.owner] && (t.name.includes("worker") || t.name.includes("warrior"))) {
-                    teamResources[t.owner].pop -= 1;
-                    if (teamResources[t.owner].pop < 0) teamResources[t.owner].pop = 0;
-                }
-
-                warrior.targetEnemy = null;
-                warrior.state = "idle";
-                warrior.targetX = null;
-                warrior.targetY = null;
-                game.clearPath(warrior);
-            }
-        }
-
-        return;
-    }
-
-    // Repath ibland mot rörligt mål
-    if (warrior.repathTimer == null) warrior.repathTimer = 0;
-    warrior.repathTimer -= 1 * scale;
-
-    if (warrior.repathTimer <= 0 || !warrior.path || warrior.path.length === 0) {
-        const tx = t.x + t.dimx / 2;
-        const ty = t.y + t.dimy / 2;
-
-        const ddx = tx - (warrior._lastPathGoalX ?? tx);
-        const ddy = ty - (warrior._lastPathGoalY ?? ty);
-        const moved = Math.hypot(ddx, ddy);
-
-        if (!warrior.path || warrior.path.length === 0 || moved > 40) {
-            warrior._lastPathGoalX = tx;
-            warrior._lastPathGoalY = ty;
-            game.pathUnitTo(warrior, tx, ty);
-        }
-
-        warrior.repathTimer = 75;
-    }
-if (warrior._lastPathRef !== warrior.path) {
-    warrior._lastPathRef = warrior.path;
-    warrior._lastPathIndex = warrior.pathIndex ?? 0;
-} else {
-    if ((warrior.pathIndex ?? 0) < (warrior._lastPathIndex ?? 0)) {
-        console.log("BACKWARDS PATH BUG");
-    }
-    warrior._lastPathIndex = warrior.pathIndex ?? 0;
-}
-    if (warrior.path && warrior.path.length > 0) {
-        game.followPath(warrior, { reachDist: 6 });
-    } else {
-        warrior.targetX = t.x + t.dimx / 2;
-        warrior.targetY = t.y + t.dimy / 2;
-    }
-
-    const dx = warrior.targetX - warrior.x;
-    const dy = warrior.targetY - warrior.y;
-
-    warrior.standingstill = false;
-
-  
 
     return;
 }
+
+    if (warrior.state === "attackTarget") {
+        const t = warrior.targetEnemy;
+
+        if (!t || t.dead || t.hp <= 0) {
+            finishWarriorAttack(warrior);
+            return;
+        }
+
+        if (game.collideswithanoterobject(warrior, t)) {
+            clearUnitPath(warrior);
+            warrior.standingstill = true;
+
+            if (warrior.attackCooldown <= 0) {
+                warrior.attackCooldown = 40;
+                t.hp = (t.hp || 40) - warrior.damage;
+                t.flashTimer = 30;
+
+                if (t.hp <= 0) {
+                    t.hp = 0;
+                    t.dead = true;
+
+                    if (t.name === "boar") {
+                        t.animation = 6;
+                        t.type = "food";
+                    } else if (t.name.includes("worker")) {
+                        t.animation = 12;
+                        t.selectable = false;
+                    } else if (t.name.includes("warrior")) {
+                        t.animation = 9;
+                        t.selectable = false;
+                    }
+
+                    if (t.isBuilding) {
+                        game.removeobject(game.getobjecttype(t.name), t);
+                        markStaticsDirty();
+                    }
+
+                    if (t.owner && teamResources[t.owner] && (t.name.includes("worker") || t.name.includes("warrior"))) {
+                        teamResources[t.owner].pop -= 1;
+                        if (teamResources[t.owner].pop < 0) teamResources[t.owner].pop = 0;
+                    }
+
+                    finishWarriorAttack(warrior);
+                }
+            }
+
+            return;
+        }
+
+        if (warrior.repathTimer == null) warrior.repathTimer = 0;
+        warrior.repathTimer -= 1 * scale;
+
+        if (warrior.repathTimer <= 0 || !warrior.path || warrior.path.length === 0) {
+            const tx = t.x + t.dimx / 2;
+            const ty = t.y + t.dimy / 2;
+
+            const ddx = tx - (warrior._lastPathGoalX ?? tx);
+            const ddy = ty - (warrior._lastPathGoalY ?? ty);
+            const moved = Math.hypot(ddx, ddy);
+
+            if (!warrior.path || warrior.path.length === 0 || moved > 40) {
+                warrior._lastPathGoalX = tx;
+                warrior._lastPathGoalY = ty;
+                game.pathUnitTo(warrior, tx, ty);
+            }
+
+            warrior.repathTimer = 500;
+        }
+
+        if (warrior.path && warrior.path.length > 0) {
+            game.followPath(warrior, { reachDist: 25 });
+        } else {
+            warrior.targetX = t.x + t.dimx / 2;
+            warrior.targetY = t.y + t.dimy / 2;
+            warrior.standingstill = false;
+        }
+
+        return;
+    }
 }
 function queueWarriorTraining(barrack, playerResources) {
     if (!barrack || barrack.isUnderConstruction) return false;
@@ -2564,6 +2684,10 @@ function spawnWarriorFromBarrack(barrack) {
     w.iscontrollable = owner === "player";
     w.direction = "down";
     w.standingstill = true;
+    w.autoAttackRange = 180;
+    w.resumeMoveAfterAttack = false;
+    w.resumeX = null;
+    w.resumeY = null;
 
     ensureBarrackRallyPoint(barrack);
 
@@ -2826,6 +2950,8 @@ function placeBuildingForOwner(x, y, buildingType, owner, builder) {
     if (builder) {
         clearWorkerOrder(builder);
         builder.state = "buildBuilding";
+        builder.sistabit=false;
+        builder.standingstill=false;
         builder.targetBuilding = b;
         requestUnitPath(builder, b.x + b.dimx / 2, b.y + b.dimy / 2);
     }
@@ -2901,13 +3027,9 @@ for (const b of unfinished) {
     // workers jobbar
     for (const w of workers) {
         if (w.state === "idle") {
-            let wantedType = null;
-            if ((resources.wood || 0) < 120) wantedType = "wood";
-            else if ((resources.food || 0) < 120) wantedType = "food";
-            else if ((resources.gold || 0) < 80) wantedType = "gold";
-            else wantedType = "wood";
-
+            const wantedType = getMostNeededResourceJob(owner);
             const res = getNearestResourceOfType(w, wantedType);
+
             if (res) {
                 if (res.name === "boar") orderWorkerAttackBoar(w, res);
                 else orderWorkerGather(w, res);
@@ -2941,7 +3063,9 @@ for (const b of unfinished) {
             queueWarriorTrainingForTeam(b, resources);
         }
     }
-    if (workers.length < 5 && townhalls.length > 0) {
+    const desiredWorkers = Math.min(12, 5 + countBuildingsOfType(owner, "hus", false) * 2);
+
+    if (workers.length < desiredWorkers && townhalls.length > 0) {
         queueWorkerTrainingForTeam(townhalls[0], resources);
     }
 
@@ -3006,6 +3130,7 @@ function getAttackTargetForOwner(owner) {
         enemies.push(...getTeamObjects("townhall", enemyOwner));
         enemies.push(...getTeamObjects("barrack", enemyOwner));
         enemies.push(...getTeamObjects("hus", enemyOwner));
+        enemies.push(...getTeamObjects("tower", enemyOwner));
     }
 
     let best = null;
@@ -3083,7 +3208,8 @@ function getAllBuildingsForTeam(owner) {
         ...getTeamObjects("lumbercamp", owner),
         ...getTeamObjects("miningcamp", owner),
         ...getTeamObjects("mill", owner),
-        ...getTeamObjects("farm", owner)
+        ...getTeamObjects("farm", owner),
+        ...getTeamObjects("tower", owner)
     ];
 }
 function getAllUnitsForTeam(owner) {
@@ -3239,7 +3365,8 @@ function getNearestThreatToOwner(owner, range = 300) {
         ...getTeamObjects("warrior", owner),
         ...getTeamObjects("townhall", owner),
         ...getTeamObjects("barrack", owner),
-        ...getTeamObjects("hus", owner)
+        ...getTeamObjects("hus", owner),
+        ...getTeamObjects("tower", owner)
     ].filter(o => !o.dead);
 
     const boars = game.getobjecttype("boar")?.objects || [];
@@ -3434,6 +3561,12 @@ function drawUnitPathDebug(ctx, unit, color = "yellow") {
 }
 function getApproachPoint(unit, target, margin = 12) {
     if (!unit || !target) return null;
+    
+    if(unit.ApproachPointtarget ===target){return unit.ApproachPoint;}
+    
+    
+    
+    
 margin= 0;
     const points = [
         // vänster
@@ -3465,7 +3598,8 @@ margin= 0;
             best = p;
         }
     }
-
+    unit.ApproachPointtarget=target;
+    unit.ApproachPoint=best;
     return best;
 }
 function moveDirectTo(unit, tx, ty) {
@@ -3511,6 +3645,344 @@ function orderUnitMove(unit, x, y) {
 
     if (game.clearPath) game.clearPath(unit);
     game.pathUnitTo(unit, x, y);
+}
+function getWarriorAutoAttackTarget(warrior, range = 180) {
+    if (!warrior || warrior.dead) return null;
+
+    const enemies = [];
+
+    // vanliga fiendelag
+    for (const enemyOwner of getEnemyOwners(warrior.owner)) {
+        enemies.push(...getTeamObjects("worker", enemyOwner));
+        enemies.push(...getTeamObjects("warrior", enemyOwner));
+        enemies.push(...getTeamObjects("townhall", enemyOwner));
+        enemies.push(...getTeamObjects("barrack", enemyOwner));
+        enemies.push(...getTeamObjects("hus", enemyOwner));
+        enemies.push(...getTeamObjects("lumbercamp", enemyOwner));
+        enemies.push(...getTeamObjects("miningcamp", enemyOwner));
+        enemies.push(...getTeamObjects("mill", enemyOwner));
+        enemies.push(...getTeamObjects("farm", enemyOwner));
+    }
+
+    // boar får också vara autoattack-target
+    const boars = game.getobjecttype("boar")?.objects || [];
+    enemies.push(...boars);
+
+    let best = null;
+    let bestDist = range * range;
+
+    for (const e of enemies) {
+        if (!e || e.dead) continue;
+        if (e === warrior) continue;
+
+        // boar är neutral, så den måste tillåtas separat
+        const validEnemy = e.name === "boar" || isEnemyOf(warrior, e);
+        if (!validEnemy) continue;
+
+        const ex = e.x + e.dimx / 2;
+        const ey = e.y + e.dimy / 2;
+        const wx = warrior.x + warrior.dimx / 2;
+        const wy = warrior.y + warrior.dimy / 2;
+
+        const dx = ex - wx;
+        const dy = ey - wy;
+        const d2 = dx * dx + dy * dy;
+
+        if (d2 < bestDist) {
+            bestDist = d2;
+            best = e;
+        }
+    }
+
+    return best;
+}
+function tryAutoAttack(warrior) {
+    if (!warrior || warrior.dead) return false;
+
+    // bara när den inte redan slåss
+    if (warrior.state !== "idle" && warrior.state !== "move") return false;
+
+    const target = getWarriorAutoAttackTarget(warrior, warrior.autoAttackRange || 180);
+    if (!target) return false;
+
+    // om den gick mot en punkt, spara den så vi kan återuppta efter fight
+    if (warrior.state === "move" && warrior.targetX != null && warrior.targetY != null) {
+        warrior.resumeMoveAfterAttack = true;
+        warrior.resumeX = warrior.targetX;
+        warrior.resumeY = warrior.targetY;
+    } else {
+        warrior.resumeMoveAfterAttack = false;
+        warrior.resumeX = null;
+        warrior.resumeY = null;
+    }
+
+    orderWarriorAttackTarget(warrior, target);
+    return true;
+}
+function finishWarriorAttack(warrior) {
+    if (!warrior) return;
+
+    warrior.targetEnemy = null;
+
+    if (warrior.resumeMoveAfterAttack && warrior.resumeX != null && warrior.resumeY != null) {
+        const rx = warrior.resumeX;
+        const ry = warrior.resumeY;
+
+        warrior.resumeMoveAfterAttack = false;
+        warrior.resumeX = null;
+        warrior.resumeY = null;
+
+        orderUnitMove(warrior, rx, ry);
+    } else {
+        warrior.state = "idle";
+        warrior.targetX = null;
+        warrior.targetY = null;
+        warrior.standingstill = true;
+        clearUnitPath(warrior);
+    }
+}
+function getAllTowersAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("tower");
+}
+function getAliveTowersAllTeams() {
+    return getAliveObjectsOfBaseTypeAllTeams("tower");
+}
+function getTowerTarget(tower) {
+    const all = game.getAllObjects();
+
+    let best = null;
+    let bestDist = tower.attackRange * tower.attackRange;
+
+    const tx = tower.x + tower.dimx / 2;
+    const ty = tower.y + tower.dimy / 2;
+
+    for (const o of all) {
+        if (!o || o.dead) continue;
+        if (o === tower) continue;
+
+        // ignorera projektiler
+        if (o.isProjectile) continue;
+
+        // ignorera neutralt skräp om du vill
+        if (o.holdingicon) continue;
+
+        // MÅSTE vara fiende (eller boar)
+        const isValid =
+            o.name === "boar" ||
+            isEnemyOf(tower, o);
+
+        if (!isValid) continue;
+
+        const ox = o.x + o.dimx / 2;
+        const oy = o.y + o.dimy / 2;
+
+        const dx = ox - tx;
+        const dy = oy - ty;
+        const d = dx * dx + dy * dy;
+
+        if (d < bestDist) {
+            bestDist = d;
+            best = o;
+        }
+    }
+
+    return best;
+}
+function spawnArrow(tower, target) {
+    if (!tower || !target || target.dead) return null;
+
+    const owner = tower.owner || "player";
+    const arrowType = getTeamObjectType("arrow", owner) || game.getobjecttype("arrow");
+    if (!arrowType) return null;
+
+    const sx = tower.x + tower.dimx / 2 - 8;
+    const sy = tower.y + tower.dimy / 2 - 8;
+
+    const a = game.addobject(arrowType, sx, sy, 16, 16, 0, false);
+    if (!a) return null;
+
+    a.owner = owner;
+    a.targetEnemy = target;
+    a.damage = tower.damage || 6;
+    a.speed = 6;
+    a.state = "fly";
+    a.selectable = false;
+    a.canMove = true;
+    a.isProjectile = true;
+
+    return a;
+}
+function updateTower(tower, scale) {
+    if (tower.dead) return;
+
+    if (tower.attackCooldown > 0) {
+        tower.attackCooldown -= 1 * scale;
+        if (tower.attackCooldown < 0) tower.attackCooldown = 0;
+    }
+
+    let t = tower.targetEnemy;
+
+    if (!t || t.dead) {
+        t = getTowerTarget(tower);
+        tower.targetEnemy = t;
+    }
+
+   
+
+    if (!t) return;
+
+    const tx = tower.x + tower.dimx / 2;
+    const ty = tower.y + tower.dimy / 2;
+    const ex = t.x + t.dimx / 2;
+    const ey = t.y + t.dimy / 2;
+
+    const dx = ex - tx;
+    const dy = ey - ty;
+    const dist = Math.hypot(dx, dy);
+
+    
+
+    if (dist > tower.attackRange) {
+        tower.targetEnemy = null;
+        return;
+    }
+
+    if (tower.attackCooldown <= 0) {
+        tower.attackCooldown = tower.attackSpeed;
+        spawnArrow(tower, t);
+    }
+}
+function getAllArrowsAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("arrow");
+}
+function updateArrow(arrow, scale) {
+    if (!arrow || arrow.dead) return;
+
+    const t = arrow.targetEnemy;
+
+    if (!t || t.dead) {
+        game.removeobject(game.getobjecttype(arrow.name), arrow);
+        return;
+    }
+
+    const tx = t.x + t.dimx / 2;
+    const ty = t.y + t.dimy / 2;
+
+    const dx = tx - arrow.x;
+    const dy = ty - arrow.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist < 10 || game.collideswithanoterobject(arrow, t)) {
+        t.hp = (t.hp || 40) - (arrow.damage || 6);
+        t.flashTimer = 30;
+
+        if (t.hp <= 0) {
+            t.hp = 0;
+            t.dead = true;
+            t.selectable = false;
+
+            if (t.name === "boar") {
+                t.animation = 6;
+                t.type = "food";
+            } else if (t.name.includes("worker")) {
+                t.animation = 12;
+            } else if (t.name.includes("warrior")) {
+                t.animation = 9;
+            } else if (t.isBuilding) {
+                game.removeobject(game.getobjecttype(t.name), t);
+                markStaticsDirty();
+            }
+
+            if (t.owner && teamResources[t.owner] && (t.name.includes("worker") || t.name.includes("warrior"))) {
+                teamResources[t.owner].pop -= 1;
+                if (teamResources[t.owner].pop < 0) teamResources[t.owner].pop = 0;
+            }
+        }
+
+        game.removeobject(game.getobjecttype(arrow.name), arrow);
+        return;
+    }
+
+    if (dist > 0.001) {
+        arrow.x += (dx / dist) * (arrow.speed || 6) * scale;
+        arrow.y += (dy / dist) * (arrow.speed || 6) * scale;
+
+        arrow.rot = Math.atan2(dy, dx) * 180 / Math.PI;
+    }
+}
+function getAITargetWorkerCounts(owner) {
+    const resources = teamResources[owner];
+    const barracks = getTeamObjects("barrack", owner).filter(b => !b.dead && !b.isUnderConstruction);
+
+    let food = 3;
+    let wood = 3;
+    let gold = 0;
+    let stone = 0;
+
+    // när barrack finns och AI ska göra warriors behövs guld
+    if (barracks.length > 0) {
+        gold = 2;
+    }
+
+    // om låg på food, öka food-prio
+    if ((resources.food || 0) < 80) food += 1;
+
+    // om låg på wood, öka wood-prio
+    if ((resources.wood || 0) < 80) wood += 1;
+
+    // om låg på gold, öka gold-prio
+    if ((resources.gold || 0) < 40 && barracks.length > 0) gold += 1;
+
+    return { food, wood, gold, stone };
+}
+function getAIWorkerJobCounts(owner) {
+    const workers = getTeamObjects("worker", owner).filter(w => !w.dead);
+
+    const counts = {
+        food: 0,
+        wood: 0,
+        gold: 0,
+        stone: 0,
+        build: 0,
+        idle: 0
+    };
+
+    for (const w of workers) {
+        if (w.state === "buildBuilding") {
+            counts.build++;
+            continue;
+        }
+
+        if (w.state === "idle") {
+            counts.idle++;
+            continue;
+        }
+
+        if (w.jobType === "food") counts.food++;
+        else if (w.jobType === "wood") counts.wood++;
+        else if (w.jobType === "gold") counts.gold++;
+        else if (w.jobType === "stone") counts.stone++;
+        else counts.idle++;
+    }
+
+    return counts;
+}
+function getMostNeededResourceJob(owner) {
+    const wanted = getAITargetWorkerCounts(owner);
+    const current = getAIWorkerJobCounts(owner);
+
+    const deficits = [
+        { type: "food",  need: wanted.food  - current.food },
+        { type: "wood",  need: wanted.wood  - current.wood },
+        { type: "gold",  need: wanted.gold  - current.gold },
+        { type: "stone", need: wanted.stone - current.stone }
+    ];
+
+    deficits.sort((a, b) => b.need - a.need);
+
+    if (deficits[0].need > 0) return deficits[0].type;
+
+    return "wood";
 }
         </script>
     </body>  

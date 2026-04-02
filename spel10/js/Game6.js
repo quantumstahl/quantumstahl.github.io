@@ -276,10 +276,14 @@ const SimSolver = {
               }
               // --- SLUT NYTT ---
 
-          const base = { w:o.dimx, h:o.dimy, rot:o.rot||0, ref:o };
+
+          const p = o.bottomsolid / 100;
+          const baseH = Math.max(1, Math.floor(o.dimy * p));
+
+          const base = { w:o.dimx, h:baseH, rot:o.rot||0, ref:o };
 
           if (layer.solid === true && !o.dead){
-                const S = { id:uid++, type:'static', invMass:0.0, x:o.x, y:o.y, ...base };
+                const S = { id:uid++, type:'static', invMass:0.0, x:o.x, y:o.y+ (o.dimy - baseH), ...base };
 
                if (isAxisAlignedRot(S.rot)){
   S._corners = null;
@@ -3098,11 +3102,16 @@ rebuildPathfinding = function(opt = {}) {
     for (const o of all) {
         if (!isBlocker(o)) continue;
 
+
+
+        const p = o.bottomsolid / 100;
+        const baseH = Math.max(1, Math.floor(o.dimy * p));
+
         raw.push({
             cx: o.x + o.dimx / 2,
-            cy: o.y + o.dimy / 2,
+            cy: o.y+ (o.dimy - baseH) + (baseH) / 2,
             w: o.dimx,
-            h: o.dimy,
+            h: baseH,
             angleRad: (o.rot || 0) * Math.PI / 180
         });
     }
@@ -3181,7 +3190,8 @@ clearPath = function(unit) {
 followPath = function(unit, opt = {}) {
     if (!unit || !unit.path || unit.path.length === 0) return false;
 
-    const reachDist = opt.reachDist ?? 6;
+    const reachDist = opt.reachDist ?? 10;
+    const nextBetterMargin = opt.nextBetterMargin ?? 12;
 
     if (unit.pathIndex == null) unit.pathIndex = 1;
 
@@ -3192,9 +3202,7 @@ followPath = function(unit, opt = {}) {
     }
 
     let p = unit.path[unit.pathIndex];
-    let dx = p.x - unit.x;
-    let dy = p.y - unit.y;
-    let d = Math.hypot(dx, dy);
+    let d = Math.hypot(p.x - unit.x, p.y - unit.y);
 
     if (d <= reachDist) {
         unit.pathIndex++;
@@ -3206,6 +3214,20 @@ followPath = function(unit, opt = {}) {
         }
 
         p = unit.path[unit.pathIndex];
+        d = Math.hypot(p.x - unit.x, p.y - unit.y);
+    }
+    else {
+        const nextIndex = unit.pathIndex + 1;
+        if (nextIndex < unit.path.length) {
+            const pNext = unit.path[nextIndex];
+            const dNext = Math.hypot(pNext.x - unit.x, pNext.y - unit.y);
+
+            // bara ett försiktigt hopp, max 1 steg
+            if (dNext + nextBetterMargin < d) {
+                unit.pathIndex = nextIndex;
+                p = pNext;
+            }
+        }
     }
 
     unit.targetX = p.x;
@@ -3569,6 +3591,7 @@ this.savedy=y;
 this.stuck=false;
 this.sistabit=false;
 this.wasdynblocked=false;
+this.bottomsolid = 100;
     }
     collidestest(){
 
@@ -3801,7 +3824,7 @@ function drawSelectRing(ctx, o,zoom, camX, camY){
   // Alltid-på, subtil "ground contact" för byggnader (så de inte ser svävande ut)
   if (o.canMove==false) {
     let cx=o.x+o.dimx/2, cy=o.y+o.dimy*0.75;
-    if(o.name=="barrack"||o.name=="rbarrack"||o.name=="ybarrack"||o.name=="gbarrack")cy=o.y+o.dimy*0.50;
+    if(o.name=="barrack"||o.name=="rbarrack"||o.name=="ybarrack"||o.name=="gbarrack"||o.name=="tower"||o.name=="rtower"||o.name=="ytower"||o.name=="gtower")cy=o.y+o.dimy*0.50;
     ctx.save(); ctx.globalAlpha=0.6;
     ctx.scale(1 + (1 * zoom / 100), 1 + (1 * zoom / 100));
     ctx.beginPath(); 
