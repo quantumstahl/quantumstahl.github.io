@@ -967,40 +967,8 @@
                     w.iscontrollable = (w.owner === "player");
                     w.fliped=false;
                     
-                    if(!w.dead){
-                        if(w.direction=="down"){w.animation=1;if(w.standingstill)w.animation=0;if(w.state === "gather")w.animation=6;if(w.state === "returnToBase")w.animation=9;}
-                        if(w.direction=="up"){w.animation=3;if(w.standingstill)w.animation=2;if(w.state === "gather")w.animation=7;if(w.state === "returnToBase")w.animation=10;}
-                        if(w.direction=="right"){w.animation=5;if(w.standingstill)w.animation=4;if(w.state === "gather")w.animation=8;if(w.state === "returnToBase")w.animation=11;}
-                        if(w.direction=="left"){w.animation=5;if(w.standingstill)w.animation=4;w.fliped=true;if(w.state === "gather")w.animation=8;if(w.state === "returnToBase")w.animation=11;}
-                    
-                        if((w.state === "attackBoar"&& game.collideswithobject(w,"boar"))||(w.state === "buildBuilding"&& game.collideswithanoterobject(w,w.targetBuilding))){
-                            if(w.direction=="down"){w.animation=6;}
-                            if(w.direction=="up"){w.animation=7;}
-                            if(w.direction=="right"){w.animation=8;}
-                            if(w.direction=="left"){w.animation=8;}
 
-                        }
-                    }
-                    if(w.state === "returnToBase"){
-                
-                        if(w.carryType==="food"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("foodicon"),w.x,w.y-20,30,30,0,false);}
-                        if(w.carryType==="wood"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("woodicon"),w.x,w.y-20,30,30,0,false);}   
-                        if(w.carryType==="stone"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("stoneicon"),w.x,w.y-20,30,30,0,false);}    
-                        if(w.carryType==="gold"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("goldicon"),w.x,w.y-20,30,30,0,false);}        
-                        
-                        
-                        
-                        
-                        
-                        if(w.holdingicon){w.holdingicon.x=w.x;w.holdingicon.y=w.y-20;}
-                        
-                        
-                    }
-                    else if(w.holdingicon){
-                        game.removeobject(game.getobjecttype(w.holdingicon.name),w.holdingicon);
-                        w.holdingicon=null;
-                        
-                    }
+
                     
                     if(w.state==null){
                         w.state = "idle";
@@ -1017,9 +985,29 @@
                     }
                     
                     updateWorker(w, townhall, teamResources[w.owner || "player"], scale);
-                    
-                    
-                    
+                    const doingGatherAnim =
+                        w.state === "gather" ||
+                        (w.state === "buildBuilding" && w.targetBuilding && game.collideswithanoterobject(w, w.targetBuilding)) ||
+                        (w.state === "attackBoar" && w.attackTarget && game.collideswithanoterobject(w, w.attackTarget));
+
+                    if(!w.dead){
+                        if(w.direction=="down"){w.animation=1;if(w.standingstill)w.animation=0;if(doingGatherAnim)w.animation=6;if(w.state === "returnToBase")w.animation=9;}
+                        if(w.direction=="up"){w.animation=3;if(w.standingstill)w.animation=2;if(doingGatherAnim)w.animation=7;if(w.state === "returnToBase")w.animation=10;}
+                        if(w.direction=="right"){w.animation=5;if(w.standingstill)w.animation=4;if(doingGatherAnim)w.animation=8;if(w.state === "returnToBase")w.animation=11;}
+                        if(w.direction=="left"){w.animation=5;if(w.standingstill)w.animation=4;w.fliped=true;if(doingGatherAnim)w.animation=8;if(w.state === "returnToBase")w.animation=11;}
+                    }
+                    if(w.state === "returnToBase"){
+                
+                        if(w.carryType==="food"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("foodicon"),w.x,w.y-20,30,30,0,false);}
+                        if(w.carryType==="wood"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("woodicon"),w.x,w.y-20,30,30,0,false);}   
+                        if(w.carryType==="stone"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("stoneicon"),w.x,w.y-20,30,30,0,false);}    
+                        if(w.carryType==="gold"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("goldicon"),w.x,w.y-20,30,30,0,false);}        
+                        if(w.holdingicon){w.holdingicon.x=w.x;w.holdingicon.y=w.y-20;}
+                    }
+                    else if(w.holdingicon){
+                        game.removeobject(game.getobjecttype(w.holdingicon.name),w.holdingicon);
+                        w.holdingicon=null;
+                    }
                 }
                 updateTeamAI("red", scale);
                 updateTeamAI("yellow", scale);
