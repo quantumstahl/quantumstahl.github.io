@@ -1273,114 +1273,92 @@ if (worker.state === "moveToResource") {
     return;
 }
 
-  if (worker.state === "gather") {
-    const r = worker.targetResource;
-
-    // reset varje frame
-    worker.doingGatherAnim = false;
-
-    if (!r  || r.amount <= 0) {
-        worker.targetResource = null;
-
-        if (worker.carryAmount > 0) {
-            worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
-            if (worker.targetDropoff) {
-                worker.state = "returnToBase";
-                worker.sistabit = false;
-                worker.standingstill = false;
-            } else {
-                worker.state = "idle";
-                worker.sistabit = false;
-                worker.standingstill = false;
-            }
-        } else {
-            const next = getNearestResourceOfType(worker, worker.jobType);
-            if (next) {
-                worker.targetResource = next;
-                worker.state = "moveToResource";
-                worker.sistabit = false;
-                worker.standingstill = false;
-            } else {
-                worker.state = "idle";
-                worker.jobType = null;
-                worker.sistabit = false;
-                worker.standingstill = false;
-            }
+    if (worker.state === "gather") {
+        const r = worker.targetResource;
+        worker.standingstill = true;
+        if(r.name==="farm"||r.name==="rfarm"||r.name==="gfarm"||r.name==="yfarm"){
+         
+            worker.standingstill=false;
+            
+            worker.targetX = r.x + (r.dimx / 2)-(worker.dimx / 2);
+            worker.targetY = r.y + (r.dimy / 2)-(worker.dimy / 2);
+         
+            
         }
+        
+        if (r.name === "sheep"||r.name === "boar") {
+       
 
-        return;
-    }
+            
+                r.dead = true;
+                if(r.name === "sheep")r.animation=12;
+                if(r.name === "boar")r.animation=6;
+            
+        }
+        
+        if (!r  || r.amount <= 0) {
+            worker.targetResource = null;
 
-    // sheep/boar blir "döda resurser"
-    if (r.name === "sheep" || r.name === "boar") {
-        r.dead = true;
-        if (r.name === "sheep") r.animation = 12;
-        if (r.name === "boar") r.animation = 6;
-    }
+            if (worker.carryAmount > 0) {
+                worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
+                if (worker.targetDropoff) {
+                    worker.state = "returnToBase";
+                    worker.sistabit=false;
+                    worker.standingstill=false;
+                } else {
+                    worker.state = "idle";
+                    worker.sistabit=false;
+                    worker.standingstill=false;
+                }
+            } else {
+                const next = getNearestResourceOfType(worker, worker.jobType);
+                if (next) {
+                    worker.targetResource = next;
+                    worker.state = "moveToResource";
+                    worker.sistabit=false;
+                    worker.standingstill=false;
+                } else {
+                    worker.state = "idle";
+                    worker.jobType = null;
+                    worker.sistabit=false;
+                    worker.standingstill=false;
+                }
+            }
 
-    // FARM: stå i mitten innan gather startar
-    const isFarm =
-        r.name === "farm" ||
-        r.name === "rfarm" ||
-        r.name === "gfarm" ||
-        r.name === "yfarm";
-
-    if (isFarm) {
-        const tx = r.x + (r.dimx / 2) - (worker.dimx / 2);
-        const ty = r.y + (r.dimy / 2) - (worker.dimy / 2);
-
-        worker.targetX = tx;
-        worker.targetY = ty;
-
-        const dx = tx - worker.x;
-        const dy = ty - worker.y;
-        const dist = Math.hypot(dx, dy);
-
-        if (dist > 6) {
-            worker.standingstill = false;
-            worker.doingGatherAnim = false;
+        
             return;
         }
-    }
 
-    // vanlig gather
-    worker.standingstill = true;
-    worker.doingGatherAnim = true;
+        
+        worker.gatherTimer += 1 * scale;
+        
+        if (worker.gatherTimer >= r.gatherTime) {
+            worker.gatherTimer = 0;
+            const take = Math.min(worker.carryMax - worker.carryAmount, 10, r.amount);
+            r.amount -= take;
+            worker.carryAmount += take;
+            worker.carryType = r.type;
 
-    worker.gatherTimer += 1 * scale;
-
-    if (worker.gatherTimer >= r.gatherTime) {
-        worker.gatherTimer = 0;
-
-        const take = Math.min(worker.carryMax - worker.carryAmount, 10, r.amount);
-        r.amount -= take;
-        worker.carryAmount += take;
-        worker.carryType = r.type;
-
-        if (r.amount <= 0) {
-            game.removeobject(game.getobjecttype(r.name), r);
-            markStaticsDirty();
-        }
-
-        if (worker.carryAmount >= worker.carryMax || r.amount <= 0) {
-            worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
-
-            if (worker.targetDropoff) {
-                worker.state = "returnToBase";
-                worker.sistabit = false;
-                worker.standingstill = false;
-                worker.doingGatherAnim = false;
-            } else {
-                worker.state = "idle";
-                worker.sistabit = false;
-                worker.standingstill = false;
-                worker.doingGatherAnim = false;
+            if (r.amount <= 0) {
+                game.removeobject(game.getobjecttype(r.name),r);
+                markStaticsDirty();
+            }
+            
+            if (worker.carryAmount >= worker.carryMax || r.amount <= 0) {
+                worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
+                if (worker.targetDropoff) {
+                    worker.state = "returnToBase";
+                    worker.sistabit=false;
+                    worker.standingstill=false;
+                } else {
+                    worker.state = "idle";
+                    worker.sistabit=false;
+                    worker.standingstill=false;
+                }
             }
         }
+        return;
     }
-
-    return;
-}
 
 if (worker.state === "returnToBase") {
     const t = worker.targetDropoff;
@@ -3378,7 +3356,7 @@ function updateOwnedSheep(s, scale) {
         s.targetY = null;
         return;
     }
-
+    s.standingstill=false;
     s.targetX = tx;
     s.targetY = ty;
 }
