@@ -1952,6 +1952,7 @@ class Game6 {
             
             
             if (e.changedTouches.length === 1 && !dragWasActive&&allowSingleTap) {
+                rightklick=true;
                 const currentMap = game.maps[game.currentmap];
                 const zoomFactor = 1 + (1 * currentMap.zoom / 100);
                 const rect = canvas.getBoundingClientRect();
