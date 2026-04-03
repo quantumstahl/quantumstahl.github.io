@@ -1709,7 +1709,7 @@ class Game6 {
 
         canvas.addEventListener("touchstart", function(e) {
             e.preventDefault();
-           // rightklick=true;
+            rightklick=true;
        
             if (typeof window.allowSelection === "function" && !window.allowSelection()) {
                 return;
