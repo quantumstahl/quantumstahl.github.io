@@ -1709,7 +1709,7 @@ class Game6 {
 
         canvas.addEventListener("touchstart", function(e) {
             e.preventDefault();
-            rightklick=true;
+           
        
             if (typeof window.allowSelection === "function" && !window.allowSelection()) {
                 return;
@@ -1749,7 +1749,7 @@ class Game6 {
                                     if(canmove==false){for(let u of units){u.selected=false;}object.selected=true;}
                                     if(canmove==true&&object.iscontrollable&&object.name!=="sheep"){for(let u of units){u.selected=false;}object.selected=true;}
                                 }
-                                
+                                 rightklick=true;
                         }
                         
                         if (e.touches.length > 1) {
@@ -1767,6 +1767,7 @@ class Game6 {
                                     if(canmove==false){for(let u of units){u.selected=false;}object.selected=true;}
                                     if(canmove==true&&object.iscontrollable&&object.name!=="sheep"){for(let u of units){u.selected=false;}object.selected=true;}
                                 }
+                                 rightklick=true;
                             }
                         }
                     }
