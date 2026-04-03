@@ -1748,8 +1748,9 @@ class Game6 {
                                     for(let u of units){if(u.iscontrollable)canmove=true;}
                                     if(canmove==false){for(let u of units){u.selected=false;}object.selected=true;}
                                     if(canmove==true&&object.iscontrollable&&object.name!=="sheep"){for(let u of units){u.selected=false;}object.selected=true;}
+                                    rightklick=true;
                                 }
-                                 rightklick=true;
+                                 
                         }
                         
                         if (e.touches.length > 1) {
@@ -1766,8 +1767,9 @@ class Game6 {
                                     for(let u of units){if(u.iscontrollable)canmove=true;}
                                     if(canmove==false){for(let u of units){u.selected=false;}object.selected=true;}
                                     if(canmove==true&&object.iscontrollable&&object.name!=="sheep"){for(let u of units){u.selected=false;}object.selected=true;}
+                                     rightklick=true;
                                 }
-                                 rightklick=true;
+                                
                             }
                         }
                     }
