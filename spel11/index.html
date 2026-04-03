@@ -1,0 +1,3980 @@
+<html>
+    <head>
+        <meta name="viewport" content="user-scalable=no, shrink-to-fit=no">
+        <meta charset="utf-8">
+        <meta name="keywords" content="mobilspel, mobilegames, js games, javascript games">
+        <link rel="icon" href="images/Workerdown1.png" type="image/vnd.microsoft.icon" />
+        <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&display=swap" rel="stylesheet">
+	<title>RTS2</title>
+        
+        <script src="js/Game6.js"></script>
+
+    </head>
+    <body>
+        <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
+        
+        <div id="hint-pan" style="
+            position:fixed; bottom:50%; left:50%; transform:translate(-50%, 50%);
+            background:rgba(0,0,0,0.6);
+            color:#fff; padding:6px 10px;
+            border-radius:6px;
+            font:600 50px system-ui, sans-serif;
+            text-align:center;
+            z-index:2000;
+            display:none;
+
+            user-select:none;
+            pointer-events:none;
+            -webkit-user-select: none;
+        ">
+        </div>
+        
+        <script>
+            const isMobile = {Android: function() {return navigator.userAgent.match(/Android/i);},BlackBerry: function() {return navigator.userAgent.match(/BlackBerry/i);},iOS: function() {return navigator.userAgent.match(/iPhone|iPod/i);},Opera: function() {return navigator.userAgent.match(/Opera Mini/i);},Windows: function() {return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i);},any: function() {return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows()|| (navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints && navigator.maxTouchPoints > 1));}};
+            function mobileAndTabletCheck() {return isMobile.any();}
+
+            const canvas = document.getElementById("myCanvas");
+            const ctx = canvas.getContext("2d");
+            document.getElementById("myCanvas").style.margin = "-8px -8px -8px -8px";
+            document.getElementById("myCanvas").style.width=window.innerWidth;
+            document.getElementById("myCanvas").style.height=window.innerHeight;
+
+
+
+            game = new Game6("Spelet");
+            
+            var audio = new Audio('sounds/song.mp3');
+            audio.loop = true;
+             const context = new (window.AudioContext || window.webkitAudioContext)();
+             const audio2 = async url => {   
+             const source = context.createBufferSource(); 
+                const audioBuffer = await fetch(url)
+                  .then(res => res.arrayBuffer())
+                  .then(ArrayBuffer => context.decodeAudioData(ArrayBuffer)); 
+                source.buffer = audioBuffer;
+                source.connect(context.destination);
+                source.start();
+            };
+            
+            document.addEventListener('click', (event) => {
+                try{if(audio.paused){ audio.play();}}catch(error){};
+                handleGameUILeftClick(cursorX, cursorY);
+                
+                 
+             });
+            
+            
+            document.addEventListener("touchstart" , function(e) {
+                e.preventDefault();
+                    handleGameUILeftClick(cursorX, cursorY);
+		    	
+                    try{if(audio.paused){ 
+                        
+                        audio.play();
+                    }
+                    }catch(error){};
+                    if(context.state === 'suspended'){context.suspend();context.resume();}           
+                    
+                    
+                    
+                    
+            });
+            document.addEventListener("touchend" , function(e) {
+                e.preventDefault();
+                        handleGameUILeftClick(cursorX, cursorY);
+                    
+                    
+                    
+                    
+            });
+            
+            
+            document.addEventListener("visibilitychange", event => {
+                if (document.visibilityState === "visible") {
+                        audio.pause();
+			audio.src = 'sounds/song.mp3';
+                        audio.play();
+                        context.resume();
+                        
+                }
+                else {
+                   audio.pause(); audio.src = "";context.suspend();
+                
+              }
+          });
+
+
+            function showPanHint(){
+                const el = document.getElementById("hint-pan");
+                if (el) {
+                  el.innerText = mobileAndTabletCheck()
+                    ? "Use two fingers to pan the map"
+                    : "Use W A S D to move the camera";
+                  el.style.display = "block";
+                  setTimeout(()=> el.style.display = "none", 3000);
+                }
+            } 
+            
+  
+           
+
+            
+            let keyState = {
+                w: false,
+                a: false,
+                s: false,
+                d: false,
+                space: false
+            };
+            canvas.setAttribute("tabindex", "0");
+
+            function focusGame() {
+                window.focus();
+               
+              
+            }
+
+            canvas.addEventListener("click", focusGame);
+            window.addEventListener("load", focusGame);
+
+            
+            const blockedKeys = [" ", "Space"];
+
+            window.addEventListener("keydown", function(e) {
+                if (blockedKeys.includes(e.key) || blockedKeys.includes(e.code)) {
+                    e.preventDefault();
+                }
+
+                if (e.key === "w") keyState.w = true;
+                if (e.key === "a") keyState.a = true;
+                if (e.key === "s") keyState.s = true;
+                if (e.key === "d") keyState.d = true;
+                
+            });
+
+            window.addEventListener("keyup", function(e) {
+                if (blockedKeys.includes(e.key) || blockedKeys.includes(e.code)) {
+                    e.preventDefault();
+                }
+
+                if (e.key === "w") keyState.w = false;
+                if (e.key === "a") keyState.a = false;
+                if (e.key === "s") keyState.s = false;
+                if (e.key === "d") keyState.d = false;
+               
+            });
+            window.addEventListener("blur", () => {
+                keyState.w = keyState.a = keyState.s = keyState.d = false;
+              });
+              
+            let last=0;
+            let savedframes=0;
+            function fps() {
+                frames++;
+                const now = performance.now();
+                if (now - last >= 1000) {
+                    savedframes=frames;
+                    frames = 0;
+                    last = now;
+                }
+                ctx.font="20px Cinzel";
+                ctx.fillText("fps:" +savedframes,20,20);
+            }
+
+
+
+
+
+            let lastTime = 0;
+
+            function gameLoop(time){
+                if (!lastTime) lastTime = time;
+
+                let deltaMs = time - lastTime;
+                lastTime = time;
+
+                if (deltaMs > 50) deltaMs = 50;
+
+
+
+                const scale = deltaMs / (1000 / 60);
+
+                update(scale);
+                requestAnimationFrame(gameLoop);
+            }
+
+            requestAnimationFrame(gameLoop);
+
+
+
+
+
+            function updatecanvassize(){
+                time=performance.now();
+                if(!mobileAndTabletCheck()){
+                    canvas.width=1920*1.25;
+                    canvas.height=1080*1.25;
+                    canvas.style.position="absolute";
+                    canvas.style.width  = document.body.clientWidth + "px";
+                    canvas.style.height = document.body.clientHeight-8 + "px";
+                }
+                else{
+                    if(window.innerHeight > window.innerWidth){
+                        canvas.width=1100;
+                        canvas.height=1600;  
+                    }
+                    else{
+                        canvas.width=1600*1.2;
+                        canvas.height=1100*1.2;
+                    }
+                    canvas.style.position="absolute";
+                    canvas.style.width  = document.body.clientWidth + "px";
+                    canvas.style.height = document.body.clientHeight + "px";
+
+
+
+
+
+
+
+                }
+            }
+            const teamResources = game.teamResources || (game.teamResources = {
+                player: { wood: 0,  food: 0,  gold: 0,  stone: 0, pop: 3, popMax: 10 },
+                red:    { wood: 0,  food: 0,  gold: 0,  stone: 0, pop: 3, popMax: 10 },
+                yellow: { wood: 0,  food: 0,  gold: 0,  stone: 0, pop: 3, popMax: 10 },
+                green:  { wood: 0,  food: 0,  gold: 0,  stone: 0, pop: 3, popMax: 10 }
+            });
+
+            const playerResources = teamResources.player;
+            game.buildMode = null;
+            const WORKER_BUILD_OPTIONS = [
+                {type: "hus",label: "House",icon: "husicon",cost: { wood: 30 }},
+                {type: "townhall",label: "TownHall",icon: "townhall",cost: { wood: 120, stone: 80 }},
+                  { type: "lumbercamp", label: "Lumber", icon: "lumbercamp", cost: { wood: 60 } },
+                  { type: "miningcamp", label: "Mining", icon: "miningcamp", cost: { wood: 60 } },
+                  { type: "mill", label: "WindMill", icon: "mill", cost: { wood: 80 } },
+                  { type: "farm", label: "farm", icon: "farm", cost: { wood: 60 } },
+                  {type: "barrack",label: "Barrack",icon: "barrack",cost: { wood: 120 }},
+                  {type: "tower",label: "Tower",icon: "tower",cost: { wood: 80, stone: 50 }}
+                
+            ];
+            const BUILDING_TYPES = {
+                hus: {
+                    imageType: "hus",
+                    foundationType: "husfoundation",
+                    iconType: "husicon",
+                    width: 80,
+                    height: 80,
+                    cost: { wood: 30 },
+                    buildTime: 900,
+                    popMaxBonus: 5,
+                    hp: 100,
+                    dropoffTypes: []
+                },
+                townhall: {
+                    imageType: "townhall",
+                    foundationType: "townhallfoundation",
+                    iconType: "townhallicon",
+                    width: 300,
+                    height: 200,
+                    cost: { wood: 120, stone: 80 },
+                    buildTime: 2000,
+                    popMaxBonus: 0,
+                    hp: 400,
+                    dropoffTypes: ["wood", "food", "gold", "stone"]
+                    
+                },
+                lumbercamp: {
+                    imageType: "lumbercamp",
+                    foundationType: "lumbercampfoundation",
+                    iconType: "lumbercampicon",
+                    width: 90,
+                    height: 90,
+                    cost: { wood: 60 },
+                    buildTime: 900,
+                    hp: 150,
+                    dropoffTypes: ["wood"]
+                },
+
+                miningcamp: {
+                    imageType: "miningcamp",
+                    foundationType: "miningcampfoundation",
+                    iconType: "miningcampicon",
+                    width: 90,
+                    height: 90,
+                    cost: { wood: 60 },
+                    buildTime: 900,
+                    hp: 150,
+                    dropoffTypes: ["gold", "stone"]
+                },
+                farm: {
+                    imageType: "farm",
+                    foundationType: "farmfoundation",
+                    iconType: "farmicon",
+                    width: 200,
+                    height: 200,
+                    cost: { wood: 60 },
+                    buildTime: 600,
+                    hp: 120,
+                    dropoffTypes: []
+                },
+                mill: {
+                    imageType: "mill",
+                    foundationType: "windmillfoundation",
+                    iconType: "mill",
+                    width: 100,
+                    height: 100,
+                    cost: { wood: 80 },
+                    buildTime: 1000,
+                    hp: 180,
+                    dropoffTypes: ["food"]
+                },
+                barrack: {
+                    imageType: "barrack",
+                    width: 300,
+                    height: 300,
+                    buildTime: 800,
+                    hp: 300,
+                    cost: { wood: 120 },
+                    dropoffTypes: []
+                },
+                tower: {
+                    width: 50,
+                    height: 200,
+                    hp: 120,
+                    buildTime: 500,
+                    imageType: "tower",
+                    cost: { wood: 80, stone: 50 },
+                    dropoffTypes: []
+                }
+            };
+
+            showPanHint();
+            
+
+            
+            function update(scale){
+                updatecanvassize();
+                ctx.fillStyle = "black";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                game.updateanimation(ctx,scale);
+                ctx.fillStyle = "rgba(0,0,0,0.5)";
+                ctx.fillRect(10, 5, 150, 350);
+                ctx.fillStyle="white";
+                ctx.font="30px Cinzel";
+                ctx.textAlign = "left";
+                ctx.textBaseline = "middle";
+                drawResourcesUI(ctx, playerResources);
+                drawWorkerBuildUI(ctx, canvas);
+                drawBuildGhost(ctx, game.maps[game.currentmap]);
+                fps();
+                const camSpeed = 15;
+                const currentMap = game.maps[game.currentmap];
+
+                if (keyState.w) if(currentMap.cameray<800)currentMap.cameray += camSpeed;
+                if (keyState.s) if(currentMap.cameray>-2200)currentMap.cameray -= camSpeed;
+                if (keyState.a) if(currentMap.camerax<200)currentMap.camerax += camSpeed;
+                if (keyState.d) if(currentMap.camerax>-6000)currentMap.camerax -= camSpeed;
+                
+                
+                if (game.needsPathRebuild) {
+                    game.rebuildPathfinding({
+                        isBlocker: (o) => {
+                            if (!o || o.dead) return false;
+                            return (o.isBuilding&&(o.name!=="farm"&&o.name!=="rfarm"&&o.name!=="gfarm"&&o.name!=="yfarm")) || o.name === "tree" || o.name === "stone" || o.name === "gold" || o.name === "river"|| o.name === "berry";
+                        },
+                        cell: 32,
+                        inflate: 10,
+                        bucket: 96
+                    });
+                }
+                const arrows = getAllArrowsAllTeams();
+                for (const a of arrows) {
+                    updateArrow(a, scale);
+                }
+                const towers = getAllTowersAllTeams();
+                for (const t of towers) {
+                    ensureOwnerByName(t);
+
+                    
+
+                     t.isBuilding = true;
+                     t.isvisable = true;
+                     t.canMove = false;
+                     t.selectable = true;
+                     t.bottomsolid=35;
+                     if (t.state == null) t.state = "idle";
+                     if (t.isUnderConstruction == null) t.isUnderConstruction = false;
+
+                     if (t.hp == null) t.hp = 120;
+                     if (t.maxHp == null) t.maxHp = 120;
+
+                     if (t.attackRange == null) t.attackRange = 600;
+                     if (t.damage == null) t.damage = 6;
+                     if (t.attackCooldown == null) t.attackCooldown = 0;
+                     if (t.attackSpeed == null) t.attackSpeed = 60;
+                     if (t.targetEnemy == null) t.targetEnemy = null;
+
+                     if(!t.isUnderConstruction)updateTower(t, scale);
+
+                    if (!t.isUnderConstruction) continue;
+
+                    t.isvisable = false;
+                    const img = game.getobjecttype("tower")?.images?.[0]?.getimage();
+                    if (!img) continue;
+
+                    const drawX = t.x + currentMap.camerax;
+                    const drawY = t.y + currentMap.cameray;
+
+                    ctx.fillStyle = "rgba(0,0,0,0.15)";
+                    ctx.fillRect(drawX, drawY, t.dimx, t.dimy);
+
+                    ctx.fillStyle = "rgba(80,60,40,0.5)";
+                    ctx.fillRect(drawX, drawY + t.dimy - 8, t.dimx, 8);
+
+                    t.drawunfinished = true;
+                }
+                
+                const houses = getAllHousesAllTeams();
+                for (const h of houses) {
+                    ensureOwnerByName(h);
+                    h.isBuilding=true;
+                    h.isvisable=true;
+                    h.gatherTime=100;
+                    h.selectable = true;
+                    if (!h.isUnderConstruction) continue;
+                    h.isvisable=false;
+                    const img = game.getobjecttype("hus")?.images?.[0]?.getimage();
+                    if (!img) continue;
+
+                    const drawX = h.x + currentMap.camerax;
+                    const drawY = h.y + currentMap.cameray;
+
+                    // dölj hela huset först med en enkel fill om du behöver
+                    ctx.fillStyle = "rgba(0,0,0,0.15)";
+                    ctx.fillRect(drawX, drawY, h.dimx, h.dimy);
+
+                    // foundation längst ner
+                    ctx.fillStyle = "rgba(80,60,40,0.5)";
+                    ctx.fillRect(drawX, drawY + h.dimy - 8, h.dimx, 8);
+
+                    // rita bara färdig del
+                    h.drawunfinished=true;
+                    //drawBuildingProgress(ctx, img, drawX, drawY, h.dimx, h.dimy, h.buildProgress);
+                }
+                const barrack = getAllBarracksAllTeams();
+                for (const b of barrack) {
+                    ensureOwnerByName(b);
+                    if (b.trainingQueue == null) {
+                        b.trainingQueue = [];
+                        b.trainingTimer = 0;
+                        b.trainingTimeMax = 700; // lite snabbare än worker om du vill
+                    }
+
+                    b.isBuilding = true;
+                    b.isvisable = true;
+                    b.gatherTime = 100;
+
+                    if (b.state == null) {
+                        b.isUnderConstruction = false;
+                        b.state = "building";
+                    }
+                    ensureBarrackRallyPoint(b);
+                    b.canMove = false;
+                    b.selectable = true;
+
+                    updateBarrackTraining(b, scale);
+                    drawBarrackTrainingQueue(ctx, b, currentMap);
+
+                    if (!b.isUnderConstruction) continue;
+
+                    b.isvisable = false;
+                    const img = game.getobjecttype("barrack")?.images?.[0]?.getimage();
+                    if (!img) continue;
+
+                    const drawX = b.x + currentMap.camerax;
+                    const drawY = b.y + currentMap.cameray;
+
+                    ctx.fillStyle = "rgba(0,0,0,0.15)";
+                    ctx.fillRect(drawX, drawY, b.dimx, b.dimy);
+
+                    ctx.fillStyle = "rgba(80,60,40,0.5)";
+                    ctx.fillRect(drawX, drawY + b.dimy - 8, b.dimx, 8);
+
+                    b.drawunfinished = true;
+                }
+                const warrior = getAllWarriorsAllTeams();
+                for (const w of warrior) {
+                    ensureOwnerByName(w);
+
+                    if(!w.dead)w.selectable = true;
+                    w.iscontrollable = (w.owner === "player");
+                    w.fliped = false;
+
+                    if (w.state == null) {
+                        w.state = "idle";
+                        w.hp = 40;
+                        w.maxHp = 40;
+                        w.damage = 8;
+                        w.attackCooldown = 0;
+                        w.targetEnemy = null;
+                        w.direction = "down";
+                        w.standingstill = true;
+
+                        w.autoAttackRange = 180;
+                        w.resumeMoveAfterAttack = false;
+                        w.resumeX = null;
+                        w.resumeY = null;
+                    }
+
+                    if (!w.dead) {
+                        if (w.direction=="down"){w.animation=1;if(w.standingstill)w.animation=0;}
+                        if (w.direction=="up"){w.animation=3;if(w.standingstill)w.animation=2;}
+                        if (w.direction=="right"){w.animation=5;if(w.standingstill)w.animation=4;}
+                        if (w.direction=="left"){w.animation=5;if(w.standingstill)w.animation=4;w.fliped=true;}
+
+                        // attack-pose om du vill
+                        if (w.state === "attackTarget" && w.targetEnemy && game.collideswithanoterobject(w, w.targetEnemy)) {
+                            if (w.direction=="down") w.animation=6;
+                            if (w.direction=="up") w.animation=7;
+                            if (w.direction=="right") w.animation=8;
+                            if (w.direction=="left") { w.animation=8; w.fliped=true; }
+                        }
+                    }
+
+                    updateWarrior(w, scale);
+                }
+                
+                
+                const selectedTownhall = getSelectedTownhall();
+                drawSelectedObjectUI(ctx, canvas);
+                
+                const townhall = getAllTownhallsAllTeams();
+                for (const t of townhall) {
+                    ensureOwnerByName(t);
+                     if (t.trainingQueue == null) {
+                        t.trainingQueue = [];
+                        t.trainingTimer = 0;
+                        t.trainingTimeMax = 900; // ca 5 sek vid 60 fps
+                    }
+                    t.isBuilding=true;
+                    t.isvisable=true;
+                    t.gatherTime=100;
+                    if(t.state==null){t.isUnderConstruction=false;t.state="building";t.dropoffTypes = ["wood", "food", "gold", "stone"];}
+                    
+                    t.canMove=false;
+                    t.selectable=true;
+               
+                   
+                     updateTownhallTraining(t, scale);
+                     drawTownhallTrainingQueue(ctx, t, currentMap);
+                       if (!t.isUnderConstruction) continue;
+                    t.isvisable=false;
+                    const img = game.getobjecttype("townhall")?.images?.[0]?.getimage();
+                    if (!img) continue;
+
+                    const drawX = t.x + currentMap.camerax;
+                    const drawY = t.y + currentMap.cameray;
+
+                    // dölj hela huset först med en enkel fill om du behöver
+                    ctx.fillStyle = "rgba(0,0,0,0.15)";
+                    ctx.fillRect(drawX, drawY, t.dimx, t.dimy);
+
+                    // foundation längst ner
+                    ctx.fillStyle = "rgba(80,60,40,0.5)";
+                    ctx.fillRect(drawX, drawY + t.dimy - 8, t.dimx, 8);
+
+                    // rita bara färdig del
+                    t.drawunfinished=true;
+                    //drawBuildingProgress(ctx, img, drawX, drawY, t.dimx, t.dimy, t.buildProgress);
+                  
+       
+                }
+                const lumbercamp =  getAllLumbercampsAllTeams();
+                for (const l of lumbercamp) {
+                    ensureOwnerByName(l);
+                    l.isvisable=true;
+                    l.gatherTime=100;
+                    l.isBuilding=true;
+                    if(l.state==null){l.isUnderConstruction=false;l.state="building";l.dropoffTypes = ["wood"];}
+                    
+                    l.canMove=false;
+                    l.selectable=true;
+                   
+
+                       if (!l.isUnderConstruction) continue;
+                    l.isvisable=false;
+                    const img = game.getobjecttype("lumbercamp")?.images?.[0]?.getimage();
+                    if (!img) continue;
+
+                    const drawX = l.x + currentMap.camerax;
+                    const drawY = l.y + currentMap.cameray;
+
+                    // dölj hela huset först med en enkel fill om du behöver
+                    ctx.fillStyle = "rgba(0,0,0,0.15)";
+                    ctx.fillRect(drawX, drawY, l.dimx, l.dimy);
+
+                    // foundation längst ner
+                    ctx.fillStyle = "rgba(80,60,40,0.5)";
+                    ctx.fillRect(drawX, drawY + l.dimy - 8, l.dimx, 8);
+
+                    // rita bara färdig del
+                    l.drawunfinished=true;
+                    //drawBuildingProgress(ctx, img, drawX, drawY, l.dimx, l.dimy, l.buildProgress);
+                  
+       
+                }
+                const miningcamp = getAllMiningcampsAllTeams();
+                for (const m of miningcamp) {
+                    ensureOwnerByName(m);
+                    m.isvisable=true;
+                    m.gatherTime=100;
+                    m.isBuilding=true;
+                    if(m.state==null){m.isUnderConstruction=false;m.state="building";m.dropoffTypes = ["gold", "stone"];}
+                    
+                    m.canMove=false;
+                    m.selectable=true;
+                   
+
+                       if (!m.isUnderConstruction) continue;
+                    m.isvisable=false;
+                    const img = game.getobjecttype("miningcamp")?.images?.[0]?.getimage();
+                    if (!img) continue;
+
+                    const drawX = m.x + currentMap.camerax;
+                    const drawY = m.y + currentMap.cameray;
+
+                    // dölj hela huset först med en enkel fill om du behöver
+                    ctx.fillStyle = "rgba(0,0,0,0.15)";
+                    ctx.fillRect(drawX, drawY, m.dimx, m.dimy);
+
+                    // foundation längst ner
+                    ctx.fillStyle = "rgba(80,60,40,0.5)";
+                    ctx.fillRect(drawX, drawY + m.dimy - 8, m.dimx, 8);
+
+                    // rita bara färdig del
+                    m.drawunfinished=true;
+                    //drawBuildingProgress(ctx, img, drawX, drawY, m.dimx, m.dimy, m.buildProgress);
+                  
+       
+                }
+                const mill = getAllMillsAllTeams();
+                for (const m of mill) {
+                    ensureOwnerByName(m);
+                    m.isvisable=true;
+                    m.gatherTime=100;
+                    m.isBuilding=true;
+                    if(m.state==null){m.isUnderConstruction=false;m.state="building";m.dropoffTypes = ["food"];}
+                    
+                    m.canMove=false;
+                    m.selectable=true;
+                   
+
+                       if (!m.isUnderConstruction) continue;
+                    m.isvisable=false;
+                    const img = game.getobjecttype("mill")?.images?.[0]?.getimage();
+                    if (!img) continue;
+
+                    const drawX = m.x + currentMap.camerax;
+                    const drawY = m.y + currentMap.cameray;
+
+                    // dölj hela huset först med en enkel fill om du behöver
+                    ctx.fillStyle = "rgba(0,0,0,0.15)";
+                    ctx.fillRect(drawX, drawY, m.dimx, m.dimy);
+
+                    // foundation längst ner
+                    ctx.fillStyle = "rgba(80,60,40,0.5)";
+                    ctx.fillRect(drawX, drawY + m.dimy - 8, m.dimx, 8);
+
+                    // rita bara färdig del
+                    m.drawunfinished=true;
+                    //drawBuildingProgress(ctx, img, drawX, drawY, m.dimx, m.dimy, m.buildProgress);
+                  
+       
+                }
+                const farm = getAllFarmsAllTeams();
+                for (const f of farm) {
+                    ensureOwnerByName(f);
+                    f.isvisable=true;
+                    f.gatherTime=1000;
+                    f.isBuilding=true;
+                    if(f.state==null){f.isUnderConstruction=false;f.state="building";f.type = "food";f.amount = 1000;}
+                    
+                    f.canMove=false;
+                    f.selectable=true;
+                   
+
+                       if (!f.isUnderConstruction) continue;
+                    f.isvisable=false;
+                    const img = game.getobjecttype("farm")?.images?.[0]?.getimage();
+                    if (!img) continue;
+
+                    const drawX = f.x + currentMap.camerax;
+                    const drawY = f.y + currentMap.cameray;
+
+                    // dölj hela huset först med en enkel fill om du behöver
+                    ctx.fillStyle = "rgba(0,0,0,0.15)";
+                    ctx.fillRect(drawX, drawY, f.dimx, f.dimy);
+
+                    // foundation längst ner
+                    ctx.fillStyle = "rgba(80,60,40,0.5)";
+                    ctx.fillRect(drawX, drawY + f.dimy - 8, f.dimx, 8);
+
+                    // rita bara färdig del
+                    f.drawunfinished=true;
+                    //drawBuildingProgress(ctx, img, drawX, drawY, f.dimx, f.dimy, f.buildProgress);
+                  
+       
+                }
+                const gold = game.getobjecttype('gold')?.objects || [];
+                for (const g of gold) {
+                    g.canMove=false;
+                    g.selectable=true;
+                    if(g.state==null){
+                        g.state="idle";
+                        g.type = "gold"; // wood, gold, stone, food
+                        g.amount = 1000;
+                        g.gatherTime = 500;
+                    }
+               
+                }
+                const stone = game.getobjecttype('stone')?.objects || [];
+                for (const s of stone) {
+                    s.canMove=false;
+                    s.selectable=true;
+                    if(s.state==null){
+                        s.state="idle";
+                        s.type = "stone"; // wood, gold, stone, food
+                        s.amount = 1000;
+                        s.gatherTime = 500;
+                    }
+                 
+                }
+                const berry = game.getobjecttype('berry')?.objects || [];
+                for (const b of berry) {
+                    b.canMove=false;
+                    b.selectable=true;
+                    if(b.state==null){
+                        b.state="idle";
+                        b.type = "food"; // wood, gold, stone, food
+                        b.amount = 100;
+                        b.gatherTime = 500;
+                    }
+       
+                }
+                const tree = game.getobjecttype('tree')?.objects || [];
+                for (const t of tree) {
+                     t.selectable=true;
+                     if(t.state==null){
+                        t.state="idle";
+                        t.type = "wood"; // wood, gold, stone, food
+                        t.amount = 100;
+                        t.gatherTime = 500;
+                        t.animation = Math.floor(Math.random() * 2); // 0,1
+                    }
+                }
+                const sheep = game.getobjecttype('sheep')?.objects || [];
+                for (const s of sheep) {
+                    s.selectable = true;
+
+                    if (s.state == null) {
+                        s.state = "idle";
+                        s.type = "food";
+                        s.amount = 100;
+                        s.gatherTime = 500;
+                        s.nearActivated = false;
+                        s.owner = null; // neutral från start
+                        s.iscontrollable = false;
+                        s.direction = "down";
+                        s.standingstill = true;
+                    }
+
+                    // hitta worker nära
+                    const nearbyWorker = getNearestWorkerInRange(s, 300);
+
+                    // neutral sheep blir ägda av första laget som kommer nära
+                    if (!s.dead && nearbyWorker) {
+                        s.owner = nearbyWorker.owner || "player";
+                    }
+
+                    // sheep är controllable om de har en owner
+                    if(s.owner==="player")s.iscontrollable = true;
+
+                    s.fliped = false;
+
+                    if (!s.dead) {
+                        if (!s.owner) {
+                            updatePassiveWander(s, scale, 60, 100, 240);
+                        } else {
+                            if(s.owner!=="player")
+                            updateOwnedSheep(s, scale);
+                        }
+
+                        const base = getSheepAnimBase(s.owner);
+
+                        if (s.direction == "down") {
+                            s.animation = base + 3;
+                            if (s.standingstill) s.animation = base + 2;
+                        }
+                        if (s.direction == "up") {
+                            s.animation = base + 5;
+                            if (s.standingstill) s.animation = base + 4;
+                        }
+                        if (s.direction == "right") {
+                            s.animation = base + 1;
+                            if (s.standingstill) s.animation = base + 0;
+                        }
+                        if (s.direction == "left") {
+                            s.animation = base + 1;
+                            if (s.standingstill) s.animation = base + 0;
+                            s.fliped = true;
+                        }
+                    }
+                }
+                const boar = game.getobjecttype('boar')?.objects || [];
+                for (const b of boar) {
+                    b.selectable=true;
+                    if (b.state == null) {
+                        b.state = "idle";
+                        b.isAlive = true;
+                        b.type = "none";
+                        b.amount = 100;       // eller 20
+                        b.gatherTime = 500;
+  
+
+                        b.spawnX = b.x;
+                        b.spawnY = b.y;
+
+                        b.hp = 40;
+                        b.targetUnit = null;
+                        b.attackCooldown = 0;
+                        b.aggroRange = 300;
+                        b.attackRange = 28;
+                        b.leashRange = 260;
+                        b.moveSpeed = 1.4;
+                        b.damage = 5;
+                    }
+                    b.fliped=false;
+                    if(!b.dead){
+                        if(b.direction=="down"){b.animation=3;if(b.standingstill)b.animation=2;}
+                        if(b.direction=="up"){b.animation=5;if(b.standingstill)b.animation=4;}
+                        if(b.direction=="right"){b.animation=1;if(b.standingstill)b.animation=0;}
+                        if(b.direction=="left"){b.animation=1;if(b.standingstill)b.animation=0;b.fliped=true;}
+                        updateBoar(b, scale);
+                    }
+                }
+                
+                if(rightklick){
+                    rightklick=false;
+                    
+                    const selectedWorkers = game.getobjecttype('worker')?.objects?.filter(o => o.selected) || [];
+                    const selectedWarriors = game.getobjecttype('warrior')?.objects?.filter(o => o.selected) || [];
+                    const mousepressed = game.getAllObjects().filter(o => o.mousepressed);
+                    const isresource = mousepressed.filter(o => o.gatherTime);
+                    const isEnemy = mousepressed.filter(o =>o.selectable &&isEnemyOf(selectedWarriors[0], o));
+
+                    if (selectedWorkers.length > 0 && isresource.length > 0 && !game.buildMode)  {
+                        for (let w of selectedWorkers) {
+                   
+                            if((isresource[0].name=="barrack"||isresource[0].name=="hus"||isresource[0].name=="townhall"||isresource[0].name=="mill"||isresource[0].name=="miningcamp"||isresource[0].name=="lumbercamp"||(isresource[0].name=="farm"&&isresource[0].isUnderConstruction))&&!isresource[0].dead){
+                                
+                                if(isresource[0].isUnderConstruction ){
+                                    clearWorkerOrder(w);
+                                    w.state = "buildBuilding";
+                                    w.targetBuilding = isresource[0];
+                                    w.selected=false;
+                                    w.targetX=w.targetBuilding.x+w.targetBuilding.dimx/2;
+                                    w.targetY=w.targetBuilding.y+w.targetBuilding.dimy/2;
+                                    w.standingstill=false;
+                                }
+                                
+                            }
+                            
+                            
+                            else if(isresource[0].name=="boar"&&!isresource[0].dead ){
+                           
+                                 orderWorkerAttackBoar(w, isresource[0]);
+                                 w.selected=false;
+                                 w.standingstill=false;
+                                
+                            }
+                            else{ 
+                                if(isresource[0].name=="farm"){
+                                    if(!isresource[0].slot){orderWorkerGather(w, isresource[0]);w.selected=false;w.standingstill=false;}
+                                    if(isresource[0].name=="farm")isresource[0].slot=w;
+                                }
+                                else{
+                                    orderWorkerGather(w, isresource[0]);w.selected=false;
+                                    w.standingstill=false;
+                                }
+                            }
+                        }
+                    }
+                     // NYTT: warriors attackerar boar
+                    if (selectedWarriors.length > 0 && !game.buildMode) {
+                         if (isresource.length > 0 && isresource[0].name === "boar" && !isresource[0].dead) {
+                            for (let w of selectedWarriors) {
+                                orderWarriorAttackBoar(w, isresource[0]);
+                                w.selected = false;
+                                w.standingstill=false;
+                            }
+                        }
+                        else if (isEnemy.length > 0 && !isEnemy[0].dead) {
+                            for (let w of selectedWarriors) {
+                                orderWarriorAttackTarget(w, isEnemy[0]);
+                                w.selected = false;
+                                w.standingstill=false;
+                            }
+                        }
+                       
+                    }
+
+                    if(selectedWorkers.length > 0 && isresource.length === 0 && !game.buildMode){
+                        for (let w of selectedWorkers) {
+                            if(w.targetResource) w.targetResource.slot=null;
+                            clearWorkerOrder(w);
+                            w.standingstill=false;
+                            w.state = "move";
+                            w.targetX=cursorX-game.getcamerax();
+                            w.targetY=cursorY-game.getcameray();;
+                            game.pathUnitTo(w, cursorX-game.getcamerax(), cursorY-game.getcameray());
+                        }
+                    }
+
+                    if(selectedWarriors.length > 0 && !game.buildMode &&isresource.length === 0 &&isEnemy.length === 0 ){
+                        for (let w of selectedWarriors) {
+                            w.targetEnemy = null;
+                            w.state = "move";
+                            w.targetX=cursorX-game.getcamerax();
+                            w.targetY=cursorY-game.getcameray();;
+                            w.standingstill=false;
+                            game.pathUnitTo(w, cursorX-game.getcamerax(), cursorY-game.getcameray());
+               
+                      
+                        }
+                    }
+                    if(game.buildMode && !mobileAndTabletCheck()){
+                        game.deselectAll();
+                        game.buildMode=null;
+                    }
+                }
+                const worker = getAllWorkersAllTeams();
+                for (const w of worker) {
+                    ensureOwnerByName(w);
+
+                    if(!w.dead)w.selectable = true;
+                    w.iscontrollable = (w.owner === "player");
+                    w.fliped=false;
+                    
+                    if(!w.dead){
+                        if(w.direction=="down"){w.animation=1;if(w.standingstill)w.animation=0;if(w.state === "gather")w.animation=6;if(w.state === "returnToBase")w.animation=9;}
+                        if(w.direction=="up"){w.animation=3;if(w.standingstill)w.animation=2;if(w.state === "gather")w.animation=7;if(w.state === "returnToBase")w.animation=10;}
+                        if(w.direction=="right"){w.animation=5;if(w.standingstill)w.animation=4;if(w.state === "gather")w.animation=8;if(w.state === "returnToBase")w.animation=11;}
+                        if(w.direction=="left"){w.animation=5;if(w.standingstill)w.animation=4;w.fliped=true;if(w.state === "gather")w.animation=8;if(w.state === "returnToBase")w.animation=11;}
+                    
+                        if((w.state === "attackBoar"&& game.collideswithobject(w,"boar"))||(w.state === "buildBuilding"&& game.collideswithanoterobject(w,w.targetBuilding))){
+                            if(w.direction=="down"){w.animation=6;}
+                            if(w.direction=="up"){w.animation=7;}
+                            if(w.direction=="right"){w.animation=8;}
+                            if(w.direction=="left"){w.animation=8;}
+
+                        }
+                    }
+                    if(w.state === "returnToBase"){
+                
+                        if(w.carryType==="food"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("foodicon"),w.x,w.y-20,30,30,0,false);}
+                        if(w.carryType==="wood"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("woodicon"),w.x,w.y-20,30,30,0,false);}   
+                        if(w.carryType==="stone"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("stoneicon"),w.x,w.y-20,30,30,0,false);}    
+                        if(w.carryType==="gold"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("goldicon"),w.x,w.y-20,30,30,0,false);}        
+                        
+                        
+                        
+                        
+                        
+                        if(w.holdingicon){w.holdingicon.x=w.x;w.holdingicon.y=w.y-20;}
+                        
+                        
+                    }
+                    else if(w.holdingicon){
+                        game.removeobject(game.getobjecttype(w.holdingicon.name),w.holdingicon);
+                        w.holdingicon=null;
+                        
+                    }
+                    
+                    if(w.state==null){
+                        w.state = "idle";
+                        w.targetResource = null;
+                        w.targetDropoff = null;
+                        w.carryType = null;
+                        w.carryAmount = 0;
+                        w.carryMax = 10;
+                        w.gatherTimer = 0;
+                        w.jobType = null;
+                        w.holdingicon=null;
+                        w.attackTarget = null;
+                        w.attackTimer = 0;
+                    }
+                    
+                    updateWorker(w, townhall, teamResources[w.owner || "player"], scale);
+                    
+                    
+                    
+                }
+                updateTeamAI("red", scale);
+                updateTeamAI("yellow", scale);
+                updateTeamAI("green", scale);
+        
+        }
+function orderWorkerGather(worker, resource) {
+    if (!worker || !resource) return;
+    if (resource.amount <= 0) return;
+
+    worker.targetResource = resource;
+    worker.jobType = resource.type;
+    worker.targetDropoff = getNearestDropoff(worker, resource.type);
+    worker.state = "moveToResource";
+
+    const p = getApproachPoint(worker, resource, 18);
+    worker.targetX=resource.x+resource.dimx/2;worker.targetY=resource.y+resource.dimy/2;
+    requestUnitPath(worker, p.x, p.y);
+    worker.standingstill=false;
+   // if(worker.targetX=== null){worker.targetX=resource.x+resource.dimx/2;worker.targetY=resource.y+resource.dimy/2;worker.sistabit=true;worker.standingstill = false;}
+   // else if(worker.targetX&&!worker.sistabit&& !worker.blocked){requestUnitPath(worker, p.x, p.y);}
+   /// else {worker.targetX=resource.x+resource.dimx/2;worker.targetY=resource.y+resource.dimy/2;}
+}        
+function getNearestDropoff(unit, resourceType) {
+    const owner = unit.owner || "player";
+
+    const all = game.getAllObjects().filter(o =>
+        !o.dead &&
+        o.owner === owner &&
+        o.dropoffTypes &&
+        o.dropoffTypes.includes(resourceType)
+    );
+
+    let best = null;
+    let bestDist = Infinity;
+
+    for (const b of all) {
+        const dx = b.x - unit.x;
+        const dy = b.y - unit.y;
+        const d = dx * dx + dy * dy;
+
+        if (d < bestDist) {
+            bestDist = d;
+            best = b;
+        }
+    }
+
+    return best;
+}
+function updateWorker(worker, townhallList, playerResources, scale) {
+    if(worker.dead)return;
+    const speed = 1.0;
+  //  drawUnitPathDebug(ctx, worker, "cyan");
+
+    if (worker.state === "idle") {
+        
+        return;
+    }
+    if (worker.state === "move") {
+
+
+        if (worker.path && worker.path.length > 0) {
+            game.followPath(worker, { reachDist: 25 });
+        }
+
+        if (worker.targetX == null || worker.targetY == null) {
+            worker.state = "idle";
+            worker.standingstill = true;
+            
+        }
+
+        return;
+    }
+if (worker.state === "buildBuilding") {
+    const b = worker.targetBuilding;
+    
+    
+    
+    
+    
+    if (!b || b.dead || !b.isUnderConstruction || b.isFinishing) {
+        worker.targetBuilding = null;
+        worker.state = "idle";
+        worker.targetX = null;
+        worker.targetY = null;
+        worker.sistabit=false;
+        worker.standingstill=false;
+        clearUnitPath(worker);
+        return;
+    }
+
+    if (game.collideswithanoterobject(worker, b)) {
+    
+        clearUnitPath(worker);
+
+        b.buildTimer += 1 * scale;
+        b.buildProgress = b.buildTimer / b.buildTimeMax;
+
+        if (b.buildProgress >= 1) {
+            worker.sistabit=false;
+            worker.standingstill=false;
+             worker.standingstill = true;
+            b.buildProgress = 1;
+            b.isUnderConstruction = false;
+            b.isFinishing = true;
+
+            finishBuilding(b, worker);
+            worker.targetBuilding = null;
+
+            if (!b.slot && b.name == "farm") {
+                b.slot = worker;
+                orderWorkerGather(worker, b);
+                worker.selected = false;
+              
+            } else {
+                worker.state = "idle";
+                worker.targetX = null;
+                worker.targetY = null;
+                worker.standingstill = true;
+         
+            }
+        } else {
+           
+         
+        }
+
+        return;
+    }
+
+    const p = getApproachPoint(worker, b, 20);
+    if(!worker.standingstill&&!worker.sistabit){worker.targetX = p.x;worker.targetY = p.y;updateUnitPathMovement(worker, scale, { reachDist: 25, repathEvery: 500 });}  
+    else{worker.targetX=b.x+b.dimx/2;worker.targetY=b.y+b.dimy/2;worker.standingstill = false;worker.sistabit=true;}
+    return;
+}
+    
+if (worker.state === "attackBoar") {
+    const b = worker.attackTarget;
+
+    if (!b || b.dead || b.state === "dead" || b.hp <= 0) {
+        worker.attackTarget = null;
+        worker.state = "gather";
+        worker.targetResource = b;
+        worker.jobType = "food";
+        clearUnitPath(worker);
+        return;
+    }
+
+    if (game.collideswithanoterobject(worker, b)) {
+        clearUnitPath(worker);
+        worker.standingstill = true;
+        worker.attackTimer = (worker.attackTimer || 0) + 1 * scale;
+
+        if (worker.attackTimer >= 60) {
+            worker.attackTimer = 0;
+            b.hp -= 5;
+            b.flashTimer = 30;
+
+            if (b.hp <= 0) {
+                b.dead = true;
+                b.type = "food";
+                worker.attackTarget = null;
+                worker.state = "gather";
+                worker.targetResource = b;
+                worker.jobType = "food";
+                worker.sistabit=false;
+                worker.standingstill=false;
+            }
+        }
+        return;
+    }
+
+    worker.targetX = b.x + b.dimx / 2;
+    worker.targetY = b.y + b.dimy / 2;
+    updateUnitPathMovement(worker, scale, { reachDist: 25, repathEvery: 25, movedThreshold: 12 });
+    return;
+}
+if (worker.state === "moveToResource") {
+    let r = worker.targetResource;
+
+    if (!r || (r.dead && r.name !== "sheep" && r.name !== "boar") || r.amount <= 0) {
+        worker.targetResource = null;
+        clearUnitPath(worker);
+
+        if (worker.carryAmount > 0) {
+            worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
+            if (worker.targetDropoff) {
+                worker.state = "returnToBase";
+                worker.sistabit=false;
+                worker.standingstill=false;
+                requestUnitPath(
+                    worker,
+                    worker.targetDropoff.x + worker.targetDropoff.dimx / 2,
+                    worker.targetDropoff.y + worker.targetDropoff.dimy / 2
+                );
+            } else {
+                worker.state = "idle";
+                worker.sistabit=false;
+                worker.standingstill=false;
+            }
+        } else {
+            const next = getNearestResourceOfType(worker, worker.jobType);
+            if (next) {
+                worker.targetResource = next;
+                worker.state = "moveToResource";
+                worker.sistabit=false;
+                worker.standingstill=false;
+                requestUnitPath(worker, next.x + next.dimx / 2, next.y + next.dimy / 2);
+            } else {
+                worker.state = "idle";
+                worker.sistabit=false;worker.standingstill=false;
+                worker.jobType = null;
+            }
+        }
+
+        
+        return;
+    }
+    
+    if(r.name=="farm"||r.name=="rfarm"||r.name=="gfarm"||r.name=="yfarm"){
+        if (game.collideswithanoterobject(worker,r)) {
+            clearUnitPath(worker);
+            worker.state = "gather";
+            worker.sistabit=false;
+            worker.standingstill=false;
+            worker.gatherTimer = 0;
+            worker.standingstill = true;
+            return;
+        }
+        
+        
+    }
+    else{
+        const collideobject=game.collideswiths(worker,r.name);
+        if (collideobject) {
+            clearUnitPath(worker);
+            r=collideobject;
+            worker.targetResource=collideobject;
+            worker.state = "gather";
+            worker.sistabit=false;
+            worker.standingstill=false;
+            worker.gatherTimer = 0;
+            worker.standingstill = true;
+            return;
+        }
+    }
+
+    const p = getApproachPoint(worker, r, 18);
+    if(!worker.standingstill&&!worker.sistabit){worker.targetX = p.x;worker.targetY = p.y;updateUnitPathMovement(worker, scale, { reachDist: 25, repathEvery: 500 });}
+    else if(worker.standingstill){worker.targetX=r.x+r.dimx/2;worker.targetY=r.y+r.dimy/2;worker.standingstill = false;worker.sistabit=true;}   
+    
+    return;
+}
+
+    if (worker.state === "gather") {
+        const r = worker.targetResource;
+        worker.standingstill = true;
+        if(r.name==="farm"||r.name==="rfarm"||r.name==="gfarm"||r.name==="yfarm"){
+         
+            worker.standingstill=false;
+            
+            worker.targetX = r.x + (r.dimx / 2)-(worker.dimx / 2);
+            worker.targetY = r.y + (r.dimy / 2)-(worker.dimy / 2);
+         
+            
+        }
+        
+        if (r.name === "sheep"||r.name === "boar") {
+       
+
+            
+                r.dead = true;
+                if(r.name === "sheep")r.animation=12;
+                if(r.name === "boar")r.animation=6;
+            
+        }
+        
+        if (!r  || r.amount <= 0) {
+            worker.targetResource = null;
+
+            if (worker.carryAmount > 0) {
+                worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
+                if (worker.targetDropoff) {
+                    worker.state = "returnToBase";
+                    worker.sistabit=false;
+                    worker.standingstill=false;
+                } else {
+                    worker.state = "idle";
+                    worker.sistabit=false;
+                    worker.standingstill=false;
+                }
+            } else {
+                const next = getNearestResourceOfType(worker, worker.jobType);
+                if (next) {
+                    worker.targetResource = next;
+                    worker.state = "moveToResource";
+                    worker.sistabit=false;
+                    worker.standingstill=false;
+                } else {
+                    worker.state = "idle";
+                    worker.jobType = null;
+                    worker.sistabit=false;
+                    worker.standingstill=false;
+                }
+            }
+
+        
+            return;
+        }
+
+        
+        worker.gatherTimer += 1 * scale;
+        
+        if (worker.gatherTimer >= r.gatherTime) {
+            worker.gatherTimer = 0;
+            const take = Math.min(worker.carryMax - worker.carryAmount, 10, r.amount);
+            r.amount -= take;
+            worker.carryAmount += take;
+            worker.carryType = r.type;
+
+            if (r.amount <= 0) {
+                game.removeobject(game.getobjecttype(r.name),r);
+                markStaticsDirty();
+            }
+            
+            if (worker.carryAmount >= worker.carryMax || r.amount <= 0) {
+                worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
+                if (worker.targetDropoff) {
+                    worker.state = "returnToBase";
+                    worker.sistabit=false;
+                    worker.standingstill=false;
+                } else {
+                    worker.state = "idle";
+                    worker.sistabit=false;
+                    worker.standingstill=false;
+                }
+            }
+        }
+        return;
+    }
+
+if (worker.state === "returnToBase") {
+    const t = worker.targetDropoff;
+
+    if (!t || t.dead) {
+        worker.state = "idle";
+        worker.sistabit=false;
+        worker.standingstill=false;
+        worker.standingstill = true;
+        clearUnitPath(worker);
+        return;
+    }
+
+    if (game.collideswithanoterobject(worker, t)) {
+        clearUnitPath(worker);
+        if (t.isUnderConstruction) return;
+        worker.state = "deposit";
+        worker.sistabit=false;
+        worker.standingstill=false;
+        worker.standingstill = true;
+        return;
+    }
+
+    const p = getApproachPoint(worker, t, 20);
+    if(!worker.standingstill&&!worker.sistabit){worker.targetX = p.x;worker.targetY = p.y;updateUnitPathMovement(worker, scale, { reachDist: 25, repathEvery: 500 });}
+    else{worker.targetX=t.x+t.dimx/2;worker.targetY=t.y+t.dimy/2;worker.standingstill = false;worker.sistabit=true;}
+    
+    return;
+}
+
+if (worker.state === "deposit") {
+    clearUnitPath(worker);
+
+    if (worker.carryAmount > 0 && worker.carryType) {
+        playerResources[worker.carryType] =
+            (playerResources[worker.carryType] || 0) + worker.carryAmount;
+    }
+
+    worker.carryAmount = 0;
+    worker.carryType = null;
+
+    if (worker.targetResource && worker.targetResource.amount > 0) {
+        worker.state = "moveToResource";
+        worker.sistabit=false;
+        worker.standingstill=false;
+        requestUnitPath(
+            worker,
+            worker.targetResource.x + worker.targetResource.dimx / 2,
+            worker.targetResource.y + worker.targetResource.dimy / 2
+        );
+    } else {
+        const next = getNearestResourceOfType(worker, worker.jobType);
+
+        if (next && !next.slot) {
+            worker.targetResource = next;
+            worker.state = "moveToResource";
+            worker.sistabit=false;
+            worker.standingstill=false;
+            requestUnitPath(
+                worker,
+                next.x + next.dimx / 2,
+                next.y + next.dimy / 2
+            );
+        } else {
+            worker.state = "idle";
+            worker.targetResource = null;
+            worker.jobType = null;
+            worker.sistabit=false;
+            worker.standingstill=false;
+            
+        }
+    }
+
+   
+    return;
+}
+}
+function getNearestResourceOfType(unit, type) {
+    if (!type) return null;
+
+    const all = game.getAllObjects().filter(o => {
+        if (o.amount <= 0 || o.type !== type) return false;
+
+        if (o.name === "sheep") {
+            return !o.owner || o.owner === "neutral" || o.owner === unit.owner;
+        }
+        if(o.name==="farm"||o.name==="rfarm"||o.name==="gfarm"||o.name==="yfarm")return false;
+        return true; // vanliga träd/guld/sten får alla ta
+    });
+
+    let best = null;
+    let bestDist = Infinity;
+
+    for (const r of all) {
+        if (r.slot && r.slot !== unit) continue;
+
+        const rx = r.x + r.dimx / 2;
+        const ry = r.y + r.dimy / 2;
+        const dx = rx - unit.x;
+        const dy = ry - unit.y;
+        const d = dx * dx + dy * dy;
+
+        if (d < bestDist) {
+            bestDist = d;
+            best = r;
+        }
+    }
+
+    return best;
+}    
+function clearWorkerOrder(worker) {
+    if (!worker) return;
+
+    if (worker.targetResource && worker.targetResource.slot === worker) {
+        worker.targetResource.slot = null;
+    }
+
+    worker.state = "idle";
+    worker.targetResource = null;
+    worker.targetDropoff = null;
+    worker.jobType = null;
+    worker.gatherTimer = 0;
+    worker.targetBuilding = null;
+    worker.attackTarget = null;
+
+    clearUnitPath(worker);
+}       
+function dist2(a, b) {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return dx * dx + dy * dy;
+}            
+function getNearestUnitInRange(boar, range) {
+    const owners = ["player", "red", "yellow", "green"];
+    let units = [];
+
+    for (const owner of owners) {
+        units.push(...getTeamObjects("worker", owner));
+        units.push(...getTeamObjects("warrior", owner));
+    }
+
+    let best = null;
+    let bestDist = range * range;
+
+    for (const u of units) {
+        if (!u || u.dead) continue;
+        const d = dist2(boar, u);
+        if (d < bestDist) {
+            bestDist = d;
+            best = u;
+        }
+    }
+
+    return best;
+}  
+function moveBoarTowards(boar, tx, ty) {
+    boar.targetX = tx;
+    boar.targetY = ty;
+    boar.standingstill = false;
+
+    const dx = tx - boar.x;
+    const dy = ty - boar.y;
+
+
+}            
+function updateBoar(boar, scale) {
+    if (boar.dead) return;
+
+    // cooldown
+    if (boar.attackCooldown > 0) {
+        boar.attackCooldown -= 1 * scale;
+        if (boar.attackCooldown < 0) boar.attackCooldown = 0;
+    }
+
+
+
+    if (boar.state === "idle") {
+        const target = getNearestUnitInRange(boar, boar.aggroRange);
+        if (target) {
+            boar.targetUnit = target;
+            boar.state = "aggro";
+            return;
+        }
+
+        updatePassiveWander(boar, scale, 70, 80, 200);
+        return;
+    }
+
+    if (boar.state === "aggro") {
+        const t = boar.targetUnit;
+
+        if (!t || t.dead) {
+            boar.targetUnit = null;
+            boar.state = "return";
+            return;
+        }
+
+        const dxSpawn = boar.x - boar.spawnX;
+        const dySpawn = boar.y - boar.spawnY;
+        const dSpawn = Math.hypot(dxSpawn, dySpawn);
+
+        if (dSpawn > boar.leashRange) {
+            boar.targetUnit = null;
+            boar.state = "return";
+            return;
+        }
+
+      
+
+        if (game.collideswithanoterobject(boar,t)) {
+            boar.state = "attack";
+            boar.standingstill = true;
+            return;
+        }
+
+        moveBoarTowards(boar, t.x, t.y);
+        return;
+    }
+
+    if (boar.state === "attack") {
+        const t = boar.targetUnit;
+
+        if (!t || t.dead) {
+            boar.targetUnit = null;
+            boar.state = "return";
+            return;
+        }
+
+     
+
+        if (!game.collideswithanoterobject(boar,t)) {
+            boar.state = "aggro";
+            return;
+        }
+
+        boar.standingstill = true;
+
+        if (boar.attackCooldown <= 0) {
+            boar.attackCooldown = 60; // justera
+            t.hp = (t.hp || 20) - boar.damage;
+             t.flashTimer=30;
+            // enkel knockback om du vill
+            // t.vx = (dx > 0 ? 1 : -1) * 1.5;
+            // t.vy = -1;
+
+            if (t.hp <= 0) {
+                t.selectable = false;
+                t.flashTimer = 0;
+                t.dead = true;
+
+                const owner = t.owner || "player";
+                const res = teamResources[owner];
+                if (res) {
+                    res.pop -= 1;
+                    if (res.pop < 0) res.pop = 0;
+                }
+
+                if (t.name.includes("worker")) {
+                    t.animation = 12;
+                } else if (t.name.includes("warrior")) {
+                    t.animation = 9;
+                }
+
+                boar.targetUnit = null;
+                boar.state = "return";
+            }
+        }
+
+        return;
+    }
+
+    if (boar.state === "return") {
+        const dx = boar.spawnX - boar.x;
+        const dy = boar.spawnY - boar.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist < 8) {
+            boar.x = boar.spawnX;
+            boar.y = boar.spawnY;
+            boar.state = "idle";
+            boar.standingstill = true;
+            return;
+        }
+
+        moveBoarTowards(boar, boar.spawnX, boar.spawnY);
+        return;
+    }
+
+    if (boar.state === "dead") {
+        boar.standingstill = true;
+        return;
+    }
+}            
+function orderWorkerAttackBoar(worker, boar) {
+    if (!worker || !boar || boar.state === "dead") return;
+
+    clearWorkerOrder(worker);
+    worker.attackTarget = boar;
+    worker.state = "attackBoar";
+
+    requestUnitPath(
+        worker,
+        boar.x + boar.dimx / 2,
+        boar.y + boar.dimy / 2
+    );
+}        
+function updatePassiveWander(unit, scale, radius = 80, waitMin = 40, waitMax = 140) {
+    if (unit.dead) return;
+ 
+    if (unit.spawnX == null) unit.spawnX = unit.x;
+    if (unit.spawnY == null) unit.spawnY = unit.y;
+
+    if (unit.wanderTimer == null) unit.wanderTimer = 0;
+    if (unit.wanderState == null) unit.wanderState = "wait"; // "wait" | "move"
+
+    if (unit.wanderState === "wait") {
+        unit.standingstill = true;
+        unit.wanderTimer -= 1 * scale;
+
+        if (unit.wanderTimer <= 0) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * radius;
+
+            unit.wanderTargetX = unit.spawnX + Math.cos(angle) * dist;
+            unit.wanderTargetY = unit.spawnY + Math.sin(angle) * dist;
+
+            unit.targetX = unit.wanderTargetX;
+            unit.targetY = unit.wanderTargetY;
+            unit.standingstill = false;
+            unit.wanderState = "move";
+        }
+        return;
+    }
+
+    if (unit.wanderState === "move") {
+        const dx = unit.targetX - unit.x;
+        const dy = unit.targetY - unit.y;
+        const d = Math.hypot(dx, dy);
+
+        if (d < 10) {
+            unit.wanderState = "wait";
+            unit.wanderTimer = waitMin + Math.random() * (waitMax - waitMin);
+            unit.standingstill = true;
+            return;
+        }
+
+        unit.standingstill = false;
+
+
+    }
+}            
+function getSelectedTownhall() {
+    const townhalls = game.getobjecttype('townhall')?.objects || [];
+    return townhalls.find(t => t.selected && !t.dead) || null;
+}
+function queueWorkerTraining(townhall, playerResources) {
+    if (!townhall || townhall.isUnderConstruction) return false;
+    if ((playerResources.food || 0) < 50) return false;
+    if (townhall.trainingQueue.length >= 8) return false;
+
+    playerResources.food -= 50;
+   
+    townhall.trainingQueue.push("worker");
+    return true;
+}
+function updateTownhallTraining(townhall, scale) {
+    if (!townhall.trainingQueue || townhall.trainingQueue.length === 0) {
+        townhall.trainingTimer = 0;
+        return;
+    }
+
+    townhall.trainingTimer += 1 * scale;
+
+    if (townhall.trainingTimer >= townhall.trainingTimeMax) {
+        const unitType = townhall.trainingQueue[0];
+
+        let spawned = false;
+        if (unitType === "worker") {
+            spawned = spawnWorkerFromTownhall(townhall);
+        }
+
+        if (spawned) {
+            townhall.trainingQueue.shift();
+            townhall.trainingTimer = 0;
+        } else {
+            // håll kvar på 100% tills plats finns
+            townhall.trainingTimer = townhall.trainingTimeMax;
+        }
+    }
+}        
+function spawnWorkerFromTownhall(townhall) {
+    const owner = townhall.owner || "player";
+    const resources = teamResources[owner];
+
+    const workerType = getTeamObjectType("worker", owner);
+    if (!workerType) return false;
+
+    const pos = findFreeSpawnPosition(townhall, 30, 50);
+    if (!pos) return false;
+
+    if (resources.pop >= resources.popMax) {
+        return false;
+    }
+
+    resources.pop += 1;
+
+    const w = game.addobject(workerType, pos.x, pos.y, 30, 50, 0, false);
+    if (!w) return false;
+
+    w.owner = owner;
+    w.state = "idle";
+    w.targetResource = null;
+    w.targetDropoff = null;
+    w.carryType = null;
+    w.carryAmount = 0;
+    w.carryMax = 10;
+    w.gatherTimer = 0;
+    w.jobType = null;
+    w.holdingicon = null;
+    w.attackTarget = null;
+    w.attackTimer = 0;
+    w.hp = 20;
+    w.selectable = owner === "player";
+    w.iscontrollable = owner === "player";
+    w.direction = "down";
+    w.standingstill = true;
+
+    return true;
+}    
+function drawTownhallUI(ctx, canvas, selectedTownhall, playerResources) {
+    if (!selectedTownhall) return;
+
+    const panelH = 110;
+    const panelY = canvas.height - panelH;
+
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.fillRect(0, panelY, canvas.width, panelH);
+
+    ctx.strokeStyle = "gold";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, panelY, canvas.width, panelH);
+
+    ctx.fillStyle = "white";
+    ctx.font = "22px Cinzel";
+    ctx.fillText("Town Hall", 20, panelY + 30);
+
+    // Worker-knapp
+    const bx = 20;
+    const by = panelY + 45;
+    const bw = 110;
+    const bh = 50;
+
+    if(playerResources.food<50)ctx.fillStyle = "rgba(60,30,30,0.95)";
+    else ctx.fillStyle = "rgba(30,80,30,0.95)";
+    ctx.fillRect(bx, by, bw, bh);
+    if(playerResources.food<50)ctx.strokeStyle = "red";
+    else ctx.strokeStyle = "green";
+    ctx.strokeRect(bx, by, bw, bh);
+
+    ctx.drawImage(game.getobjecttype("worker").images[1].getimage(), bx + 6, by + 6, 22, 22);
+
+    ctx.fillStyle = "white";
+    ctx.font = "16px Cinzel";
+    ctx.fillText("Worker", bx + 34, by + 18);
+    ctx.fillText("50 Food", bx + 34, by + 38);
+
+    selectedTownhall.trainWorkerButton = {
+        x: bx,
+        y: by,
+        w: bw,
+        h: bh
+    };
+
+    // Queue/progress
+    ctx.fillStyle = "white";
+    ctx.fillText("Queue: " + selectedTownhall.trainingQueue.length, 140, by + 20);
+
+    if (selectedTownhall.trainingQueue.length > 0) {
+        const p = Math.min(1, selectedTownhall.trainingTimer / selectedTownhall.trainingTimeMax);
+
+        ctx.strokeStyle = "white";
+        ctx.strokeRect(140, by + 28, 140, 14);
+
+        ctx.fillStyle = "lime";
+        ctx.fillRect(140, by + 28, 140 * p, 14);
+    }
+
+
+
+    // Delete-knapp i högra hörnet
+    const bw2 = 90;
+    const bh2 = 40;
+    const bx2 = canvas.width - bw2 - 20;
+    const by2 = panelY + 15;
+
+    ctx.fillStyle = "rgba(120,30,30,0.95)";
+    ctx.fillRect(bx2, by2, bw2, bh2);
+    ctx.strokeStyle = "white";
+    ctx.strokeRect(bx2, by2, bw2, bh2);
+
+    ctx.fillStyle = "white";
+    ctx.font = "16px Cinzel";
+    ctx.fillText("Delete", bx2 + 14, by2 + 24);
+
+    selectedTownhall.deleteButton = { x: bx2, y: by2, w: bw2, h: bh2 };
+
+}   
+function pointInRect(px, py, r) {
+    return r && px >= r.x && py >= r.y && px <= r.x + r.w && py <= r.y + r.h;
+}            
+function drawTownhallTrainingQueue(ctx, townhall, currentMap) {
+    if (!townhall.trainingQueue || townhall.trainingQueue.length === 0) return;
+
+    const owner = townhall.owner || "player";
+
+    const iconSize = 30;
+    const gap = 4;
+    const maxVisible = 8;
+
+    const queue = townhall.trainingQueue.slice(0, maxVisible);
+    const totalW = queue.length * iconSize + (queue.length - 1) * gap;
+
+    const startX = townhall.x + currentMap.camerax + townhall.dimx / 2 - totalW / 2;
+    const y = townhall.y + currentMap.cameray - 34;
+
+    for (let i = 0; i < queue.length; i++) {
+        const type = queue[i];
+        let img = null;
+
+        if (type === "worker") {
+            img = getTeamObjectType("worker", owner)?.images?.[1]?.getimage();
+        }
+
+        if (!img) continue;
+
+        const x = startX + i * (iconSize + gap);
+
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.fillRect(x - 2, y - 2, iconSize + 4, iconSize + 4);
+
+        ctx.drawImage(img, x, y, iconSize, iconSize);
+
+        if (i === 0 && townhall.trainingTimeMax > 0) {
+            const p = Math.min(1, townhall.trainingTimer / townhall.trainingTimeMax);
+
+            ctx.drawImage(img, x, y, iconSize, iconSize);
+            ctx.fillStyle = "rgba(0,0,0,0.8)";
+            ctx.fillRect(x, y, iconSize, iconSize);
+
+            const w = iconSize * p;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x, y, w, iconSize);
+            ctx.clip();
+
+            ctx.fillStyle = "orange";
+            ctx.fillRect(x, y, iconSize, iconSize);
+            ctx.drawImage(img, x, y, iconSize, iconSize);
+            ctx.restore();
+        }
+    }
+
+    if (townhall.trainingQueue.length > maxVisible) {
+        ctx.fillStyle = "white";
+        ctx.font = "14px Cinzel";
+        ctx.fillText(
+            "+" + (townhall.trainingQueue.length - maxVisible),
+            startX + maxVisible * (iconSize + gap),
+            y + 16
+        );
+    }
+}        
+function isSpawnAreaFree(x, y, w, h) {
+    const all = game.getAllObjects();
+
+    for (const o of all) {
+        if (o.dead) continue;
+        if (!o.selectable) continue; // valfritt filter
+
+        if (
+            x < o.x + o.dimx &&
+            x + w > o.x &&
+            y < o.y + o.dimy &&
+            y + h > o.y
+        ) {
+        
+            return false;
+        }
+    }
+
+    return true;
+}            
+function getTownhallSpawnPositions(townhall, unitW = 30, unitH = 50) {
+    const pad = 20;
+
+    const left = townhall.x - unitW - pad;
+    const right = townhall.x + townhall.dimx + pad;
+    const top = townhall.y - unitH - pad;
+    const bottom = townhall.y + townhall.dimy + pad;
+    const midX = townhall.x + townhall.dimx / 2 - unitW / 2;
+    const midY = townhall.y + townhall.dimy / 2 - unitH / 2;
+
+    return [
+        { x: left,  y: top },     // vänster uppe
+        { x: left,  y: midY },    // vänster mitten
+        { x: left,  y: bottom },  // vänster nere
+
+        { x: midX,  y: top },     // mitten uppe
+        { x: midX,  y: bottom },  // mitten nere
+
+        { x: right, y: top },     // höger uppe
+        { x: right, y: midY },    // höger mitten
+        { x: right, y: bottom }   // höger nere
+    ];
+}         
+function findFreeSpawnPosition(townhall, unitW = 30, unitH = 50) {
+    const spots = getTownhallSpawnPositions(townhall,unitW,unitH);
+
+    for (const p of spots) {
+        if (isSpawnAreaFree(p.x, p.y, unitW, unitH)) {
+            return p;
+        }
+    }
+
+    return null;
+}            
+function drawResourcesUI(ctx, playerResources) {
+    const startX = 25;
+    
+    const iconSize = 60;
+    const spacing = 90;
+
+    const resList = [
+        { type: "wood",  icon: "woodicon" },
+        { type: "food",  icon: "foodicon" },
+        { type: "gold",  icon: "goldicon" },
+        { type: "stone", icon: "stoneicon" },
+         { type: "pop", icon: "husicon" }
+    ];
+
+
+
+
+    ctx.font = "18px Cinzel";
+    ctx.textBaseline = "middle";
+
+    for (let i = 0; i < resList.length; i++) {
+        const r = resList[i];
+        const x = startX ;
+        const y = 60+(60 *i);
+        const img = game.getobjecttype(r.icon)?.images?.[0]?.getimage();
+
+        if (img) {
+            ctx.drawImage(img, x, y - iconSize / 2, iconSize, iconSize);
+        }
+
+        ctx.fillStyle = "white";
+        if(r.type==="pop"){
+            ctx.fillText(playerResources.pop + " / " + playerResources.popMax || 0, x + iconSize + 6, y);
+        }
+        else
+            ctx.fillText(playerResources[r.type] || 0, x + iconSize + 6, y);
+    }
+}
+function startBuild(buildingType) {
+    const def = BUILDING_TYPES[buildingType];
+    if (!def) return false;
+
+    if (!canAfford(def.cost)) return false;
+
+    game.buildMode = {
+        type: buildingType,
+        width: def.width,
+        height: def.height
+    };
+
+    return true;
+}
+function canAfford(cost) {
+    for (const key in cost) {
+        if ((playerResources[key] || 0) < cost[key]) return false;
+    }
+    return true;
+}
+
+function payCost(cost) {
+    for (const key in cost) {
+        playerResources[key] -= cost[key];
+    }
+}
+
+let ghoststart=false;
+let countercounter=0;
+function drawBuildGhost(ctx, currentMap) {
+    if (!game.buildMode) return;
+
+    const def = BUILDING_TYPES[game.buildMode.type];
+    if (!def) return;
+    
+    let x = cursorX - game.buildMode.width / 2 - game.getcamerax();
+    let y = cursorY - game.buildMode.height / 2 - game.getcameray();
+    
+    if(countercounter===0 && mobileAndTabletCheck()){
+        x = canvas.width/2 - game.buildMode.width / 2 - game.getcamerax();
+        y = canvas.height/2 - game.buildMode.height / 2 - game.getcameray();
+        ghoststart=true;
+    }
+    
+    
+    const canPlace = canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height,true);
+    const img = game.getobjecttype(def.imageType)?.images?.[0]?.getimage();
+    if (!img) return;
+
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.drawImage(
+        img,
+        x + currentMap.camerax,
+        y + currentMap.cameray,
+        game.buildMode.width,
+        game.buildMode.height
+    );
+
+    ctx.strokeStyle = canPlace ? "lime" : "red";
+    ctx.lineWidth = 8;
+    ctx.strokeRect(
+        x + currentMap.camerax,
+        y + currentMap.cameray,
+        game.buildMode.width,
+        game.buildMode.height
+    );
+    ctx.restore();
+}
+function canPlaceBuilding(x, y, w, h,player) {
+    const all = game.getAllObjects();
+
+    for (const o of all) {
+        if (!o || o.dead) continue;
+
+        // ignorera rena effekter / ikoner om du vill
+        if (o.holdingicon) continue;
+
+        // byggnader, resurser, units, foundations - allt som tar plats ska blockera
+        const blocksPlacement =
+            o.isBuilding ||
+            o.name === "tree" ||
+            o.name === "tree2" ||
+            o.name === "gold" ||
+            o.name === "stone" ||
+            o.name === "berry" ||
+            o.name === "sheep" ||
+            o.name === "boar" ||
+            o.name.includes("worker") ||
+            o.name.includes("warrior");
+        if (!blocksPlacement) continue;
+       if(player){if (rectsOverlap(x, y, w, h, o.x, o.y, o.dimx, o.dimy, 0)) {return false;}}
+       else{if (rectsOverlap(x, y, w, h, o.x, o.y, o.dimx, o.dimy, 100)) {return false;}}
+      
+    }
+
+    return true;
+}
+function placeBuilding(x, y, buildingType) {
+    const def = BUILDING_TYPES[buildingType];
+    if (!def) return false;
+   
+    if (!canAfford(def.cost)) return false;
+
+    const foundationType = game.getobjecttype(def.imageType);
+    if (!foundationType) return false;
+
+    payCost(def.cost);
+
+    const b = game.addobject(foundationType, x, y, def.width, def.height, 0, false);
+    if (!b) return false;
+
+    b.selectable = true;
+    b.canMove = false;
+    b.iscontrollable = false;
+    b.isBuilding = true;
+    b.isUnderConstruction = true;
+    b.state="building";
+    b.buildingType = buildingType;
+    b.buildProgress = 0;
+    b.buildTimer = 0;
+    b.buildTimeMax = def.buildTime;
+    b.maxHp = def.hp;
+    b.hp = 1;
+    b.popGranted = false;
+    b.cost = def.cost;
+    const workers = (game.getobjecttype("worker")?.objects || []).filter(o => o.selected);;
+    
+    for(const w of workers) {
+      
+        clearWorkerOrder(w);
+        w.state = "buildBuilding";
+       w.sistabit=false;
+        w.standingstill=false;
+        w.targetBuilding = b;
+        
+       
+        requestUnitPath(w, b.x + b.dimx / 2, b.y + b.dimy / 2);
+        w.selected=false;
+        
+    }
+
+    markStaticsDirty();
+    return b;
+}
+
+
+function placeBuildingFromBuildMode() {
+    if (!game.buildMode) return false;
+    disabledrag=true;
+    const x = cursorX - game.buildMode.width / 2 - game.getcamerax();
+    const y = cursorY - game.buildMode.height / 2 - game.getcameray();
+    
+    if(mobileAndTabletCheck()){
+        if (!canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height,true)) {
+            countercounter=1;
+            return true;
+        }
+        else if(countercounter<1){
+            countercounter++;
+            return true;
+        }
+    }
+    else{
+        if (!canPlaceBuilding(x, y, game.buildMode.width, game.buildMode.height,true)) {
+            return true;
+        }
+        
+        
+    }
+    countercounter=0;
+    disabledrag=false;
+    const builder = getSelectedWorker();
+   
+    placeBuilding(x, y, game.buildMode.type, builder);
+    ghoststart=false;
+    game.buildMode = null;
+    return true;
+}
+function finishBuilding(b, worker) {
+    if (!b || b._finishedOnce) return;
+    b._finishedOnce = true;
+
+    const def = BUILDING_TYPES[b.buildingType];
+    if (!def) return;
+
+    const owner = b.owner || "player";
+    const resources = teamResources[owner];
+    if (!resources) return;
+
+    b.selectable = true;
+    b.canMove = false;
+    b.iscontrollable = false;
+    b.isBuilding = true;
+    b.isUnderConstruction = false;
+    b.isFinishing = false;
+    b.hp = def.hp;
+    b.maxHp = def.hp;
+    b.dropoffTypes = def.dropoffTypes || [];
+    b.cost = def.cost;
+
+    if (b.name.includes("farm") || b.buildingType === "farm") {
+        b.type = "food";
+        b.amount = 1000;
+        b.state = "building";
+    }
+
+    if (def.popMaxBonus) {
+        resources.popMax += def.popMaxBonus;
+    }
+
+    markStaticsDirty();
+}
+function getSelectedWorker() {
+    const workers = game.getobjecttype("worker")?.objects || [];
+    return workers.find(w => w.selected && !w.dead) || null;
+}
+function getCostText(cost) {
+    const parts = [];
+    if (cost.wood) parts.push(cost.wood + " Wood");
+    if (cost.food) parts.push(cost.food + " Food");
+    if (cost.gold) parts.push(cost.gold + " Gold");
+    if (cost.stone) parts.push(cost.stone + " Stone");
+    return parts.join(" ");
+}
+
+function drawWorkerBuildUI(ctx, canvas) {
+    const selectedWorker = getSelectedWorker();
+    if (!selectedWorker) return;
+
+    const options = WORKER_BUILD_OPTIONS;
+
+    const panelH = 170;
+    const panelY = canvas.height - panelH;
+
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.fillRect(0, panelY, canvas.width, panelH);
+
+    const cols = canvas.width < 900 ? 2 : 4;
+    const bw = 170;
+    const bh = 60;
+    const gapX = 12;
+    const gapY = 12;
+    const startX = 20;
+    const startY = panelY + 20;
+
+    selectedWorker.buildButtons = [];
+
+    for (let i = 0; i < options.length; i++) {
+        const opt = options[i];
+
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+
+        const bx = startX + col * (bw + gapX);
+        const by = startY + row * (bh + gapY);
+
+        const canBuy = canAfford(opt.cost);
+
+        ctx.fillStyle = canBuy ? "rgba(30,80,30,0.95)" : "rgba(60,30,30,0.95)";
+        ctx.fillRect(bx, by, bw, bh);
+
+        ctx.strokeStyle = canBuy ? "green" : "red";
+        ctx.strokeRect(bx, by, bw, bh);
+
+        const img = game.getobjecttype(opt.icon)?.images?.[0]?.getimage();
+        if (img) ctx.drawImage(img, bx + 6, by + 6, 28, 28);
+
+        ctx.fillStyle = "white";
+        ctx.font = "15px Cinzel";
+        ctx.fillText(opt.label, bx + 40, by + 18);
+
+        ctx.font = "12px Cinzel";
+        ctx.fillText(getCostText(opt.cost), bx + 40, by + 38);
+
+        selectedWorker.buildButtons.push({
+            type: opt.type,
+            x: bx,
+            y: by,
+            w: bw,
+            h: bh
+        });
+    }
+}
+function handleGameUILeftClick(cursorX, cursorY) {
+    const selectedTownhall = getSelectedTownhall();
+    if (selectedTownhall) {
+        if (
+            selectedTownhall.trainWorkerButton &&
+            pointInRect(cursorX, cursorY, selectedTownhall.trainWorkerButton)
+        ) {
+            queueWorkerTraining(selectedTownhall, playerResources);
+            return true;
+        }
+
+        if (
+            selectedTownhall.deleteButton &&
+            pointInRect(cursorX, cursorY, selectedTownhall.deleteButton)
+        ) {
+            destroyBuilding(selectedTownhall);
+            return true;
+        }
+
+        return false;
+    }
+
+    const selectedBarrack = getSelectedBarrack();
+    if (selectedBarrack) {
+        if (
+            selectedBarrack.trainWarriorButton &&
+            pointInRect(cursorX, cursorY, selectedBarrack.trainWarriorButton)
+        ) {
+            queueWarriorTraining(selectedBarrack, playerResources);
+            return true;
+        }
+
+        if (
+            selectedBarrack.deleteButton &&
+            pointInRect(cursorX, cursorY, selectedBarrack.deleteButton)
+        ) {
+            destroyBuilding(selectedBarrack);
+            return true;
+        }
+
+        return false;
+    }
+
+    const selectedWorker = getSelectedWorker();
+    if (selectedWorker && selectedWorker.buildButtons) {
+        for (const btn of selectedWorker.buildButtons) {
+            if (pointInRect(cursorX, cursorY, btn)) {
+                startBuild(btn.type);
+                return true;
+            }
+        }
+    }
+
+    const selectedBuilding = getSelectedBuilding();
+    if (selectedBuilding && selectedBuilding.deleteButton) {
+        if (pointInRect(cursorX, cursorY, selectedBuilding.deleteButton)) {
+            destroyBuilding(selectedBuilding);
+            return true;
+        }
+    }
+
+    if (game.buildMode) {
+        return placeBuildingFromBuildMode();
+    }
+
+    return false;
+}
+
+function getSelectedBuilding() {
+    const all = game.getAllObjects();
+    return all.find(o =>
+        o.selected &&
+        o.isBuilding &&
+        o.owner === "player" &&
+        !o.dead &&
+        o.name !== "townhall"
+    ) || null;
+}
+function drawBuildingUI(ctx, canvas) {
+    const b = getSelectedBuilding();
+    if (!b&& b.name=="barrack") return;
+
+    const panelH = 100;
+    const panelY = canvas.height - panelH;
+
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.fillRect(0, panelY, canvas.width, panelH);
+
+    ctx.strokeStyle = "rgba(255,255,255,0.2)";
+    ctx.strokeRect(0, panelY, canvas.width, panelH);
+
+    // titel
+    ctx.fillStyle = "white";
+    ctx.font = "20px Cinzel";
+    if(b.name=="hus")ctx.fillText("house", 20, panelY + 28);
+    else ctx.fillText(b.name, 20, panelY + 28);
+
+    // Delete-knapp i högra hörnet
+    const bw = 90;
+    const bh = 40;
+    const bx = canvas.width - bw - 20;
+    const by = panelY + 15;
+
+    ctx.fillStyle = "rgba(120,30,30,0.95)";
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.strokeStyle = "white";
+    ctx.strokeRect(bx, by, bw, bh);
+
+    ctx.fillStyle = "white";
+    ctx.font = "16px Cinzel";
+    ctx.fillText("Delete", bx + 14, by + 24);
+
+    b.deleteButton = { x: bx, y: by, w: bw, h: bh };
+}
+function destroyBuilding(obj) {
+    if (!obj) return false;
+
+    const objtype = game.getobjecttype(obj.name);
+    if (!objtype) return false;
+
+    const owner = obj.owner || "player";
+    const resources = teamResources[owner];
+    if (!resources) return false;
+
+    // refund
+    if (obj.isUnderConstruction && obj.cost) {
+        if (obj.cost.wood)  resources.wood  += obj.cost.wood;
+        if (obj.cost.food)  resources.food  += obj.cost.food;
+        if (obj.cost.gold)  resources.gold  += obj.cost.gold;
+        if (obj.cost.stone) resources.stone += obj.cost.stone;
+    } else if (obj.cost) {
+        if (obj.cost.wood)  resources.wood  += Math.floor(obj.cost.wood * 0.5);
+        if (obj.cost.food)  resources.food  += Math.floor(obj.cost.food * 0.5);
+        if (obj.cost.gold)  resources.gold  += Math.floor(obj.cost.gold * 0.5);
+        if (obj.cost.stone) resources.stone += Math.floor(obj.cost.stone * 0.5);
+    }
+
+    if (obj.buildingType === "hus" || obj.name.endsWith("hus") || obj.name === "hus" || obj.name === "rhus" || obj.name === "yhus" || obj.name === "ghus") {
+        resources.popMax -= 5;
+        if (resources.popMax < 0) resources.popMax = 0;
+    }
+
+    game.removeobject(objtype, obj);
+    markStaticsDirty();
+    return true;
+}
+function drawSelectedObjectUI(ctx, canvas) {
+    const selectedTownhall = getSelectedTownhall();
+    if (selectedTownhall) {
+        drawTownhallUI(ctx, canvas, selectedTownhall, playerResources);
+        return;
+    }
+
+    const selectedBarrack = getSelectedBarrack();
+    if (selectedBarrack) {
+        drawBarrackUI(ctx, canvas, selectedBarrack, playerResources);
+        return;
+    }
+
+    const selectedWorker = getSelectedWorker();
+    if (selectedWorker) {
+        drawWorkerBuildUI(ctx, canvas);
+        return;
+    }
+
+    const selectedBuilding = getSelectedBuilding();
+    if (selectedBuilding) {
+        drawBuildingUI(ctx, canvas);
+        return;
+    }
+}
+function updateWarrior(warrior, scale) {
+    if (warrior.dead) return;
+
+    if (warrior.attackCooldown == null) warrior.attackCooldown = 0;
+    if (warrior.damage == null) warrior.damage = 8;
+    if (warrior.hp == null) warrior.hp = 40;
+    if (warrior.state == null) warrior.state = "idle";
+    if (warrior.autoAttackRange == null) warrior.autoAttackRange = 180;
+
+    if (warrior.attackCooldown > 0) {
+        warrior.attackCooldown -= 1 * scale;
+        if (warrior.attackCooldown < 0) warrior.attackCooldown = 0;
+    }
+
+
+
+
+    // AUTOATTACK: testa innan idle/move logik
+    if (warrior.state === "idle" || warrior.state === "move") {
+        if (tryAutoAttack(warrior)) {
+            return;
+        }
+    }
+
+    if (warrior.state === "idle") {
+        warrior.standingstill = true;
+        return;
+    }
+
+if (warrior.state === "move") {
+    if (warrior.path && warrior.path.length > 0) {
+        game.followPath(warrior, { reachDist: 25 });
+        warrior.standingstill = false;
+    } else {
+        // ingen path kvar = klar
+        warrior.state = "idle";
+        warrior.targetX = null;
+        warrior.targetY = null;
+        warrior.standingstill = true;
+    }
+
+    console.log("move");
+
+
+    return;
+}
+
+    if (warrior.state === "attackTarget") {
+        const t = warrior.targetEnemy;
+
+        if (!t || t.dead || t.hp <= 0) {
+            finishWarriorAttack(warrior);
+            return;
+        }
+
+        if (game.collideswithanoterobject(warrior, t)) {
+            clearUnitPath(warrior);
+            warrior.standingstill = true;
+
+            if (warrior.attackCooldown <= 0) {
+                warrior.attackCooldown = 40;
+                t.hp = (t.hp || 40) - warrior.damage;
+                t.flashTimer = 30;
+
+                if (t.hp <= 0) {
+                    t.hp = 0;
+                    t.dead = true;
+
+                    if (t.name === "boar") {
+                        t.animation = 6;
+                        t.type = "food";
+                    } else if (t.name.includes("worker")) {
+                        t.animation = 12;
+                        t.selectable = false;
+                    } else if (t.name.includes("warrior")) {
+                        t.animation = 9;
+                        t.selectable = false;
+                    }
+
+                    if (t.isBuilding) {
+                        game.removeobject(game.getobjecttype(t.name), t);
+                        markStaticsDirty();
+                    }
+
+                    if (t.owner && teamResources[t.owner] && (t.name.includes("worker") || t.name.includes("warrior"))) {
+                        teamResources[t.owner].pop -= 1;
+                        if (teamResources[t.owner].pop < 0) teamResources[t.owner].pop = 0;
+                    }
+
+                    finishWarriorAttack(warrior);
+                }
+            }
+
+            return;
+        }
+
+        if (warrior.repathTimer == null) warrior.repathTimer = 0;
+        warrior.repathTimer -= 1 * scale;
+
+        if (warrior.repathTimer <= 0 || !warrior.path || warrior.path.length === 0) {
+            const tx = t.x + t.dimx / 2;
+            const ty = t.y + t.dimy / 2;
+
+            const ddx = tx - (warrior._lastPathGoalX ?? tx);
+            const ddy = ty - (warrior._lastPathGoalY ?? ty);
+            const moved = Math.hypot(ddx, ddy);
+
+            if (!warrior.path || warrior.path.length === 0 || moved > 40) {
+                warrior._lastPathGoalX = tx;
+                warrior._lastPathGoalY = ty;
+                game.pathUnitTo(warrior, tx, ty);
+            }
+
+            warrior.repathTimer = 500;
+        }
+
+        if (warrior.path && warrior.path.length > 0) {
+            game.followPath(warrior, { reachDist: 25 });
+        } else {
+            warrior.targetX = t.x + t.dimx / 2;
+            warrior.targetY = t.y + t.dimy / 2;
+            warrior.standingstill = false;
+        }
+
+        return;
+    }
+}
+function queueWarriorTraining(barrack, playerResources) {
+    if (!barrack || barrack.isUnderConstruction) return false;
+    if ((playerResources.food || 0) < 60) return false;
+    if ((playerResources.gold || 0) < 20) return false;
+    if (barrack.trainingQueue.length >= 8) return false;
+    if (playerResources.pop >= playerResources.popMax) return false;
+
+    playerResources.food -= 60;
+    playerResources.gold -= 20;
+
+    barrack.trainingQueue.push("warrior");
+    return true;
+}
+function updateBarrackTraining(barrack, scale) {
+    if (!barrack.trainingQueue || barrack.trainingQueue.length === 0) {
+        barrack.trainingTimer = 0;
+        return;
+    }
+
+    barrack.trainingTimer += 1 * scale;
+
+    if (barrack.trainingTimer >= barrack.trainingTimeMax) {
+        const unitType = barrack.trainingQueue[0];
+
+        let spawned = false;
+        if (unitType === "warrior") {
+            spawned = spawnWarriorFromBarrack(barrack);
+        }
+
+        if (spawned) {
+            barrack.trainingQueue.shift();
+            barrack.trainingTimer = 0;
+        } else {
+            barrack.trainingTimer = barrack.trainingTimeMax;
+        }
+    }
+}
+function spawnWarriorFromBarrack(barrack) {
+    const owner = barrack.owner || "player";
+    const resources = teamResources[owner];
+    const warriorType = getTeamObjectType("warrior", owner);
+    if (!warriorType) return false;
+
+    const pos = findFreeSpawnPosition(barrack, 30, 50);
+    if (!pos) return false;
+
+    if (resources.pop >= resources.popMax) {
+        return false;
+    }
+
+    resources.pop += 1;
+
+    const w = game.addobject(warriorType, pos.x, pos.y, 30, 50, 0, false);
+    if (!w) return false;
+
+    w.owner = owner;
+    w.state = "idle";
+    w.hp = 40;
+    w.maxHp = 40;
+    w.damage = 6;
+    w.attackRange = 28;
+    w.attackCooldown = 0;
+    w.moveSpeed = 1.2;
+    w.targetEnemy = null;
+    w.selectable = true;
+    w.iscontrollable = owner === "player";
+    w.direction = "down";
+    w.standingstill = true;
+    w.autoAttackRange = 180;
+    w.resumeMoveAfterAttack = false;
+    w.resumeX = null;
+    w.resumeY = null;
+
+    ensureBarrackRallyPoint(barrack);
+
+    // AI-warriors går till rally direkt
+    if (owner !== "player") {
+        w.state = "move";
+        w.targetX = barrack.rallyX;
+        w.targetY = barrack.rallyY;
+        w.standingstill = false;
+    }
+
+    return true;
+}
+function drawBarrackTrainingQueue(ctx, barrack, currentMap) {
+    if (!barrack.trainingQueue || barrack.trainingQueue.length === 0) return;
+
+    const owner = barrack.owner || "player";
+
+    const iconSize = 30;
+    const gap = 4;
+    const maxVisible = 8;
+
+    const queue = barrack.trainingQueue.slice(0, maxVisible);
+    const totalW = queue.length * iconSize + (queue.length - 1) * gap;
+
+    const startX = barrack.x + currentMap.camerax + barrack.dimx / 2 - totalW / 2;
+    const y = barrack.y + currentMap.cameray - 34;
+
+    for (let i = 0; i < queue.length; i++) {
+        const type = queue[i];
+        let img = null;
+
+        if (type === "warrior") {
+            img = getTeamObjectType("warrior", owner)?.images?.[1]?.getimage();
+        }
+
+        if (!img) continue;
+
+        const x = startX + i * (iconSize + gap);
+
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.fillRect(x - 2, y - 2, iconSize + 4, iconSize + 4);
+
+        ctx.drawImage(img, x, y, iconSize, iconSize);
+
+        if (i === 0 && barrack.trainingTimeMax > 0) {
+            const p = Math.min(1, barrack.trainingTimer / barrack.trainingTimeMax);
+
+            ctx.drawImage(img, x, y, iconSize, iconSize);
+            ctx.fillStyle = "rgba(0,0,0,0.8)";
+            ctx.fillRect(x, y, iconSize, iconSize);
+
+            const w = iconSize * p;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x, y, w, iconSize);
+            ctx.clip();
+
+            ctx.fillStyle = "orange";
+            ctx.fillRect(x, y, iconSize, iconSize);
+            ctx.drawImage(img, x, y, iconSize, iconSize);
+            ctx.restore();
+        }
+    }
+}
+function drawBarrackUI(ctx, canvas, selectedBarrack, playerResources) {
+    if (!selectedBarrack) return;
+
+    const panelH = 110;
+    const panelY = canvas.height - panelH;
+
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.fillRect(0, panelY, canvas.width, panelH);
+
+    ctx.strokeStyle = "gold";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, panelY, canvas.width, panelH);
+
+    ctx.fillStyle = "white";
+    ctx.font = "22px Cinzel";
+    ctx.fillText("Barrack", 20, panelY + 30);
+
+    const bx = 20;
+    const by = panelY + 45;
+    const bw = 130;
+    const bh = 50;
+
+    const canBuy = playerResources.food >= 60 && playerResources.gold >= 20 && playerResources.pop < playerResources.popMax;
+
+    ctx.fillStyle = canBuy ? "rgba(30,80,30,0.95)" : "rgba(60,30,30,0.95)";
+    ctx.fillRect(bx, by, bw, bh);
+
+    ctx.strokeStyle = canBuy ? "green" : "red";
+    ctx.strokeRect(bx, by, bw, bh);
+
+    const img = game.getobjecttype("warrior")?.images?.[1]?.getimage();
+    if (img) ctx.drawImage(img, bx + 6, by + 6, 22, 22);
+
+    ctx.fillStyle = "white";
+    ctx.font = "16px Cinzel";
+    ctx.fillText("Warrior", bx + 34, by + 18);
+    ctx.fillText("60F 20G", bx + 34, by + 38);
+
+    selectedBarrack.trainWarriorButton = {
+        x: bx,
+        y: by,
+        w: bw,
+        h: bh
+    };
+
+    ctx.fillStyle = "white";
+    ctx.fillText("Queue: " + selectedBarrack.trainingQueue.length, 170, by + 20);
+
+    if (selectedBarrack.trainingQueue.length > 0) {
+        const p = Math.min(1, selectedBarrack.trainingTimer / selectedBarrack.trainingTimeMax);
+
+        ctx.strokeStyle = "white";
+        ctx.strokeRect(170, by + 28, 140, 14);
+
+        ctx.fillStyle = "lime";
+        ctx.fillRect(170, by + 28, 140 * p, 14);
+    }
+
+    const bw2 = 90;
+    const bh2 = 40;
+    const bx2 = canvas.width - bw2 - 20;
+    const by2 = panelY + 15;
+
+    ctx.fillStyle = "rgba(120,30,30,0.95)";
+    ctx.fillRect(bx2, by2, bw2, bh2);
+    ctx.strokeStyle = "white";
+    ctx.strokeRect(bx2, by2, bw2, bh2);
+
+    ctx.fillStyle = "white";
+    ctx.font = "16px Cinzel";
+    ctx.fillText("Delete", bx2 + 14, by2 + 24);
+
+    selectedBarrack.deleteButton = { x: bx2, y: by2, w: bw2, h: bh2 };
+}
+function getSelectedBarrack() {
+    const barracks = game.getobjecttype('barrack')?.objects || [];
+    return barracks.find(b => b.selected && !b.dead) || null;
+}
+function orderWarriorAttackBoar(warrior, boar) {
+    if (!warrior || !boar || boar.dead) return;
+
+    warrior.targetEnemy = boar;
+    warrior.state = "attackTarget";
+    warrior.targetX = boar.x + boar.dimx / 2;
+    warrior.targetY = boar.y + boar.dimy / 2;
+}
+function getPrefixForOwner(owner) {
+    if (owner === "red") return "r";
+    if (owner === "yellow") return "y";
+    if (owner === "green") return "g";
+    return "";
+}
+
+function getOwnerFromName(name) {
+    if (!name) return "neutral";
+    if (name.startsWith("r")) return "red";
+    if (name.startsWith("y")) return "yellow";
+    if (name.startsWith("g")) return "green";
+    return "player";
+}
+
+function getTeamObjectType(baseName, owner) {
+    const prefix = getPrefixForOwner(owner);
+    return game.getobjecttype(prefix + baseName);
+}
+
+function getTeamObjects(baseName, owner) {
+    return getTeamObjectType(baseName, owner)?.objects || [];
+}
+
+function getAllTeamUnits(owner) {
+    return [
+        ...getTeamObjects("worker", owner),
+        ...getTeamObjects("warrior", owner)
+    ].filter(o => !o.dead);
+}
+
+function getEnemyOwners(owner) {
+    const faction = getFaction(owner);
+
+    if (faction === "player") {
+        return ["red", "yellow", "green"];
+    }
+
+    if (faction === "ai") {
+        return ["player"];
+    }
+
+    return [];
+}
+function ensureOwnerByName(obj) {
+    if (!obj.owner) obj.owner = getOwnerFromName(obj.name);
+}
+const aiBrains = game.aiBrains || (game.aiBrains = {
+    red:    { thinkTimer: 0, attackTimer: 0, defendTarget: null, mode: "idle" },
+    yellow: { thinkTimer: 0, attackTimer: 0, defendTarget: null, mode: "idle" },
+    green:  { thinkTimer: 0, attackTimer: 0, defendTarget: null, mode: "idle" }
+});
+function queueWorkerTrainingForTeam(townhall, resources) {
+    if (!townhall || townhall.isUnderConstruction) return false;
+    if ((resources.food || 0) < 50) return false;
+    if (townhall.trainingQueue.length >= 8) return false;
+    if (resources.pop >= resources.popMax) return false;
+
+    resources.food -= 50;
+    townhall.trainingQueue.push("worker");
+    return true;
+}
+
+function queueWarriorTrainingForTeam(barrack, resources) {
+    if (!barrack || barrack.isUnderConstruction) return false;
+    if ((resources.food || 0) < 60) return false;
+    if ((resources.gold || 0) < 20) return false;
+    if (barrack.trainingQueue.length >= 8) return false;
+    if (resources.pop >= resources.popMax) return false;
+
+    resources.food -= 60;
+    resources.gold -= 20;
+    barrack.trainingQueue.push("warrior");
+    return true;
+}
+function placeBuildingForOwner(x, y, buildingType, owner, builder) {
+    const def = BUILDING_TYPES[buildingType];
+    if (!def) return false;
+
+    const resources = teamResources[owner];
+    if (!resources) return false;
+    if (!canAffordForTeam(def.cost, resources)) return false;
+
+    const objType = getTeamObjectType(def.imageType, owner);
+    if (!objType) return false;
+
+    payCostForTeam(def.cost, resources);
+
+    const b = game.addobject(objType, x, y, def.width, def.height, 0, false);
+    if (!b) return false;
+
+    b.owner = owner;
+    b.selectable = owner === "player";
+    b.canMove = false;
+    b.iscontrollable = false;
+    b.isBuilding = true;
+    b.isUnderConstruction = true;
+    b.state = "building";
+    b.buildingType = buildingType;
+    b.buildProgress = 0;
+    b.buildTimer = 0;
+    b.buildTimeMax = def.buildTime;
+    b.maxHp = def.hp;
+    b.hp = 1;
+    b.popGranted = false;
+    b.cost = def.cost;
+
+    if (builder) {
+        clearWorkerOrder(builder);
+        builder.state = "buildBuilding";
+        builder.sistabit=false;
+        builder.standingstill=false;
+        builder.targetBuilding = b;
+        requestUnitPath(builder, b.x + b.dimx / 2, b.y + b.dimy / 2);
+    }
+
+    markStaticsDirty();
+    return b;
+}
+
+function canAffordForTeam(cost, resources) {
+    for (const key in cost) {
+        if ((resources[key] || 0) < cost[key]) return false;
+    }
+    return true;
+}
+
+function payCostForTeam(cost, resources) {
+    for (const key in cost) {
+        resources[key] -= cost[key];
+    }
+}
+function findBuildSpotNear(base, w, h, tries = 30, radius = 260) {
+    for (let i = 0; i < tries; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 120 + Math.random() * radius;
+
+        const x = Math.floor(base.x + base.dimx / 2 + Math.cos(angle) * dist - w / 2);
+        const y = Math.floor(base.y + base.dimy / 2 + Math.sin(angle) * dist - h / 2);
+
+        if (canPlaceBuilding(x, y, w, h)) {
+            return { x, y };
+        }
+    }
+    return null;
+}
+function updateTeamAI(owner, scale) {
+    const brain = aiBrains[owner];
+    const resources = teamResources[owner];
+    if (!brain || !resources) return;
+
+    brain.thinkTimer -= 1 * scale;
+    if (brain.thinkTimer > 0) return;
+    brain.thinkTimer = 30;
+
+    const workers = getTeamObjects("worker", owner).filter(w => !w.dead);
+    const warriors = getTeamObjects("warrior", owner).filter(w => !w.dead);
+    const townhalls = getTeamObjects("townhall", owner).filter(t => !t.dead);
+    const barracks = getTeamObjects("barrack", owner).filter(b => !b.dead);
+
+    const mainTownhall = townhalls[0];
+    if (!mainTownhall) return;
+
+const unfinished = getUnfinishedBuildingsNeedingBuilder(owner);
+for (const b of unfinished) {
+    if (!hasAliveBuilderAssigned(b)) {
+        const builder = getBuilderWorkerForTeam(owner);
+        if (builder) {
+            clearWorkerOrder(builder);
+            builder.state = "buildBuilding";
+            builder.targetBuilding = b;
+            builder.targetX = b.x + b.dimx / 2;
+            builder.targetY = b.y + b.dimy / 2;
+        }
+        return;
+    }
+}
+
+
+
+
+    // --- 3. Om inget hot: vanlig AI ---
+    brain.mode = "normal";
+
+    // workers jobbar
+    for (const w of workers) {
+        if (w.state === "idle") {
+            const wantedType = getMostNeededResourceJob(owner);
+            const res = getNearestResourceOfType(w, wantedType);
+
+            if (res) {
+                if (res.name === "boar") orderWorkerAttackBoar(w, res);
+                else orderWorkerGather(w, res);
+            }
+        }
+    }
+
+    const builder = getBuilderWorkerForTeam(owner);
+
+    const needHouse = resources.pop >= resources.popMax - 1;
+    const houseAlreadyPlanned = hasBuildingOfTypeUnderConstruction(owner, "hus");
+
+    if (needHouse && !houseAlreadyPlanned && builder && canAffordForTeam(BUILDING_TYPES.hus.cost, resources)) {
+        const spot = findBuildSpotNear(mainTownhall, BUILDING_TYPES.hus.width, BUILDING_TYPES.hus.height);
+        if (spot) {
+            placeBuildingForOwner(spot.x, spot.y, "hus", owner, builder);
+            return;
+        }
+    }
+
+    const barrackPlanned = hasBuildingOfTypeUnderConstruction(owner, "barrack");
+    if (barracks.length === 0 && !barrackPlanned && builder && canAffordForTeam(BUILDING_TYPES.barrack.cost, resources)) {
+        const spot = findBuildSpotNear(mainTownhall, BUILDING_TYPES.barrack.width, BUILDING_TYPES.barrack.height);
+        if (spot) {
+            placeBuildingForOwner(spot.x, spot.y, "barrack", owner, builder);
+            return;
+        }
+    }
+    for (const b of barracks) {
+        if (warriors.length < 10) {
+            queueWarriorTrainingForTeam(b, resources);
+        }
+    }
+    const desiredWorkers = Math.min(12, 5 + countBuildingsOfType(owner, "hus", false) * 2);
+
+    if (workers.length < desiredWorkers && townhalls.length > 0) {
+        queueWorkerTrainingForTeam(townhalls[0], resources);
+    }
+
+
+
+    sendIdleWarriorsToRally(owner);
+
+
+    // --- 1. Försvarsläge prioriteras ---
+    if (brain.defendTarget && isThreatStillRelevant(owner, brain.defendTarget, 320)) {
+        brain.mode = "defend";
+        sendTeamWarriorsToDefend(owner, brain.defendTarget, 4);
+        return; // attackera inte bas samtidigt
+    } else {
+        brain.defendTarget = null;
+        if (brain.mode === "defend") brain.mode = "idle";
+    }
+
+    // --- 2. Leta nytt hot ---
+    const threat = getNearestThreatToOwner(owner, 280);
+    if (threat) {
+        brain.defendTarget = threat;
+        brain.mode = "defend";
+        sendTeamWarriorsToDefend(owner, threat, 4);
+        return; // attackera inte bas samtidigt
+    }
+
+
+
+    if (warriors.length >= 4 && brain.attackTimer <= 0) {
+        const target = getAttackTargetForOwner(owner);
+        if (target) {
+            for (const w of warriors) {
+                orderWarriorAttackTarget(w, target);
+            }
+            brain.attackTimer = 600;
+            brain.mode = "attack";
+        }
+    }
+
+    brain.attackTimer -= 30;
+    if (brain.attackTimer < 0) brain.attackTimer = 0;
+}
+function isEnemy(a, b) {
+    if (!a || !b) return false;
+    if (a.dead || b.dead) return false;
+
+    const fa = getFaction(a.owner);
+    const fb = getFaction(b.owner);
+
+    if (fa === "neutral" || fb === "neutral") return false;
+
+    return fa !== fb;
+}
+
+function getAttackTargetForOwner(owner) {
+    const enemies = [];
+
+    for (const enemyOwner of getEnemyOwners(owner)) {
+        enemies.push(...getTeamObjects("warrior", enemyOwner));
+        enemies.push(...getTeamObjects("worker", enemyOwner));
+        enemies.push(...getTeamObjects("townhall", enemyOwner));
+        enemies.push(...getTeamObjects("barrack", enemyOwner));
+        enemies.push(...getTeamObjects("hus", enemyOwner));
+        enemies.push(...getTeamObjects("tower", enemyOwner));
+    }
+
+    let best = null;
+    let bestDist = Infinity;
+    const myTownhall = getTeamObjects("townhall", owner)[0];
+    if (!myTownhall) return enemies.find(e => !e.dead) || null;
+
+    for (const e of enemies) {
+        if (!e || e.dead) continue;
+        const d = dist2(myTownhall, e);
+        if (d < bestDist) {
+            bestDist = d;
+            best = e;
+        }
+    }
+
+    return best;
+}
+
+function orderWarriorAttackTarget(warrior, target) {
+    if (!warrior || !target || target.dead) return;
+
+    warrior.targetEnemy = target;
+    warrior.state = "attackTarget";
+    warrior.repathTimer = 0;
+    warrior._lastPathGoalX = null;
+    warrior._lastPathGoalY = null;
+    game.pathUnitTo(warrior, target.x + target.dimx / 2, target.y + target.dimy / 2);
+}
+function getAllObjectsOfBaseTypeAllTeams(baseName) {
+    return [
+        ...getTeamObjects(baseName, "player"),
+        ...getTeamObjects(baseName, "red"),
+        ...getTeamObjects(baseName, "yellow"),
+        ...getTeamObjects(baseName, "green")
+    ];
+}
+
+function getAllWorkersAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("worker");
+}
+
+function getAllWarriorsAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("warrior");
+}
+
+function getAllTownhallsAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("townhall");
+}
+
+function getAllBarracksAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("barrack");
+}
+
+function getAllHousesAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("hus");
+}
+
+function getAllLumbercampsAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("lumbercamp");
+}
+
+function getAllMiningcampsAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("miningcamp");
+}
+
+function getAllMillsAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("mill");
+}
+function getAllBuildingsForTeam(owner) {
+    return [
+        ...getTeamObjects("townhall", owner),
+        ...getTeamObjects("barrack", owner),
+        ...getTeamObjects("hus", owner),
+        ...getTeamObjects("lumbercamp", owner),
+        ...getTeamObjects("miningcamp", owner),
+        ...getTeamObjects("mill", owner),
+        ...getTeamObjects("farm", owner),
+        ...getTeamObjects("tower", owner)
+    ];
+}
+function getAllUnitsForTeam(owner) {
+    return [
+        ...getTeamObjects("worker", owner),
+        ...getTeamObjects("warrior", owner)
+    ];
+}
+function getAliveObjectsOfBaseTypeAllTeams(baseName) {
+    return getAllObjectsOfBaseTypeAllTeams(baseName).filter(o => !o.dead);
+}
+
+function getAliveWorkersAllTeams() {
+    return getAliveObjectsOfBaseTypeAllTeams("worker");
+}
+
+function getAliveWarriorsAllTeams() {
+    return getAliveObjectsOfBaseTypeAllTeams("warrior");
+}
+
+function getAliveTownhallsAllTeams() {
+    return getAliveObjectsOfBaseTypeAllTeams("townhall");
+}
+
+function getAliveBarracksAllTeams() {
+    return getAliveObjectsOfBaseTypeAllTeams("barrack");
+}
+function getAllFarmsAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("farm");
+}
+function countBuildingsOfType(owner, buildingType, includeUnderConstruction = true) {
+    const list = getTeamObjects(buildingType, owner) || [];
+    if (includeUnderConstruction) return list.filter(b => !b.dead).length;
+    return list.filter(b => !b.dead && !b.isUnderConstruction).length;
+}
+function hasBuildingOfTypeUnderConstruction(owner, buildingType) {
+    const list = getTeamObjects(buildingType, owner) || [];
+    return list.some(b => !b.dead && b.isUnderConstruction);
+}
+function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh, pad = 0) {
+    return (
+        ax < bx + bw + pad &&
+        ax + aw > bx - pad &&
+        ay < by + bh + pad &&
+        ay + ah > by - pad
+    );
+}
+function getBuilderWorkerForTeam(owner) {
+    const workers = getTeamObjects("worker", owner).filter(w => !w.dead);
+
+    // 1. bästa fallet: idle
+    let w = workers.find(w =>
+        w.state === "idle" &&
+        !w.targetBuilding
+    );
+    if (w) return w;
+
+    // 2. annars ta en som samlar / är på väg till resurs
+    w = workers.find(w =>
+        !w.targetBuilding &&
+        (
+            w.state === "moveToResource" ||
+            w.state === "gather" ||
+            w.state === "returnToBase" ||
+            w.state === "deposit"
+        )
+    );
+    if (w) return w;
+
+    // 3. sista utväg: vad som helst som inte redan bygger
+    w = workers.find(w =>
+        !w.targetBuilding &&
+        w.state !== "buildBuilding" &&
+        w.state !== "attackBoar"
+    );
+    return w || null;
+}
+function getSheepAnimBase(owner) {
+    if (owner === "player") return 6;
+    if (owner === "red") return 12;
+    if (owner === "green") return 18;
+    if (owner === "yellow") return 24;
+    return 0; // neutral
+}
+function getNearestWorkerInRange(unit, range) {
+    const workers = getAllWorkersAllTeams().filter(w => !w.dead);
+    let best = null;
+    let bestDist = range * range;
+
+    for (const w of workers) {
+        ensureOwnerByName(w);
+
+        const dx = w.x - unit.x;
+        const dy = w.y - unit.y;
+        const d = dx * dx + dy * dy;
+
+        if (d < bestDist) {
+            bestDist = d;
+            best = w;
+        }
+    }
+
+    return best;
+}
+function getNearestTownhallForOwner(unit, owner) {
+    const townhalls = getTeamObjects("townhall", owner).filter(t => !t.dead);
+
+    let best = null;
+    let bestDist = Infinity;
+
+    for (const t of townhalls) {
+        const tx = t.x + t.dimx / 2;
+        const ty = t.y + t.dimy / 2;
+        const dx = tx - unit.x;
+        const dy = ty - unit.y;
+        const d = dx * dx + dy * dy;
+
+        if (d < bestDist) {
+            bestDist = d;
+            best = t;
+        }
+    }
+
+    return best;
+}
+function updateOwnedSheep(s, scale) {
+    const townhall = getNearestTownhallForOwner(s, s.owner);
+    if (!townhall) {
+       
+        return;
+    }
+
+    const tx = townhall.x + townhall.dimx / 2;
+    const ty = townhall.y + townhall.dimy / 2;
+
+    const dx = tx - s.x;
+    const dy = ty - s.y;
+    const dist = Math.hypot(dx, dy);
+
+    // stanna en bit från townhallen
+    if (dist < 300) {
+        s.targetX = null;
+        s.targetY = null;
+        return;
+    }
+    s.standingstill=false;
+    s.targetX = tx;
+    s.targetY = ty;
+}
+function getNearestThreatToOwner(owner, range = 300) {
+    const myUnits = [
+        ...getTeamObjects("worker", owner),
+        ...getTeamObjects("warrior", owner),
+        ...getTeamObjects("townhall", owner),
+        ...getTeamObjects("barrack", owner),
+        ...getTeamObjects("hus", owner),
+        ...getTeamObjects("tower", owner)
+    ].filter(o => !o.dead);
+
+    const boars = game.getobjecttype("boar")?.objects || [];
+    const enemyOwners = getEnemyOwners(owner);
+
+    let threats = [...boars.filter(b => !b.dead)];
+
+    for (const eo of enemyOwners) {
+        threats.push(...getTeamObjects("worker", eo).filter(o => !o.dead));
+        threats.push(...getTeamObjects("warrior", eo).filter(o => !o.dead));
+    }
+
+    let bestThreat = null;
+    let bestDist = range * range;
+
+    for (const my of myUnits) {
+        for (const t of threats) {
+            const dx = my.x - t.x;
+            const dy = my.y - t.y;
+            const d = dx * dx + dy * dy;
+
+            if (d < bestDist) {
+                bestDist = d;
+                bestThreat = t;
+            }
+        }
+    }
+
+    return bestThreat;
+}
+function sendTeamWarriorsToDefend(owner, threat, maxCount = 4) {
+    if (!threat || threat.dead) return;
+
+    const warriors = getTeamObjects("warrior", owner)
+        .filter(w => !w.dead)
+        .slice(0, maxCount);
+
+    for (const w of warriors) {
+        if (w.targetEnemy === threat && w.state === "attackTarget") continue;
+        orderWarriorAttackTarget(w, threat);
+    }
+}
+function ensureBarrackRallyPoint(barrack) {
+    if (barrack.rallyX != null && barrack.rallyY != null) return;
+
+    barrack.rallyX = barrack.x + barrack.dimx / 2 + 140;
+    barrack.rallyY = barrack.y + barrack.dimy / 2 + 140;
+}
+function sendIdleWarriorsToRally(owner) {
+    const barracks = getTeamObjects("barrack", owner).filter(b => !b.dead && !b.isUnderConstruction);
+    if (barracks.length === 0) return;
+
+    const rallyBarrack = barracks[0];
+    ensureBarrackRallyPoint(rallyBarrack);
+
+    const warriors = getTeamObjects("warrior", owner).filter(w => !w.dead);
+
+    for (const w of warriors) {
+        if (w.state === "idle") {
+            const dx = (rallyBarrack.rallyX || 0) - w.x;
+            const dy = (rallyBarrack.rallyY || 0) - w.y;
+            const d = Math.hypot(dx, dy);
+
+            if (d > 30 ) {
+                orderUnitMove(w, rallyBarrack.rallyX, rallyBarrack.rallyY);
+            }
+        }
+    }
+}
+function isEnemyOf(a, b) {
+    if (!a || !b) return false;
+    if (a.dead || b.dead) return false;
+
+    const fa = getFaction(a.owner);
+    const fb = getFaction(b.owner);
+
+    if (fa === "neutral" || fb === "neutral") return false;
+
+    return fa !== fb;
+}
+function isThreatStillRelevant(owner, threat, range = 320) {
+    if (!threat || threat.dead) return false;
+
+    const myThings = [
+        ...getTeamObjects("worker", owner),
+        ...getTeamObjects("warrior", owner),
+        ...getTeamObjects("townhall", owner),
+        ...getTeamObjects("barrack", owner),
+        ...getTeamObjects("hus", owner)
+    ].filter(o => !o.dead);
+
+    const range2 = range * range;
+
+    for (const o of myThings) {
+        const dx = o.x - threat.x;
+        const dy = o.y - threat.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 <= range2) return true;
+    }
+
+    return false;
+}
+function clearUnitPath(unit) {
+    if (!unit) return;
+    if (game.clearPath) game.clearPath(unit);
+    unit.path = null;
+    unit.pathIndex = 0;
+    unit._lastPathGoalX = null;
+    unit._lastPathGoalY = null;
+    unit.repathTimer = 0;
+}
+
+function requestUnitPath(unit, tx, ty) {
+    if (!unit) return;
+    unit.targetX = tx;
+    unit.targetY = ty;
+    unit.repathTimer = 0;
+    unit._lastPathGoalX = null;
+    unit._lastPathGoalY = null;
+}
+
+function updateUnitPathMovement(unit, scale, options = {}) {
+    if (!unit || unit.dead) return;
+
+    const reachDist = options.reachDist ?? 14;
+    const repathEvery = options.repathEvery ?? 45;
+    const movedThreshold = options.movedThreshold ?? 24;
+
+    if (unit.targetX == null || unit.targetY == null) {
+  
+        clearUnitPath(unit);
+        return;
+    }
+
+    if (unit.repathTimer == null) unit.repathTimer = 0;
+    unit.repathTimer -= 1 * scale;
+
+    const gx = unit.targetX;
+    const gy = unit.targetY;
+
+    const dxGoal = gx - (unit._lastPathGoalX ?? gx);
+    const dyGoal = gy - (unit._lastPathGoalY ?? gy);
+    const goalMoved = Math.hypot(dxGoal, dyGoal);
+
+    if (
+        unit.repathTimer <= 0 ||
+        !unit.path ||
+        unit.path.length === 0 ||
+        goalMoved > movedThreshold
+    ) {
+        unit._lastPathGoalX = gx;
+        unit._lastPathGoalY = gy;
+        game.pathUnitTo(unit, gx, gy);
+        unit.repathTimer = repathEvery;
+    }
+
+    if (unit.path && unit.path.length > 0) {
+        game.followPath(unit, { reachDist });
+    }
+    else{unit.standingstill=true;}
+
+
+}
+function drawUnitPathDebug(ctx, unit, color = "yellow") {
+    if (!unit || !unit.path || unit.path.length === 0) return;
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(unit.x + game.getcamerax(), unit.y + game.getcameray());
+
+    for (let i = unit.pathIndex || 0; i < unit.path.length; i++) {
+        const p = unit.path[i];
+        ctx.lineTo(p.x + game.getcamerax(), p.y + game.getcameray());
+    }
+
+    ctx.stroke();
+
+    for (let i = unit.pathIndex || 0; i < unit.path.length; i++) {
+        const p = unit.path[i];
+        ctx.beginPath();
+        ctx.arc(
+            p.x + game.getcamerax(),
+            p.y + game.getcameray(),
+            4,
+            0,
+            Math.PI * 2
+        );
+        ctx.fillStyle = color;
+        ctx.fill();
+    }
+}
+function getApproachPoint(unit, target, margin = 12) {
+    if (!unit || !target) return null;
+    
+    if(unit.ApproachPointtarget ===target){return unit.ApproachPoint;}
+    
+    
+    
+    
+margin= 0;
+    const points = [
+        // vänster
+        { x: target.x - margin, y: target.y + target.dimy / 2 },
+        // höger
+        { x: target.x + target.dimx + margin, y: target.y + target.dimy / 2 },
+        // uppe
+        { x: target.x + target.dimx / 2, y: target.y - margin },
+        // nere
+        { x: target.x + target.dimx / 2, y: target.y + target.dimy + margin },
+
+        // hörn
+        { x: target.x - margin, y: target.y - margin },
+        { x: target.x + target.dimx + margin, y: target.y - margin },
+        { x: target.x - margin, y: target.y + target.dimy + margin },
+        { x: target.x + target.dimx + margin, y: target.y + target.dimy + margin }
+    ];
+
+    let best = null;
+    let bestDist = Infinity;
+
+    for (const p of points) {
+        const dx = p.x - unit.x;
+        const dy = p.y - unit.y;
+        const d = dx * dx + dy * dy;
+
+        if (d < bestDist) {
+            bestDist = d;
+            best = p;
+        }
+    }
+    unit.ApproachPointtarget=target;
+    unit.ApproachPoint=best;
+    return best;
+}
+function moveDirectTo(unit, tx, ty) {
+    unit.targetX = tx;
+    unit.targetY = ty;
+
+    const dx = tx - unit.x;
+    const dy = ty - unit.y;
+
+    unit.standingstill = false;
+
+
+}
+function unitHasActivePath(unit) {
+    return !!(unit.path && unit.pathIndex != null && unit.pathIndex < unit.path.length);
+}
+function getUnfinishedBuildingsNeedingBuilder(owner) {
+    return getAllBuildingsForTeam(owner).filter(b =>
+        b && !b.dead && b.isUnderConstruction && !b.isFinishing
+    );
+}
+
+function hasAliveBuilderAssigned(building) {
+    const workers = getTeamObjects("worker", building.owner || "player");
+    return workers.some(w =>
+        !w.dead &&
+        w.state === "buildBuilding" &&
+        w.targetBuilding === building
+    );
+}
+function getFaction(owner) {
+    if (owner === "player") return "player";
+    if (owner === "red" || owner === "yellow" || owner === "green") return "ai";
+    return "neutral";
+}
+function orderUnitMove(unit, x, y) {
+    if (!unit) return;
+
+    unit.state = "move";
+    unit.targetX = x;
+    unit.targetY = y;
+    unit.standingstill = false;
+
+    if (game.clearPath) game.clearPath(unit);
+    game.pathUnitTo(unit, x, y);
+}
+function getWarriorAutoAttackTarget(warrior, range = 180) {
+    if (!warrior || warrior.dead) return null;
+
+    const enemies = [];
+
+    // vanliga fiendelag
+    for (const enemyOwner of getEnemyOwners(warrior.owner)) {
+        enemies.push(...getTeamObjects("worker", enemyOwner));
+        enemies.push(...getTeamObjects("warrior", enemyOwner));
+        enemies.push(...getTeamObjects("townhall", enemyOwner));
+        enemies.push(...getTeamObjects("barrack", enemyOwner));
+        enemies.push(...getTeamObjects("hus", enemyOwner));
+        enemies.push(...getTeamObjects("lumbercamp", enemyOwner));
+        enemies.push(...getTeamObjects("miningcamp", enemyOwner));
+        enemies.push(...getTeamObjects("mill", enemyOwner));
+        enemies.push(...getTeamObjects("farm", enemyOwner));
+    }
+
+    // boar får också vara autoattack-target
+    const boars = game.getobjecttype("boar")?.objects || [];
+    enemies.push(...boars);
+
+    let best = null;
+    let bestDist = range * range;
+
+    for (const e of enemies) {
+        if (!e || e.dead) continue;
+        if (e === warrior) continue;
+
+        // boar är neutral, så den måste tillåtas separat
+        const validEnemy = e.name === "boar" || isEnemyOf(warrior, e);
+        if (!validEnemy) continue;
+
+        const ex = e.x + e.dimx / 2;
+        const ey = e.y + e.dimy / 2;
+        const wx = warrior.x + warrior.dimx / 2;
+        const wy = warrior.y + warrior.dimy / 2;
+
+        const dx = ex - wx;
+        const dy = ey - wy;
+        const d2 = dx * dx + dy * dy;
+
+        if (d2 < bestDist) {
+            bestDist = d2;
+            best = e;
+        }
+    }
+
+    return best;
+}
+function tryAutoAttack(warrior) {
+    if (!warrior || warrior.dead) return false;
+
+    // bara när den inte redan slåss
+    if (warrior.state !== "idle" && warrior.state !== "move") return false;
+
+    const target = getWarriorAutoAttackTarget(warrior, warrior.autoAttackRange || 180);
+    if (!target) return false;
+
+    // om den gick mot en punkt, spara den så vi kan återuppta efter fight
+    if (warrior.state === "move" && warrior.targetX != null && warrior.targetY != null) {
+        warrior.resumeMoveAfterAttack = true;
+        warrior.resumeX = warrior.targetX;
+        warrior.resumeY = warrior.targetY;
+    } else {
+        warrior.resumeMoveAfterAttack = false;
+        warrior.resumeX = null;
+        warrior.resumeY = null;
+    }
+
+    orderWarriorAttackTarget(warrior, target);
+    return true;
+}
+function finishWarriorAttack(warrior) {
+    if (!warrior) return;
+
+    warrior.targetEnemy = null;
+
+    if (warrior.resumeMoveAfterAttack && warrior.resumeX != null && warrior.resumeY != null) {
+        const rx = warrior.resumeX;
+        const ry = warrior.resumeY;
+
+        warrior.resumeMoveAfterAttack = false;
+        warrior.resumeX = null;
+        warrior.resumeY = null;
+
+        orderUnitMove(warrior, rx, ry);
+    } else {
+        warrior.state = "idle";
+        warrior.targetX = null;
+        warrior.targetY = null;
+        warrior.standingstill = true;
+        clearUnitPath(warrior);
+    }
+}
+function getAllTowersAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("tower");
+}
+function getAliveTowersAllTeams() {
+    return getAliveObjectsOfBaseTypeAllTeams("tower");
+}
+function getTowerTarget(tower) {
+    const all = game.getAllObjects();
+
+    let best = null;
+    let bestDist = tower.attackRange * tower.attackRange;
+
+    const tx = tower.x + tower.dimx / 2;
+    const ty = tower.y + tower.dimy / 2;
+
+    for (const o of all) {
+        if (!o || o.dead) continue;
+        if (o === tower) continue;
+
+        // ignorera projektiler
+        if (o.isProjectile) continue;
+
+        // ignorera neutralt skräp om du vill
+        if (o.holdingicon) continue;
+
+        // MÅSTE vara fiende (eller boar)
+        const isValid =
+            o.name === "boar" ||
+            isEnemyOf(tower, o);
+
+        if (!isValid) continue;
+
+        const ox = o.x + o.dimx / 2;
+        const oy = o.y + o.dimy / 2;
+
+        const dx = ox - tx;
+        const dy = oy - ty;
+        const d = dx * dx + dy * dy;
+
+        if (d < bestDist) {
+            bestDist = d;
+            best = o;
+        }
+    }
+
+    return best;
+}
+function spawnArrow(tower, target) {
+    if (!tower || !target || target.dead) return null;
+
+    const owner = tower.owner || "player";
+    const arrowType = getTeamObjectType("arrow", owner) || game.getobjecttype("arrow");
+    if (!arrowType) return null;
+
+    const sx = tower.x + tower.dimx / 2 - 8;
+    const sy = tower.y + tower.dimy / 2 - 8;
+
+    const a = game.addobject(arrowType, sx, sy, 16, 16, 0, false);
+    if (!a) return null;
+
+    a.owner = owner;
+    a.targetEnemy = target;
+    a.damage = tower.damage || 6;
+    a.speed = 6;
+    a.state = "fly";
+    a.selectable = false;
+    a.canMove = true;
+    a.isProjectile = true;
+
+    return a;
+}
+function updateTower(tower, scale) {
+    if (tower.dead) return;
+
+    if (tower.attackCooldown > 0) {
+        tower.attackCooldown -= 1 * scale;
+        if (tower.attackCooldown < 0) tower.attackCooldown = 0;
+    }
+
+    let t = tower.targetEnemy;
+
+    if (!t || t.dead) {
+        t = getTowerTarget(tower);
+        tower.targetEnemy = t;
+    }
+
+   
+
+    if (!t) return;
+
+    const tx = tower.x + tower.dimx / 2;
+    const ty = tower.y + tower.dimy / 2;
+    const ex = t.x + t.dimx / 2;
+    const ey = t.y + t.dimy / 2;
+
+    const dx = ex - tx;
+    const dy = ey - ty;
+    const dist = Math.hypot(dx, dy);
+
+    
+
+    if (dist > tower.attackRange) {
+        tower.targetEnemy = null;
+        return;
+    }
+
+    if (tower.attackCooldown <= 0) {
+        tower.attackCooldown = tower.attackSpeed;
+        spawnArrow(tower, t);
+    }
+}
+function getAllArrowsAllTeams() {
+    return getAllObjectsOfBaseTypeAllTeams("arrow");
+}
+function updateArrow(arrow, scale) {
+    if (!arrow || arrow.dead) return;
+
+    const t = arrow.targetEnemy;
+
+    if (!t || t.dead) {
+        game.removeobject(game.getobjecttype(arrow.name), arrow);
+        return;
+    }
+
+    const tx = t.x + t.dimx / 2;
+    const ty = t.y + t.dimy / 2;
+
+    const dx = tx - arrow.x;
+    const dy = ty - arrow.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist < 10 || game.collideswithanoterobject(arrow, t)) {
+        t.hp = (t.hp || 40) - (arrow.damage || 6);
+        t.flashTimer = 30;
+
+        if (t.hp <= 0) {
+            t.hp = 0;
+            t.dead = true;
+            t.selectable = false;
+
+            if (t.name === "boar") {
+                t.animation = 6;
+                t.type = "food";
+            } else if (t.name.includes("worker")) {
+                t.animation = 12;
+            } else if (t.name.includes("warrior")) {
+                t.animation = 9;
+            } else if (t.isBuilding) {
+                game.removeobject(game.getobjecttype(t.name), t);
+                markStaticsDirty();
+            }
+
+            if (t.owner && teamResources[t.owner] && (t.name.includes("worker") || t.name.includes("warrior"))) {
+                teamResources[t.owner].pop -= 1;
+                if (teamResources[t.owner].pop < 0) teamResources[t.owner].pop = 0;
+            }
+        }
+
+        game.removeobject(game.getobjecttype(arrow.name), arrow);
+        return;
+    }
+
+    if (dist > 0.001) {
+        arrow.x += (dx / dist) * (arrow.speed || 6) * scale;
+        arrow.y += (dy / dist) * (arrow.speed || 6) * scale;
+
+        arrow.rot = Math.atan2(dy, dx) * 180 / Math.PI;
+    }
+}
+function getAITargetWorkerCounts(owner) {
+    const resources = teamResources[owner];
+    const barracks = getTeamObjects("barrack", owner).filter(b => !b.dead && !b.isUnderConstruction);
+
+    let food = 3;
+    let wood = 3;
+    let gold = 0;
+    let stone = 0;
+
+    // när barrack finns och AI ska göra warriors behövs guld
+    if (barracks.length > 0) {
+        gold = 2;
+    }
+
+    // om låg på food, öka food-prio
+    if ((resources.food || 0) < 80) food += 1;
+
+    // om låg på wood, öka wood-prio
+    if ((resources.wood || 0) < 80) wood += 1;
+
+    // om låg på gold, öka gold-prio
+    if ((resources.gold || 0) < 40 && barracks.length > 0) gold += 1;
+
+    return { food, wood, gold, stone };
+}
+function getAIWorkerJobCounts(owner) {
+    const workers = getTeamObjects("worker", owner).filter(w => !w.dead);
+
+    const counts = {
+        food: 0,
+        wood: 0,
+        gold: 0,
+        stone: 0,
+        build: 0,
+        idle: 0
+    };
+
+    for (const w of workers) {
+        if (w.state === "buildBuilding") {
+            counts.build++;
+            continue;
+        }
+
+        if (w.state === "idle") {
+            counts.idle++;
+            continue;
+        }
+
+        if (w.jobType === "food") counts.food++;
+        else if (w.jobType === "wood") counts.wood++;
+        else if (w.jobType === "gold") counts.gold++;
+        else if (w.jobType === "stone") counts.stone++;
+        else counts.idle++;
+    }
+
+    return counts;
+}
+function getMostNeededResourceJob(owner) {
+    const wanted = getAITargetWorkerCounts(owner);
+    const current = getAIWorkerJobCounts(owner);
+
+    const deficits = [
+        { type: "food",  need: wanted.food  - current.food },
+        { type: "wood",  need: wanted.wood  - current.wood },
+        { type: "gold",  need: wanted.gold  - current.gold },
+        { type: "stone", need: wanted.stone - current.stone }
+    ];
+
+    deficits.sort((a, b) => b.need - a.need);
+
+    if (deficits[0].need > 0) return deficits[0].type;
+
+    return "wood";
+}
+        </script>
+    </body>  
+</html>
+            
