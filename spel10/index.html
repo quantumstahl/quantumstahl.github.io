@@ -81,7 +81,7 @@
             });
             document.addEventListener("touchend" , function(e) {
                 e.preventDefault();
-                        handleGameUILeftClick(cursorX, cursorY);
+                      //  handleGameUILeftClick(cursorX, cursorY);
                     
                     
                     
@@ -240,7 +240,7 @@
                 }
             }
             const teamResources = game.teamResources || (game.teamResources = {
-                player: { wood: 1000, food: 0, gold: 0, stone: 0, pop: 3, popMax: 10 },
+                player: { wood: 0, food: 0, gold: 0, stone: 0, pop: 3, popMax: 10 },
                 red:    { wood: 0,  food: 0,  gold: 0,  stone: 0, pop: 3, popMax: 10 },
                 yellow: { wood: 0,  food: 0,  gold: 0,  stone: 0, pop: 3, popMax: 10 },
                 green:  { wood: 0,  food: 0,  gold: 0,  stone: 0, pop: 3, popMax: 10 }
