@@ -967,8 +967,40 @@
                     w.iscontrollable = (w.owner === "player");
                     w.fliped=false;
                     
+                    if(!w.dead){
+                        if(w.direction=="down"){w.animation=1;if(w.standingstill)w.animation=0;if(w.state === "gather")w.animation=6;if(w.state === "returnToBase")w.animation=9;}
+                        if(w.direction=="up"){w.animation=3;if(w.standingstill)w.animation=2;if(w.state === "gather")w.animation=7;if(w.state === "returnToBase")w.animation=10;}
+                        if(w.direction=="right"){w.animation=5;if(w.standingstill)w.animation=4;if(w.state === "gather")w.animation=8;if(w.state === "returnToBase")w.animation=11;}
+                        if(w.direction=="left"){w.animation=5;if(w.standingstill)w.animation=4;w.fliped=true;if(w.state === "gather")w.animation=8;if(w.state === "returnToBase")w.animation=11;}
+                    
+                        if((w.state === "attackBoar"&& game.collideswithobject(w,"boar"))||(w.state === "buildBuilding"&& game.collideswithanoterobject(w,w.targetBuilding))){
+                            if(w.direction=="down"){w.animation=6;}
+                            if(w.direction=="up"){w.animation=7;}
+                            if(w.direction=="right"){w.animation=8;}
+                            if(w.direction=="left"){w.animation=8;}
 
-
+                        }
+                    }
+                    if(w.state === "returnToBase"){
+                
+                        if(w.carryType==="food"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("foodicon"),w.x,w.y-20,30,30,0,false);}
+                        if(w.carryType==="wood"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("woodicon"),w.x,w.y-20,30,30,0,false);}   
+                        if(w.carryType==="stone"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("stoneicon"),w.x,w.y-20,30,30,0,false);}    
+                        if(w.carryType==="gold"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("goldicon"),w.x,w.y-20,30,30,0,false);}        
+                        
+                        
+                        
+                        
+                        
+                        if(w.holdingicon){w.holdingicon.x=w.x;w.holdingicon.y=w.y-20;}
+                        
+                        
+                    }
+                    else if(w.holdingicon){
+                        game.removeobject(game.getobjecttype(w.holdingicon.name),w.holdingicon);
+                        w.holdingicon=null;
+                        
+                    }
                     
                     if(w.state==null){
                         w.state = "idle";
@@ -985,29 +1017,9 @@
                     }
                     
                     updateWorker(w, townhall, teamResources[w.owner || "player"], scale);
-                    const doingGatherAnim =
-                        w.state === "gather" ||
-                        (w.state === "buildBuilding" && w.targetBuilding && game.collideswithanoterobject(w, w.targetBuilding)) ||
-                        (w.state === "attackBoar" && w.attackTarget && game.collideswithanoterobject(w, w.attackTarget));
-
-                    if(!w.dead){
-                        if(w.direction=="down"){w.animation=1;if(w.standingstill)w.animation=0;if(doingGatherAnim)w.animation=6;if(w.state === "returnToBase")w.animation=9;}
-                        if(w.direction=="up"){w.animation=3;if(w.standingstill)w.animation=2;if(doingGatherAnim)w.animation=7;if(w.state === "returnToBase")w.animation=10;}
-                        if(w.direction=="right"){w.animation=5;if(w.standingstill)w.animation=4;if(doingGatherAnim)w.animation=8;if(w.state === "returnToBase")w.animation=11;}
-                        if(w.direction=="left"){w.animation=5;if(w.standingstill)w.animation=4;w.fliped=true;if(doingGatherAnim)w.animation=8;if(w.state === "returnToBase")w.animation=11;}
-                    }
-                    if(w.state === "returnToBase"){
-                
-                        if(w.carryType==="food"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("foodicon"),w.x,w.y-20,30,30,0,false);}
-                        if(w.carryType==="wood"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("woodicon"),w.x,w.y-20,30,30,0,false);}   
-                        if(w.carryType==="stone"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("stoneicon"),w.x,w.y-20,30,30,0,false);}    
-                        if(w.carryType==="gold"&&!w.holdingicon){w.holdingicon=game.addobject(game.getobjecttype("goldicon"),w.x,w.y-20,30,30,0,false);}        
-                        if(w.holdingicon){w.holdingicon.x=w.x;w.holdingicon.y=w.y-20;}
-                    }
-                    else if(w.holdingicon){
-                        game.removeobject(game.getobjecttype(w.holdingicon.name),w.holdingicon);
-                        w.holdingicon=null;
-                    }
+                    
+                    
+                    
                 }
                 updateTeamAI("red", scale);
                 updateTeamAI("yellow", scale);
@@ -1261,92 +1273,114 @@ if (worker.state === "moveToResource") {
     return;
 }
 
-    if (worker.state === "gather") {
-        const r = worker.targetResource;
-        worker.standingstill = true;
-        if(r.name==="farm"||r.name==="rfarm"||r.name==="gfarm"||r.name==="yfarm"){
-         
-            worker.standingstill=false;
-            
-            worker.targetX = r.x + (r.dimx / 2)-(worker.dimx / 2);
-            worker.targetY = r.y + (r.dimy / 2)-(worker.dimy / 2);
-         
-            
-        }
-        
-        if (r.name === "sheep"||r.name === "boar") {
-       
+  if (worker.state === "gather") {
+    const r = worker.targetResource;
 
-            
-                r.dead = true;
-                if(r.name === "sheep")r.animation=12;
-                if(r.name === "boar")r.animation=6;
-            
-        }
-        
-        else if (!r || r.dead || r.amount <= 0) {
-            worker.targetResource = null;
+    // reset varje frame
+    worker.doingGatherAnim = false;
 
-            if (worker.carryAmount > 0) {
-                worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
-                if (worker.targetDropoff) {
-                    worker.state = "returnToBase";
-                    worker.sistabit=false;
-                    worker.standingstill=false;
-                } else {
-                    worker.state = "idle";
-                    worker.sistabit=false;
-                    worker.standingstill=false;
-                }
+    if (!r  || r.amount <= 0) {
+        worker.targetResource = null;
+
+        if (worker.carryAmount > 0) {
+            worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
+            if (worker.targetDropoff) {
+                worker.state = "returnToBase";
+                worker.sistabit = false;
+                worker.standingstill = false;
             } else {
-                const next = getNearestResourceOfType(worker, worker.jobType);
-                if (next) {
-                    worker.targetResource = next;
-                    worker.state = "moveToResource";
-                    worker.sistabit=false;
-                    worker.standingstill=false;
-                } else {
-                    worker.state = "idle";
-                    worker.jobType = null;
-                    worker.sistabit=false;
-                    worker.standingstill=false;
-                }
+                worker.state = "idle";
+                worker.sistabit = false;
+                worker.standingstill = false;
             }
-
-        
-            return;
-        }
-
-        
-        worker.gatherTimer += 1 * scale;
-        
-        if (worker.gatherTimer >= r.gatherTime) {
-            worker.gatherTimer = 0;
-            const take = Math.min(worker.carryMax - worker.carryAmount, 10, r.amount);
-            r.amount -= take;
-            worker.carryAmount += take;
-            worker.carryType = r.type;
-
-            if (r.amount <= 0) {
-                game.removeobject(game.getobjecttype(r.name),r);
-                markStaticsDirty();
-            }
-            
-            if (worker.carryAmount >= worker.carryMax || r.amount <= 0) {
-                worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
-                if (worker.targetDropoff) {
-                    worker.state = "returnToBase";
-                    worker.sistabit=false;
-                    worker.standingstill=false;
-                } else {
-                    worker.state = "idle";
-                    worker.sistabit=false;
-                    worker.standingstill=false;
-                }
+        } else {
+            const next = getNearestResourceOfType(worker, worker.jobType);
+            if (next) {
+                worker.targetResource = next;
+                worker.state = "moveToResource";
+                worker.sistabit = false;
+                worker.standingstill = false;
+            } else {
+                worker.state = "idle";
+                worker.jobType = null;
+                worker.sistabit = false;
+                worker.standingstill = false;
             }
         }
+
         return;
     }
+
+    // sheep/boar blir "döda resurser"
+    if (r.name === "sheep" || r.name === "boar") {
+        r.dead = true;
+        if (r.name === "sheep") r.animation = 12;
+        if (r.name === "boar") r.animation = 6;
+    }
+
+    // FARM: stå i mitten innan gather startar
+    const isFarm =
+        r.name === "farm" ||
+        r.name === "rfarm" ||
+        r.name === "gfarm" ||
+        r.name === "yfarm";
+
+    if (isFarm) {
+        const tx = r.x + (r.dimx / 2) - (worker.dimx / 2);
+        const ty = r.y + (r.dimy / 2) - (worker.dimy / 2);
+
+        worker.targetX = tx;
+        worker.targetY = ty;
+
+        const dx = tx - worker.x;
+        const dy = ty - worker.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist > 6) {
+            worker.standingstill = false;
+            worker.doingGatherAnim = false;
+            return;
+        }
+    }
+
+    // vanlig gather
+    worker.standingstill = true;
+    worker.doingGatherAnim = true;
+
+    worker.gatherTimer += 1 * scale;
+
+    if (worker.gatherTimer >= r.gatherTime) {
+        worker.gatherTimer = 0;
+
+        const take = Math.min(worker.carryMax - worker.carryAmount, 10, r.amount);
+        r.amount -= take;
+        worker.carryAmount += take;
+        worker.carryType = r.type;
+
+        if (r.amount <= 0) {
+            game.removeobject(game.getobjecttype(r.name), r);
+            markStaticsDirty();
+        }
+
+        if (worker.carryAmount >= worker.carryMax || r.amount <= 0) {
+            worker.targetDropoff = getNearestDropoff(worker, worker.carryType);
+
+            if (worker.targetDropoff) {
+                worker.state = "returnToBase";
+                worker.sistabit = false;
+                worker.standingstill = false;
+                worker.doingGatherAnim = false;
+            } else {
+                worker.state = "idle";
+                worker.sistabit = false;
+                worker.standingstill = false;
+                worker.doingGatherAnim = false;
+            }
+        }
+    }
+
+    return;
+}
 
 if (worker.state === "returnToBase") {
     const t = worker.targetDropoff;
