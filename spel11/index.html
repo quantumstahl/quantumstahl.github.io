@@ -5,7 +5,7 @@
         <meta name="keywords" content="mobilspel, mobilegames, js games, javascript games">
         <link rel="icon" href="images/Workerdown1.png" type="image/vnd.microsoft.icon" />
         <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&display=swap" rel="stylesheet">
-	<title>RTS2</title>
+	<title>BirdKnight:RatWars</title>
         
         <script src="js/Game6.js"></script>
 
@@ -240,7 +240,7 @@
                 }
             }
             const teamResources = game.teamResources || (game.teamResources = {
-                player: { wood: 1000,  food: 1000,  gold: 1000,  stone: 1000, pop: 3, popMax: 10 },
+                player: { wood: 0,  food: 0,  gold: 0,  stone: 0, pop: 3, popMax: 10 },
                 red:    { wood: 0,  food: 0,  gold: 0,  stone: 0, pop: 3, popMax: 10 },
                 yellow: { wood: 0,  food: 0,  gold: 0,  stone: 0, pop: 3, popMax: 10 },
                 green:  { wood: 0,  food: 0,  gold: 0,  stone: 0, pop: 3, popMax: 10 }
@@ -249,7 +249,7 @@
             const playerResources = teamResources.player;
             game.buildMode = null;
             const WORKER_BUILD_OPTIONS = [
-                {type: "hus",label: "House",icon: "husicon",cost: { wood: 30 }},
+                {type: "hus",label: "House",icon: "hus",cost: { wood: 30 }},
                 {type: "townhall",label: "TownHall",icon: "townhall",cost: { wood: 120, stone: 80 }},
                   { type: "lumbercamp", label: "Lumber", icon: "lumbercamp", cost: { wood: 60 } },
                   { type: "miningcamp", label: "Mining", icon: "miningcamp", cost: { wood: 60 } },
@@ -264,8 +264,8 @@
                     imageType: "hus",
                     foundationType: "husfoundation",
                     iconType: "husicon",
-                    width: 80,
-                    height: 80,
+                    width: 120,
+                    height: 120,
                     cost: { wood: 30 },
                     buildTime: 900,
                     popMaxBonus: 5,
@@ -289,8 +289,8 @@
                     imageType: "lumbercamp",
                     foundationType: "lumbercampfoundation",
                     iconType: "lumbercampicon",
-                    width: 90,
-                    height: 90,
+                    width: 150,
+                    height: 150,
                     cost: { wood: 60 },
                     buildTime: 900,
                     hp: 150,
@@ -301,8 +301,8 @@
                     imageType: "miningcamp",
                     foundationType: "miningcampfoundation",
                     iconType: "miningcampicon",
-                    width: 90,
-                    height: 90,
+                    width: 150,
+                    height: 150,
                     cost: { wood: 60 },
                     buildTime: 900,
                     hp: 150,
@@ -323,8 +323,8 @@
                     imageType: "mill",
                     foundationType: "windmillfoundation",
                     iconType: "mill",
-                    width: 100,
-                    height: 100,
+                    width: 130,
+                    height: 180,
                     cost: { wood: 80 },
                     buildTime: 1000,
                     hp: 180,
@@ -340,8 +340,8 @@
                     dropoffTypes: []
                 },
                 tower: {
-                    width: 50,
-                    height: 200,
+                    width: 140,
+                    height: 250,
                     hp: 120,
                     buildTime: 500,
                     imageType: "tower",
@@ -1756,7 +1756,8 @@ function spawnWorkerFromTownhall(townhall) {
     const workerType = getTeamObjectType("worker", owner);
     if (!workerType) return false;
 
-    const pos = findFreeSpawnPosition(townhall, 30, 50);
+    let pos = findFreeSpawnPosition(townhall, 40, 60);
+    if(owner==="player")findFreeSpawnPosition(townhall, 30, 50);
     if (!pos) return false;
 
     if (resources.pop >= resources.popMax) {
@@ -1764,8 +1765,9 @@ function spawnWorkerFromTownhall(townhall) {
     }
 
     resources.pop += 1;
-
-    const w = game.addobject(workerType, pos.x, pos.y, 30, 50, 0, false);
+    let w=null;
+    if(owner==="player")w = game.addobject(workerType, pos.x, pos.y, 30, 50, 0, false);
+    else w = game.addobject(workerType, pos.x, pos.y, 40, 60, 0, false);
     if (!w) return false;
 
     w.owner = owner;

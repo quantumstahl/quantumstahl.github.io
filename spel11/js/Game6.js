@@ -3823,7 +3823,7 @@ function updateAndDrawFX(ctx) {
 
 function drawSelectRing(ctx, o,zoom, camX, camY){
     
-  if(o.name=="farm")return;
+  if(o.name=="farm"||o.name=="rfarm"||o.name=="gfarm"||o.name=="yfarm")return;
 
   // Alltid-på, subtil "ground contact" för byggnader (så de inte ser svävande ut)
   if (o.canMove==false) {
@@ -3833,10 +3833,10 @@ function drawSelectRing(ctx, o,zoom, camX, camY){
     ctx.save(); ctx.globalAlpha=0.6;
     ctx.scale(1 + (1 * zoom / 100), 1 + (1 * zoom / 100));
     ctx.beginPath(); 
-    if(o.name=="townhall")ctx.ellipse(cx+camX, cy+camY, o.dimx*0.45, o.dimy*0.20, +0.2, 0, Math.PI*2);
-    else ctx.ellipse(cx+camX, cy+camY, o.dimx*0.45, o.dimy*0.35, 0, 0, Math.PI*2);
+    if(o.name=="townhall")ctx.ellipse(cx+camX-60, cy+camY-30, o.dimx*0.25, o.dimy*0.25, -0.4, 0, Math.PI*2);
+    else ctx.ellipse(cx+camX-20, cy+camY-30, o.dimx*0.35, o.dimy*0.45, -0.4, 0, Math.PI*2);
     
-    ctx.fillStyle="rgba(0,0,0,.9)"; ctx.fill(); ctx.restore();
+    ctx.fillStyle="rgba(0,0,0,.44)"; ctx.fill(); ctx.restore();
   }  
   else if(o.selectable&&!o.dead){  
     
@@ -3851,7 +3851,7 @@ function drawSelectRing(ctx, o,zoom, camX, camY){
   
   if(o.name=="tree")ctx.ellipse(cx+camX-10, cy+camY-o.dimy/2, o.dimx*0.25, o.dimy*0.50, -0.2, 0, Math.PI*2);
   else ctx.ellipse(cx+camX, cy+camY, o.dimx*0.45, o.dimy*0.15, 0, 0, Math.PI*2);
-  ctx.fillStyle="rgba(0,0,0,.9)"; ctx.fill(); ctx.restore();
+  ctx.fillStyle="rgba(0,0,0,.44)"; ctx.fill(); ctx.restore();
   }
 }
 //SAT
