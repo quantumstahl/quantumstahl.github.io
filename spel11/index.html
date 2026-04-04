@@ -240,7 +240,7 @@
                 }
             }
             const teamResources = game.teamResources || (game.teamResources = {
-                player: { wood: 0,  food: 0,  gold: 0,  stone: 0, pop: 3, popMax: 10 },
+                player: { wood: 1000,  food: 1000,  gold: 1000,  stone: 1000, pop: 3, popMax: 10 },
                 red:    { wood: 0,  food: 0,  gold: 0,  stone: 0, pop: 3, popMax: 10 },
                 yellow: { wood: 0,  food: 0,  gold: 0,  stone: 0, pop: 3, popMax: 10 },
                 green:  { wood: 0,  food: 0,  gold: 0,  stone: 0, pop: 3, popMax: 10 }
@@ -2649,7 +2649,7 @@ function spawnWarriorFromBarrack(barrack) {
     const warriorType = getTeamObjectType("warrior", owner);
     if (!warriorType) return false;
 
-    const pos = findFreeSpawnPosition(barrack, 30, 50);
+    const pos = findFreeSpawnPosition(barrack, 40, 60);
     if (!pos) return false;
 
     if (resources.pop >= resources.popMax) {
@@ -2658,7 +2658,7 @@ function spawnWarriorFromBarrack(barrack) {
 
     resources.pop += 1;
 
-    const w = game.addobject(warriorType, pos.x, pos.y, 30, 50, 0, false);
+    const w = game.addobject(warriorType, pos.x, pos.y, 40, 60, 0, false);
     if (!w) return false;
 
     w.owner = owner;
