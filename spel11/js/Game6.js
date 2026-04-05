@@ -3851,7 +3851,7 @@ function drawSelectRing(ctx, o,zoom, camX, camY){
  if(o.name.endsWith("worker")||o.name.endsWith("warrior")){ 
 ctx.globalAlpha = 1;
 ctx.beginPath();
-ctx.ellipse(cx+camX, cy+camY, o.dimx*0.45, o.dimy*0.15, 0, 0, Math.PI*2);
+ctx.ellipse(cx+camX, cy+camY, o.dimx*0.55, o.dimy*0.25, 0, 0, Math.PI*2);
 ctx.strokeStyle = "blue";
 if(o.name.startsWith("r"))ctx.strokeStyle = "red";if(o.name.startsWith("y"))ctx.strokeStyle = "yellow";if(o.name.startsWith("g"))ctx.strokeStyle = "green";
 
