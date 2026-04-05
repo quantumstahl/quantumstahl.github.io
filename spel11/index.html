@@ -1268,7 +1268,7 @@ if (worker.state === "moveToResource") {
 
     const p = getApproachPoint(worker, r, 18);
     if(!worker.standingstill&&!worker.sistabit){worker.targetX = p.x;worker.targetY = p.y;updateUnitPathMovement(worker, scale, { reachDist: 25, repathEvery: 500 });}
-    else if(worker.standingstill){worker.targetX=r.x+r.dimx/2;worker.targetY=r.y+r.dimy/2;worker.standingstill = false;worker.sistabit=true;}   
+    else {worker.targetX=r.x+r.dimx/2;worker.targetY=r.y+r.dimy/2;worker.standingstill = false;worker.sistabit=true;}   
     
     return;
 }

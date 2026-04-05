@@ -238,7 +238,7 @@ const SimSolver = {
         for (let oi=0; oi<ot.objects.length; oi++){
           const o = ot.objects[oi];
                 
-          
+                o.wasstaticblocked=false;
           
 
                 if (layer.fysics == false || layer.solid) {
@@ -1147,7 +1147,7 @@ o._contactNormals.length = 0;
         }
 
         if (!contact) continue;
-        
+        o.wasstaticblocked=true;
 
 //NYTT
 if (o.stuck&&o.blockedy&&Math.abs(contact.n.x) > 0.9 && (A.x - (A.sx || A.x) || 0) !== 0) {
@@ -1365,7 +1365,7 @@ if (o._contactNormals.length > 0 && inputLen > DEADZONE) {
         }
 
         if (!contact) continue;
-
+        o.wasstaticblocked=true;
 
 
 //NYTT
@@ -2800,54 +2800,39 @@ updateUnitMovement(scale) {
                  
                  
            
-            if (dist > 2) {
-    const absdx = Math.abs(dx);
-    const absdy = Math.abs(dy);
-
-    // normal riktning
    
+                const absdx = Math.abs(dx);
+                const absdy = Math.abs(dy);
+                // om vi är blockerade i x-led och försöker gå i x-led:
+                if (absdx > absdy && obj.blockedx) {
+                    if (!obj.avoidDir) {
+                        if(obj.wasdynblocked&&obj.wasstaticblocked===false){
+                            if(obj.direction==="right"||obj.direction==="down")obj.avoidDir ="down" ;
+                            else obj.avoidDir = "up";
+                        }
+                        else obj.avoidDir = dy > 0 ? "down" : "up";
 
-    // om vi är blockerade i x-led och försöker gå i x-led:
-    if (absdx > absdy && obj.blockedx) {
-        if (!obj.avoidDir) {
-            if(obj.wasdynblocked){
-                if(obj.direction==="right"||obj.direction==="down")obj.avoidDir ="down" ;
-                else obj.avoidDir = "up";
-            }
-            else obj.avoidDir = dy > 0 ? "down" : "up";
-           // else obj.avoidDir = Math.floor(Math.random() * 2) >0 ? "down" : "up";
-          //  else obj.avoidDir = dy > 0 ? "up" : "down";
-            obj.avoidTimer = 2;
-        }
-        obj.direction = obj.avoidDir;
-    }
+                    }
+                    obj.direction = obj.avoidDir;
+                }
 
-    // om vi är blockerade i y-led och försöker gå i y-led:
-    else if (absdy >= absdx && obj.blockedy) {
-        if (!obj.avoidDir) {
-            if(obj.wasdynblocked){
-                if(obj.direction==="down"||obj.direction==="right")obj.avoidDir = "right";
-                else obj.avoidDir = "left";
-            }
-            else obj.avoidDir = dx > 0 ? "right" : "left";
-          //  else obj.avoidDir = Math.floor(Math.random() * 2) >0 ? "right" : "left";
-            obj.avoidTimer = 2;
-        }
-        obj.direction = obj.avoidDir;
-    }
-    else{
-        if (absdx > absdy) obj.direction = dx > 0 ? "right" : "left";
-        else obj.direction = dy > 0 ? "down" : "up";
-        obj.avoidDir=null;
-    }
-    // håll kvar sidvalet lite
-    if (obj.avoidTimer > 0) {
-        obj.avoidTimer--;
-        obj.direction = obj.avoidDir;
-    } else {
-       // obj.avoidDir = null;
-    }
-}
+                // om vi är blockerade i y-led och försöker gå i y-led:
+                else if (absdy >= absdx && obj.blockedy) {
+                    if (!obj.avoidDir) {
+                        if(obj.wasdynblocked&&obj.wasstaticblocked===false){
+                            if(obj.direction==="down"||obj.direction==="right")obj.avoidDir = "right";
+                            else obj.avoidDir = "left";
+                        }
+                        else obj.avoidDir = dx > 0 ? "right" : "left";
+                    }
+                    obj.direction = obj.avoidDir;
+                }
+                else{
+                    if (absdx > absdy) obj.direction = dx > 0 ? "right" : "left";
+                    else obj.direction = dy > 0 ? "down" : "up";
+                    obj.avoidDir=null;
+                }
+
     
     
                 obj.wasblocked=false;
@@ -3362,6 +3347,10 @@ class Objecttype {
           o.isonscreen = true;
           
           // valfri: selektionsring innan spriten
+          
+     
+          
+          
           if(o.isvisable)try { drawSelectRing(ctx, o, zoom, camerax, cameray); } catch(e){}
 
           // ===== RITA SPRITE =====
@@ -3596,6 +3585,7 @@ this.stuck=false;
 this.sistabit=false;
 this.wasdynblocked=false;
 this.bottomsolid = 100;
+this.wasstaticblocked=false;
     }
     collidestest(){
 
@@ -3836,7 +3826,11 @@ function drawSelectRing(ctx, o,zoom, camX, camY){
     if(o.name=="townhall")ctx.ellipse(cx+camX-60, cy+camY-30, o.dimx*0.25, o.dimy*0.25, -0.4, 0, Math.PI*2);
     else ctx.ellipse(cx+camX-20, cy+camY-30, o.dimx*0.35, o.dimy*0.45, -0.4, 0, Math.PI*2);
     
-    ctx.fillStyle="rgba(0,0,0,.44)"; ctx.fill(); ctx.restore();
+    ctx.fillStyle="rgba(0,0,0,.44)"; ctx.fill(); 
+    
+        
+        
+        ctx.restore();
   }  
   else if(o.selectable&&!o.dead){  
     
@@ -3851,7 +3845,26 @@ function drawSelectRing(ctx, o,zoom, camX, camY){
   
   if(o.name=="tree")ctx.ellipse(cx+camX-10, cy+camY-o.dimy/2, o.dimx*0.25, o.dimy*0.50, -0.2, 0, Math.PI*2);
   else ctx.ellipse(cx+camX, cy+camY, o.dimx*0.45, o.dimy*0.15, 0, 0, Math.PI*2);
-  ctx.fillStyle="rgba(0,0,0,.44)"; ctx.fill(); ctx.restore();
+  ctx.fillStyle="rgba(0,0,0,.44)"; ctx.fill(); 
+  
+  // TEAM RING
+ if(o.name.endsWith("worker")||o.name.endsWith("warrior")){ 
+ctx.globalAlpha = 1;
+ctx.beginPath();
+ctx.ellipse(cx+camX, cy+camY, o.dimx*0.45, o.dimy*0.15, 0, 0, Math.PI*2);
+ctx.strokeStyle = "blue";
+if(o.name.startsWith("r"))ctx.strokeStyle = "red";if(o.name.startsWith("y"))ctx.strokeStyle = "yellow";if(o.name.startsWith("g"))ctx.strokeStyle = "green";
+
+ctx.lineWidth = 3;
+ctx.stroke();
+ctx.globalAlpha = 1;
+ }
+  
+  
+  
+  
+  
+  ctx.restore();
   }
 }
 //SAT
