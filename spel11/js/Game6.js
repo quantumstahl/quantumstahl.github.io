@@ -3850,14 +3850,26 @@ function drawSelectRing(ctx, o,zoom, camX, camY){
   // TEAM RING
  if(o.name.endsWith("worker")||o.name.endsWith("warrior")){ 
 ctx.globalAlpha = 1;
+
+ctx.beginPath();
+ctx.ellipse(cx+camX, cy+camY, o.dimx*0.65, o.dimy*0.30, 0, 0, Math.PI*2);
+ctx.strokeStyle = "black";
+ctx.lineWidth = 3;
+ctx.stroke();
+
 ctx.beginPath();
 ctx.ellipse(cx+camX, cy+camY, o.dimx*0.55, o.dimy*0.25, 0, 0, Math.PI*2);
 ctx.strokeStyle = "blue";
-if(o.name.startsWith("r"))ctx.strokeStyle = "red";if(o.name.startsWith("y"))ctx.strokeStyle = "yellow";if(o.name.startsWith("g"))ctx.strokeStyle = "green";
+if(o.name.startsWith("r"))ctx.strokeStyle = "red";if(o.name.startsWith("y"))ctx.strokeStyle = "yellow";if(o.name.startsWith("g"))ctx.strokeStyle = "lime";
 
 ctx.lineWidth = 3;
 ctx.stroke();
 ctx.globalAlpha = 1;
+
+
+
+
+
  }
   
   
