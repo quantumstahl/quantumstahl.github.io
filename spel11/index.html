@@ -1536,7 +1536,7 @@ function findBestReachableResourceCheap(unit, candidates, maxTest) {
         const r = candidates[i].r;
         const p = getApproachPoint(unit, r, 18);
 		
-		if(!canPathTo(unit,p.x,p.y)){game.unreachableResources.add(r.id); continue;}
+		if(!game.canPathTo(unit,p.x,p.y)){game.unreachableResources.add(r.id); continue;}
         if (!p) continue;
 
         const path = game.findPath(unit.x, unit.y, p.x, p.y, {
