@@ -1532,11 +1532,11 @@ function findBestReachableResourceCheap(unit, candidates, maxTest) {
             isBlocker: game.pathfinding.options.isBlocker
         });
 
-        if (!Array.isArray(path) || path.length === 0){game.unreachableResources.add(r.id);continue;}
+        if (!Array.isArray(path) ){game.unreachableResources.add(r.id);continue;}
 
         const last = path[path.length - 1];
         const endDist = Math.hypot(last.x - p.x, last.y - p.y);
-        if (endDist >= 160){ game.unreachableResources.add(r.id);continue;}
+        if (endDist >= 80){ game.unreachableResources.add(r.id);continue;}
 
         const score = path.length * 32 + endDist;
 
