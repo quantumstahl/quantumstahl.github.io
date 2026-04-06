@@ -2841,7 +2841,7 @@ updateUnitMovement(scale) {
                             else obj.avoidDirx = "up";
                         }
                         else obj.avoidDirx = dy > 0 ? "down" : "up";
-                        obj.avoidDirxconter=10;
+                        obj.avoidDirxconter=50;
 
                     }
                     obj.avoidDirxconter-=1*scale;
@@ -2859,7 +2859,7 @@ updateUnitMovement(scale) {
                             else obj.avoidDiry = "left";
                         }
                         else obj.avoidDiry = dx > 0 ? "right" : "left";
-                        obj.avoidDiryconter=10;
+                        obj.avoidDiryconter=50;
                     }
                     obj.direction = obj.avoidDiry;
                     obj.avoidDiryconter-=1*scale;
