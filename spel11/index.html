@@ -1250,7 +1250,7 @@ if (worker.state === "moveToResource") {
 			worker.findTimer = worker.findDelay;
 		
 		
-            const next = getSharedWoodTarget(worker,worker.jobType);
+            const next = getNearestResourceOfType(worker,worker.jobType);
             if (next) {
                 worker.targetResource = next;
                 worker.state = "moveToResource";
@@ -1516,15 +1516,6 @@ function getNearestResourceOfType(unit, type) {
     //if (best) return best;
 
     return null;
-}
-function getSharedWoodTarget(unit,type) {
-    if (!game._woodTargetCache || game._woodTargetTimer <= 0) {
-        game._woodTargetCache = getNearestResourceOfType(unit, type);
-        game._woodTargetTimer = 30; // uppdatera var 30 frames
-    }
-
-    game._woodTargetTimer--;
-    return game._woodTargetCache;
 }
 function findBestReachableResourceCheap(unit, candidates, maxTest) {
     let best = null;
