@@ -1535,13 +1535,15 @@ function findBestReachableResourceCheap(unit, candidates, maxTest) {
     for (let i = 0; i < limit; i++) {
         const r = candidates[i].r;
         const p = getApproachPoint(unit, r, 18);
+		
+		if(!canPathTo(unit,p.x,p.y)){game.unreachableResources.add(r.id); continue;}
         if (!p) continue;
 
         const path = game.findPath(unit.x, unit.y, p.x, p.y, {
             isBlocker: game.pathfinding.options.isBlocker
         });
 
-        if (!Array.isArray(path) || path.length === 0){game.unreachableResources.add(r.id); continue;}
+        if (!Array.isArray(path) || path.length === 0){continue;}
 
         const last = path[path.length - 1];
         const endDist = Math.hypot(last.x - p.x, last.y - p.y);
