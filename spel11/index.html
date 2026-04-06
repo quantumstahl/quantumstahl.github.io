@@ -1543,7 +1543,7 @@ function findBestReachableResourceCheap(unit, candidates, maxTest) {
             bestScore = score;
             best = r;
         }
-		if(!best){i--;game.unreachableResources.add(r.id);}
+		if(!best&&!game.canPathTo(unit,p.x,p.y)){game.unreachableResources.add(r.id);}
     }
 
     return best;
