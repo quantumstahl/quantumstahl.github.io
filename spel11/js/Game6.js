@@ -2832,7 +2832,7 @@ updateUnitMovement(scale) {
                 // om vi är blockerade i x-led och försöker gå i x-led:
                 if ((absdx > absdy && obj.blockedx)||obj.avoidDirxconter>0) {
                     if (!obj.avoidDirx) {
-                        if(obj.wasdynblocked&&obj.wasstaticblocked===false){
+                        if(obj.wasdynblocked){
                             if(obj.direction==="right"||obj.direction==="down")obj.avoidDirx ="down" ;
                             else obj.avoidDirx = "up";
                         }
@@ -2847,7 +2847,7 @@ updateUnitMovement(scale) {
                 // om vi är blockerade i y-led och försöker gå i y-led:
                 else if ((absdy >= absdx && obj.blockedy)||obj.avoidDiryconter>0) {
                     if (!obj.avoidDiry) {
-                        if(obj.wasdynblocked&&obj.wasstaticblocked===false){
+                        if(obj.wasdynblocked){
                             if(obj.direction==="down"||obj.direction==="right")obj.avoidDiry = "right";
                             else obj.avoidDiry = "left";
                         }
