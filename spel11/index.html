@@ -1250,7 +1250,7 @@ if (worker.state === "moveToResource") {
 			worker.findTimer = worker.findDelay;
 		
 		
-            const next = getSharedWoodTarget(unit,worker.jobType);
+            const next = getSharedWoodTarget(worker,worker.jobType);
             if (next) {
                 worker.targetResource = next;
                 worker.state = "moveToResource";
