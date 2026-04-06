@@ -1725,6 +1725,7 @@ class Game6 {
         game = this;
         this.load();
         this.unreachableResources = new Set();
+        this.scale=1;
         // Added local caching of canvas element for efficiency.
         const canvas = document.getElementById("myCanvas");
 
@@ -1884,8 +1885,8 @@ class Game6 {
                     
                     
                     
-                    currentMap.camerax += deltaX;
-                    currentMap.cameray += deltaY;
+                    currentMap.camerax += deltaX*game.scale;
+                    currentMap.cameray += deltaY*game.scale;
                     
                     if(currentMap.cameray>=800)currentMap.cameray=800;
                     if(currentMap.cameray<=-2200)currentMap.cameray=-2200;
@@ -2832,6 +2833,9 @@ updateUnitMovement(scale) {
                 // om vi är blockerade i x-led och försöker gå i x-led:
                 if ((absdx > absdy && obj.blockedx)||obj.avoidDirxconter>0) {
                     if (!obj.avoidDirx) {
+                        if (absdx > absdy) obj.direction = dx > 0 ? "right" : "left";
+                        else obj.direction = dy > 0 ? "down" : "up";
+                        
                         if(obj.wasdynblocked){
                             if(obj.direction==="right"||obj.direction==="down")obj.avoidDirx ="down" ;
                             else obj.avoidDirx = "up";
@@ -2847,6 +2851,9 @@ updateUnitMovement(scale) {
                 // om vi är blockerade i y-led och försöker gå i y-led:
                 else if ((absdy >= absdx && obj.blockedy)||obj.avoidDiryconter>0) {
                     if (!obj.avoidDiry) {
+                        if (absdx > absdy) obj.direction = dx > 0 ? "right" : "left";
+                        else obj.direction = dy > 0 ? "down" : "up";
+                        
                         if(obj.wasdynblocked){
                             if(obj.direction==="down"||obj.direction==="right")obj.avoidDiry = "right";
                             else obj.avoidDiry = "left";
