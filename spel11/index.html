@@ -2212,7 +2212,7 @@ function canPlaceBuilding(x, y, w, h,player) {
     const all = game.getAllObjects();
 
     for (const o of all) {
-        if (!o || o.dead) continue;
+        if (!o || o.dead&&!o.amount) continue;
 
         // ignorera rena effekter / ikoner om du vill
         if (o.holdingicon) continue;
