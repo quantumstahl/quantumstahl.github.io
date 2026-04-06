@@ -197,7 +197,7 @@
 
 
 
-                const scale = deltaMs / (1000 / 900);
+                const scale = deltaMs / (1000 / 60);
 
                 update(scale);
                 requestAnimationFrame(gameLoop);
@@ -351,7 +351,7 @@
             };
 
             showPanHint();
-            game.unreachableResources = new Set();
+            
 
             
             function update(scale){
@@ -370,7 +370,7 @@
                 drawBuildGhost(ctx, game.maps[game.currentmap]);
                 fps();
                 drawHealthBars();
-                drawPathGrid(ctx, window.DEBUG_GRID);
+               // drawPathGrid(ctx, window.DEBUG_GRID);
                 const camSpeed = 15*scale;
                 const currentMap = game.maps[game.currentmap];
 
@@ -1093,7 +1093,7 @@ function getNearestDropoff(unit, resourceType) {
 function updateWorker(worker, townhallList, playerResources, scale) {
     if(worker.dead)return;
     const speed = 1.0;
-    drawUnitPathDebug(ctx, worker, "cyan");
+   // drawUnitPathDebug(ctx, worker, "cyan");
 
     if (worker.state === "idle") {
         
@@ -1528,7 +1528,7 @@ function findBestReachableResourceCheap(unit, candidates, maxTest) {
 
         const last = path[path.length - 1];
         const endDist = Math.hypot(last.x - p.x, last.y - p.y);
-        if (endDist >= 80){ game.unreachableResources.add(r.id);continue;}
+        if (endDist >= 60){ game.unreachableResources.add(r.id);continue;}
 
         const score = path.length * 32 + endDist;
 
@@ -2589,7 +2589,7 @@ function drawSelectedObjectUI(ctx, canvas) {
 }
 function updateWarrior(warrior, scale) {
     if (warrior.dead) return;
-
+   // drawUnitPathDebug(ctx, warrior, "yellow");
     if (warrior.attackCooldown == null) warrior.attackCooldown = 0;
     if (warrior.damage == null) warrior.damage = 8;
     if (warrior.hp == null) warrior.hp = 40;
@@ -2620,15 +2620,12 @@ if (warrior.state === "move") {
     if (warrior.path && warrior.path.length > 0) {
         game.followPath(warrior, { reachDist: 25 });
         warrior.standingstill = false;
-    } else {
-        // ingen path kvar = klar
-        warrior.state = "idle";
-        warrior.targetX = null;
-        warrior.targetY = null;
-        warrior.standingstill = true;
     }
 
-
+    if (warrior.targetX == null || warrior.targetY == null) {
+        warrior.state = "idle";
+        warrior.standingstill = true;
+    }
 
     return;
 }

@@ -1288,14 +1288,7 @@ if (Math.abs((S.rot || 0) % 90) > 0.001) {
         A.y -= contact.n.y * contact.depth;
         
         // TOP-DOWN SLIDE LOGIK:
-      if (slideMode === "full") {
-        // Om vi krockar i X, låt oss styra om resten av rörelsen till Y
-        // Projicera den tänkta rörelsen på väggens tangent
-        const dot = stepDx * contact.n.y; // Enkel 2D-tangent projektion
-            if(o._wantdy>0)stepDx += dot * Math.abs(contact.n.x);
-        else stepDx -= dot * Math.abs(contact.n.x);
-        if(S.ref.rot!==0)o.slide=true;
-      }
+
         if ((S.rot || 0) !== 0 && !isAxisAlignedRot(S.rot)) {
             o._contactNormals.push(contact.n);
           }
@@ -1367,6 +1360,8 @@ if (o._contactNormals.length > 0 && inputLen > DEADZONE) {
 
 
 //NYTT
+let goingUphill = false;
+let goingDownhill = false;
 if (o.stuck&&o.blockedy&&Math.abs(contact.n.x) > 0.9 && (A.x - (A.sx || A.x) || 0) !== 0) {
   const wantdx = (A.ref?._wantdx || 0);
   const moveX = A.x - (A.sx || A.x);
@@ -1389,8 +1384,7 @@ if (dir > 0) {
   tangent = (t1.x <= t2.x) ? t1 : t2;
 }
 
-let goingUphill = false;
-let goingDownhill = false;
+
 
 if (Math.abs((S.rot || 0) % 90) > 0.001) {
   goingUphill = tangent.y < -0.001;
@@ -1509,16 +1503,44 @@ if (Math.abs((S.rot || 0) % 90) > 0.001) {
         A.x -= contact.n.x * contact.depth;
         A.y -= contact.n.y * contact.depth;
         // TOP-DOWN SLIDE LOGIK:
-      if (slideMode === "full") {
-        // Om vi krockar i Y, låt oss styra om rörelsen till X
-        const dot = stepDy * contact.n.x;
-        
-        if(S.ref.rot!==0)o.slide=true;
-        if(o._wantdy>0)stepDx += dot * Math.abs(contact.n.x);
-        else stepDx -= dot * Math.abs(contact.n.x);
-        
-        
-      }
+if (slideMode === "full") {
+  // Krock i X -> lägg över på Y
+ // if(o.name=="worker")alert("X");
+  const dot = stepDx * contact.n.y;
+
+  if (S.ref.rot !== 0) o.slide = true;
+  
+  if(goingUphill){
+    if(o._wantdy > 0){
+          if (o._wantdx > 0) stepDy -= dot;
+          else stepDy += dot;
+    }
+    else{
+        if (o._wantdx > 0) stepDy += dot;
+        else stepDy -= dot;
+
+    }
+  }
+  if(goingDownhill){
+    if(o._wantdy > 0){
+          if (o._wantdx > 0) stepDy += dot;
+          else stepDy -= dot;
+    }
+    else{
+        if (o._wantdx > 0) stepDy -= dot;
+        else stepDy += dot;
+
+    }
+      
+      
+      
+      
+  }
+  
+  
+  
+  
+}
         if (Math.abs(contact.n.y) > 0.5) o.hitWallY = true;
 
         if ((S.rot || 0) !== 0 && !isAxisAlignedRot(S.rot)) {
@@ -1702,7 +1724,7 @@ class Game6 {
         this.currentmap = 0;
         game = this;
         this.load();
-
+        this.unreachableResources = new Set();
         // Added local caching of canvas element for efficiency.
         const canvas = document.getElementById("myCanvas");
 
@@ -2793,7 +2815,7 @@ updateUnitMovement(scale) {
                     
 
             
-                if(dist<2||obj.standingstill){obj.targetX=null;obj.targetY=null;continue;}
+                 if(dist<2||obj.standingstill){obj.targetX=null;obj.targetY=null;continue;}
                  obj.y += ((dy / dist) * obj.speed*scale);
                  obj.x += ((dx / dist) * obj.speed*scale);
                  
@@ -2808,39 +2830,37 @@ updateUnitMovement(scale) {
                 const absdx = Math.abs(dx);
                 const absdy = Math.abs(dy);
                 // om vi är blockerade i x-led och försöker gå i x-led:
-                if (absdx > absdy && obj.blockedx) {
+                if ((absdx > absdy && obj.blockedx)||obj.avoidDirxconter>0) {
                     if (!obj.avoidDirx) {
                         if(obj.wasdynblocked&&obj.wasstaticblocked===false){
                             if(obj.direction==="right"||obj.direction==="down")obj.avoidDirx ="down" ;
                             else obj.avoidDirx = "up";
                         }
                         else obj.avoidDirx = dy > 0 ? "down" : "up";
+                        obj.avoidDirxconter=10;
 
                     }
+                    obj.avoidDirxconter-=1*scale;
                     obj.direction = obj.avoidDirx;
                 }
 
                 // om vi är blockerade i y-led och försöker gå i y-led:
-                else if (absdy >= absdx && obj.blockedy) {
+                else if ((absdy >= absdx && obj.blockedy)||obj.avoidDiryconter>0) {
                     if (!obj.avoidDiry) {
                         if(obj.wasdynblocked&&obj.wasstaticblocked===false){
                             if(obj.direction==="down"||obj.direction==="right")obj.avoidDiry = "right";
                             else obj.avoidDiry = "left";
                         }
                         else obj.avoidDiry = dx > 0 ? "right" : "left";
+                        obj.avoidDiryconter=10;
                     }
                     obj.direction = obj.avoidDiry;
-                    if(obj.name=="worker")console.log(obj.direction);
+                    obj.avoidDiryconter-=1*scale;
                 }
                 else{
-                    if(obj.slide){
-                        if (absdx < absdy) obj.direction = dx > 0 ? "right" : "left";
-                        else obj.direction = dy > 0 ? "down" : "up";
-                    }
-                    else{
                     if (absdx > absdy) obj.direction = dx > 0 ? "right" : "left";
                     else obj.direction = dy > 0 ? "down" : "up";
-                    }
+                    
                     obj.avoidDirx=null;
                     obj.avoidDiry=null;
                 }
@@ -2856,7 +2876,7 @@ updateUnitMovement(scale) {
                    if(obj.targetBuilding&&c==obj.targetBuilding){ stop=true;} 
                     
                 }
-                if((obj.wasdynblocked&&obj.wasstaticblocked)||obj.unstuck){
+                if(obj.blocked&&((obj.wasdynblocked&&obj.wasstaticblocked)||obj.unstuck)){
                     
                     if(!obj.unstuck){
                         
@@ -2871,10 +2891,10 @@ updateUnitMovement(scale) {
                         }
                        
                     }
-                    if(obj.stuckdir=="left"){obj.x -= obj.speed*scale*2;}
-                    if(obj.stuckdir=="right"){obj.x += obj.speed*scale*2;}
-                    if(obj.stuckdir=="up"){obj.y -= obj.speed*scale*2;}
-                    if(obj.stuckdir=="down"){obj.y += obj.speed*scale*2;}
+                   // if(obj.stuckdir=="left"){obj.x -= obj.speed*scale;}
+                  //  if(obj.stuckdir=="right"){obj.x += obj.speed*scale;}
+                  //  if(obj.stuckdir=="up"){obj.y -= obj.speed*scale;}
+                  //  if(obj.stuckdir=="down"){obj.y += obj.speed*scale;}
                     obj.unstuck-=1*scale;
                     if(obj.unstuck<0){obj.unstuck=null;obj.stuckdir = null;obj.avoidDirx=null;obj.avoidDiry=null;}
                 }
@@ -3449,7 +3469,8 @@ class Objecttype {
                 const bob = Math.sin(time * 0.003) * 3;
                 if(o.isvisable)ctx.drawImage(img, -w/2, -h/2+bob,w,h);
             }
-            else{if(o.isvisable) ctx.drawImage(img, -w/2, -h/2,w,h);if(game.unreachableResources.has(o.id))ctx.fillRect(-w/2, -h/2,w,h);}
+            else{if(o.isvisable) ctx.drawImage(img, -w/2, -h/2,w,h);//if(game.unreachableResources.has(o.id))ctx.fillRect(-w/2, -h/2,w,h);
+            }
             
             if(o.drawunfinished&& !o.isvisable){
                 
