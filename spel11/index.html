@@ -1536,7 +1536,7 @@ function findBestReachableResourceCheap(unit, candidates, maxTest) {
 
         const last = path[path.length - 1];
         const endDist = Math.hypot(last.x - p.x, last.y - p.y);
-        if (endDist >= 80){ game.unreachableResources.add(r.id);continue;}
+        if (endDist >= 160){ game.unreachableResources.add(r.id);continue;}
 
         const score = path.length * 32 + endDist;
 
