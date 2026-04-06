@@ -2689,10 +2689,12 @@ maskCanvas.width = canvas.width;
             this.maps[this.currentmap].cameray = -(obj.y) + (canvasy / 2 / (1 + (1 * this.maps[this.currentmap].zoom / 100)));
     }
     getcamerax() {
-        return this.maps[this.currentmap].camerax;
+        if(game.isLoaded)return this.maps[this.currentmap].camerax;
+        return null;
     }
     getcameray() {
-        return this.maps[this.currentmap].cameray;
+        if(game.isLoaded)return this.maps[this.currentmap].cameray;
+        return null;
     }
     
     
