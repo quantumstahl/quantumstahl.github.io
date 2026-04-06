@@ -239,7 +239,7 @@ const SimSolver = {
           const o = ot.objects[oi];
                 
                 o.wasstaticblocked=false;
-          
+                o.wasdynblocked=false;
 
                 if (layer.fysics == false || layer.solid) {
                     o.rakna = 0;
@@ -582,8 +582,6 @@ if (A.ref && B.type === 'static' && !isAxisAlignedRot(B.rot)) {
 
     for (let bi = 0; bi < nearDyn.length; bi++) {
       const B = nearDyn[bi];
-      A.ref.wasdynblocked=false;
-      B.ref.wasdynblocked=false;
       // Change B: behandla varje par exakt en gång
       if (B.id <= A.id) continue;
       if (!shouldCollide(A, B)) continue;
@@ -1690,6 +1688,7 @@ let rightklick=false;
 
 let savecamerax=0;
 let savecameray=0;
+let idcounter=0;
 
 class Game6 {
     
@@ -2195,10 +2194,11 @@ class Game6 {
       game.getlastObjecttype().objects.push(
         new Objectx(Number(lines[i+1]), Number(lines[i+2]),
                     Number(lines[i+3]), Number(lines[i+4]),
-                    Number(lines[i+5]), JSON.parse(lines[i+6]))
+                    Number(lines[i+5]), JSON.parse(lines[i+6]),idcounter)
       );
       i += 6;
       game.getlastobject().name = game.getlastObjecttype().name;
+      idcounter++;
     }
   }
 }
@@ -2321,6 +2321,7 @@ class Game6 {
                 }
             }
         }
+        
             if (dragSelectStart && dragSelectEnd&&disabledrag===false) {
       
             ctx.save();
@@ -2648,7 +2649,8 @@ maskCanvas.width = canvas.width;
         return null;
     }
     addobject(objtype, x, y, dimx, dimy, rot, fliped) {
-        objtype.objects.push(new Objectx(x, y, dimx, dimy, rot, fliped));
+        objtype.objects.push(new Objectx(x, y, dimx, dimy, rot, fliped,idcounter));
+        idcounter++;
         objtype.objects[objtype.objects.length-1].name=objtype.name;
         if(isBuilding(objtype.objects[objtype.objects.length-1]))markStaticsDirty();
         if(objtype.objects[objtype.objects.length-1].ghost)markGhostsDirty();
@@ -2805,32 +2807,34 @@ updateUnitMovement(scale) {
                 const absdy = Math.abs(dy);
                 // om vi är blockerade i x-led och försöker gå i x-led:
                 if (absdx > absdy && obj.blockedx) {
-                    if (!obj.avoidDir) {
+                    if (!obj.avoidDirx) {
                         if(obj.wasdynblocked&&obj.wasstaticblocked===false){
-                            if(obj.direction==="right"||obj.direction==="down")obj.avoidDir ="down" ;
-                            else obj.avoidDir = "up";
+                            if(obj.direction==="right"||obj.direction==="down")obj.avoidDirx ="down" ;
+                            else obj.avoidDirx = "up";
                         }
-                        else obj.avoidDir = dy > 0 ? "down" : "up";
+                        else obj.avoidDirx = dy > 0 ? "down" : "up";
 
                     }
-                    obj.direction = obj.avoidDir;
+                    obj.direction = obj.avoidDirx;
                 }
 
                 // om vi är blockerade i y-led och försöker gå i y-led:
                 else if (absdy >= absdx && obj.blockedy) {
-                    if (!obj.avoidDir) {
+                    if (!obj.avoidDiry) {
                         if(obj.wasdynblocked&&obj.wasstaticblocked===false){
-                            if(obj.direction==="down"||obj.direction==="right")obj.avoidDir = "right";
-                            else obj.avoidDir = "left";
+                            if(obj.direction==="down"||obj.direction==="right")obj.avoidDiry = "right";
+                            else obj.avoidDiry = "left";
                         }
-                        else obj.avoidDir = dx > 0 ? "right" : "left";
+                        else obj.avoidDiry = dx > 0 ? "right" : "left";
                     }
-                    obj.direction = obj.avoidDir;
+                    obj.direction = obj.avoidDiry;
+                    if(obj.name=="worker")console.log(obj.direction);
                 }
                 else{
                     if (absdx > absdy) obj.direction = dx > 0 ? "right" : "left";
                     else obj.direction = dy > 0 ? "down" : "up";
-                    obj.avoidDir=null;
+                    obj.avoidDirx=null;
+                    obj.avoidDiry=null;
                 }
 
     
@@ -2839,45 +2843,41 @@ updateUnitMovement(scale) {
                 if(obj.blocked)obj.wasblocked=true;
                     
     
-                   for (let c of obj.collideslistanobj) {
+                for (let c of obj.collideslistanobj) {
 
-                 //  if ((obj.targetDropoff && c == obj.targetDropoff)){stop=true;} // Ignorera target
                    if(obj.targetBuilding&&c==obj.targetBuilding){ stop=true;} 
-                 //  if(obj.targetResource&&c==obj.targetResource){stop=true;}
                     
                 }
-                
-                
-                
-            
-
-                //väj åt sidan
-
-                if(stop==false&&obj.blocked){
-                        obj.blockedcounter++;
-                       
+                if((obj.wasdynblocked&&obj.wasstaticblocked)||obj.unstuck){
+                    
+                    if(!obj.unstuck){
                         
-                    //    if((obj.blockedx==true&&obj.blockedy==false)||(obj.blockedy==true&&obj.blockedx==false)){
-                            
-                      //      if(obj.blockedcounter==350){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}
-                        //    if(obj.blockedcounter==700){if(obj.direction=="left")obj.direction="right";else if(obj.direction=="right")obj.direction="left";else if(obj.direction=="down")obj.direction="up";else if(obj.direction=="up")obj.direction="down";}
-                        
-                            
-                            if(obj.direction=="left"){obj.x -= Math.abs(obj.rakna2);}
-                            if(obj.direction=="right"){obj.x += Math.abs(obj.rakna2);}
-                            if(obj.direction=="up"){obj.y -= Math.abs(obj.rakna);}
-                            if(obj.direction=="down"){obj.y += Math.abs(obj.rakna);}
-                        //}
-                        
-
-                        
-                        if(obj.blockedcounter>1050){
-                            obj.blockedcounter=0;
-                            
+                        obj.unstuck=50;
+                        if(obj.direction=="left"||obj.direction=="right"){
+                            obj.stuckdir=dy > 0 ? "up" : "down";
                             
                         }
-
+                        else if(obj.direction=="up"||obj.direction=="down"){
+                            obj.stuckdir=dx > 0 ? "left" : "right";
+                            
+                        }
+                       
+                    }
+                    if(obj.stuckdir=="left"){obj.x -= obj.speed*scale*2;}
+                    if(obj.stuckdir=="right"){obj.x += obj.speed*scale*2;}
+                    if(obj.stuckdir=="up"){obj.y -= obj.speed*scale*2;}
+                    if(obj.stuckdir=="down"){obj.y += obj.speed*scale*2;}
+                    obj.unstuck-=1*scale;
+                    if(obj.unstuck<0){obj.unstuck=null;obj.stuckdir = null;obj.avoidDirx=null;obj.avoidDiry=null;}
                 }
+                else obj.unstuck=null;
+                if(stop==false&&obj.blocked){
+                    if(obj.direction=="left"){obj.x -= obj.speed*scale;}
+                    if(obj.direction=="right"){obj.x += obj.speed*scale;}
+                    if(obj.direction=="up"){obj.y -= obj.speed*scale;}
+                    if(obj.direction=="down"){obj.y += obj.speed*scale;}
+                }
+                
 
 
 
@@ -3241,7 +3241,69 @@ pathUnitTo = function(unit, tx, ty, opt = {}) {
     unit.standingstill = false;
     return null;
 };
+canPathTo = function(unit, tx, ty, opt = {}) {
+    if (!unit) return false;
 
+    const path = this.findPath(unit.x, unit.y, tx, ty, opt);
+    if (!Array.isArray(path) || path.length === 0) return false;
+
+    const last = path[path.length - 1];
+    const dx = last.x - tx;
+    const dy = last.y - ty;
+    const d = Math.hypot(dx, dy);
+
+    // 🔥 viktigt: två nivåer
+    if (d < 24) return true;          // perfekt
+    if (d < 80) return true;          // OK, lite runt hinder
+
+    return false;                     // för långt bort → troligen flod
+};
+buildFullDebugGrid = function(opt = {}) {
+    const pf = this.pathfinding;
+    const options = { ...pf.options, ...opt };
+
+    const isBlocker = options.isBlocker || function() { return false; };
+    const all = this.getAllObjects();
+    const raw = [];
+
+    for (const o of all) {
+        if (!isBlocker(o)) continue;
+
+        let baseH;
+        if (o.name === "river") {
+            baseH = o.dimy;
+        } else {
+            const p = o.bottomsolid / 100;
+            baseH = Math.max(1, Math.floor(o.dimy * p));
+        }
+
+        raw.push({
+            cx: o.x + o.dimx / 2,
+            cy: o.y + (o.dimy - baseH) + baseH / 2,
+            w: o.dimx,
+            h: baseH,
+            angleRad: (o.rot || 0) * Math.PI / 180
+        });
+    }
+
+    const prepped = raw.map(prepOBB);
+
+    // här måste du sätta hela kartans bounds
+    const minx = -1000;
+    const miny = -2000;
+    const maxx = 9000;
+    const maxy = 5000;
+
+    window.DEBUG_GRID = buildGridOBB(
+        minx,
+        miny,
+        maxx,
+        maxy,
+        options.cell,
+        prepped,
+        options.inflate
+    );
+};
 }
 
 class Maps {
@@ -3322,6 +3384,10 @@ class Objecttype {
           const img = this.images?.[o.animation]?.getimage?.();
           if (!img) continue;
           
+          
+          if(o.flashTimer>0){ o.flashTimer--;}
+          
+          
           // storlek & mitt
           const w  = toNum(o.dimx, 0);
           const h  = toNum(o.dimy, 0);
@@ -3365,11 +3431,7 @@ class Objecttype {
           // rita bilden centrerad
           
           
-          if(o.flashTimer>0){ 
-             if(o.isvisable)this.drawTinted(ctx,img,o.flashTimercolor,w,h,o);
-             o.flashTimer--;
-              
-          }
+          if(o.flashTimer>0){ if(o.isvisable)this.drawTinted(ctx,img,o.flashTimercolor,w,h,o);  }
           
           else{
 
@@ -3480,7 +3542,8 @@ class Sprites {
 }
 
 class Objectx {
-    constructor(x, y, dimx, dimy, rot, fliped) {
+    constructor(x, y, dimx, dimy, rot, fliped,id) {
+        this.id=id;
         this.name=name;
         this.x = x;
         this.y = y;
@@ -4104,10 +4167,14 @@ function gridCacheSet(k, grid){
       grid = buildGridOBB(minx, miny, maxx, maxy, cell, obstacles, inflate);
       gridCacheSet(gKey, grid);
     }
-
+    
     // 3) Snap
-    let Sg = snapToWalkable(grid, worldToGrid(grid, start), snapR);
-    let Gg = snapToWalkable(grid, worldToGrid(grid, goal ), snapR);
+
+
+
+  const Sg = snapToWalkable(grid, worldToGrid(grid, start), snapR);
+  const Gg = snapToWalkable(grid, worldToGrid(grid, goal), snapR);
+
 
     // 4) Cache
     const key = `${grid.minx|0},${grid.miny|0},${grid.w}x${grid.h}|${Sg.gx},${Sg.gy}->${Gg.gx},${Gg.gy}|${obbKey}`;
@@ -4129,21 +4196,7 @@ function gridCacheSet(k, grid){
 
   // === Bygg "relevant" hinderlista för korridoren ===
   let relevant;
-  if (idx) {
-    const x1 = Math.min(start.x, goal.x) - pad;
-    const y1 = Math.min(start.y, goal.y) - pad;
-    const x2 = Math.max(start.x, goal.x) + pad;
-    const y2 = Math.max(start.y, goal.y) + pad;
-    relevant = queryObbsInAABB(idx, x1, y1, x2, y2);
-    if (!relevant || !relevant.length) relevant = allPrepped; // fall back: aldrig tom
-  } else {
-    const x1 = Math.min(start.x, goal.x) - pad;
-    const y1 = Math.min(start.y, goal.y) - pad;
-    const x2 = Math.max(start.x, goal.x) + pad;
-    const y2 = Math.max(start.y, goal.y) + pad;
-    relevant = allPrepped.filter(O => !(O.bounds.x2 < x1 || O.bounds.x1 > x2 || O.bounds.y2 < y1 || O.bounds.y1 > y2));
-    if (!relevant.length) relevant = allPrepped;
-  }
+relevant = allPrepped;
 
   // === Försök med växande tolerans (snabbast först) ======================
   // 1) Korridor, normal snap
@@ -4187,7 +4240,6 @@ function buildGridOBB(minx, miny, maxx, maxy, cell, OBBs, inflatePx) {
   // ❌ ta bort dilation:
   // const padCells = Math.max(0, Math.ceil(inflatePx / cell));
   // if (padCells > 0) dilate(walk, w, h, padCells);
-
   return { w, h, minx, miny, cell, walk };
 }
 
@@ -4494,5 +4546,36 @@ function segmentAABB(x0,y0,x1,y1, rx1,ry1,rx2,ry2){
     }
   }
   return true;
+}
+function drawPathGrid(ctx) {
+    
+
+    
+
+    const grid = window.DEBUG_GRID;
+    if (!grid) return;
+
+    const { w, h, cell, minx, miny, walk } = grid;
+
+    ctx.save();
+    ctx.globalAlpha = 0.25;
+
+    for (let gy = 0; gy < h; gy++) {
+        for (let gx = 0; gx < w; gx++) {
+            const x = minx + gx * cell;
+            const y = miny + gy * cell;
+
+            if (walk[gy * w + gx] === 0) {
+                ctx.fillStyle = "red";
+            } else {
+                ctx.fillStyle = "green";
+            }
+           
+            ctx.fillRect(x+game.getcamerax(), y+game.getcameray(), cell, cell);
+        }
+    }
+
+    ctx.restore();
+
 }
 

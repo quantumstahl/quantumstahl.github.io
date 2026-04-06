@@ -197,7 +197,7 @@
 
 
 
-                const scale = deltaMs / (1000 / 60);
+                const scale = deltaMs / (1000 / 900);
 
                 update(scale);
                 requestAnimationFrame(gameLoop);
@@ -351,7 +351,7 @@
             };
 
             showPanHint();
-            
+            game.unreachableResources = new Set();
 
             
             function update(scale){
@@ -369,7 +369,9 @@
                 drawWorkerBuildUI(ctx, canvas);
                 drawBuildGhost(ctx, game.maps[game.currentmap]);
                 fps();
-                const camSpeed = 15;
+                drawHealthBars();
+                drawPathGrid(ctx, window.DEBUG_GRID);
+                const camSpeed = 15*scale;
                 const currentMap = game.maps[game.currentmap];
 
                 if (keyState.w) if(currentMap.cameray<800)currentMap.cameray += camSpeed;
@@ -379,6 +381,9 @@
                 
                 
                 if (game.needsPathRebuild) {
+                    game.buildFullDebugGrid({
+    isBlocker: game.pathfinding.options.isBlocker
+});
                     game.rebuildPathfinding({
                         isBlocker: (o) => {
                             if (!o || o.dead) return false;
@@ -403,7 +408,7 @@
                      t.isvisable = true;
                      t.canMove = false;
                      t.selectable = true;
-                     t.bottomsolid=35;
+                     t.bottomsolid=40;
                      if (t.state == null) t.state = "idle";
                      if (t.isUnderConstruction == null) t.isUnderConstruction = false;
 
@@ -411,7 +416,7 @@
                      if (t.maxHp == null) t.maxHp = 120;
 
                      if (t.attackRange == null) t.attackRange = 600;
-                     if (t.damage == null) t.damage = 6;
+                     if (t.damage == null) t.damage = 3;
                      if (t.attackCooldown == null) t.attackCooldown = 0;
                      if (t.attackSpeed == null) t.attackSpeed = 60;
                      if (t.targetEnemy == null) t.targetEnemy = null;
@@ -443,6 +448,8 @@
                     h.isvisable=true;
                     h.gatherTime=100;
                     h.selectable = true;
+                    if (h.hp == null) h.hp = 100;
+                    if (h.maxHp == null) h.maxHp = 100;
                     if (!h.isUnderConstruction) continue;
                     h.isvisable=false;
                     const img = game.getobjecttype("hus")?.images?.[0]?.getimage();
@@ -471,7 +478,8 @@
                         b.trainingTimer = 0;
                         b.trainingTimeMax = 700; // lite snabbare än worker om du vill
                     }
-
+                    if (b.hp == null) b.hp = 300;
+                    if (b.maxHp == null) b.maxHp = 300;
                     b.isBuilding = true;
                     b.isvisable = true;
                     b.gatherTime = 100;
@@ -562,7 +570,8 @@
                     t.isvisable=true;
                     t.gatherTime=100;
                     if(t.state==null){t.isUnderConstruction=false;t.state="building";t.dropoffTypes = ["wood", "food", "gold", "stone"];}
-                    
+                    if (t.hp == null) t.hp = 400;
+                    if (t.maxHp == null) t.maxHp = 400;
                     t.canMove=false;
                     t.selectable=true;
                
@@ -597,6 +606,8 @@
                     l.isvisable=true;
                     l.gatherTime=100;
                     l.isBuilding=true;
+                    if (l.hp == null) l.hp = 150;
+                    if (l.maxHp == null) l.maxHp = 150;
                     if(l.state==null){l.isUnderConstruction=false;l.state="building";l.dropoffTypes = ["wood"];}
                     
                     l.canMove=false;
@@ -631,6 +642,8 @@
                     m.isvisable=true;
                     m.gatherTime=100;
                     m.isBuilding=true;
+                    if (m.hp == null) m.hp = 150;
+                    if (m.maxHp == null) m.maxHp = 150;
                     if(m.state==null){m.isUnderConstruction=false;m.state="building";m.dropoffTypes = ["gold", "stone"];}
                     
                     m.canMove=false;
@@ -665,6 +678,8 @@
                     m.isvisable=true;
                     m.gatherTime=100;
                     m.isBuilding=true;
+                    if (m.hp == null) m.hp = 180;
+                    if (m.maxHp == null) m.maxHp = 180;
                     if(m.state==null){m.isUnderConstruction=false;m.state="building";m.dropoffTypes = ["food"];}
                     
                     m.canMove=false;
@@ -699,6 +714,8 @@
                     f.isvisable=true;
                     f.gatherTime=1000;
                     f.isBuilding=true;
+                    if (f.hp == null) f.hp = 120;
+                    if (f.maxHp == null) f.maxHp = 120;
                     if(f.state==null){f.isUnderConstruction=false;f.state="building";f.type = "food";f.amount = 1000;}
                     
                     f.canMove=false;
@@ -847,6 +864,7 @@
                         b.spawnY = b.y;
 
                         b.hp = 40;
+                        b.maxHp=40;
                         b.targetUnit = null;
                         b.attackCooldown = 0;
                         b.aggroRange = 300;
@@ -1014,6 +1032,8 @@
                         w.holdingicon=null;
                         w.attackTarget = null;
                         w.attackTimer = 0;
+                        w.hp = 20;
+                        w.maxHp = 20;
                     }
                     
                     updateWorker(w, townhall, teamResources[w.owner || "player"], scale);
@@ -1072,7 +1092,7 @@ function getNearestDropoff(unit, resourceType) {
 function updateWorker(worker, townhallList, playerResources, scale) {
     if(worker.dead)return;
     const speed = 1.0;
-  //  drawUnitPathDebug(ctx, worker, "cyan");
+    drawUnitPathDebug(ctx, worker, "cyan");
 
     if (worker.state === "idle") {
         
@@ -1439,36 +1459,118 @@ if (worker.state === "deposit") {
 function getNearestResourceOfType(unit, type) {
     if (!type) return null;
 
-    const all = game.getAllObjects().filter(o => {
-        if (o.amount <= 0 || o.type !== type) return false;
+    const preferred = [];
+    const fallback = [];
+    const allObjects = game.getAllObjects();
+    const rivers = getRiverList();
 
-        if (o.name === "sheep") {
-            return !o.owner || o.owner === "neutral" || o.owner === unit.owner;
+    for (const r of allObjects) {
+        if (r.amount <= 0 || r.type !== type) continue;
+        if (r.id != null && game.unreachableResources.has(r.id)) continue;
+
+        if (r.name === "sheep") {
+            if (r.owner && r.owner !== "neutral" && r.owner !== unit.owner) continue;
         }
-        if(o.name==="farm"||o.name==="rfarm"||o.name==="gfarm"||o.name==="yfarm")return false;
-        return true; // vanliga träd/guld/sten får alla ta
-    });
 
-    let best = null;
-    let bestDist = Infinity;
-
-    for (const r of all) {
+        if (r.name === "farm" || r.name === "rfarm" || r.name === "gfarm" || r.name === "yfarm") continue;
         if (r.slot && r.slot !== unit) continue;
 
         const rx = r.x + r.dimx / 2;
         const ry = r.y + r.dimy / 2;
         const dx = rx - unit.x;
         const dy = ry - unit.y;
-        const d = dx * dx + dy * dy;
+        const airD2 = dx * dx + dy * dy;
 
-        if (d < bestDist) {
-            bestDist = d;
+        const item = { r, airD2 };
+
+        if (aabbHitsRiverBetweenFast(unit.x, unit.y, rx, ry, rivers)) {
+            fallback.push(item);
+        } else {
+            preferred.push(item);
+        }
+    }
+
+    preferred.sort((a, b) => a.airD2 - b.airD2);
+    fallback.sort((a, b) => a.airD2 - b.airD2);
+
+    // 1. samma sida först
+    let best = findBestReachableResourceCheap(unit, preferred, 4);
+    if (best) return best;
+
+    // 2. andra sidan, normal billig test
+    best = findBestReachableResourceCheap(unit, fallback, 6);
+    if (best) return best;
+
+    // 3. nödfallback: testa fler, men fortfarande bara fallback
+    best = findBestReachableResourceCheap(unit, fallback, 12);
+    if (best) return best;
+
+    return null;
+}
+
+function findBestReachableResourceCheap(unit, candidates, maxTest) {
+    let best = null;
+    let bestScore = Infinity;
+
+    const limit = Math.min(candidates.length, maxTest);
+
+    for (let i = 0; i < limit; i++) {
+        const r = candidates[i].r;
+        const p = getApproachPoint(unit, r, 18);
+        if (!p) continue;
+
+        const path = game.findPath(unit.x, unit.y, p.x, p.y, {
+            isBlocker: game.pathfinding.options.isBlocker
+        });
+
+        if (!Array.isArray(path) || path.length === 0) continue;
+
+        const last = path[path.length - 1];
+        const endDist = Math.hypot(last.x - p.x, last.y - p.y);
+        if (endDist >= 80) continue;
+
+        const score = path.length * 32 + endDist;
+
+        if (score < bestScore) {
+            bestScore = score;
             best = r;
         }
     }
 
     return best;
-}    
+}
+
+function getRiverList() {
+    if (!game._riverListCache || game.needsPathRebuild) {
+        game._riverListCache = game.getAllObjects().filter(o => o.name === "river");
+    }
+    return game._riverListCache;
+}
+
+function aabbHitsRiverBetweenFast(ux, uy, rx, ry, rivers) {
+    const minx = Math.min(ux, rx);
+    const miny = Math.min(uy, ry);
+    const maxx = Math.max(ux, rx);
+    const maxy = Math.max(uy, ry);
+
+    for (const o of rivers) {
+        const ox1 = o.x;
+        const oy1 = o.y;
+        const ox2 = o.x + o.dimx;
+        const oy2 = o.y + o.dimy;
+
+        if (
+            maxx >= ox1 &&
+            minx <= ox2 &&
+            maxy >= oy1 &&
+            miny <= oy2
+        ) {
+            return true;
+        }
+    }
+
+    return false;
+}
 function clearWorkerOrder(worker) {
     if (!worker) return;
 
@@ -1526,7 +1628,7 @@ function moveBoarTowards(boar, tx, ty) {
 }            
 function updateBoar(boar, scale) {
     if (boar.dead) return;
-
+    boar.standingstill=false;
     // cooldown
     if (boar.attackCooldown > 0) {
         boar.attackCooldown -= 1 * scale;
@@ -1673,7 +1775,8 @@ function updatePassiveWander(unit, scale, radius = 80, waitMin = 40, waitMax = 1
 
     if (unit.wanderTimer == null) unit.wanderTimer = 0;
     if (unit.wanderState == null) unit.wanderState = "wait"; // "wait" | "move"
-
+    if (unit.wanderMoveTimer == null) unit.wanderMoveTimer = 0;
+    
     if (unit.wanderState === "wait") {
         unit.standingstill = true;
         unit.wanderTimer -= 1 * scale;
@@ -1693,22 +1796,23 @@ function updatePassiveWander(unit, scale, radius = 80, waitMin = 40, waitMax = 1
         return;
     }
 
-    if (unit.wanderState === "move") {
-        const dx = unit.targetX - unit.x;
-        const dy = unit.targetY - unit.y;
-        const d = Math.hypot(dx, dy);
+if (unit.wanderState === "move") {
+    const dx = unit.targetX - unit.x;
+    const dy = unit.targetY - unit.y;
+    const d = Math.hypot(dx, dy);
 
-        if (d < 10) {
-            unit.wanderState = "wait";
-            unit.wanderTimer = waitMin + Math.random() * (waitMax - waitMin);
-            unit.standingstill = true;
-            return;
-        }
+    unit.wanderMoveTimer += 1 * scale;
 
-        unit.standingstill = false;
-
-
+    if (d < 10 || unit.wanderMoveTimer > 120) {
+        unit.wanderState = "wait";
+        unit.wanderTimer = waitMin + Math.random() * (waitMax - waitMin);
+        unit.wanderMoveTimer = 0;
+        unit.standingstill = true;
+        return;
     }
+
+    unit.standingstill = false;
+}
 }            
 function getSelectedTownhall() {
     const townhalls = game.getobjecttype('townhall')?.objects || [];
@@ -1771,7 +1875,7 @@ function spawnWorkerFromTownhall(townhall) {
     if (!w) return false;
 
     w.owner = owner;
-    w.state = "idle";
+   // w.state = "idle";
     w.targetResource = null;
     w.targetDropoff = null;
     w.carryType = null;
@@ -2111,6 +2215,7 @@ function canPlaceBuilding(x, y, w, h,player) {
             o.name === "tree2" ||
             o.name === "gold" ||
             o.name === "stone" ||
+            o.name === "river" ||
             o.name === "berry" ||
             o.name === "sheep" ||
             o.name === "boar" ||
@@ -2522,7 +2627,6 @@ if (warrior.state === "move") {
         warrior.standingstill = true;
     }
 
-    console.log("move");
 
 
     return;
@@ -2664,7 +2768,7 @@ function spawnWarriorFromBarrack(barrack) {
     if (!w) return false;
 
     w.owner = owner;
-    w.state = "idle";
+   // w.state = "idle";
     w.hp = 40;
     w.maxHp = 40;
     w.damage = 6;
@@ -3975,6 +4079,78 @@ function getMostNeededResourceJob(owner) {
     if (deficits[0].need > 0) return deficits[0].type;
 
     return "wood";
+}
+function drawHealthBars() {
+    if(!game.maps[game.currentmap])return;
+    
+  const map = game.maps[game.currentmap];
+  const zoom = 1 + (map.zoom / 100); // samma zoom som du använder för input
+  const camX = map.camerax;
+  const camY = map.cameray;
+
+  const objs = game.getAllObjects().filter(o => o.selectable&& o.name!=="tree"&& o.name!=="stone"&& o.name!=="gold"&& o.name!=="berry"&& o.name!=="sheep");
+  for (const o of objs) {
+      if(!o.isvisable||o.dead)continue;
+
+
+    const hpPct = Math.max(0, Math.min(1, o.hp / o.maxHp));
+
+    // Värld → skärm
+    const sx = (o.x + camX) * zoom;
+    const sy = (o.y + camY) * zoom;
+
+    const barW = Math.max(20, o.dimx * zoom);  // skala med zoom, ha en min.bredd
+    const barH = Math.max(3, 5 * (zoom >= 1 ? zoom : 1)); // öka svagt med zoom
+    const offsetY = -10 * zoom; // ovanför objektet
+    
+        
+    
+    if(o.name=="swordguy"){
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.fillRect(50, 50 + offsetY, 800, 30);
+
+        // Röd full bar
+        ctx.fillStyle = "red";
+        ctx.fillRect(50, 50 + offsetY, 800, 30);
+
+        // Grön nuvarande HP
+        ctx.fillStyle = "lime";
+        ctx.fillRect(50, 50 + offsetY, 800 * hpPct, 30);
+
+        // Kant
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(50, 50 + offsetY, 800, 30);
+        
+    }
+    else{
+    // Bakgrund
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(sx, sy + offsetY, barW, barH);
+
+    // Röd full bar
+    ctx.fillStyle = "red";
+    ctx.fillRect(sx, sy + offsetY, barW, barH);
+
+    // Grön nuvarande HP
+    ctx.fillStyle = "lime";
+    ctx.fillRect(sx, sy + offsetY, barW * hpPct, barH);
+
+    // Kant
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(sx, sy + offsetY, barW, barH);
+    }
+    
+  
+    
+    
+    
+  }
+  
+          
+  
+  
 }
         </script>
     </body>  
