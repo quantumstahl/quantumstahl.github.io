@@ -984,7 +984,10 @@
                     if(!w.dead)w.selectable = true;
                     w.iscontrollable = (w.owner === "player");
                     w.fliped=false;
-                    
+                    if(!w.findTimer)w.findTimer = 0;
+					if(!w.findDelay)w.findDelay = 30 + Math.random() * 30; // sprid ut workers
+					
+					
                     if(!w.dead){
                         if(w.direction=="down"){w.animation=1;if(w.standingstill)w.animation=0;if(w.state === "gather")w.animation=6;if(w.state === "returnToBase")w.animation=9;}
                         if(w.direction=="up"){w.animation=3;if(w.standingstill)w.animation=2;if(w.state === "gather")w.animation=7;if(w.state === "returnToBase")w.animation=10;}
@@ -1240,7 +1243,14 @@ if (worker.state === "moveToResource") {
                 worker.standingstill=false;
             }
         } else {
-            const next = getNearestResourceOfType(worker, worker.jobType);
+		
+			 worker.findTimer -= 1 * scale;
+			if (worker.findTimer > 0) return;
+
+			worker.findTimer = worker.findDelay;
+		
+		
+            const next = getSharedWoodTarget(unit,worker.jobType);
             if (next) {
                 worker.targetResource = next;
                 worker.state = "moveToResource";
@@ -1507,7 +1517,15 @@ function getNearestResourceOfType(unit, type) {
 
     return null;
 }
+function getSharedWoodTarget(unit,type) {
+    if (!game._woodTargetCache || game._woodTargetTimer <= 0) {
+        game._woodTargetCache = getNearestResourceOfType(unit, type);
+        game._woodTargetTimer = 30; // uppdatera var 30 frames
+    }
 
+    game._woodTargetTimer--;
+    return game._woodTargetCache;
+}
 function findBestReachableResourceCheap(unit, candidates, maxTest) {
     let best = null;
     let bestScore = Infinity;
