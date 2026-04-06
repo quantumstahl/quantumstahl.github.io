@@ -2831,8 +2831,14 @@ updateUnitMovement(scale) {
                     if(obj.name=="worker")console.log(obj.direction);
                 }
                 else{
+                    if(obj.slide){
+                        if (absdx < absdy) obj.direction = dx > 0 ? "right" : "left";
+                        else obj.direction = dy > 0 ? "down" : "up";
+                    }
+                    else{
                     if (absdx > absdy) obj.direction = dx > 0 ? "right" : "left";
                     else obj.direction = dy > 0 ? "down" : "up";
+                    }
                     obj.avoidDirx=null;
                     obj.avoidDiry=null;
                 }
@@ -3441,7 +3447,7 @@ class Objecttype {
                 const bob = Math.sin(time * 0.003) * 3;
                 if(o.isvisable)ctx.drawImage(img, -w/2, -h/2+bob,w,h);
             }
-            else{if(o.isvisable) ctx.drawImage(img, -w/2, -h/2,w,h);}
+            else{if(o.isvisable) ctx.drawImage(img, -w/2, -h/2,w,h);if(game.unreachableResources.has(o.id))ctx.fillRect(-w/2, -h/2,w,h);}
             
             if(o.drawunfinished&& !o.isvisable){
                 
@@ -4571,7 +4577,7 @@ function drawPathGrid(ctx) {
                 ctx.fillStyle = "green";
             }
            
-            ctx.fillRect(x+game.getcamerax(), y+game.getcameray(), cell, cell);
+            if(game.getcamerax())ctx.fillRect(x+game.getcamerax(), y+game.getcameray(), cell, cell);
         }
     }
 

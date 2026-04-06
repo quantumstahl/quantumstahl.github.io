@@ -984,8 +984,6 @@
                     if(!w.dead)w.selectable = true;
                     w.iscontrollable = (w.owner === "player");
                     w.fliped=false;
-                    if(!w.findTimer)w.findTimer = 0;
-					if(!w.findDelay)w.findDelay = 30 + Math.random() * 30; // sprid ut workers
 					
 					
                     if(!w.dead){
@@ -1243,13 +1241,6 @@ if (worker.state === "moveToResource") {
                 worker.standingstill=false;
             }
         } else {
-		
-			 worker.findTimer -= 1 * scale;
-			if (worker.findTimer > 0) return;
-
-			worker.findTimer = worker.findDelay;
-		
-		
             const next = getNearestResourceOfType(worker,worker.jobType);
             if (next) {
                 worker.targetResource = next;
@@ -1485,15 +1476,16 @@ function getNearestResourceOfType(unit, type) {
         if (r.name === "farm" || r.name === "rfarm" || r.name === "gfarm" || r.name === "yfarm") continue;
         if (r.slot && r.slot !== unit) continue;
 
-        const rx = r.x + r.dimx / 2;
-        const ry = r.y + r.dimy / 2;
-        const dx = rx - unit.x;
-        const dy = ry - unit.y;
+        const p = getApproachPoint(unit, r, 18);
+        if (!p) continue;
+
+        const dx = p.x - unit.x;
+        const dy = p.y - unit.y;
         const airD2 = dx * dx + dy * dy;
 
-        const item = { r, airD2 };
+        const item = { r, airD2, p };
 
-        if (aabbHitsRiverBetweenFast(unit.x, unit.y, rx, ry, rivers)) {
+        if (aabbHitsRiverBetweenFast(unit.x, unit.y, p.x, p.y, rivers)) {
             fallback.push(item);
         } else {
             preferred.push(item);
@@ -1532,7 +1524,7 @@ function findBestReachableResourceCheap(unit, candidates, maxTest) {
             isBlocker: game.pathfinding.options.isBlocker
         });
 
-        if (!Array.isArray(path) ){game.unreachableResources.add(r.id);continue;}
+        if (!Array.isArray(path) || path.length === 0){game.unreachableResources.add(r.id);continue;}
 
         const last = path[path.length - 1];
         const endDist = Math.hypot(last.x - p.x, last.y - p.y);
