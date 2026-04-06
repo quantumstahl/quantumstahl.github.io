@@ -1527,7 +1527,6 @@ function findBestReachableResourceCheap(unit, candidates, maxTest) {
         const r = candidates[i].r;
         const p = getApproachPoint(unit, r, 18);
         if (!p) continue;
-		//if(!game.canPathTo(unit,p.x,p.y)){game.unreachableResources.add(r.id); continue;}
         const path = game.findPath(unit.x, unit.y, p.x, p.y, {
             isBlocker: game.pathfinding.options.isBlocker
         });
@@ -1536,7 +1535,7 @@ function findBestReachableResourceCheap(unit, candidates, maxTest) {
 
         const last = path[path.length - 1];
         const endDist = Math.hypot(last.x - p.x, last.y - p.y);
-        if (endDist >= 80){i--;game.unreachableResources.add(r.id); continue;}
+        if (endDist >= 80){ continue;}
 
         const score = path.length * 32 + endDist;
 
@@ -1544,6 +1543,7 @@ function findBestReachableResourceCheap(unit, candidates, maxTest) {
             bestScore = score;
             best = r;
         }
+		if(!best){i--;game.unreachableResources.add(r.id);}
     }
 
     return best;
