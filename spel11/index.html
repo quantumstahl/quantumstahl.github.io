@@ -1521,7 +1521,7 @@ function findBestReachableResourceCheap(unit, candidates, maxTest) {
     let best = null;
     let bestScore = Infinity;
 
-    const limit = Math.min(candidates.length, maxTest);
+    let limit = Math.min(candidates.length, maxTest);
 
     for (let i = 0; i < limit; i++) {
         const r = candidates[i].r;
