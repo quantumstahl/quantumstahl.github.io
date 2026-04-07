@@ -58,11 +58,18 @@
             
             document.addEventListener('click', (event) => {
                 try{if(audio.paused){ audio.play();}}catch(error){};
+                
                 handleGameUILeftClick(cursorX, cursorY);
                 
                  
              });
-            
+            document.addEventListener('contextmenu', (event) => {
+                event.preventDefault();
+                if (trySetSelectedBuildingRally(cursorX-game.getcamerax(), cursorY-game.getcameray())) {
+                    return;
+                }
+                
+            });
             
             document.addEventListener("touchstart" , function(e) {
                 e.preventDefault();
@@ -370,6 +377,7 @@
                 drawBuildGhost(ctx, game.maps[game.currentmap]);
                 fps();
                 drawHealthBars();
+                drawBuildingRallyPoints(ctx);
                // drawPathGrid(ctx, window.DEBUG_GRID);
                 const camSpeed = 15*scale;
                 const currentMap = game.maps[game.currentmap];
@@ -565,6 +573,15 @@
                         t.trainingQueue = [];
                         t.trainingTimer = 0;
                         t.trainingTimeMax = 900; // ca 5 sek vid 60 fps
+                        
+                        t.rallyPoint = {
+                            x: t.x + t.dimx / 2,
+                            y: t.y + t.dimy + 80,
+                            mode: "ground", // "ground" eller "resource"
+                            resourceType: null,
+                            preferredResourceId: null
+                        };
+                        
                     }
                     t.isBuilding=true;
                     t.isvisable=true;
@@ -1433,7 +1450,7 @@ if (worker.state === "deposit") {
     } else {
         const next = getNearestResourceOfType(worker, worker.jobType);
 
-        if (next && !next.slot) {
+        if (next ) {
             worker.targetResource = next;
             worker.state = "moveToResource";
             worker.sistabit=false;
@@ -1466,15 +1483,15 @@ function getNearestResourceOfType(unit, type) {
     const rivers = getRiverList();
 
     for (const r of allObjects) {
-        if (r.amount <= 0 || r.type !== type) continue;
+        if (!r||r.amount <= 0 || r.type !== type) continue;
         if (r.id != null && game.unreachableResources.has(r.id)) continue;
 
         if (r.name === "sheep") {
-            if (r.owner && r.owner !== "neutral" && r.owner !== unit.owner) continue;
+            //if (r.owner && r.owner !== "neutral" && r.owner !== unit.owner) continue;
         }
 
         if (r.name === "farm" || r.name === "rfarm" || r.name === "gfarm" || r.name === "yfarm") continue;
-        if (r.slot && r.slot !== unit) continue;
+     //   if (r.slot && r.slot !== unit) continue;
 
         const p = getApproachPoint(unit, r, 18);
         if (!p) continue;
@@ -1494,7 +1511,7 @@ function getNearestResourceOfType(unit, type) {
 
     preferred.sort((a, b) => a.airD2 - b.airD2);
     fallback.sort((a, b) => a.airD2 - b.airD2);
-
+    
     // 1. samma sida först
     let best = findBestReachableResourceCheap(unit, preferred, 1);
     if (best) return best;
@@ -1506,7 +1523,7 @@ function getNearestResourceOfType(unit, type) {
     // 3. nödfallback: testa fler, men fortfarande bara fallback
     //best = findBestReachableResourceCheap(unit, fallback, 12);
     //if (best) return best;
-
+   
     return null;
 }
 function findBestReachableResourceCheap(unit, candidates, maxTest) {
@@ -1524,7 +1541,7 @@ function findBestReachableResourceCheap(unit, candidates, maxTest) {
             isBlocker: game.pathfinding.options.isBlocker
         });
 
-        if (!Array.isArray(path) || path.length === 0){game.unreachableResources.add(r.id);continue;}
+        if (!Array.isArray(path) ){game.unreachableResources.add(r.id);continue;}
 
         const last = path[path.length - 1];
         const endDist = Math.hypot(last.x - p.x, last.y - p.y);
@@ -1888,10 +1905,12 @@ function spawnWorkerFromTownhall(townhall) {
     w.attackTarget = null;
     w.attackTimer = 0;
     w.hp = 20;
+    w.maxHp=20;
     w.selectable = owner === "player";
     w.iscontrollable = owner === "player";
     w.direction = "down";
-    w.standingstill = true;
+    w.standingstill = false;
+    applyRallyPointToUnit(w, townhall);
 
     return true;
 }    
@@ -4139,16 +4158,218 @@ function drawHealthBars() {
     ctx.lineWidth = 1;
     ctx.strokeRect(sx, sy + offsetY, barW, barH);
     }
-    
-  
-    
-    
-    
   }
-  
-          
-  
-  
+}
+function setBuildingRallyPoint(building, x, y, clickedResource = null) {
+    if (!building) return;
+
+    if (!building.rallyPoint) {
+        building.rallyPoint = {
+            x: x,
+            y: y,
+            mode: "ground",
+            resourceType: null,
+            preferredResourceId: null
+        };
+    }
+
+    building.rallyPoint.x = x;
+    building.rallyPoint.y = y;
+
+    if (clickedResource && clickedResource.type) {
+        building.rallyPoint.mode = "resource";
+        building.rallyPoint.resourceType = clickedResource.type;
+        building.rallyPoint.preferredResourceId = clickedResource.id ?? null;
+    } else {
+        building.rallyPoint.mode = "ground";
+        building.rallyPoint.resourceType = null;
+        building.rallyPoint.preferredResourceId = null;
+    }
+}
+function findBestResourceNearRally(unit, rallyPoint) {
+    if (!rallyPoint || rallyPoint.mode !== "resource" || !rallyPoint.resourceType) return null;
+
+    const allObjects = game.getAllObjects();
+    const rivers = getRiverList ? getRiverList() : null;
+
+    let best = null;
+    let bestScore = Infinity;
+
+    // 1. Försök originalresursen först om den finns kvar
+    if (rallyPoint.preferredResourceId != null) {
+        for (const r of allObjects) {
+            if (r.id !== rallyPoint.preferredResourceId) continue;
+            if (isValidRallyResource(unit, r, rallyPoint.resourceType)) {
+                return r;
+            }
+            break;
+        }
+    }
+
+    // 2. Annars välj bästa resurs nära rallypunkten
+    for (const r of allObjects) {
+        if (!isValidRallyResource(unit, r, rallyPoint.resourceType)) continue;
+
+        const p = getApproachPoint(unit, r, 18);
+        if (!p) continue;
+
+        const dxR = p.x - rallyPoint.x;
+        const dyR = p.y - rallyPoint.y;
+        const dRally2 = dxR * dxR + dyR * dyR;
+
+        const dxU = p.x - unit.x;
+        const dyU = p.y - unit.y;
+        const dUnit2 = dxU * dxU + dyU * dyU;
+
+        let penalty = 0;
+
+        // om du redan använder river-check för resursval:
+        if (rivers && aabbHitsRiverBetweenFast && aabbHitsRiverBetweenFast(unit.x, unit.y, p.x, p.y, rivers)) {
+            penalty += 500000;
+        }
+
+        // liten penalty om upptagen av annan worker
+        if (r.slot && r.slot !== unit) {
+            penalty += 200000;
+        }
+
+        const score = dRally2 * 0.8 + dUnit2 * 0.2 + penalty;
+
+        if (score < bestScore) {
+            bestScore = score;
+            best = r;
+        }
+    }
+
+    return best;
+}
+function isValidRallyResource(unit, r, wantedType) {
+    if (!r) return false;
+    if (r.amount <= 0) return false;
+    if (r.type !== wantedType) return false;
+
+    if (r.id != null && game.unreachableResources && game.unreachableResources.has(r.id)) {
+        return false;
+    }
+
+    // sheep specialfall
+    if (r.name === "sheep") {
+        //if (r.owner && r.owner !== "neutral" && r.owner !== unit.owner) return false;
+    }
+
+    // hoppa över farms om du inte vill att wood/stone osv råkar ta farm
+    if (r.name === "farm" || r.name === "rfarm" || r.name === "gfarm" || r.name === "yfarm") {
+        return false;
+    }
+
+    return true;
+}
+function applyRallyPointToUnit(unit, building) {
+    if (!unit || !building || !building.rallyPoint) return;
+
+    const rp = building.rallyPoint;
+
+    if (rp.mode === "ground") {
+        clearUnitPath(unit);
+        unit.targetX = rp.x;
+        unit.targetY = rp.y;
+        unit.state = "move";
+        return;
+    }
+
+    if (rp.mode === "resource") {
+        const r = findBestResourceNearRally(unit, rp);
+
+        if (r) {
+            if (r.slot == null) r.slot = unit;
+            orderWorkerGather(unit, r);
+            return;
+        }
+
+        // fallback om ingen resurs hittas
+        clearUnitPath(unit);
+        unit.targetX = rp.x;
+        unit.targetY = rp.y;
+        unit.state = "move";
+    }
+}
+function trySetSelectedBuildingRally(mouseX, mouseY) {
+    const selectedBuildings = game.getAllObjects().filter(o =>
+        o.selected &&
+        (o.name === "townhall" || o.name === "rtownhall" || o.name === "gtownhall" || o.name === "ytownhall")
+    );
+
+    if (selectedBuildings.length === 0) return false;
+
+    const clickedResources = game.getAllObjects().filter(o =>
+        o.type &&
+        !o.dead &&
+        o.amount > 0 &&
+        game.collideswithanoterobject
+            ? false
+            : true
+    );
+
+    let clickedResource = null;
+
+    // använd hellre din riktiga pick-funktion här
+    for (let i = game.getAllObjects().length - 1; i >= 0; i--) {
+        const o = game.getAllObjects()[i];
+
+        if (!o.type) continue;
+        if (o.amount <= 0) continue;
+
+        if (
+            mouseX >= o.x &&
+            mouseX <= o.x + o.dimx &&
+            mouseY >= o.y &&
+            mouseY <= o.y + o.dimy
+        ) {
+            clickedResource = o;
+            break;
+        }
+    }
+
+    for (const b of selectedBuildings) {
+        setBuildingRallyPoint(b, mouseX, mouseY, clickedResource);
+    }
+
+    return true;
+}
+function drawBuildingRallyPoints(ctx) {
+    const objects = game.getAllObjects();
+
+    for (const b of objects) {
+        if (!b.rallyPoint) continue;
+        if (!b.selected) continue;
+
+        const rp = b.rallyPoint;
+
+        const bx = b.x + b.dimx / 2;
+        const by = b.y + b.dimy / 2;
+
+        ctx.save();
+
+        ctx.strokeStyle = rp.mode === "resource" ? "lime" : "white";
+        ctx.lineWidth = 3;
+
+        ctx.beginPath();
+        ctx.moveTo(bx+game.getcamerax(), by+game.getcameray());
+        ctx.lineTo(rp.x+game.getcamerax(), rp.y+game.getcameray());
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(rp.x+game.getcamerax(), rp.y+game.getcameray(), 10, 0, Math.PI * 2);
+        ctx.stroke();
+
+        if (rp.mode === "resource") {
+            ctx.fillStyle = "lime";
+            ctx.font = "16px Arial";
+            ctx.fillText(rp.resourceType, rp.x+game.getcamerax() + 14, rp.y+game.getcameray());
+        }
+
+        ctx.restore();
+    }
 }
         </script>
     </body>  
