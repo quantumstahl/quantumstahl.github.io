@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GameServerClient</title>
+    <meta name="viewport" content="user-scalable=no, shrink-to-fit=no">
+    <meta charset="utf-8">
+    <script src="GameClient.js"></script>
+    <script src="ClientApp.js"></script>
+    <script src="ClientSolver.js"></script>
+    <script src="MapRenderer.js"></script>
+    <script src="NetworkClient.js"></script>
+    <script src="InputManager.js"></script>
+    <style> 
+        html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+    </style> 
+</head>
+<body>
+    <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
+    <script>
+        const canvas = document.getElementById("myCanvas");
+        const ctx = canvas.getContext("2d");
+     
+            const app = new ClientApp();
+            app.init();
+        
+    </script>
+</body>
+</html>
