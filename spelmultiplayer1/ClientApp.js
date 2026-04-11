@@ -76,16 +76,6 @@ class ClientApp {
             entityIds
         }));
     }
-    sendMoveCommand(x, y) {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({
-                type: "move_command",
-                x,
-                y
-            }));
-        }
-    }
-
     setupInput() {
         window.addEventListener("keydown", (e) => {
             if (e.key === "a" || e.key === "ArrowLeft") this.input2.left = true;
@@ -369,6 +359,11 @@ class ClientApp {
         if (selected.length === 0) return;
 
         this.sendMoveCommand(worldX, worldY);
+
+        for (const ent of selected) {
+            ent.targetX = worldX;
+            ent.targetY = worldY;
+        }
     }
 
     sendMoveCommand(x, y) {
