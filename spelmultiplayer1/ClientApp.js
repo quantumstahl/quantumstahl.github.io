@@ -28,54 +28,24 @@ class ClientApp {
         this.game = new GameClient(); 
         this.ws = null;
         this.myId = null;
-
-
         this.dragSelectStart = null;
         this.dragSelectEnd = null;
-
         this.input = new InputManager(this,this.game);
-
         this.input2 = {
             left: false,
             right: false,
             up: false,
             down: false
         };
-       
         this.lastTime = 0;
-       
-
-
-    
     }
     async init() {
         await this.game.loadGame(); // 🔥 laddar map + world
         this.setupInput();
-        
-
         requestAnimationFrame((t) => this.gameLoop(t));
-         // 🔥 DELAYA CONNECT
-
-
-            this.connect();
-            this.startInputLoop();
-
-        
+        this.connect();
     }
-    startInputLoop() {
-        setInterval(() => this.sendInput(), 100);
-    }
-    sendInput() {
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
-        this.ws.send(JSON.stringify({
-            type: "input",
-            left: this.input2.left,
-            right: this.input2.right,
-            up: this.input2.up,
-            down: this.input2.down
-        }));
-    }
     // ---------------- NETWORK ----------------
     handleServerMessage(data) {
         if (data.type === "init") {
@@ -89,14 +59,31 @@ class ClientApp {
         }
     }
     connect() {
-        this.ws = new WebSocket("wss://game.quantumstahl.com");
-       // const host = window.location.hostname;
-       // this.ws = new WebSocket(`ws://${host}:3000`);
+        //this.ws = new WebSocket("wss://game.quantumstahl.com");
+        this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
         
         this.ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             this.handleServerMessage(data);
+            
         };
+    }
+    sendSelectCommand(entityIds) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+        this.ws.send(JSON.stringify({
+            type: "select_command",
+            entityIds
+        }));
+    }
+    sendMoveCommand(x, y) {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({
+                type: "move_command",
+                x,
+                y
+            }));
+        }
     }
 
     setupInput() {
@@ -125,11 +112,9 @@ class ClientApp {
         const world = this.game.world;
 
         for (const e of spawns) {
-        
             let obj = world.entitiesById.get(e.id);
-        
+
             if (!obj) {
-      
                 obj = this.game.addObject(
                     e.x,
                     e.y,
@@ -146,13 +131,19 @@ class ClientApp {
 
                 world.entitiesById.delete(oldId);
                 world.entitiesById.set(obj.id, obj);
-                
             }
-            
+
             obj.x = e.x;
             obj.y = e.y;
+
             obj.serverX = e.x;
             obj.serverY = e.y;
+
+            obj.renderX = e.x;
+            obj.renderY = e.y;
+
+            obj.snapshots = obj.snapshots || [];
+            obj.netKind = "active";
 
             obj.w = e.w;
             obj.h = e.h;
@@ -165,16 +156,78 @@ class ClientApp {
     }
     applyServerUpdates(updates) {
         const world = this.game.world;
+        const now = performance.now();
 
         for (const e of updates) {
             const obj = world.entitiesById.get(e.id);
             if (!obj) continue;
 
-            obj.serverX = e.x;
-            obj.serverY = e.y;
+            obj.x = e.x;
+            obj.y = e.y;
+            obj.direction=e.dir;
+            obj.snapshots = obj.snapshots || [];
+            obj.snapshots.push({
+                time: now,
+                x: e.x,
+                y: e.y
+            });
+
+            if (obj.snapshots.length > 20) {
+                obj.snapshots.shift();
+            }
 
             if (e.r !== undefined) obj.r = e.r;
             if (e.hp !== undefined) obj.hp = e.hp;
+        }
+    }
+
+    interpolateObject(obj, renderTime) {
+        if (!obj.snapshots || obj.snapshots.length === 0) {
+            if (obj.serverX != null) obj.renderX = obj.serverX;
+            if (obj.serverY != null) obj.renderY = obj.serverY;
+            return;
+        }
+
+        const snaps = obj.snapshots;
+
+        while (snaps.length >= 2 && snaps[1].time <= renderTime) {
+            snaps.shift();
+        }
+
+        if (snaps.length === 1) {
+            obj.renderX = snaps[0].x;
+            obj.renderY = snaps[0].y;
+            return;
+        }
+
+        const a = snaps[0];
+        const b = snaps[1];
+
+        const span = b.time - a.time;
+        let alpha = 0;
+
+        if (span > 0) {
+            alpha = (renderTime - a.time) / span;
+        }
+
+        if (alpha < 0) alpha = 0;
+        if (alpha > 1) alpha = 1;
+
+        obj.renderX = a.x + (b.x - a.x) * alpha;
+        obj.renderY = a.y + (b.y - a.y) * alpha;
+    }
+
+    updateNetworkRendering() {
+        const renderDelay = 100;
+        const renderTime = performance.now() - renderDelay;
+
+        const world = this.game.world;
+        if (!world) return;
+
+        for (const obj of world.dynamic) {
+
+                this.interpolateObject(obj, renderTime);
+
         }
     }
     applyServerRemoves(removes) {
@@ -258,87 +311,57 @@ class ClientApp {
 
         if (!clicked) {
             this.deselectAll();
+            this.sendSelectCommand([]);
             return;
         }
 
-        if (!clicked.selectable) {
+        if (!clicked.selectable ) {
             this.deselectAll();
+            this.sendSelectCommand([]);
             return;
         }
-
-     
 
         this.deselectAll();
         clicked.selected = true;
+        this.sendSelectCommand([clicked.id]);
     }
 
     handleDragSelect(rect) {
-        this.deselectAll();
+    this.deselectAll();
 
-        for (const ent of this.getAllEntities()) {
- 
-            
-            const cx = ent.x + ent.w / 2;
-            const cy = ent.y + ent.h / 2;
+    const selectedIds = [];
 
-            const overlaps =
-                cx >= rect.x1 &&
-                cx <= rect.x2 &&
-                cy >= rect.y1 &&
-                cy <= rect.y2;
+    for (const ent of this.getAllEntities()) {
+        const cx = (ent.renderX ?? ent.x) + ent.w / 2;
+        const cy = (ent.renderY ?? ent.y) + ent.h / 2;
 
-            if (overlaps) {
-                
-                ent.selected = true;
-            }
-        }
-        
-    }
-    applyPrediction(obj) {
-        const speed = 3;
+        const overlaps =
+            cx >= rect.x1 &&
+            cx <= rect.x2 &&
+            cy >= rect.y1 &&
+            cy <= rect.y2;
 
-        obj.vx = 0;
-        obj.vy = 0;
-
-        if (this.input2.left) obj.vx -= speed;
-        if (this.input2.right) obj.vx += speed;
-        if (this.input2.up) obj.vy -= speed;
-        if (this.input2.down) obj.vy += speed;
-
-        obj.x += obj.vx;
-        obj.y += obj.vy;
-
-        
-    }
-
-    smooth(obj) {
-        if (obj.serverX == null || obj.serverY == null) return;
-
-        const lerp = 0.2;
-        obj.x += (obj.serverX - obj.x) * lerp;
-        obj.y += (obj.serverY - obj.y) * lerp;
-    }
-
-    correct(obj) {
-        if (obj.serverX == null || obj.serverY == null) return;
-
-        const dx = obj.serverX - obj.x;
-        const dy = obj.serverY - obj.y;
-        const dist = Math.hypot(dx, dy);
-
-        if (dist > 20) {
-            obj.x = obj.serverX;
-            obj.y = obj.serverY;
-        } else {
-            obj.x += dx * 0.2;
-            obj.y += dy * 0.2;
+        if (overlaps) {
+            ent.selected = true;
+            selectedIds.push(ent.id);
         }
     }
+
+    this.sendSelectCommand(selectedIds);
+}
+
+
+
     handlePointerRightDown(worldX, worldY) {
-        const selected = this.getSelectedMovableEntities();
+        const selected = this.getSelectedEntities();
         if (selected.length === 0) return;
 
-        this.sendMoveCommand(selected, worldX, worldY);
+        this.sendMoveCommand(worldX, worldY);
+
+        for (const ent of selected) {
+            ent.targetX = worldX;
+            ent.targetY = worldY;
+        }
     }
 
     handleTouchCommand(worldX, worldY) {
@@ -348,24 +371,15 @@ class ClientApp {
         this.sendMoveCommand(selected, worldX, worldY);
     }
 
-    sendMoveCommand(entities, x, y) {
-        const entityIds = entities.map(e => e.id);
+    sendMoveCommand(x, y) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify({
                 type: "move_command",
-                entityIds,
-                x,
-                y
+                x: Number(x),
+                y: Number(y)
             }));
         }
-
-        // Enkel client prediction
-        for (const ent of entities) {
-            ent.targetX = x;
-            ent.targetY = y;
-        }
-    }
 
     handlePan(dx, dy, scale = 1) {
         const currentMap = this.game.maps[this.game.currentmap];
@@ -376,37 +390,23 @@ class ClientApp {
         if (currentMap.cameray > 800) currentMap.cameray = 800;
         if (currentMap.cameray < -2200) currentMap.cameray = -2200;
         if (currentMap.camerax > 200) currentMap.camerax = 200;
-
-        const minCamX = -6000;
-        if (currentMap.camerax < minCamX) currentMap.camerax = minCamX;
+        if (currentMap.camerax < -6000) currentMap.camerax = -6000;
     }
 
-   update(scale) {
-        const world = this.game.world;
-        if (!world) return;
+update(scale) {
 
-        for (const obj of world.dynamic) {
-            if (obj.id === this.myId) {
-                this.applyPrediction(obj);
-                this.correct(obj);
-                
-            } else {
-                this.smooth(obj);
-            }
-        }
-        this.game.updateSolver();
-        
-        
-        const camSpeed = 15*scale;
-        const currentMap = this.game.maps[this.game.currentmap];
-       // if (this.input2.up) if(currentMap.cameray<800)currentMap.cameray += camSpeed;
-      //  if (this.input2.down) if(currentMap.cameray>-2200)currentMap.cameray -= camSpeed;
-      //  if (this.input2.left) if(currentMap.camerax<200)currentMap.camerax += camSpeed;
-      //  if (this.input2.right) if(currentMap.camerax>-6000)currentMap.camerax -= camSpeed;
-        
-        
-        
-    }
+
+    const camSpeed = 15*scale; 
+    const currentMap = this.game.maps[this.game.currentmap]; 
+    if (this.input2.up) if(currentMap.cameray<800)currentMap.cameray += camSpeed;
+    if (this.input2.down) if(currentMap.cameray>-2200)currentMap.cameray -= camSpeed;
+    if (this.input2.left) if(currentMap.camerax<200)currentMap.camerax += camSpeed; 
+    if (this.input2.right) if(currentMap.camerax>-6000)currentMap.camerax -= camSpeed;
+    
+    
+    
+    this.updateNetworkRendering();
+}
 
     draw(scale) {
        
@@ -481,3 +481,5 @@ class ClientApp {
     
     
 }
+
+

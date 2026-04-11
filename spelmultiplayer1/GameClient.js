@@ -421,6 +421,7 @@ class Objectx {
         this.iscontrollable=true;
         this.canMove=true;
         this.ownerID=null;
+        this.direction="down";
         
             
         

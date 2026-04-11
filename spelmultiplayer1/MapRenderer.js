@@ -37,8 +37,8 @@ class MapRenderer {
         const camerax = map.camerax || 0;
         const cameray = map.cameray || 0;
 
-        const x = Number(obj.x ?? obj.serverX ?? 0);
-        const y = Number(obj.y ?? obj.serverY ?? 0);
+        const x = Number(obj.renderX ?? obj.x ?? 0);
+        const y = Number(obj.renderY ?? obj.y ?? 0);
         const w = Number(obj.w ?? obj.dimx ?? 0);
         const h = Number(obj.h ?? obj.dimy ?? 0);
 
