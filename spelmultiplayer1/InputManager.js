@@ -131,40 +131,39 @@ class InputManager {
     }
 
     onTouchStart(e) {
-        e.preventDefault();
+    e.preventDefault();
 
-        if (e.touches.length === 1) {
-            const t = e.touches[0];
-            this.updateCursor(t.clientX, t.clientY);
+    if (e.touches.length === 1) {
+        const t = e.touches[0];
+        this.updateCursor(t.clientX, t.clientY);
 
-            const world = this.getWorldPos(t.clientX, t.clientY);
-            this.app.handlePointerLeftDown(world.x, world.y);
-            this.beginDrag(world.x, world.y);
+        const world = this.getWorldPos(t.clientX, t.clientY);
+        this.beginDrag(world.x, world.y);
 
-            this.allowSingleTap = true;
+        this.allowSingleTap = true;
 
-            if (this.tapTimeout !== null) {
-                clearTimeout(this.tapTimeout);
-            }
-
-            this.tapTimeout = setTimeout(() => {
-                this.tapTimeout = null;
-            }, 150);
-        } else {
-            this.allowSingleTap = false;
-
-            if (this.tapTimeout !== null) {
-                clearTimeout(this.tapTimeout);
-                this.tapTimeout = null;
-            }
+        if (this.tapTimeout !== null) {
+            clearTimeout(this.tapTimeout);
         }
 
-        if (e.touches.length === 2) {
-            const p = this.getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
-            this.lastPanCanvasX = p.x;
-            this.lastPanCanvasY = p.y;
+        this.tapTimeout = setTimeout(() => {
+            this.tapTimeout = null;
+        }, 150);
+    } else {
+        this.allowSingleTap = false;
+
+        if (this.tapTimeout !== null) {
+            clearTimeout(this.tapTimeout);
+            this.tapTimeout = null;
         }
     }
+
+    if (e.touches.length === 2) {
+        const p = this.getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
+        this.lastPanCanvasX = p.x;
+        this.lastPanCanvasY = p.y;
+    }
+}
 
     onTouchMove(e) {
         e.preventDefault();
@@ -190,28 +189,40 @@ class InputManager {
     }
 
     onTouchEnd(e) {
-        e.preventDefault();
+    e.preventDefault();
 
-        if (this.dragStartWorld && this.dragEndWorld && this.dragMoved) {
-            this.app.handleDragSelect({
-                x1: Math.min(this.dragStartWorld.x, this.dragEndWorld.x),
-                y1: Math.min(this.dragStartWorld.y, this.dragEndWorld.y),
-                x2: Math.max(this.dragStartWorld.x, this.dragEndWorld.x),
-                y2: Math.max(this.dragStartWorld.y, this.dragEndWorld.y)
-            });
-            this.clearDrag();
-        } else if (e.changedTouches.length === 1 && this.allowSingleTap) {
-            const t = e.changedTouches[0];
-            const world = this.getWorldPos(t.clientX, t.clientY);
+    if (this.dragStartWorld && this.dragEndWorld && this.dragMoved) {
+        this.app.handleDragSelect({
+            x1: Math.min(this.dragStartWorld.x, this.dragEndWorld.x),
+            y1: Math.min(this.dragStartWorld.y, this.dragEndWorld.y),
+            x2: Math.max(this.dragStartWorld.x, this.dragEndWorld.x),
+            y2: Math.max(this.dragStartWorld.y, this.dragEndWorld.y)
+        });
+        this.clearDrag();
+    } else if (e.changedTouches.length === 1 && this.allowSingleTap) {
+        const t = e.changedTouches[0];
+        const world = this.getWorldPos(t.clientX, t.clientY);
+
+        const clicked = this.app.getEntityAt(world.x, world.y);
+        const selected = this.app.getSelectedMovableEntities();
+
+        if (clicked && clicked.selectable) {
+            this.app.handlePointerLeftDown(world.x, world.y);
+        } else if (selected.length > 0) {
             this.app.handleTouchCommand(world.x, world.y);
-            this.clearDrag();
         } else {
-            this.clearDrag();
+            this.app.deselectAll();
+            this.app.sendSelectCommand([]);
         }
 
-        if (e.touches.length < 2) {
-            this.lastPanCanvasX = null;
-            this.lastPanCanvasY = null;
-        }
+        this.clearDrag();
+    } else {
+        this.clearDrag();
     }
+
+    if (e.touches.length < 2) {
+        this.lastPanCanvasX = null;
+        this.lastPanCanvasY = null;
+    }
+}
 }
