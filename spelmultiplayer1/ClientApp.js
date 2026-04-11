@@ -368,7 +368,7 @@ class ClientApp {
         const selected = this.getSelectedMovableEntities();
         if (selected.length === 0) return;
 
-        this.sendMoveCommand(selected, worldX, worldY);
+        this.sendMoveCommand(worldX, worldY);
     }
 
     sendMoveCommand(x, y) {
