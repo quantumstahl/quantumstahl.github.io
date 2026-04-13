@@ -1,5 +1,6 @@
 class GameClient {
     constructor() {
+        this.ws=null;
         this.maps = [];
         this.currentmap = 0;
         this.world = null;
@@ -9,26 +10,31 @@ class GameClient {
         this.needsPathRebuild = false;
         this.cursorX=0;
         this.cursorY=0;
+        this.clientgame= new ClientGame(this);
+        this.playerResources={wood: 0, food: 0, gold: 0, stone: 0, pop: 3, popMax: 10 };
+        this.canvas=document.getElementById("myCanvas");
+        this.ctx=canvas.getContext("2d");
     }
-
+    setWS(ws){
+        this.ws=ws;
+        
+    }
 
     async loadGame() {
         await this.load();
         this.buildWorldOnCurrentmap();
 
-        const canvas = document.getElementById("myCanvas");
-        const ctx = canvas.getContext("2d");
-        this.renderer = new MapRenderer(ctx);
+        this.renderer = new MapRenderer(this.ctx);
     }
 
-    draw(scale) {
+    draw(scale,selected,myId,leftclicked) {
         this.renderer.drawMap(this,scale);
+        this.clientgame.updateanimation(selected,myId,this.ctx,this.canvas,leftclicked);
     }
-    updateSolver(){
-        SimSolver.step(this);
+    UISIZE(){
+        return this.cursorY>this.canvas.height-this.clientgame.UISIZE;
         
     }
-    
     buildWorldOnCurrentmap() {
         this.world = this.buildWorldFromMap(this.maps[this.currentmap]);
     }
@@ -166,7 +172,7 @@ class GameClient {
         const objectType = this.getLastObjectType();
         return objectType.objects[objectType.objects.length - 1];
     }
-    addObject(x, y, w, h, r, flipped, kind = "dynamic", type = "generic", mapName = null) {
+    addObject(x, y, w, h, r, flipped, kind = "dynamic", type = "generic") {
         if (!this.world) {
             throw new Error("World is not initialized");
         }
@@ -187,7 +193,7 @@ class GameClient {
             this.world.selectable.push(obj);
         }
 
-        const objecttype = this.getObjectType(type, mapName);
+        const objecttype = this.getObjectType(type, this.maps[this.currentmap].name);
         if (objecttype) {
             objecttype.objects.push(obj);
 
@@ -198,8 +204,8 @@ class GameClient {
 
         return obj;
     }
-    removeObject(id) {
-        const obj = this.world.entitiesById.get(id);
+    removeObject(id,ob=null) {
+        const obj = ob||this.world.entitiesById.get(id);
         if (!obj) return false;
 
         this.removeFromArray(this.world.entities, obj);
@@ -422,6 +428,10 @@ class Objectx {
         this.canMove=true;
         this.ownerID=null;
         this.direction="down";
+        this.dead=false;
+        this.ani=1;
+        this.carry=0;
+        this.trainingQueue=[];
         
             
         

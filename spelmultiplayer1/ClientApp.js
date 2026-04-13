@@ -25,8 +25,8 @@ function mobileAndTabletCheck() {
 
 class ClientApp {
     constructor() {
-        this.game = new GameClient(); 
         this.ws = null;
+        this.game = new GameClient(); 
         this.myId = null;
         this.dragSelectStart = null;
         this.dragSelectEnd = null;
@@ -38,6 +38,7 @@ class ClientApp {
             down: false
         };
         this.lastTime = 0;
+        this.leftclicked=false;
     }
     async init() {
         await this.game.loadGame(); // 🔥 laddar map + world
@@ -62,9 +63,9 @@ class ClientApp {
         }
     }
     connect() {
-        this.ws = new WebSocket("wss://game.quantumstahl.com");
-       // this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
-        
+        //this.ws = new WebSocket("wss://game.quantumstahl.com");
+        this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
+        this.game.setWS(this.ws);
         this.ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             this.handleServerMessage(data);
@@ -85,6 +86,12 @@ class ClientApp {
             if (e.key === "d" || e.key === "ArrowRight") this.input2.right = true;
             if (e.key === "w" || e.key === "ArrowUp") this.input2.up = true;
             if (e.key === "s" || e.key === "ArrowDown") this.input2.down = true;
+            if (e.key === "b"){
+                const selected = this.getSelectedEntities();
+                if (selected.length > 0) {
+                    this.buildMode = "barrack";
+                }
+            }
         });
 
         window.addEventListener("keyup", (e) => {
@@ -92,6 +99,7 @@ class ClientApp {
             if (e.key === "d" || e.key === "ArrowRight") this.input2.right = false;
             if (e.key === "w" || e.key === "ArrowUp") this.input2.up = false;
             if (e.key === "s" || e.key === "ArrowDown") this.input2.down = false;
+   
         });
     }
     
@@ -100,6 +108,11 @@ class ClientApp {
         this.applyServerSpawns(data.spawn || []);
         this.applyServerUpdates(data.update || []);
         this.applyServerRemoves(data.remove || []);
+        
+        if (data.playerResources) {
+            this.game.playerResources = data.playerResources;
+        }
+        
     }
     applyServerSpawns(spawns) {
         const world = this.game.world;
@@ -158,6 +171,9 @@ class ClientApp {
             obj.x = e.x;
             obj.y = e.y;
             obj.direction=e.dir;
+            obj.ani=e.ani;
+            obj.carry=e.carry;
+            
             obj.snapshots = obj.snapshots || [];
             obj.snapshots.push({
                 time: now,
@@ -300,6 +316,15 @@ class ClientApp {
         );
     }
     handlePointerLeftDown(worldX, worldY) {
+        this.leftclicked=true;
+        if(this.game.UISIZE()||this.game.buildMode)return;
+        
+         if (this.buildMode) {
+            this.sendBuildCommand(this.buildMode, worldX, worldY);
+            this.buildMode = null;
+            return;
+        }
+
         const clicked = this.getEntityAt(worldX, worldY);
 
         if (!clicked) {
@@ -320,6 +345,7 @@ class ClientApp {
     }
 
     handleDragSelect(rect) {
+    if(this.game.UISIZE()||this.game.buildMode)return;
     this.deselectAll();
 
     const selectedIds = [];
@@ -342,14 +368,14 @@ class ClientApp {
 
     this.sendSelectCommand(selectedIds);
 }
-
-
-
     handlePointerRightDown(worldX, worldY) {
+        if(this.game.UISIZE()||this.game.buildMode)return;
         const selected = this.getSelectedEntities();
         if (selected.length === 0) return;
 
-        this.sendMoveCommand(worldX, worldY);
+        const clicked = this.getEntityAt(worldX, worldY);
+
+        this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
 
         for (const ent of selected) {
             ent.targetX = worldX;
@@ -358,10 +384,14 @@ class ClientApp {
     }
 
     handleTouchCommand(worldX, worldY) {
-        const selected = this.getSelectedMovableEntities();
+        this.leftclicked=true;
+        if(this.game.UISIZE())return;
+        const selected = this.getSelectedEntities();
         if (selected.length === 0) return;
 
-        this.sendMoveCommand(worldX, worldY);
+        const clicked = this.getEntityAt(worldX, worldY);
+
+        this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
 
         for (const ent of selected) {
             ent.targetX = worldX;
@@ -369,15 +399,26 @@ class ClientApp {
         }
     }
 
-    sendMoveCommand(x, y) {
+    sendRightClickCommand(x, y, targetId) {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
-            this.ws.send(JSON.stringify({
-                type: "move_command",
-                x: Number(x),
-                y: Number(y)
-            }));
-        }
+        this.ws.send(JSON.stringify({
+            type: "right_click_command",
+            x: Number(x),
+            y: Number(y),
+            targetId: targetId ?? null
+        }));
+    }
+    sendBuildCommand(buildingType, x, y) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+        this.ws.send(JSON.stringify({
+            type: "build_command",
+            buildingType,
+            x: Number(x),
+            y: Number(y)
+        }));
+    }
 
     handlePan(dx, dy, scale = 1) {
         const currentMap = this.game.maps[this.game.currentmap];
@@ -412,9 +453,17 @@ update(scale) {
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        this.game.draw(scale);
-       
-      
+        this.game.draw(scale,this.getSelectedEntities(),this.myId,this.leftclicked);
+        this.leftclicked=false;
+        
+        if(this.game.buildMode){
+            
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width/2, canvas.height/2);
+            
+        }
+        
+        
         
         ctx.save();
         ctx.scale(this.game.getZoom(), this.game.getZoom());
