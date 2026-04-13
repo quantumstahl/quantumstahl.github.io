@@ -1,6 +1,7 @@
 class ClientGame {
     constructor(game) {
         this.game = game;
+        this.sendCommandcounter=0;
         this.WORKER_BUILD_OPTIONS = [
                 {type: "hus",label: "House",icon: "hus",cost: { wood: 30 }},
                 {type: "townhall",label: "TownHall",icon: "townhall",cost: { wood: 120, stone: 80 }},
@@ -51,7 +52,18 @@ class ClientGame {
     }
     
     updateanimation(selected,myId,ctx,canvas,leftclicked) {
+         for(const townhall of this.getAllObjectsOfBaseTypeAllTeams("townhall")){
+            this.drawTownhallTrainingQueue(ctx, townhall, this.game.maps[this.game.currentmap]);
+        }
+        for(const barrack of this.getAllObjectsOfBaseTypeAllTeams("barrack")){
+            this.drawBarrackTrainingQueue(ctx, barrack, this.game.maps[this.game.currentmap]);
+        }
+        
+        
         this.updateworkers();
+        this.updatewarrior();
+        this.updateboar();
+        this.updatesheep();
         this.UI(selected,myId,ctx,canvas,leftclicked);
         this.drawResourcesUI(ctx, this.game.playerResources);
     }
@@ -59,19 +71,19 @@ class ClientGame {
         const worker = this.getAllWorkersAllTeams();
         for (const w of worker) {
             w.flipped=false;
-            if(!w.dead){
+            if(w.hp>0){
                 
                 if(w.direction=="down"){w.animation=1;if(w.ani===1)w.animation=0;if(w.ani===2)w.animation=6;if(w.ani===3)w.animation=9;}
                 if(w.direction=="up"){w.animation=3;if(w.ani===1)w.animation=2;if(w.ani===2)w.animation=7;if(w.ani===3)w.animation=10;}
                 if(w.direction=="right"){w.animation=5;if(w.ani===1)w.animation=4;if(w.ani===2)w.animation=8;if(w.ani===3)w.animation=11;}
                 if(w.direction=="left"){w.animation=5;if(w.ani===1)w.animation=4;w.flipped=true;if(w.ani===2)w.animation=8;if(w.ani===3)w.animation=11;}
             }
-            else w.animation=6;
+            else w.animation=12;
             if(w.ani===3){
-                if(w.carry===0&&!w.holdingicon){w.holdingicon=this.game.addObject(w.renderX,w.renderY-20,30,30,0,false, "ghost","foodicon"); this.game.idcounter--;}
-                if(w.carry===1&&!w.holdingicon){w.holdingicon=this.game.addObject(w.renderX,w.renderY-20,30,30,0,false,"ghost","woodicon"); this.game.idcounter--;}   
-                if(w.carry===2&&!w.holdingicon){w.holdingicon=this.game.addObject(w.renderX,w.renderY-20,30,30,0,false,"ghost","stoneicon"); this.game.idcounter--;}    
-                if(w.carry===3&&!w.holdingicon){w.holdingicon=this.game.addObject(w.renderX,w.renderY-20,30,30,0,false,"ghost","goldicon"); this.game.idcounter--;}        
+                if(w.carry===0&&!w.holdingicon){w.holdingicon=this.game.addObject(w.renderX,w.renderY-20,30,30,0,false, "ghost","foodicon",true); }
+                if(w.carry===1&&!w.holdingicon){w.holdingicon=this.game.addObject(w.renderX,w.renderY-20,30,30,0,false,"ghost","woodicon",true); }   
+                if(w.carry===2&&!w.holdingicon){w.holdingicon=this.game.addObject(w.renderX,w.renderY-20,30,30,0,false,"ghost","stoneicon",true); }    
+                if(w.carry===3&&!w.holdingicon){w.holdingicon=this.game.addObject(w.renderX,w.renderY-20,30,30,0,false,"ghost","goldicon",true); }        
                 if(w.holdingicon){w.holdingicon.x=w.renderX;w.holdingicon.y=w.renderY-20;}
             }
             else if(w.holdingicon){
@@ -82,6 +94,82 @@ class ClientGame {
             }
         }
     }
+    updatewarrior(){
+        const warrior = this.getAllWarriorsAllTeams();
+        for (const w of warrior) {
+        w.flipped=false;
+        if (w.hp>0) {
+            if (w.direction=="down"){w.animation=1;if(w.ani===1)w.animation=0;}
+            if (w.direction=="up"){w.animation=3;if(w.ani===1)w.animation=2;}
+            if (w.direction=="right"){w.animation=5;if(w.ani===1)w.animation=4;}
+            if (w.direction=="left"){w.animation=5;if(w.ani===1)w.animation=4;w.flipped=true;}
+
+            // attack-pose om du vill
+            if (w.ani===2) {
+                if (w.direction=="down") w.animation=6;
+                if (w.direction=="up") w.animation=7;
+                if (w.direction=="right") w.animation=8;
+                if (w.direction=="left") { w.animation=8; w.fliped=true; }
+            }
+        }
+        else w.animation = 9;
+        }
+    }
+    updateboar(){
+        const boar = this.game.getObjectType('boar')?.objects || [];
+        for (const b of boar) {
+        
+            b.flipped=false;
+            if(b.hp>0){
+                if(b.direction=="down"){b.animation=3;if(b.ani===1)b.animation=2;}
+                if(b.direction=="up"){b.animation=5;if(b.ani===1)b.animation=4;}
+                if(b.direction=="right"){b.animation=1;if(b.ani===1)b.animation=0;}
+                if(b.direction=="left"){b.animation=1;if(b.ani===1)b.animation=0;b.flipped=true;}
+            }
+            else b.animation=6;
+        
+        } 
+    }
+    updatesheep(){
+        const sheep = this.game.getObjectType('sheep')?.objects || [];
+        for (const s of sheep) {
+            if (s.hp>0) {
+                s.flipped = false;
+                const base = this.getSheepAnimBase(s.owner);
+                if (s.direction == "down") {
+                    s.animation = base + 3;
+                    if (s.ani===1) s.animation = base + 2;
+                }
+                if (s.direction == "up") {
+                    s.animation = base + 5;
+                    if (s.ani===1) s.animation = base + 4;
+                }
+                if (s.direction == "right") {
+                    s.animation = base + 1;
+                    if (s.ani===1) s.animation = base + 0;
+                }
+                if (s.direction == "left") {
+                    s.animation = base + 1;
+                    if (s.ani===1) s.animation = base + 0;
+                    s.flipped = true;
+                }
+            }
+            else s.animation=12;
+        }
+    }
+    getSheepAnimBase(owner) {
+        if (owner === 1) return 6;
+        if (owner === 2) return 12;
+        if (owner === 4) return 18;
+        if (owner === 3) return 24;
+        return 0; // neutral
+    }
+    
+    
+    getAllWarriorsAllTeams() {
+        return this.getAllObjectsOfBaseTypeAllTeams("warrior");
+    }
+    
     getAllWorkersAllTeams() {
         return this.getAllObjectsOfBaseTypeAllTeams("worker");
     }
@@ -145,7 +233,6 @@ class ClientGame {
             if(leftclicked)this.handleGameUILeftClick(4,selected);
             return;
         }
-        
     }
     drawTownhallUI(ctx, canvas, selectedTownhall,myOwner) {
         if (!selectedTownhall) return;
@@ -192,11 +279,12 @@ class ClientGame {
             h: bh
         };
 
-        // Queue/progress
-        ctx.fillStyle = "white";
-        ctx.fillText("Queue: " + selectedTownhall.trainingQueue.length, 140, by + 20);
+        
 
-        if (selectedTownhall.trainingQueue.length > 0) {
+        if (selectedTownhall.trainingQueue > 0) {
+                // Queue/progress
+            ctx.fillStyle = "white";
+            ctx.fillText("Queue: " + selectedTownhall.trainingQueue, 140, by + 20);
             const p = Math.min(1, selectedTownhall.trainingTimer / selectedTownhall.trainingTimeMax);
 
             ctx.strokeStyle = "white";
@@ -316,9 +404,9 @@ class ClientGame {
         };
 
         ctx.fillStyle = "white";
-        ctx.fillText("Queue: " + selectedBarrack.trainingQueue.length, 170, by + 20);
+        ctx.fillText("Queue: " + selectedBarrack.trainingQueue, 170, by + 20);
 
-        if (selectedBarrack.trainingQueue.length > 0) {
+        if (selectedBarrack.trainingQueue > 0) {
             const p = Math.min(1, selectedBarrack.trainingTimer / selectedBarrack.trainingTimeMax);
 
             ctx.strokeStyle = "white";
@@ -533,6 +621,7 @@ class ClientGame {
     }
 
     sendCommand(action, targetId, typer = "", x = 0, y = 0, arr = []) {
+
         if (!this.game.ws || this.game.ws.readyState !== WebSocket.OPEN) return;
         console.log(x+" "+y);
         this.game.ws.send(JSON.stringify({
@@ -544,6 +633,123 @@ class ClientGame {
             y,
             arr
         }));
+        
+    }
+    drawTownhallTrainingQueue(ctx, townhall, currentMap) {        
+        if (townhall.trainingQueue<=0) return;
+           
+        const owner = townhall.owner ;
+        const iconSize = 30;
+        const gap = 4;
+        const maxVisible = 8;
+
+        const queue = townhall.trainingQueue;
+        const totalW = queue * iconSize + (queue - 1) * gap;
+
+        const startX = townhall.x + currentMap.camerax + townhall.w / 2 - totalW / 2;
+        const y = townhall.y + currentMap.cameray - 34;
+
+        for (let i = 0; i < queue; i++) {
+            const type = this.getTeamObjectType("worker", owner);
+            let img = null;
+            img = this.getTeamObjectType("worker", owner)?.sprites?.[1]?.getimage();
+            if (!img) continue;
+              
+            const x = startX + i * (iconSize + gap);
+
+            ctx.fillStyle = "rgba(0,0,0,0.7)";
+            ctx.fillRect(x - 2, y - 2, iconSize + 4, iconSize + 4);
+
+            ctx.drawImage(img, x, y, iconSize, iconSize);
+
+            if (i === 0 && townhall.trainingTimeMax > 0) {
+                const p = Math.min(1, townhall.trainingTimer / townhall.trainingTimeMax);
+
+                ctx.drawImage(img, x, y, iconSize, iconSize);
+                ctx.fillStyle = "rgba(0,0,0,0.8)";
+                ctx.fillRect(x, y, iconSize, iconSize);
+
+                const w = iconSize * p;
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(x, y, w, iconSize);
+                ctx.clip();
+
+                ctx.fillStyle = "orange";
+                ctx.fillRect(x, y, iconSize, iconSize);
+                ctx.drawImage(img, x, y, iconSize, iconSize);
+                ctx.restore();
+            }
+        }
+
+        if (townhall.trainingQueue.length > maxVisible) {
+            ctx.fillStyle = "white";
+            ctx.font = "14px Cinzel";
+            ctx.fillText(
+                "+" + (townhall.trainingQueue.length - maxVisible),
+                startX + maxVisible * (iconSize + gap),
+                y + 16
+            );
+        }
+    } 
+    drawBarrackTrainingQueue(ctx, barrack, currentMap) {
+         if (barrack.trainingQueue<=0) return;
+           
+        const owner = barrack.owner ;
+        const iconSize = 30;
+        const gap = 4;
+        const maxVisible = 8;
+
+        const queue = barrack.trainingQueue;
+        const totalW = queue * iconSize + (queue - 1) * gap;
+
+        const startX = barrack.x + currentMap.camerax + barrack.w / 2 - totalW / 2;
+        const y = barrack.y + currentMap.cameray - 34;
+
+        for (let i = 0; i < queue; i++) {
+            const type = this.getTeamObjectType("warrior", owner);
+            let img = null;
+            img = this.getTeamObjectType("warrior", owner)?.sprites?.[1]?.getimage();
+            if (!img) continue;
+              
+            const x = startX + i * (iconSize + gap);
+
+            ctx.fillStyle = "rgba(0,0,0,0.7)";
+            ctx.fillRect(x - 2, y - 2, iconSize + 4, iconSize + 4);
+
+            ctx.drawImage(img, x, y, iconSize, iconSize);
+
+            if (i === 0 && barrack.trainingTimeMax > 0) {
+                const p = Math.min(1, barrack.trainingTimer / barrack.trainingTimeMax);
+
+                ctx.drawImage(img, x, y, iconSize, iconSize);
+                ctx.fillStyle = "rgba(0,0,0,0.8)";
+                ctx.fillRect(x, y, iconSize, iconSize);
+
+                const w = iconSize * p;
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(x, y, w, iconSize);
+                ctx.clip();
+
+                ctx.fillStyle = "orange";
+                ctx.fillRect(x, y, iconSize, iconSize);
+                ctx.drawImage(img, x, y, iconSize, iconSize);
+                ctx.restore();
+            }
+        }
+
+        if (barrack.trainingQueue.length > maxVisible) {
+            ctx.fillStyle = "white";
+            ctx.font = "14px Cinzel";
+            ctx.fillText(
+                "+" + (barrack.trainingQueue.length - maxVisible),
+                startX + maxVisible * (iconSize + gap),
+                y + 16
+            );
+        }
     }
     
 }

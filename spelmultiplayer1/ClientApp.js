@@ -86,12 +86,6 @@ class ClientApp {
             if (e.key === "d" || e.key === "ArrowRight") this.input2.right = true;
             if (e.key === "w" || e.key === "ArrowUp") this.input2.up = true;
             if (e.key === "s" || e.key === "ArrowDown") this.input2.down = true;
-            if (e.key === "b"){
-                const selected = this.getSelectedEntities();
-                if (selected.length > 0) {
-                    this.buildMode = "barrack";
-                }
-            }
         });
 
         window.addEventListener("keyup", (e) => {
@@ -167,7 +161,12 @@ class ClientApp {
         for (const e of updates) {
             const obj = world.entitiesById.get(e.id);
             if (!obj) continue;
-
+            
+            obj.flashTimer=e.flashTimer;
+            obj.trainingTimer=e.trainingTimer;
+            obj.trainingTimeMax=e.trainingTimeMax;
+            obj.trainingQueue=e.trainingQueue;
+            obj.owner=e.owner;
             obj.x = e.x;
             obj.y = e.y;
             obj.serverX=e.x;
@@ -231,7 +230,7 @@ class ClientApp {
     }
 
     updateNetworkRendering() {
-        const renderDelay = 100;
+        const renderDelay = 200;
         const renderTime = performance.now() - renderDelay;
 
         const world = this.game.world;
@@ -322,13 +321,6 @@ class ClientApp {
     handlePointerLeftDown(worldX, worldY) {
         this.leftclicked=true;
         if(this.game.UISIZE()||this.game.buildMode)return;
-        
-         if (this.buildMode) {
-            this.sendBuildCommand(this.buildMode, worldX, worldY);
-            this.buildMode = null;
-            return;
-        }
-
         const clicked = this.getEntityAt(worldX, worldY);
 
         if (!clicked) {
@@ -419,17 +411,6 @@ class ClientApp {
             targetId: targetId ?? null
         }));
     }
-    sendBuildCommand(buildingType, x, y) {
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-
-        this.ws.send(JSON.stringify({
-            type: "build_command",
-            buildingType,
-            x: Number(x),
-            y: Number(y)
-        }));
-    }
-
     handlePan(dx, dy, scale = 1) {
         const currentMap = this.game.maps[this.game.currentmap];
 

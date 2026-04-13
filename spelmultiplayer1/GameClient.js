@@ -172,16 +172,22 @@ class GameClient {
         const objectType = this.getLastObjectType();
         return objectType.objects[objectType.objects.length - 1];
     }
-    addObject(x, y, w, h, r, flipped, kind = "dynamic", type = "generic") {
+    addObject(x, y, w, h, r, flipped, kind = "dynamic", type = "generic",noId=false) {
         if (!this.world) {
             throw new Error("World is not initialized");
         }
-
-        const obj = new Objectx(x, y, w, h, r, flipped, this.idcounter, kind, type);
-        this.idcounter++;
-
-        this.world.entities.push(obj);
-        this.world.entitiesById.set(obj.id, obj);
+        let obj=null;
+        if(noId){
+            obj = new Objectx(x, y, w, h, r, flipped, -1, kind, type);
+            
+        }
+        else{
+            obj = new Objectx(x, y, w, h, r, flipped, this.idcounter, kind, type);
+            this.idcounter++;
+            this.world.entities.push(obj);
+            this.world.entitiesById.set(obj.id, obj);
+        }
+        
 
         if (obj.kind === "solid") {
             this.world.solids.push(obj);
@@ -432,6 +438,7 @@ class Objectx {
         this.ani=1;
         this.carry=0;
         this.trainingQueue=[];
+        this.hp=10;
         
         if(this.type==="townhall"||this.type==="rtownhall"||this.type==="gtownhall"||this.type==="ytownhall"||
            this.type==="barrack"||this.type==="rbarrack"||this.type==="gbarrack"||this.type==="ybarrack"||

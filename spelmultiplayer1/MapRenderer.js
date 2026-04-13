@@ -90,7 +90,7 @@ class MapRenderer {
 
         if (sprite) {
             if (obj.flashTimer > 0 && obj.isvisable) {
-                this.drawTinted(ctx, sprite, obj.flashTimercolor || "white", w, h);
+                this.drawTinted(ctx, sprite, obj.flashTimercolor || "red", w, h);
             } else if (obj.water && obj.isvisable) {
                 const bob = Math.sin(performance.now() * 0.003) * 3;
                 ctx.drawImage(sprite, -w / 2, -h / 2 + bob, w, h);
