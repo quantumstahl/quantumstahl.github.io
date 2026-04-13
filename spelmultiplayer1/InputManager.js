@@ -173,7 +173,7 @@ class InputManager {
             this.updateCursor(t.clientX, t.clientY);
 
             const world = this.getWorldPos(t.clientX, t.clientY);
-            this.updateDrag(world.x, world.y);
+            if(!this.game.buildMode)this.updateDrag(world.x, world.y);
         }
 
         if (e.touches.length === 2 && this.lastPanCanvasX !== null && this.lastPanCanvasY !== null) {
