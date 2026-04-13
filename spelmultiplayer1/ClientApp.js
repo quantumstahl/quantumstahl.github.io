@@ -384,8 +384,8 @@ class ClientApp {
     }
 
     handleTouchCommand(worldX, worldY) {
-        this.leftclicked=true;
-        //if(this.game.UISIZE())return;
+        //this.leftclicked=true;
+        if(this.game.UISIZE()||this.game.buildMode)return;
         const selected = this.getSelectedEntities();
         if (selected.length === 0) return;
 
