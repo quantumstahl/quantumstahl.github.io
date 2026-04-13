@@ -433,7 +433,17 @@ class Objectx {
         this.carry=0;
         this.trainingQueue=[];
         
-            
+        if(this.type==="townhall"||this.type==="rtownhall"||this.type==="gtownhall"||this.type==="ytownhall"||
+           this.type==="barrack"||this.type==="rbarrack"||this.type==="gbarrack"||this.type==="ybarrack"||
+           this.type==="hus"||this.type==="rhus"||this.type==="ghus"||this.type==="yhus"||
+           this.type==="lumbercamp"||this.type==="rlumbercamp"||this.type==="glumbercamp"||this.type==="ylumbercamp"||     
+           this.type==="miningcamp"||this.type==="rminingcamp"||this.type==="gminingcamp"||this.type==="yminingcamp"||    
+           this.type==="farm"||this.type==="rfarm"||this.type==="gfarm"||this.type==="yfarm"||    
+           this.type==="mill"||this.type==="rmill"||this.type==="gmill"||this.type==="ymill"||    
+           this.type==="tower"||this.type==="rtower"||this.type==="gtower"||this.type==="ytower"){
+                this.isBuilding=true;
+       
+           }    
         
     }
 

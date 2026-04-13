@@ -12,7 +12,42 @@ class ClientGame {
                   {type: "tower",label: "Tower",icon: "tower",cost: { wood: 80, stone: 50 }}
                 
             ];
-        this.UISIZE=0;    
+        this.UISIZE=0;  
+        this.BUILDING_TYPES = {
+                hus: {
+                    width: 120,
+                    height: 120
+                },
+                townhall: {
+                    width: 300,
+                    height: 200
+                },
+                lumbercamp: {
+                    width: 150,
+                    height: 150
+                },
+
+                miningcamp: {
+                    width: 150,
+                    height: 150
+                },
+                farm: {
+                    width: 200,
+                    height: 200
+                },
+                mill: {
+                    width: 130,
+                    height: 180
+                },
+                barrack: {
+                    width: 300,
+                    height: 300
+                },
+                tower: {
+                    width: 140,
+                    height: 250
+                }
+            };
     }
     
     updateanimation(selected,myId,ctx,canvas,leftclicked) {
@@ -429,9 +464,12 @@ class ClientGame {
         }
         
          if (this.game.buildMode) {
-            this.sendCommand("build", -1, this.game.buildMode, cursorX-this.game.getCameraX(), cursorY-this.game.getCameraY(), this.game.buildSelectedIds);
+            this.sendCommand("build", -1, this.game.buildMode, cursorX-this.game.getCameraX()-this.game.bildModew/2, cursorY-this.game.getCameraY()-this.game.bildModeh/2, this.game.buildSelectedIds);
             this.game.buildMode = null;
             this.game.buildSelectedIds = [];
+            this.game.bildModew=0;
+            this.game.bildModeh=0;
+            
             return true;
         }
         
@@ -469,6 +507,9 @@ class ClientGame {
                     this.game.buildMode=btn.type;
                     this.game.buildMod=btn.type;
                     this.game.buildSelectedIds=sel;
+                    const def = this.BUILDING_TYPES[btn.type];
+                    this.game.bildModew=def.width;
+                    this.game.bildModeh=def.height;
                     return true;
                 }
             }

@@ -170,10 +170,14 @@ class ClientApp {
 
             obj.x = e.x;
             obj.y = e.y;
+            obj.serverX=e.x;
+            obj.serverY=e.y;
+            obj.renderX = e.x;//blir hackigt
+            obj.renderY = e.y;//blir hackigt
+            
             obj.direction=e.dir;
             obj.ani=e.ani;
             obj.carry=e.carry;
-            
             obj.snapshots = obj.snapshots || [];
             obj.snapshots.push({
                 time: now,
@@ -233,7 +237,7 @@ class ClientApp {
         const world = this.game.world;
         if (!world) return;
 
-        for (const obj of world.dynamic) {
+        for (const obj of world.entities) {
 
                 this.interpolateObject(obj, renderTime);
 
@@ -369,7 +373,13 @@ class ClientApp {
     this.sendSelectCommand(selectedIds);
 }
     handlePointerRightDown(worldX, worldY) {
-        if(this.game.UISIZE()||this.game.buildMode)return;
+        if(this.game.buildMode){
+            this.game.buildMode = null;
+            this.game.buildSelectedIds = [];
+            this.game.bildModew=0;
+            this.game.bildModeh=0;
+            return;
+        }
         const selected = this.getSelectedEntities();
         if (selected.length === 0) return;
 
@@ -457,9 +467,18 @@ update(scale) {
         this.leftclicked=false;
         
         if(this.game.buildMode){
-            
-            //ctx.fillStyle = "black";
-            //ctx.fillRect(0, 0, canvas.width/2, canvas.height/2);
+            if(this.canPlaceBuilding(this.game.cursorX-this.game.getCameraX()-this.game.bildModew/2, this.game.cursorY-this.game.getCameraY()-this.game.bildModeh/2,this.game.bildModew,this.game.bildModeh)===true){
+                ctx.fillStyle="green";
+                ctx.fillRect(this.game.cursorX-this.game.bildModew/2-1,this.game.cursorY-this.game.bildModeh/2-1,this.game.bildModew+2,this.game.bildModeh+2);
+                
+                
+            }
+            else{
+                ctx.fillStyle="red";
+                ctx.fillRect(this.game.cursorX-this.game.bildModew/2-1,this.game.cursorY-this.game.bildModeh/2-1,this.game.bildModew+2,this.game.bildModeh+2);
+                
+            }
+            ctx.drawImage(this.game.getObjectType(this.game.buildMode).sprites[0].getimage(),this.game.cursorX-this.game.bildModew/2,this.game.cursorY-this.game.bildModeh/2,this.game.bildModew,this.game.bildModeh );
             
         }
         
@@ -524,7 +543,42 @@ update(scale) {
             canvas.style.height = document.body.clientHeight + "px";
         }
     }
-    
+    canPlaceBuilding(x, y, w, h) {
+        const all = this.game.world.entities;
+
+        for (const o of all) {
+            if (!o) continue;
+            if (o.dead && !o.amount) continue;
+
+            const blocksPlacement =
+                o.isBuilding ||
+                o.type === "tree" ||
+                o.type === "gold" ||
+                o.type === "stone" ||
+                o.type === "river" ||
+                o.type === "berry" ||
+                o.type === "sheep" ||
+                o.type === "boar" ||
+                o.type.includes("worker") ||
+                o.type.includes("warrior");
+
+            if (!blocksPlacement) continue;
+
+            if (this.rectsOverlap(x, y, w, h, o.x, o.y, o.w, o.h)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+    rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh, pad = 0) {
+        return (
+            ax < bx + bw + pad &&
+            ax + aw > bx - pad &&
+            ay < by + bh + pad &&
+            ay + ah > by - pad
+        );
+    }
     
     
 }
