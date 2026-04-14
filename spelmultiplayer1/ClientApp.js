@@ -54,6 +54,10 @@ class ClientApp {
             this.game.maps[this.game.currentmap].camerax=data.cx+500;
             this.game.maps[this.game.currentmap].cameray=data.cy+500;
             
+            this.applyServerState(data.data);
+            
+            
+            
             console.log("My ID:", this.myId);
             return;
         }
@@ -63,8 +67,8 @@ class ClientApp {
         }
     }
     connect() {
-        //this.ws = new WebSocket("wss://game.quantumstahl.com");
-        this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
+        this.ws = new WebSocket("wss://game.quantumstahl.com");
+        //this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
         this.game.setWS(this.ws);
         this.ws.onmessage = (event) => {
             const data = JSON.parse(event.data);

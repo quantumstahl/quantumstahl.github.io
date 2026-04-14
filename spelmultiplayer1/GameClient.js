@@ -194,6 +194,7 @@ class GameClient {
             this.world.selectable.push(obj);
         } else if (obj.kind === "ghost") {
             this.world.ghosts.push(obj);
+            if(obj.type==="farm"||obj.type==="rfarm"||obj.type==="gfarm"||obj.type==="yfarm")this.world.selectable.push(obj);
         } else if (obj.kind === "dynamic") {
             this.world.dynamic.push(obj);
             this.world.selectable.push(obj);
@@ -274,7 +275,7 @@ class GameClient {
                     world.entitiesById.set(obj.id, obj);
 
                     if (obj.kind === "solid"){ world.solids.push(obj);if(obj.type!=="river")world.selectable.push(obj);}
-                    else if (obj.kind === "ghost") world.ghosts.push(obj);
+                    else if (obj.kind === "ghost"){ world.ghosts.push(obj);if(obj.type==="farm"||obj.type==="rfarm"||obj.type==="gfarm"||obj.type==="yfarm")world.selectable.push(obj);}
                     else if (obj.kind === "dynamic"){ world.dynamic.push(obj);world.selectable.push(obj);}
                 }
             }

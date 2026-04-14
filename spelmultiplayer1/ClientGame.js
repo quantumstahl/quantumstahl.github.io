@@ -159,9 +159,9 @@ class ClientGame {
     }
     getSheepAnimBase(owner) {
         if (owner === 1) return 6;
-        if (owner === 2) return 12;
-        if (owner === 4) return 18;
-        if (owner === 3) return 24;
+        if (owner === 2) return 13;
+        if (owner === 4) return 19;
+        if (owner === 3) return 25;
         return 0; // neutral
     }
     
