@@ -444,7 +444,7 @@ update(scale) {
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        this.game.draw(scale,this.getSelectedEntities(),this.myId,this.leftclicked);
+        this.game.draw(scale,this.getSelectedEntities(),this.myId,this.leftclicked,this);
         this.leftclicked=false;
         
         if(this.game.buildMode){
