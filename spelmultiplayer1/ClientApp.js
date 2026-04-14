@@ -394,7 +394,7 @@ class ClientApp {
         const clicked = this.getEntityAt(worldX, worldY);
 
         this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
-        
+        if(getEntityAt(worldX, worldY))this.deselectAll();
         for (const ent of selected) {
             ent.targetX = worldX;
             ent.targetY = worldY;
