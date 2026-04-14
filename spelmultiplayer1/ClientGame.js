@@ -557,6 +557,7 @@ class ClientGame {
             this.game.buildSelectedIds = [];
             this.game.bildModew=0;
             this.game.bildModeh=0;
+            app.deselectAll();
             
             
             return true;
