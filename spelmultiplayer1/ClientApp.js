@@ -67,8 +67,8 @@ class ClientApp {
         }
     }
     connect() {
-        //this.ws = new WebSocket("wss://game.quantumstahl.com");
-        this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
+        this.ws = new WebSocket("wss://game.quantumstahl.com");
+        //this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
         this.game.setWS(this.ws);
         this.ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
@@ -551,8 +551,8 @@ update(scale) {
                 o.type === "berry" ||
                 o.type === "sheep" ||
                 o.type === "boar" ||
-                o.type.includes("worker") ||
-                o.type.includes("warrior");
+                (o.type.includes("worker")&&o.hp>0) ||
+                (o.type.includes("warrior")&&o.hp>0);
 
             if (!blocksPlacement) continue;
 
