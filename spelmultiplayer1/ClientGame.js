@@ -51,7 +51,7 @@ class ClientGame {
             };
     }
     
-    updateanimation(selected,myId,ctx,canvas,leftclicked) {
+    updateanimation(selected,myId,ctx,canvas,leftclicked,app) {
          for(const townhall of this.getAllObjectsOfBaseTypeAllTeams("townhall")){
             this.drawTownhallTrainingQueue(ctx, townhall, this.game.maps[this.game.currentmap]);
         }
@@ -64,7 +64,7 @@ class ClientGame {
         this.updatewarrior();
         this.updateboar();
         this.updatesheep();
-        this.UI(selected,myId,ctx,canvas,leftclicked);
+        this.UI(selected,myId,ctx,canvas,leftclicked,app);
         this.drawResourcesUI(ctx, this.game.playerResources);
     }
     updateworkers(){
@@ -194,7 +194,7 @@ class ClientGame {
         if (owner === 4) return "g";
         return "";
     }
-    UI(selected, myOwner, ctx, canvas,leftclicked) {
+    UI(selected, myOwner, ctx, canvas,leftclicked,app) {
         const prefix = this.getPrefixForOwner(myOwner);
         this.UISIZE=0;
         if (selected.length === 1) {
@@ -202,7 +202,7 @@ class ClientGame {
 
             if (type === prefix + "townhall") {
                 this.drawTownhallUI(ctx, canvas, selected[0],myOwner);
-                if(leftclicked)this.handleGameUILeftClick(1,selected[0]);
+                if(leftclicked)this.handleGameUILeftClick(1,selected[0],app);
                 
                 
                 return;
@@ -210,7 +210,7 @@ class ClientGame {
 
             if (type === prefix + "barrack") {
                 this.drawBarrackUI(ctx, canvas, selected[0],myOwner);
-                if(leftclicked)this.handleGameUILeftClick(2,selected[0]);
+                if(leftclicked)this.handleGameUILeftClick(2,selected[0],app);
                 return;
             }
 
@@ -223,14 +223,14 @@ class ClientGame {
                 type === prefix + "tower"
             ) {
                 this.drawBuildingUI(ctx, canvas,selected[0],myOwner);
-                if(leftclicked)this.handleGameUILeftClick(3,selected[0]);
+                if(leftclicked)this.handleGameUILeftClick(3,selected[0],app);
                 return;
             }
         }
 
         if (selected.some(o => o.type === prefix + "worker")) {
             this.drawWorkerBuildUI(ctx, canvas,selected,myOwner);
-            if(leftclicked)this.handleGameUILeftClick(4,selected);
+            if(leftclicked)this.handleGameUILeftClick(4,selected,app);
             return;
         }
     }
@@ -542,7 +542,7 @@ class ClientGame {
         if (cost.stone) parts.push(cost.stone + " Stone");
         return parts.join(" ");
     }
-    handleGameUILeftClick(value, selected) {
+    handleGameUILeftClick(value, selected,app) {
         const cursorX = this.game.cursorX;
         const cursorY = this.game.cursorY;
 
@@ -557,6 +557,7 @@ class ClientGame {
             this.game.buildSelectedIds = [];
             this.game.bildModew=0;
             this.game.bildModeh=0;
+            
             
             return true;
         }
