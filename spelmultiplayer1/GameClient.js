@@ -27,9 +27,9 @@ class GameClient {
         this.renderer = new MapRenderer(this.ctx);
     }
 
-    draw(scale,selected,myId,leftclicked) {
+    draw(scale,selected,myId,leftclicked,app) {
         this.renderer.drawMap(this,scale);
-        this.clientgame.updateanimation(selected,myId,this.ctx,this.canvas,leftclicked);
+        this.clientgame.updateanimation(selected,myId,this.ctx,this.canvas,leftclicked,app);
     }
     UISIZE(){
         return this.cursorY>this.canvas.height-this.clientgame.UISIZE;
