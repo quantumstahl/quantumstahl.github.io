@@ -468,7 +468,7 @@ update(scale) {
         ctx.save();
         ctx.scale(this.game.getZoom(), this.game.getZoom());
         ctx.translate(this.game.getCameraX(), this.game.getCameraY());
-
+        ctx.strokeStyle = "lime";
     
 
         if (this.dragSelectStart && this.dragSelectEnd) {
