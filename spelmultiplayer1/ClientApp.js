@@ -67,8 +67,8 @@ class ClientApp {
         }
     }
     connect() {
-        this.ws = new WebSocket("wss://game.quantumstahl.com");
-        //this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
+        //this.ws = new WebSocket("wss://game.quantumstahl.com");
+        this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
         this.game.setWS(this.ws);
         this.ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
@@ -159,6 +159,7 @@ class ClientApp {
             obj.type = e.type || obj.type;
             obj.flipped = e.flipped || false;
             obj.hp = e.hp ?? obj.hp;
+            
         }
     }
     applyServerUpdates(updates) {

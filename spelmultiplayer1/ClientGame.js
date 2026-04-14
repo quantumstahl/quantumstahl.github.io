@@ -687,11 +687,11 @@ class ClientGame {
             }
         }
 
-        if (townhall.trainingQueue.length > maxVisible) {
+        if (townhall.trainingQueue > maxVisible) {
             ctx.fillStyle = "white";
             ctx.font = "14px Cinzel";
             ctx.fillText(
-                "+" + (townhall.trainingQueue.length - maxVisible),
+                "+" + (townhall.trainingQueue - maxVisible),
                 startX + maxVisible * (iconSize + gap),
                 y + 16
             );
@@ -745,11 +745,11 @@ class ClientGame {
             }
         }
 
-        if (barrack.trainingQueue.length > maxVisible) {
+        if (barrack.trainingQueue > maxVisible) {
             ctx.fillStyle = "white";
             ctx.font = "14px Cinzel";
             ctx.fillText(
-                "+" + (barrack.trainingQueue.length - maxVisible),
+                "+" + (barrack.trainingQueue - maxVisible),
                 startX + maxVisible * (iconSize + gap),
                 y + 16
             );
