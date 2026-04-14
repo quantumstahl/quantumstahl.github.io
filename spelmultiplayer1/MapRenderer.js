@@ -89,16 +89,7 @@ class MapRenderer {
         if (obj.flipped) ctx.scale(-1, 1);
 
         if (sprite) {
-            if (obj.flashTimer > 0 && obj.isvisable) {
-                this.drawTinted(ctx, sprite, obj.flashTimercolor || "red", w, h);
-            } else if (obj.water && obj.isvisable) {
-                const bob = Math.sin(performance.now() * 0.003) * 3;
-                ctx.drawImage(sprite, -w / 2, -h / 2 + bob, w, h);
-            } else if (obj.isvisable) {
-                ctx.drawImage(sprite, -w / 2, -h / 2, w, h);
-            }
-
-            if (obj.drawunfinished && !obj.isvisable) {
+            if (obj.buildProgress&&obj.buildProgress<1) {
                 ctx.fillStyle = "rgba(0,0,0,0.15)";
                 ctx.fillRect(-w / 2, -h / 2, w, h);
 
@@ -108,6 +99,15 @@ class MapRenderer {
 
                 this.drawBuildingProgress(ctx, sprite, -w / 2, -h / 2, w, h, obj.buildProgress);
                 
+            }
+            else if (obj.flashTimer > 0 && obj.isvisable) {
+                this.drawTinted(ctx, sprite, obj.flashTimercolor || "red", w, h);
+            } else if (obj.water && obj.isvisable) {
+                const bob = Math.sin(performance.now() * 0.003) * 3;
+                ctx.drawImage(sprite, -w / 2, -h / 2 + bob, w, h);
+            }
+            else if (obj.isvisable) {
+                ctx.drawImage(sprite, -w / 2, -h / 2, w, h);
             }
         } else {
             ctx.fillStyle = "green";

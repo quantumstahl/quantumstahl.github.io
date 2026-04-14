@@ -449,7 +449,7 @@ class ClientGame {
         // titel
         ctx.fillStyle = "white";
         ctx.font = "20px Cinzel";
-        if(b.name===this.getPrefixForOwner(myOwner)+"hus")ctx.fillText("house", 20, panelY + 28);
+        if(b.type===this.getPrefixForOwner(myOwner)+"hus")ctx.fillText("house", 20, panelY + 28);
         else ctx.fillText(b.type, 20, panelY + 28);
 
         // Delete-knapp i högra hörnet
@@ -509,7 +509,7 @@ class ClientGame {
             ctx.strokeStyle = canBuy ? "green" : "red";
             ctx.strokeRect(bx, by, bw, bh);
 
-            const img = this.game.getObjectType(opt.icon)?.sprites?.[0]?.getimage();
+            const img = this.game.getObjectType(this.getPrefixForOwner(myOwner)+opt.icon)?.sprites?.[0]?.getimage();
             if (img) ctx.drawImage(img, bx + 6, by + 6, 28, 28);
 
             ctx.fillStyle = "white";
@@ -520,7 +520,7 @@ class ClientGame {
             ctx.fillText(this.getCostText(opt.cost), bx + 40, by + 38);
 
             selectedWorker.buildButtons.push({
-                type: opt.type,
+                type: this.getPrefixForOwner(myOwner)+opt.type,
                 x: bx,
                 y: by,
                 w: bw,
@@ -597,7 +597,9 @@ class ClientGame {
                     this.game.buildMode=btn.type;
                     this.game.buildMod=btn.type;
                     this.game.buildSelectedIds=sel;
-                    const def = this.BUILDING_TYPES[btn.type];
+                    var def = this.BUILDING_TYPES[(btn.type)];
+                    if(!def)def=this.BUILDING_TYPES[(btn.type).substring(1)];
+                    
                     this.game.bildModew=def.width;
                     this.game.bildModeh=def.height;
                     return true;

@@ -63,8 +63,8 @@ class ClientApp {
         }
     }
     connect() {
-        this.ws = new WebSocket("wss://game.quantumstahl.com");
-        //this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
+        //this.ws = new WebSocket("wss://game.quantumstahl.com");
+        this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
         this.game.setWS(this.ws);
         this.ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
@@ -131,6 +131,9 @@ class ClientApp {
 
                 world.entitiesById.delete(oldId);
                 world.entitiesById.set(obj.id, obj);
+                
+                if(obj.isBuilding){obj.buildProgress=0.0001;}
+                
             }
 
             obj.x = e.x;
@@ -162,6 +165,7 @@ class ClientApp {
             const obj = world.entitiesById.get(e.id);
             if (!obj) continue;
             
+            if(e.buildProgress>=0.0001)obj.buildProgress=e.buildProgress;
             obj.flashTimer=e.flashTimer;
             obj.trainingTimer=e.trainingTimer;
             obj.trainingTimeMax=e.trainingTimeMax;
