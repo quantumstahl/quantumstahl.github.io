@@ -256,7 +256,9 @@ class ClientApp {
         }
     }
     getAllEntities() {
-        return this.game.world.selectable;
+        
+        
+        return this.game.world.selectable.filter(e => e.selectable === true);
     }
 
     getMyEntities() {

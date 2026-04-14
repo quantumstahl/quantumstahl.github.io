@@ -78,7 +78,7 @@ class ClientGame {
                 if(w.direction=="right"){w.animation=5;if(w.ani===1)w.animation=4;if(w.ani===2)w.animation=8;if(w.ani===3)w.animation=11;}
                 if(w.direction=="left"){w.animation=5;if(w.ani===1)w.animation=4;w.flipped=true;if(w.ani===2)w.animation=8;if(w.ani===3)w.animation=11;}
             }
-            else w.animation=12;
+            else{ w.animation=12;w.selectable=false;}
             if(w.ani===3){
                 if(w.carry===0&&!w.holdingicon){w.holdingicon=this.game.addObject(w.renderX,w.renderY-20,30,30,0,false, "ghost","foodicon",true); }
                 if(w.carry===1&&!w.holdingicon){w.holdingicon=this.game.addObject(w.renderX,w.renderY-20,30,30,0,false,"ghost","woodicon",true); }   
@@ -112,7 +112,7 @@ class ClientGame {
                 if (w.direction=="left") { w.animation=8; w.fliped=true; }
             }
         }
-        else w.animation = 9;
+        else{ w.animation = 9;w.selectable=false;}
         }
     }
     updateboar(){
