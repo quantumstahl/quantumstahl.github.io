@@ -67,8 +67,8 @@ class ClientApp {
         }
     }
     connect() {
-        this.ws = new WebSocket("wss://game.quantumstahl.com");
-        //this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
+        //this.ws = new WebSocket("wss://game.quantumstahl.com");
+        this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
         this.game.setWS(this.ws);
         this.ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
@@ -239,7 +239,7 @@ class ClientApp {
     }
 
     updateNetworkRendering() {
-        const renderDelay = 200;
+        const renderDelay = 300;
         const renderTime = performance.now() - renderDelay;
 
         const world = this.game.world;

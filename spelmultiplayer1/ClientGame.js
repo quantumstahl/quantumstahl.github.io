@@ -66,6 +66,7 @@ class ClientGame {
         this.updatesheep();
         this.UI(selected,myId,ctx,canvas,leftclicked,app);
         this.drawResourcesUI(ctx, this.game.playerResources);
+        this.drawHealthBars();
     }
     updateworkers(){
         const worker = this.getAllWorkersAllTeams();
@@ -753,6 +754,50 @@ class ClientGame {
                 startX + maxVisible * (iconSize + gap),
                 y + 16
             );
+        }
+    }
+    drawHealthBars() {
+        if(!this.game.maps[this.game.currentmap])return;
+
+        const map = this.game.maps[this.game.currentmap];
+        const zoom = 1 + (map.zoom / 100); // samma zoom som du använder för input
+        const camX = map.camerax;
+        const camY = map.cameray;
+
+        const objs = this.game.world.selectable.filter(o => o.type!=="tree"&& o.type!=="stone"&& o.type!=="gold"&& o.type!=="berry"&& o.type!=="sheep");
+        for (const o of objs) {
+            if(!o.isvisable||o.dead)continue;
+            
+            
+            if(o.hp>0&&!o.maxHp)o.maxHp=o.hp;
+
+            const hpPct = Math.max(0, Math.min(1, o.hp / o.maxHp));
+
+            // Värld → skärm
+            const sx = ((o.renderX ?? o.x) + camX) * zoom;
+            const sy = ((o.renderY ?? o.y) + camY) * zoom;
+
+            const barW = Math.max(20, o.w * zoom);  // skala med zoom, ha en min.bredd
+            const barH = Math.max(3, 5 * (zoom >= 1 ? zoom : 1)); // öka svagt med zoom
+            const offsetY = -10 * zoom; // ovanför objektet
+
+            // Bakgrund
+            ctx.fillStyle = "rgba(0,0,0,0.5)";
+            ctx.fillRect(sx, sy + offsetY, barW, barH);
+
+            // Röd full bar
+            ctx.fillStyle = "red";
+            ctx.fillRect(sx, sy + offsetY, barW, barH);
+
+            // Grön nuvarande HP
+            ctx.fillStyle = "lime";
+            ctx.fillRect(sx, sy + offsetY, barW * hpPct, barH);
+
+            // Kant
+            ctx.strokeStyle = "black";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(sx, sy + offsetY, barW, barH);
+            
         }
     }
     

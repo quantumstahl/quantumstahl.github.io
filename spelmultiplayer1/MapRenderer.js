@@ -178,52 +178,77 @@ class MapRenderer {
             dstX, dstY, dstW, dstH
         );
     }
-    drawSelectRing(ctx, o,zoom, camX, camY){
+    drawSelectRing(ctx, o, zoom, camX, camY) {
+        const type = o.type || "";
 
-        if(o.type=="farm"||o.type=="rfarm"||o.type=="gfarm"||o.type=="yfarm")return;
+        if (type === "farm" || type === "rfarm" || type === "gfarm" || type === "yfarm") return;
 
-        // Alltid-på, subtil "ground contact" för byggnader (så de inte ser svävande ut)
-        if (o.kind==="dynamic") {
-            let cx=o.x+o.dimx/2, cy=o.y+o.dimy*0.75;
-            if(o.type=="barrack"||o.type=="rbarrack"||o.type=="ybarrack"||o.type=="gbarrack"||o.type=="tower"||o.type=="rtower"||o.type=="ytower"||o.type=="gtower"||o.type=="townhall")cy=o.y+o.dimy*0.50;
-            ctx.save(); ctx.globalAlpha=0.6;
-            ctx.scale(1 + zoom / 100, 1 + zoom / 100);
-            ctx.beginPath(); 
-            if (o.type === "townhall" || o.type === "rtownhall" || o.type === "gtownhall" || o.type === "ytownhall")ctx.ellipse(cx+camX-60, cy+camY-30, o.dimx*0.25, o.dimy*0.25, -0.4, 0, Math.PI*2);
-            else ctx.ellipse(cx+camX-20, cy+camY-30, o.dimx*0.35, o.dimy*0.45, -0.4, 0, Math.PI*2);
-            ctx.fillStyle="rgba(0,0,0,.44)"; ctx.fill(); 
+        const scale = 1 + zoom / 100;
+
+        if (o.isBuilding || type === "gold" || type === "berry" || type === "stone") {
+            let cx = o.x + o.w / 2;
+            let cy = o.y + o.h * 0.75;
+
+            if (
+                type === "barrack" || type === "rbarrack" || type === "ybarrack" || type === "gbarrack" ||
+                type === "tower" || type === "rtower" || type === "ytower" || type === "gtower" ||
+                type === "townhall" || type === "rtownhall" || type === "ytownhall" || type === "gtownhall"
+            ) {
+                cy = o.y + o.h * 0.50;
+            }
+
+            ctx.save();
+            ctx.globalAlpha = 0.6;
+            ctx.scale(scale, scale);
+
+            ctx.beginPath();
+            if (type === "townhall" || type === "rtownhall" || type === "gtownhall" || type === "ytownhall") {
+                ctx.ellipse(cx + camX - 60, cy + camY - 30, o.w * 0.25, o.h * 0.25, -0.4, 0, Math.PI * 2);
+            } else {
+                ctx.ellipse(cx + camX - 20, cy + camY - 30, o.w * 0.35, o.h * 0.45, -0.4, 0, Math.PI * 2);
+            }
+            ctx.fillStyle = "rgba(0,0,0,.44)";
+            ctx.fill();
             ctx.restore();
-        }  
-        else if(o.selectable&&!o.dead){  
-            const cx=o.x+o.dimx/2, cy=o.y+o.dimy*0.95;
-            ctx.save(); ctx.globalAlpha=0.6;
+        }
+        else if (o.hp > 0 && (o.kind === "dynamic" || type === "tree")) {
+            const rx = o.renderX ?? o.x;
+            const ry = o.renderY ?? o.y;
+            const cx = rx + o.w / 2;
+            const cy = ry + o.h * 0.95;
 
-            ctx.scale(1 + zoom / 100, 1 + zoom / 100);
-            ctx.beginPath(); 
+            ctx.save();
+            ctx.globalAlpha = 0.6;
+            ctx.scale(scale, scale);
 
-            if(o.type=="tree")ctx.ellipse(cx+camX-10, cy+camY-o.dimy/2, o.dimx*0.25, o.dimy*0.50, -0.2, 0, Math.PI*2);
-            else ctx.ellipse(cx+camX, cy+camY, o.dimx*0.45, o.dimy*0.15, 0, 0, Math.PI*2);
-            ctx.fillStyle="rgba(0,0,0,.44)"; ctx.fill(); 
+            ctx.beginPath();
+            if (type === "tree") {
+                ctx.ellipse(cx + camX - 10, cy + camY - o.h / 2, o.w * 0.25, o.h * 0.50, -0.2, 0, Math.PI * 2);
+            } else {
+                ctx.ellipse(cx + camX, cy + camY, o.w * 0.45, o.h * 0.15, 0, 0, Math.PI * 2);
+            }
+            ctx.fillStyle = "rgba(0,0,0,.44)";
+            ctx.fill();
 
-            // TEAM RING
-            if ((o.type || "").endsWith("worker") || (o.type || "").endsWith("warrior")){ 
+            if (type.endsWith("worker") || type.endsWith("warrior")) {
                 ctx.globalAlpha = 1;
 
                 ctx.beginPath();
-                ctx.ellipse(cx+camX, cy+camY, o.dimx*0.65, o.dimy*0.30, 0, 0, Math.PI*2);
+                ctx.ellipse(cx + camX, cy + camY, o.w * 0.65, o.h * 0.30, 0, 0, Math.PI * 2);
                 ctx.strokeStyle = "black";
                 ctx.lineWidth = 3;
                 ctx.stroke();
 
                 ctx.beginPath();
-                ctx.ellipse(cx+camX, cy+camY, o.dimx*0.55, o.dimy*0.25, 0, 0, Math.PI*2);
+                ctx.ellipse(cx + camX, cy + camY, o.w * 0.55, o.h * 0.25, 0, 0, Math.PI * 2);
                 ctx.strokeStyle = "blue";
-                if(o.name.startsWith("r"))ctx.strokeStyle = "red";if(o.name.startsWith("y"))ctx.strokeStyle = "yellow";if(o.name.startsWith("g"))ctx.strokeStyle = "lime";
-
+                if (type.startsWith("r")) ctx.strokeStyle = "red";
+                if (type.startsWith("y")) ctx.strokeStyle = "yellow";
+                if (type.startsWith("g")) ctx.strokeStyle = "lime";
                 ctx.lineWidth = 3;
                 ctx.stroke();
-                ctx.globalAlpha = 1;
             }
+
             ctx.restore();
         }
     }
