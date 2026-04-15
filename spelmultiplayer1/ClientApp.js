@@ -239,7 +239,7 @@ class ClientApp {
     }
 
     updateNetworkRendering() {
-        const renderDelay = 300;
+        const renderDelay = 200;
         const renderTime = performance.now() - renderDelay;
 
         const world = this.game.world;
