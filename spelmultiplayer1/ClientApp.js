@@ -180,8 +180,8 @@ class ClientApp {
             obj.y = e.y;
             obj.serverX=e.x;
             obj.serverY=e.y;
-            obj.renderX = e.x;//blir hackigt
-            obj.renderY = e.y;//blir hackigt
+            //obj.renderX = e.x;//blir hackigt
+            //obj.renderY = e.y;//blir hackigt
             
             obj.direction=e.dir;
             obj.ani=e.ani;
