@@ -769,7 +769,7 @@ class ClientGame {
             if(!o.isvisable||o.dead)continue;
             
             
-            if(o.hp>0&&!o.maxHp)o.maxHp=o.hp;
+            if(o.maxHp==null)o.maxHp=o.hp;
 
             const hpPct = Math.max(0, Math.min(1, o.hp / o.maxHp));
 

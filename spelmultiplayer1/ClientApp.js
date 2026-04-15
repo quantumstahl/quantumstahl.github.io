@@ -53,27 +53,142 @@ class ClientApp {
             this.myId = data.id;
             this.game.maps[this.game.currentmap].camerax=data.cx+500;
             this.game.maps[this.game.currentmap].cameray=data.cy+500;
-            
             this.applyServerState(data.data);
-            
-            
-            
             console.log("My ID:", this.myId);
             return;
         }
 
         if (data.type === "state") {
-            this.applyServerState(data);
+            this.applyServerState2(data);
         }
     }
-    connect() {
-        this.ws = new WebSocket("wss://game.quantumstahl.com");
-        //this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
-        this.game.setWS(this.ws);
-        this.ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            this.handleServerMessage(data);
+    handleBinaryXY(buffer) {
+        const arr = new Int16Array(buffer);
+        const now = performance.now();
+
+        for (let i = 0; i < arr.length; i += 3) {
+            const id = arr[i + 0];
+            const x = arr[i + 1];
+            const y = arr[i + 2];
+
+            const obj = this.game.world.entitiesById.get(id);
+            if (!obj) continue;
+
+            obj.serverX = x;
+            obj.serverY = y;
+
+            obj.snapshots ||= [];
+            obj.snapshots.push({
+                time: now,
+                x,
+                y
+            });
+
+            if (obj.snapshots.length > 10) {
+                obj.snapshots.shift();
+            }
+
+            if (obj.renderX == null) obj.renderX = x;
+            if (obj.renderY == null) obj.renderY = y;
+        }
+    }
+    handleBinaryState(buffer) {
+        const view = new DataView(buffer);
+
+        for (let off = 1; off < view.byteLength; off += 17) {
+            const id = view.getUint16(off + 0, true);
+            const hp = view.getUint16(off + 2, true);
+            const maxHp = view.getUint16(off + 4, true);
+            const r = view.getInt16(off + 6, true);
+            const dir=view.getUint8(off + 8, true);
+            const ani=view.getUint8(off + 9, true);
+            const carry=view.getUint8(off + 10, true);
+            const owner=view.getUint8(off + 11, true);
+            const trainingQueue=view.getUint8(off + 12, true);
+            const trainingTimer=view.getUint8(off + 13, true);
+            const trainingTimeMax=view.getUint8(off + 14, true);
+            const flashTimer=view.getUint8(off + 15, true);
+            const buildProgress=(view.getUint8(off + 16, true))/100;
+
+            const obj = this.game.world.entitiesById.get(id);
+            if (!obj) continue;
+
+            obj.hp = hp;
+            obj.maxHp = maxHp;
+            obj.r = r;
+            if(dir===0)obj.direction="up";
+            if(dir===1)obj.direction="right";
+            if(dir===2)obj.direction="down";
+            if(dir===3)obj.direction="left";
+            obj.ani=ani;
+            obj.carry=carry;
+            obj.owner=owner;
+            obj.trainingQueue=trainingQueue;
+            obj.trainingTimer=trainingTimer;
+            obj.trainingTimeMax=trainingTimeMax;
+            obj.flashTimer=flashTimer;
+            obj.buildProgress=buildProgress;
+        }
+    }
+    handleBinaryRemove(buffer) {
+        const view = new DataView(buffer);
+
+        for (let off = 1; off < view.byteLength; off += 2) {
+            const id = view.getUint16(off, true);
+            this.game.removeObject(id);
+
+        }
+    }
+    handleBinaryResources(buffer){
+        const view = new DataView(buffer);
+        for (let off = 1; off < view.byteLength; off += 10) {
+            const gold = view.getUint16(off+0, true);
+            const wood = view.getUint16(off+2, true);
+            const stone = view.getUint16(off+4, true);
+            const food = view.getUint16(off+6, true);
+            const pop = view.getUint8(off+8, true);
+            const popMax = view.getUint8(off+9, true);
             
+            this.game.playerResources.gold=gold;
+            this.game.playerResources.wood=wood;
+            this.game.playerResources.stone=stone;
+            this.game.playerResources.food=food;
+            this.game.playerResources.pop=pop;
+            this.game.playerResources.popMax=popMax;
+            
+            
+        }
+        
+        
+    }
+    
+    
+    connect() {
+       // this.ws = new WebSocket("wss://game.quantumstahl.com");
+        this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
+        this.game.setWS(this.ws);
+        this.ws.binaryType = "arraybuffer";
+
+        this.ws.onmessage = (event) => {
+            if (typeof event.data === "string") {
+                const data = JSON.parse(event.data);
+                this.handleServerMessage(data);
+                return;
+            }
+
+            if (event.data instanceof ArrayBuffer) {
+                 const view = new DataView(event.data);
+                 const type = view.getUint8(0);
+                 if(type===0) this.handleBinaryState(event.data);
+                 else if(type===1)this.handleBinaryRemove(event.data);
+                 else if(type===2)this.handleBinaryResources(event.data);
+                 else this.handleBinaryXY(event.data);
+
+                
+                return;
+            }
+
+            console.log("Unknown websocket message:", event.data);
         };
     }
     sendSelectCommand(entityIds) {
@@ -107,10 +222,9 @@ class ClientApp {
         this.applyServerUpdates(data.update || []);
         this.applyServerRemoves(data.remove || []);
         
-        if (data.playerResources) {
-            this.game.playerResources = data.playerResources;
-        }
-        
+    }
+    applyServerState2(data){
+        this.applyServerSpawns(data.spawn || []);
     }
     applyServerSpawns(spawns) {
         const world = this.game.world;
@@ -169,36 +283,17 @@ class ClientApp {
         for (const e of updates) {
             const obj = world.entitiesById.get(e.id);
             if (!obj) continue;
-            
             if(e.buildProgress>=0.0001)obj.buildProgress=e.buildProgress;
             obj.flashTimer=e.flashTimer;
             obj.trainingTimer=e.trainingTimer;
             obj.trainingTimeMax=e.trainingTimeMax;
             obj.trainingQueue=e.trainingQueue;
             obj.owner=e.owner;
-            obj.x = e.x;
-            obj.y = e.y;
-            obj.serverX=e.x;
-            obj.serverY=e.y;
-            //obj.renderX = e.x;//blir hackigt
-            //obj.renderY = e.y;//blir hackigt
-            
             obj.direction=e.dir;
             obj.ani=e.ani;
             obj.carry=e.carry;
-            obj.snapshots = obj.snapshots || [];
-            obj.snapshots.push({
-                time: now,
-                x: e.x,
-                y: e.y
-            });
-
-            if (obj.snapshots.length > 20) {
-                obj.snapshots.shift();
-            }
-
-            if (e.r !== undefined) obj.r = e.r;
-            if (e.hp !== undefined) obj.hp = e.hp;
+            obj.r = e.r;
+            obj.hp = e.hp;
         }
     }
 
@@ -239,7 +334,7 @@ class ClientApp {
     }
 
     updateNetworkRendering() {
-        const renderDelay = 200;
+        const renderDelay = 100;
         const renderTime = performance.now() - renderDelay;
 
         const world = this.game.world;
