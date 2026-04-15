@@ -57,10 +57,8 @@ class ClientApp {
             console.log("My ID:", this.myId);
             return;
         }
-
-        if (data.type === "state") {
-            this.applyServerState2(data);
-        }
+        //this.applyServerState2(data);
+        
     }
     handleBinaryXY(buffer) {
         const arr = new Int16Array(buffer);
@@ -74,8 +72,8 @@ class ClientApp {
             const obj = this.game.world.entitiesById.get(id);
             if (!obj) continue;
 
-            obj.serverX = x;
-            obj.serverY = y;
+            obj.x = x;
+            obj.y = y;
 
             obj.snapshots ||= [];
             obj.snapshots.push({
@@ -164,8 +162,8 @@ class ClientApp {
     
     
     connect() {
-        this.ws = new WebSocket("wss://game.quantumstahl.com");
-       // this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
+        //this.ws = new WebSocket("wss://game.quantumstahl.com");
+        this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
         this.game.setWS(this.ws);
         this.ws.binaryType = "arraybuffer";
 
@@ -283,7 +281,12 @@ class ClientApp {
         for (const e of updates) {
             const obj = world.entitiesById.get(e.id);
             if (!obj) continue;
+            
+            
+            
             if(e.buildProgress>=0.0001)obj.buildProgress=e.buildProgress;
+            obj.x=e.x;
+            obj.y=e.y;
             obj.flashTimer=e.flashTimer;
             obj.trainingTimer=e.trainingTimer;
             obj.trainingTimeMax=e.trainingTimeMax;
