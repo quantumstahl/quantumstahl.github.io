@@ -57,7 +57,7 @@ class ClientApp {
             console.log("My ID:", this.myId);
             return;
         }
-        //this.applyServerState2(data);
+        else this.applyServerState2(data);
         
     }
     handleBinaryXY(buffer) {
@@ -162,8 +162,8 @@ class ClientApp {
     
     
     connect() {
-        //this.ws = new WebSocket("wss://game.quantumstahl.com");
-        this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
+        this.ws = new WebSocket("wss://game.quantumstahl.com");
+        //this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
         this.game.setWS(this.ws);
         this.ws.binaryType = "arraybuffer";
 
