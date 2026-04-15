@@ -122,8 +122,8 @@ class ClientApp {
             obj.carry=carry;
             obj.owner=owner;
             obj.trainingQueue=trainingQueue;
-            obj.trainingTimer=trainingTimer;
-            obj.trainingTimeMax=trainingTimeMax;
+            obj.trainingTimer=trainingTimer*4;
+            obj.trainingTimeMax=trainingTimeMax*4;
             obj.flashTimer=flashTimer;
             obj.buildProgress=buildProgress;
         }
