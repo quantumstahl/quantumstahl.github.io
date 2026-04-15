@@ -446,7 +446,7 @@ update(scale) {
     
     
     
-    this.updateNetworkRendering();
+   
 }
 
     draw(scale) {
@@ -456,6 +456,7 @@ update(scale) {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         this.game.draw(scale,this.getSelectedEntities(),this.myId,this.leftclicked,this);
+        this.updateNetworkRendering();
         this.leftclicked=false;
         
         if(this.game.buildMode){
