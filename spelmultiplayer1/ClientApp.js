@@ -401,15 +401,34 @@ class ClientApp {
 
     getEntityAt(worldX, worldY) {
         const entities = this.getAllEntities();
+        const isMobile = mobileAndTabletCheck();
+        const pickRadius = isMobile ? 28 : 0;
+
+        let best = null;
+        let bestDist = Infinity;
 
         for (let i = entities.length - 1; i >= 0; i--) {
             const ent = entities[i];
-            if (this.containsPoint(ent,worldX, worldY)) {
+
+            if (this.containsPoint(ent, worldX, worldY)) {
                 return ent;
+            }
+
+            if (isMobile) {
+                const cx = ent.x + ent.w / 2;
+                const cy = ent.y + ent.h / 2;
+                const dx = worldX - cx;
+                const dy = worldY - cy;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist < pickRadius && dist < bestDist) {
+                    best = ent;
+                    bestDist = dist;
+                }
             }
         }
 
-        return null;
+        return best;
     }
     containsPoint(ent, worldX, worldY) {
         const isMobile = mobileAndTabletCheck();
