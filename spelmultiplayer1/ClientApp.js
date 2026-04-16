@@ -25,7 +25,15 @@ function mobileAndTabletCheck() {
 
 class ClientApp {
     constructor() {
-        
+        if (!this.debugInfo) {
+            this.debugInfo = {
+                lastFrame: performance.now(),
+                lastPacket: 0,
+                dt: 0,
+                packetDt: 0
+            };
+        }
+
         this.ws = null;
         this.game = new GameClient(); 
         this.myId = null;
@@ -169,7 +177,12 @@ class ClientApp {
         this.ws.binaryType = "arraybuffer";
 
         this.ws.onmessage = (event) => {
-            
+            // i ws.onmessage
+const now2 = performance.now();
+if (this.debugInfo.lastPacket) {
+    this.debugInfo.packetDt = now2 - this.debugInfo.lastPacket;
+}
+this.debugInfo.lastPacket = now2;
             if (typeof event.data === "string") {
                 const data = JSON.parse(event.data);
                 this.handleServerMessage(data);
@@ -593,7 +606,11 @@ update(scale) {
         }
 
         ctx.restore();
-        
+        // i draw
+ctx.fillStyle = "white";
+ctx.font = "14px monospace";
+ctx.fillText(`dt: ${this.debugInfo.dt.toFixed(2)}`, 10, 20);
+ctx.fillText(`packet: ${this.debugInfo.packetDt.toFixed(2)}`, 10, 40);
     }
 
     gameLoop(time) {
@@ -605,7 +622,10 @@ update(scale) {
         if (deltaMs > 50) deltaMs = 50;
 
         const scale = deltaMs / (1000 / 60);
-        
+        // varje frame
+const now = performance.now();
+this.debugInfo.dt = now - this.debugInfo.lastFrame;
+this.debugInfo.lastFrame = now;
         
         this.update(scale);
         this.draw(scale);
