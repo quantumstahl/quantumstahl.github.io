@@ -593,7 +593,7 @@ update(scale) {
         }
 
         ctx.restore();
-        this.debugPanel.draw(ctx, this.game);
+        //this.debugPanel.draw(ctx, this.game);
     }
 
     gameLoop(time) {
