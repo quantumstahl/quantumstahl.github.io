@@ -402,7 +402,7 @@ class ClientApp {
     getEntityAt(worldX, worldY) {
         const entities = this.getAllEntities();
         const isMobile = mobileAndTabletCheck();
-        const pickRadius = isMobile ? 28 : 0;
+        const pickRadius = isMobile ? 50 : 0;
 
         let best = null;
         let bestDist = Infinity;
@@ -431,13 +431,10 @@ class ClientApp {
         return best;
     }
     containsPoint(ent, worldX, worldY) {
-        const isMobile = mobileAndTabletCheck();
-        const pad = isMobile ? 50 : 0; // testa 15–30
-
-        const x = ent.x - pad;
-        const y = ent.y - pad;
-        const w = ent.w + pad * 2;
-        const h = ent.h + pad * 2;
+        const x = ent.x ;
+        const y = ent.y ;
+        const w = ent.w ;
+        const h = ent.h ;
         const r = (ent.r ?? 0) * Math.PI / 180;
 
         if (!r) {
@@ -449,8 +446,8 @@ class ClientApp {
             );
         }
 
-        const cx = ent.x + ent.w / 2;
-        const cy = ent.y + ent.h / 2;
+        const cx = x + w / 2;
+        const cy = y + h / 2;
 
         const dx = worldX - cx;
         const dy = worldY - cy;
@@ -462,10 +459,10 @@ class ClientApp {
         const localY = dx * sin + dy * cos;
 
         return (
-            localX >= -(ent.w / 2 + pad) &&
-            localX <=  (ent.w / 2 + pad) &&
-            localY >= -(ent.h / 2 + pad) &&
-            localY <=  (ent.h / 2 + pad)
+            localX >= -w / 2 &&
+            localX <=  w / 2 &&
+            localY >= -h / 2 &&
+            localY <=  h / 2
         );
     }
     handlePointerLeftDown(worldX, worldY) {
