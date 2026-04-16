@@ -402,7 +402,7 @@ class ClientApp {
     getEntityAt(worldX, worldY) {
         const entities = this.getAllEntities();
         const isMobile = mobileAndTabletCheck();
-        const pickRadius = isMobile ? 50 : 0;
+        const pickRadius = 100;
 
         let best = null;
         let bestDist = Infinity;
