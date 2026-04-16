@@ -414,7 +414,8 @@ class ClientApp {
                 return ent;
             }
 
-            if (isMobile) {
+            if (true) {
+              
                 const cx = ent.x + ent.w / 2;
                 const cy = ent.y + ent.h / 2;
                 const dx = worldX - cx;
