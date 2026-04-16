@@ -25,6 +25,7 @@ function mobileAndTabletCheck() {
 
 class ClientApp {
     constructor() {
+        this.debugPanel = new DebugPanel();
         this.ws = null;
         this.game = new GameClient(); 
         this.myId = null;
@@ -168,6 +169,7 @@ class ClientApp {
         this.ws.binaryType = "arraybuffer";
 
         this.ws.onmessage = (event) => {
+            this.debugPanel.onPacket();
             if (typeof event.data === "string") {
                 const data = JSON.parse(event.data);
                 this.handleServerMessage(data);
@@ -591,6 +593,7 @@ update(scale) {
         }
 
         ctx.restore();
+        this.debugPanel.draw(ctx, this.game);
     }
 
     gameLoop(time) {
@@ -602,7 +605,8 @@ update(scale) {
         if (deltaMs > 50) deltaMs = 50;
 
         const scale = deltaMs / (1000 / 60);
-
+        this.debugPanel.enabled=true;
+        this.debugPanel.beginFrame();
         this.update(scale);
         this.draw(scale);
 
