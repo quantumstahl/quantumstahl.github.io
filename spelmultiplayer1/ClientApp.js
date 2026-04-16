@@ -177,12 +177,7 @@ class ClientApp {
         this.ws.binaryType = "arraybuffer";
 
         this.ws.onmessage = (event) => {
-            // i ws.onmessage
-const now2 = performance.now();
-if (this.debugInfo.lastPacket) {
-    this.debugInfo.packetDt = now2 - this.debugInfo.lastPacket;
-}
-this.debugInfo.lastPacket = now2;
+ 
             if (typeof event.data === "string") {
                 const data = JSON.parse(event.data);
                 this.handleServerMessage(data);
@@ -195,7 +190,15 @@ this.debugInfo.lastPacket = now2;
                  if(type===0) this.handleBinaryState(event.data);
                  else if(type===1)this.handleBinaryRemove(event.data);
                  else if(type===2)this.handleBinaryResources(event.data);
-                 else this.handleBinaryXY(event.data);
+                 else {this.handleBinaryXY(event.data);
+                               // i ws.onmessage
+const now2 = performance.now();
+if (this.debugInfo.lastPacket) {
+    this.debugInfo.packetDt = now2 - this.debugInfo.lastPacket;
+}
+this.debugInfo.lastPacket = now2;
+                    
+                }
 
                 
                 return;
