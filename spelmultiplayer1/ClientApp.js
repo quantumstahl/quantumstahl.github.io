@@ -605,7 +605,7 @@ update(scale) {
         if (deltaMs > 50) deltaMs = 50;
 
         const scale = deltaMs / (1000 / 60);
-        this.debugPanel.enabled=true;
+        
         this.debugPanel.beginFrame();
         this.update(scale);
         this.draw(scale);
