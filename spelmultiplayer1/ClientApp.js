@@ -626,7 +626,11 @@ update(scale) {
     }
     updateCanvasSize() {
         if (!mobileAndTabletCheck()) {
-            if (canvas.style.width === document.body.clientWidth + "px") return;
+            const screenW = window.innerWidth;
+            const screenH = window.innerHeight;
+            if (this.lastCanvasScreenW === screenW && this.lastCanvasScreenH === screenH) {return;}
+            this.lastCanvasScreenW = screenW;
+            this.lastCanvasScreenH = screenH;
             
             canvas.width = 1920 * 1.25;
             canvas.height = 1080 * 1.25;
@@ -635,7 +639,11 @@ update(scale) {
             canvas.style.height = window.innerHeight + "px";
      
         } else {
-            if (canvas.style.width === document.body.clientWidth + "px") return;
+            const screenW = window.innerWidth;
+            const screenH = window.innerHeight;
+            if (this.lastCanvasScreenW === screenW && this.lastCanvasScreenH === screenH) {return;}
+            this.lastCanvasScreenW = screenW;
+            this.lastCanvasScreenH = screenH;
 
             if (window.innerHeight > window.innerWidth) {
                 canvas.width = 1100;
