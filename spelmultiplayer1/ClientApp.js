@@ -1,28 +1,3 @@
-const isMobile = {
-    Android: function() { return navigator.userAgent.match(/Android/i); },
-    BlackBerry: function() { return navigator.userAgent.match(/BlackBerry/i); },
-    iOS: function() { return navigator.userAgent.match(/iPhone|iPod/i); },
-    Opera: function() { return navigator.userAgent.match(/Opera Mini/i); },
-    Windows: function() { return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i); },
-    any: function() {
-        return (
-            isMobile.Android() ||
-            isMobile.BlackBerry() ||
-            isMobile.iOS() ||
-            isMobile.Opera() ||
-            isMobile.Windows() ||
-            (navigator.userAgent.toLowerCase().indexOf("macintosh") > -1 &&
-             navigator.maxTouchPoints &&
-             navigator.maxTouchPoints > 1)
-        );
-    }
-};
-
-function mobileAndTabletCheck() {
-    return isMobile.any();
-}
-
-
 class ClientApp {
     constructor() {
         this.ws = null;
@@ -414,7 +389,7 @@ class ClientApp {
                 return ent;
             }
 
-            if (true) {
+            if (isMobile) {
               
                 const cx = ent.x + ent.w / 2;
                 const cy = ent.y + ent.h / 2;
