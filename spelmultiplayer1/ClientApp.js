@@ -413,7 +413,7 @@ class ClientApp {
     }
     containsPoint(ent, worldX, worldY) {
         const isMobile = mobileAndTabletCheck();
-        const pad = isMobile ? 20 : 0; // testa 15–30
+        const pad = isMobile ? 50 : 0; // testa 15–30
 
         const x = ent.x - pad;
         const y = ent.y - pad;
