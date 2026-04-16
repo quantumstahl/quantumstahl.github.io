@@ -39,6 +39,7 @@ class ClientApp {
         };
         this.lastTime = 0;
         this.leftclicked=false;
+        this.latestPacketTime = null;
     }
     async init() {
         await this.game.loadGame(); // 🔥 laddar map + world
@@ -61,13 +62,17 @@ class ClientApp {
         
     }
     handleBinaryXY(buffer) {
-        const arr = new Int16Array(buffer);
-        const now = performance.now();
+        const view = new DataView(buffer);
 
-        for (let i = 0; i < arr.length; i += 3) {
-            const id = arr[i + 0];
-            const x = arr[i + 1];
-            const y = arr[i + 2];
+        const type = view.getUint8(0);
+        if (type !== 3) return;
+
+        const packetTime = view.getUint16(1, true);
+
+        for (let offset = 3; offset + 5 < view.byteLength; offset += 6) {
+            const id = view.getInt16(offset + 0, true);
+            const x  = view.getInt16(offset + 2, true);
+            const y  = view.getInt16(offset + 4, true);
 
             const obj = this.game.world.entitiesById.get(id);
             if (!obj) continue;
@@ -77,7 +82,7 @@ class ClientApp {
 
             obj.snapshots ||= [];
             obj.snapshots.push({
-                time: now,
+                time: packetTime,
                 x,
                 y
             });
@@ -89,6 +94,9 @@ class ClientApp {
             if (obj.renderX == null) obj.renderX = x;
             if (obj.renderY == null) obj.renderY = y;
         }
+
+        this.latestPacketTime = packetTime;
+        this.latestArrivalTime = performance.now();
     }
     handleBinaryState(buffer) {
         const view = new DataView(buffer);
@@ -180,7 +188,7 @@ class ClientApp {
                  if(type===0) this.handleBinaryState(event.data);
                  else if(type===1)this.handleBinaryRemove(event.data);
                  else if(type===2)this.handleBinaryResources(event.data);
-                 else this.handleBinaryXY(event.data);
+                 else if(type===3)this.handleBinaryXY(event.data);
 
                 
                 return;
@@ -299,7 +307,15 @@ class ClientApp {
             obj.hp = e.hp;
         }
     }
-
+    diff16(a, b) {
+        let d = a - b;
+        if (d > 32768) d -= 65536;
+        if (d < -32768) d += 65536;
+        return d;
+    }
+    sub16(a, b) {
+        return (a - b + 65536) & 0xFFFF;
+    }
     interpolateObject(obj, renderTime) {
         if (!obj.snapshots || obj.snapshots.length === 0) {
             if (obj.serverX != null) obj.renderX = obj.serverX;
@@ -309,7 +325,7 @@ class ClientApp {
 
         const snaps = obj.snapshots;
 
-        while (snaps.length >= 2 && snaps[1].time <= renderTime) {
+        while (snaps.length >= 2 && this.diff16(renderTime, snaps[1].time) >= 0) {
             snaps.shift();
         }
 
@@ -322,11 +338,11 @@ class ClientApp {
         const a = snaps[0];
         const b = snaps[1];
 
-        const span = b.time - a.time;
+        const span = this.diff16(b.time, a.time);
         let alpha = 0;
 
         if (span > 0) {
-            alpha = (renderTime - a.time) / span;
+            alpha = this.diff16(renderTime, a.time) / span;
         }
 
         if (alpha < 0) alpha = 0;
@@ -337,16 +353,19 @@ class ClientApp {
     }
 
     updateNetworkRendering() {
-        const renderDelay = 100;
-        const renderTime = performance.now() - renderDelay;
+        const renderDelay = 150;
+
+        if (this.latestPacketTime == null || this.latestArrivalTime == null) return;
+
+        const elapsed = Math.floor(performance.now() - this.latestArrivalTime);
+        const estimatedServerNow = (this.latestPacketTime + elapsed) & 0xFFFF;
+        const renderTime = (estimatedServerNow - renderDelay + 65536) & 0xFFFF;
 
         const world = this.game.world;
         if (!world) return;
 
         for (const obj of world.entities) {
-
-                this.interpolateObject(obj, renderTime);
-
+            this.interpolateObject(obj, renderTime);
         }
     }
     applyServerRemoves(removes) {
@@ -450,29 +469,31 @@ class ClientApp {
     }
 
     handleDragSelect(rect) {
-    if(this.game.UISIZE()||this.game.buildMode)return;
-    this.deselectAll();
+        if(this.game.UISIZE()||this.game.buildMode)return;
+        this.deselectAll();
 
-    const selectedIds = [];
+        const selectedIds = [];
 
-    for (const ent of this.getAllEntities()) {
-        const cx = (ent.renderX ?? ent.x) + ent.w / 2;
-        const cy = (ent.renderY ?? ent.y) + ent.h / 2;
+        for (const ent of this.getAllEntities()) {
+            const ex = (ent.renderX ?? ent.x);
+            const ey = (ent.renderY ?? ent.y);
+            const ew = ent.w;
+            const eh = ent.h;
 
-        const overlaps =
-            cx >= rect.x1 &&
-            cx <= rect.x2 &&
-            cy >= rect.y1 &&
-            cy <= rect.y2;
+            const overlaps =
+                ex < rect.x2 &&
+                ex + ew > rect.x1 &&
+                ey < rect.y2 &&
+                ey + eh > rect.y1;
 
-        if (overlaps) {
-            ent.selected = true;
-            selectedIds.push(ent.id);
+            if (overlaps) {
+                ent.selected = true;
+                selectedIds.push(ent.id);
+            }
         }
-    }
 
-    this.sendSelectCommand(selectedIds);
-}
+        this.sendSelectCommand(selectedIds);
+    }
     handlePointerRightDown(worldX, worldY) {
         if(this.game.buildMode){
             this.game.buildMode = null;

@@ -21,12 +21,30 @@
 </head>
 <body>
     <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
+    
+    <div id="hint-pan" style="
+            position:fixed; bottom:50%; left:50%; transform:translate(-50%, 50%);
+            background:rgba(0,0,0,0.6);
+            color:#fff; padding:6px 10px;
+            border-radius:6px;
+            font:600 50px system-ui, sans-serif;
+            text-align:center;
+            z-index:2000;
+            display:none;
+
+            user-select:none;
+            pointer-events:none;
+            -webkit-user-select: none;
+        ">
+    </div>
+    
     <script>
         const canvas = document.getElementById("myCanvas");
         const ctx = canvas.getContext("2d");
      
         const app = new ClientApp();
         app.init();
+        showPanHint();
         var audio = new Audio('sounds/song.mp3');
         audio.loop = true;
         const context = new (window.AudioContext || window.webkitAudioContext)();
@@ -55,7 +73,19 @@
                 context.resume();
             }
             else {audio.pause(); audio.src = "";context.suspend();}
-        });    
+        });
+        
+        function showPanHint(){
+            const el = document.getElementById("hint-pan");
+            if (el) {
+              el.innerText = mobileAndTabletCheck()
+                ? "Use two fingers to pan the map"
+                : "Use W A S D to move the camera";
+              el.style.display = "block";
+              setTimeout(()=> el.style.display = "none", 3000);
+            }
+        } 
+        
     </script>
 </body>
 </html>
