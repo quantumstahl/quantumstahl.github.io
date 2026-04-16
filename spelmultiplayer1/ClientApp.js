@@ -412,10 +412,13 @@ class ClientApp {
         return null;
     }
     containsPoint(ent, worldX, worldY) {
-        const x = ent.x ;
-        const y = ent.y ;
-        const w = ent.w ;
-        const h = ent.h ;
+        const isMobile = mobileAndTabletCheck();
+        const pad = isMobile ? 20 : 0; // testa 15–30
+
+        const x = ent.x - pad;
+        const y = ent.y - pad;
+        const w = ent.w + pad * 2;
+        const h = ent.h + pad * 2;
         const r = (ent.r ?? 0) * Math.PI / 180;
 
         if (!r) {
@@ -427,8 +430,8 @@ class ClientApp {
             );
         }
 
-        const cx = x + w / 2;
-        const cy = y + h / 2;
+        const cx = ent.x + ent.w / 2;
+        const cy = ent.y + ent.h / 2;
 
         const dx = worldX - cx;
         const dy = worldY - cy;
@@ -440,10 +443,10 @@ class ClientApp {
         const localY = dx * sin + dy * cos;
 
         return (
-            localX >= -w / 2 &&
-            localX <=  w / 2 &&
-            localY >= -h / 2 &&
-            localY <=  h / 2
+            localX >= -(ent.w / 2 + pad) &&
+            localX <=  (ent.w / 2 + pad) &&
+            localY >= -(ent.h / 2 + pad) &&
+            localY <=  (ent.h / 2 + pad)
         );
     }
     handlePointerLeftDown(worldX, worldY) {
