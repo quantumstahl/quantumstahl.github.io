@@ -562,7 +562,7 @@ class ClientApp {
         const clicked = this.getEntityAt(worldX, worldY);
 
         this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
-        if(clicked&&!isbuilding){this.deselectAll();if(clicked.owner===this.myId)clicked.selected=true;}
+        if(clicked&&!isbuilding){this.deselectAll();if(clicked.owner===this.myId){clicked.selected=true;this.sendSelectCommand([clicked.id]);}}
         
         
         
