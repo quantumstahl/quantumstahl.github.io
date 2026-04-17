@@ -555,14 +555,14 @@ class ClientApp {
         this.leftclicked=true;
         if(this.game.UISIZE()||this.game.buildMode)return;
         const selected = this.getSelectedEntities();
-        if (selected.length === 0){ const obj=this.getEntityAt(worldX, worldY);  if(obj){selected.push(obj);obj.selected=true; }}
-        if (selected.length === 0)return;
+        if (selected.length === 0) return;
+        
         const isbuilding=selected[0].isBuilding;
         
         const clicked = this.getEntityAt(worldX, worldY);
 
         this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
-        if(clicked&&!isbuilding){this.deselectAll();if(clicked.owner===this.myId){clicked.selected=true;this.sendSelectCommand([clicked.id]);}}
+        if(clicked&&!isbuilding){if(clicked.owner===this.myId){handlePointerLeftDown(worldX, worldY);}}
         
         
         
