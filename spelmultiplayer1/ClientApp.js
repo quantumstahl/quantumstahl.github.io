@@ -563,7 +563,7 @@ class ClientApp {
 
         if(!clicked||(clicked.owner!==this.myId||clicked.type==="sheep"))this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
         
-        if(clicked&&!isbuilding){this.deselectAll();if(clicked.owner===this.myId){this.handlePointerLeftDown(worldX, worldY);}}
+        if(clicked){if(!isbuilding)this.deselectAll();if(clicked.owner===this.myId){this.handlePointerLeftDown(worldX, worldY);}}
         
         
         
