@@ -556,12 +556,13 @@ class ClientApp {
         if(this.game.UISIZE()||this.game.buildMode)return;
         const selected = this.getSelectedEntities();
         if (selected.length === 0) return;
-
+        
+        const isbuilding=selected[0].isBuilding;
+        
         const clicked = this.getEntityAt(worldX, worldY);
-        
-        if(!clicked||clicked.owner!==this.myId)this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
-        if(clicked){this.deselectAll();if(clicked.owner===this.myId)clicked.selected=true;}
-        
+
+        this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
+        if(clicked&&!isbuilding){this.deselectAll();if(clicked.owner===this.myId)clicked.selected=true;}
         
         
         
