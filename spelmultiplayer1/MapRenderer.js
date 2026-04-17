@@ -119,11 +119,11 @@ class MapRenderer {
         if (obj.selected&&obj.hp>0) {
             ctx.save();
             ctx.scale(renderScale, renderScale);
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = "#00ff00";
+            ctx.lineWidth = 8;
+            ctx.strokeStyle = "white";
             ctx.strokeRect(camerax + (cx - ax), cameray + (cy - ay), ax * 2, ay * 2);
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = "black";
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = "darkgreen";
             ctx.strokeRect(camerax + (cx - ax), cameray + (cy - ay), ax * 2, ay * 2);
             ctx.restore();
         }
