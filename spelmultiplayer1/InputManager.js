@@ -199,7 +199,7 @@ class InputManager {
             const dist = Math.hypot(dx, dy);
 
             // testa typ 20–40 world px beroende på hur spelet känns
-            isMiniDrag = dist < 50;
+            isMiniDrag = dist < 100;
         }
 
         if (this.dragStartWorld && this.dragEndWorld && this.dragMoved && !isMiniDrag) {
