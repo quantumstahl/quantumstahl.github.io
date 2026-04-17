@@ -556,10 +556,21 @@ class ClientApp {
         if(this.game.UISIZE()||this.game.buildMode)return;
         const selected = this.getSelectedEntities();
         if (selected.length === 0) return;
+
         const clicked = this.getEntityAt(worldX, worldY);
-        if(clicked)this.deselectAll();
-        if(clicked.owner===this.myId)clicked.selected=true;
-        this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
+        
+        if(!clicked||clicked.owner!==this.myId)this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
+        if(clicked){this.deselectAll();if(clicked.owner===this.myId)clicked.selected=true;}
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
         for (const ent of selected) {
             ent.targetX = worldX;
