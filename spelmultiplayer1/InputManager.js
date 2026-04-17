@@ -217,9 +217,7 @@ class InputManager {
             const clicked = this.app.getEntityAt(world.x, world.y);
             const selected = this.app.getSelectedMovableEntities();
 
-            if (clicked && clicked.selectable && selected.length === 0) {
-                this.app.handlePointerLeftDown(world.x, world.y);
-            } else if (selected.length > 0) {
+            if (selected.length > 0||(clicked&& clicked.selectable)) {
                 this.app.handleTouchCommand(world.x, world.y);
             } else {
                 this.app.deselectAll();
