@@ -562,9 +562,9 @@ class ClientApp {
         
         const clicked = this.getEntityAt(worldX, worldY);
 
-        if(!clicked||(clicked.owner!==this.myId||clicked.type==="sheep"))this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
-        
-        if(clicked){if(!isbuilding)this.deselectAll();if(clicked.owner===this.myId&&!(isbuilding&&clicked.type==="sheep")){this.handlePointerLeftDown(worldX, worldY);}}
+        if(!clicked||(clicked.owner!==this.myId||clicked.type==="sheep")||(clicked.owner===this.myId&&clicked.buildProgress&&clicked.buildProgress<1))this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
+        this.deselectAll();
+      //  if(clicked){if(!isbuilding)this.deselectAll();if(clicked.owner===this.myId&&!(isbuilding&&clicked.type==="sheep")&&!(clicked.buildProgress&&clicked.buildProgress<1) ){this.handlePointerLeftDown(worldX, worldY);}}
         
         for (const ent of selected) {
             ent.targetX = worldX;
