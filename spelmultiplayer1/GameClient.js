@@ -28,7 +28,7 @@ class GameClient {
     }
 
     draw(scale,selected,myId,leftclicked,app) {
-        this.renderer.drawMap(this,scale);
+        this.renderer.drawMap(this,scale,app);
         this.clientgame.updateanimation(selected,myId,this.ctx,this.canvas,leftclicked,app);
     }
     UISIZE(){

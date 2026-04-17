@@ -6,7 +6,7 @@ class MapRenderer {
         this.ctx = ctx;
     }
 
-    drawMap(gameClient,scale) {
+    drawMap(gameClient,scale,app) {
         const map = gameClient.maps[gameClient.currentmap];
         if (!map) return;
 
@@ -22,14 +22,14 @@ class MapRenderer {
                     }
                 }
                 for (const obj of objectType.objects) {
-                    this.drawObject(obj, objectType, map);
+                    this.drawObject(obj, objectType, map,app);
                 }
                 
             }
         }
     }
 
-    drawObject(obj, objectType,map) {
+    drawObject(obj, objectType,map,app) {
         const ctx = this.ctx;
 
         const zoom = map.zoom || 0;
@@ -78,7 +78,7 @@ class MapRenderer {
         const sprite = objectType.sprites?.[obj.animation]?.getimage?.();
 
         if (obj.isvisable&&!(obj.buildProgress&&obj.buildProgress<1)) {
-            try { this.drawSelectRing(ctx, obj, zoom, camerax, cameray); } catch (e) {}
+            try { this.drawSelectRing(ctx, obj, zoom, camerax, cameray,app); } catch (e) {}
         }
 
         ctx.save();
@@ -117,20 +117,20 @@ class MapRenderer {
         ctx.restore();
 
         if (obj.selected&&obj.hp>0) {
-            ctx.save();
-            ctx.scale(renderScale, renderScale);
-            ctx.lineWidth = 10;
-            ctx.strokeStyle = "black";
+          //  ctx.save();
+         //   ctx.scale(renderScale, renderScale);
+          //  ctx.lineWidth = 10;
+          //  ctx.strokeStyle = "black";
             
             
-            ctx.strokeRect(camerax + (cx - ax), cameray + (cy - ay), ax * 2, ay * 2);
-            ctx.lineWidth = 2;
-           ctx.strokeStyle = "blue";
-            if (obj.type.startsWith("r")) ctx.strokeStyle = "red";
-            if (obj.type.startsWith("y")) ctx.strokeStyle = "yellow";
-            if (obj.type.startsWith("g")) ctx.strokeStyle = "lime";
-            ctx.strokeRect(camerax + (cx - ax), cameray + (cy - ay), ax * 2, ay * 2);
-            ctx.restore();
+         //   ctx.strokeRect(camerax + (cx - ax), cameray + (cy - ay), ax * 2, ay * 2);
+         //   ctx.lineWidth = 2;
+         //  ctx.strokeStyle = "blue";
+         //   if (obj.type.startsWith("r")) ctx.strokeStyle = "red";
+         //   if (obj.type.startsWith("y")) ctx.strokeStyle = "yellow";
+         //   if (obj.type.startsWith("g")) ctx.strokeStyle = "lime";
+         //   ctx.strokeRect(camerax + (cx - ax), cameray + (cy - ay), ax * 2, ay * 2);
+          //  ctx.restore();
         }
         if (obj.alertT > 0) {
             ctx.save();
@@ -183,7 +183,7 @@ class MapRenderer {
             dstX, dstY, dstW, dstH
         );
     }
-    drawSelectRing(ctx, o, zoom, camX, camY) {
+    drawSelectRing(ctx, o, zoom, camX, camY,app) {
         const type = o.type || "";
 
         if (type === "farm" || type === "rfarm" || type === "gfarm" || type === "yfarm") return;
@@ -235,22 +235,28 @@ class MapRenderer {
             ctx.fillStyle = "rgba(0,0,0,.44)";
             ctx.fill();
 
-            if (type.endsWith("worker") || type.endsWith("warrior")) {
+            if (type.endsWith("worker") || type.endsWith("warrior") || (type === "sheep" && o.owner === app.myId)) {
+                const selected = o.selected;
+                const t = performance.now() * 0.005;
+                const pulse = selected ? (1 + Math.sin(t) * 0.08) : 1;
+
+                let color = "blue";
+                if (o.owner === 2) color = "red";
+                if (o.owner === 3) color = "yellow";
+                if (o.owner === 4) color = "lime";
+
                 ctx.globalAlpha = 1;
 
                 ctx.beginPath();
-                ctx.ellipse(cx + camX, cy + camY, o.w * 0.65, o.h * 0.30, 0, 0, Math.PI * 2);
+                ctx.ellipse(cx + camX, cy + camY, o.w * 0.65 * pulse, o.h * 0.30 * pulse, 0, 0, Math.PI * 2);
                 ctx.strokeStyle = "black";
-                ctx.lineWidth = o.selected ? 20:3;
+                ctx.lineWidth = selected ? 20 : 3;
                 ctx.stroke();
 
                 ctx.beginPath();
-                ctx.ellipse(cx + camX, cy + camY, o.w * 0.55, o.h * 0.25, 0, 0, Math.PI * 2);
-                ctx.strokeStyle = "blue";
-                if (type.startsWith("r")) ctx.strokeStyle = "red";
-                if (type.startsWith("y")) ctx.strokeStyle = "yellow";
-                if (type.startsWith("g")) ctx.strokeStyle = "lime";
-                ctx.lineWidth = o.selected ? 20:3;
+                ctx.ellipse(cx + camX, cy + camY, o.w * 0.55 * pulse, o.h * 0.25 * pulse, 0, 0, Math.PI * 2);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = selected ? 16 : 3;
                 ctx.stroke();
             }
 
