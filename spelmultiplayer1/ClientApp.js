@@ -444,6 +444,7 @@ class ClientApp {
     handlePointerLeftDown(worldX, worldY) {
         this.leftclicked=true;
         if(this.game.UISIZE()||this.game.buildMode)return;
+        this.deselectAll();
         const clicked = this.getEntityAt(worldX, worldY);
 
         if (!clicked) {
@@ -458,33 +459,53 @@ class ClientApp {
             return;
         }
 
-        this.deselectAll();
+        
         clicked.selected = true;
         this.sendSelectCommand([clicked.id]);
     }
 
     handleDragSelect(rect) {
-        if(this.game.UISIZE()||this.game.buildMode)return;
+        if (this.game.UISIZE() || this.game.buildMode) return;
+
         this.deselectAll();
 
-        const selectedIds = [];
+        const overlapped = [];
 
         for (const ent of this.getAllEntities()) {
             const ex = (ent.renderX ?? ent.x);
             const ey = (ent.renderY ?? ent.y);
-            const ew = ent.w;
-            const eh = ent.h;
 
             const overlaps =
                 ex < rect.x2 &&
-                ex + ew > rect.x1 &&
+                ex + ent.w > rect.x1 &&
                 ey < rect.y2 &&
-                ey + eh > rect.y1;
+                ey + ent.h > rect.y1;
 
-            if (overlaps) {
-                ent.selected = true;
-                selectedIds.push(ent.id);
+            if (overlaps && ent.selectable) {
+                overlapped.push(ent);
             }
+        }
+
+        // 1. bara dina egna
+        const myId = this.myId; // eller this.app.myId beroende på din struktur
+        const mine = overlapped.filter(ent => ent.owner === myId);
+
+   
+
+
+        // fallback: om inga egna finns, använd alla
+        const base = mine.length > 0 ? mine : overlapped;
+
+        // 2. prioritera dynamic (units)
+        const dynamic = base.filter(ent => ent.kind === "dynamic");
+
+        const finalSelection = dynamic.length > 0 ? dynamic : base;
+
+        const selectedIds = [];
+
+        for (const ent of finalSelection) {
+            ent.selected = true;
+            selectedIds.push(ent.id);
         }
 
         this.sendSelectCommand(selectedIds);
