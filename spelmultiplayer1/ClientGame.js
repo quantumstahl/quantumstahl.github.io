@@ -828,7 +828,7 @@ class ClientGame {
 
             if (rp.mode === 2) {
                 ctx.fillStyle = "lime";
-                ctx.font = "16px Arial";
+                ctx.font = "40px Arial";
                 
                 const type=app.getEntityAt(rp.x,rp.y).type;
                 let rtype="food";
