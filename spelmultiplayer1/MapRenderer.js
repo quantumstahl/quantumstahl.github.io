@@ -116,21 +116,23 @@ class MapRenderer {
 
         ctx.restore();
 
-        if (obj.selected&&obj.hp>0) {
-          //  ctx.save();
-         //   ctx.scale(renderScale, renderScale);
-          //  ctx.lineWidth = 10;
-          //  ctx.strokeStyle = "black";
+        if (obj.selected&&obj.hp>0&& obj.isBuilding && obj.owner===app.myId) {
+            ctx.save();
+            ctx.scale(renderScale, renderScale);
+            ctx.lineWidth = 10;
+            ctx.strokeStyle = "black";
             
             
-         //   ctx.strokeRect(camerax + (cx - ax), cameray + (cy - ay), ax * 2, ay * 2);
-         //   ctx.lineWidth = 2;
-         //  ctx.strokeStyle = "blue";
-         //   if (obj.type.startsWith("r")) ctx.strokeStyle = "red";
-         //   if (obj.type.startsWith("y")) ctx.strokeStyle = "yellow";
-         //   if (obj.type.startsWith("g")) ctx.strokeStyle = "lime";
-         //   ctx.strokeRect(camerax + (cx - ax), cameray + (cy - ay), ax * 2, ay * 2);
-          //  ctx.restore();
+            ctx.strokeRect(camerax + (cx - ax), cameray + (cy - ay), ax * 2, ay * 2);
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = "blue";
+            if (obj.type.startsWith("r")) ctx.strokeStyle = "red";
+            if (obj.type.startsWith("y")) ctx.strokeStyle = "yellow";
+            if (obj.type.startsWith("g")) ctx.strokeStyle = "lime";
+            ctx.shadowBlur = 10;
+            ctx.strokeRect(camerax + (cx - ax), cameray + (cy - ay), ax * 2, ay * 2);
+            ctx.shadowBlur = 0;
+            ctx.restore();
         }
         if (obj.alertT > 0) {
             ctx.save();
@@ -236,7 +238,7 @@ class MapRenderer {
             ctx.fill();
 
             if (type.endsWith("worker") || type.endsWith("warrior") || (type === "sheep" && o.owner === app.myId)) {
-                const selected = o.selected;
+                const selected = (o.selected&&o.owner===app.myId);
                 const t = performance.now() * 0.005;
                 const pulse = selected ? (1 + Math.sin(t) * 0.08) : 1;
 
