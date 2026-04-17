@@ -118,14 +118,14 @@ class ClientApp {
                     obj.rallyPoint = {
                     x: rallyPointX,
                     y: rallyPointY,
-                    mode: rallymode,
-                    type:null               };
+                    mode: rallymode
+                            };
                 }
                 else{
                     obj.rallyPoint.x=rallyPointX;
                     obj.rallyPoint.y=rallyPointY;
                     obj.rallyPoint.mode=rallymode;
-                    obj.rallyPoint.type=null;
+                   
                 }
             }
             

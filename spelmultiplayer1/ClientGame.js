@@ -814,7 +814,7 @@ class ClientGame {
             const by = b.y + b.h / 2;
             
             ctx.save();
-            ctx.strokeStyle = rp.mode === 2 ? "lime" : "white";
+            ctx.strokeStyle = rp.mode > 1 ? "lime" : "white";
             ctx.lineWidth = 3;
 
             ctx.beginPath();
@@ -826,15 +826,14 @@ class ClientGame {
             ctx.arc(rp.x+this.game.getCameraX(), rp.y+this.game.getCameraY(), 10, 0, Math.PI * 2);
             ctx.stroke();
 
-            if (rp.mode === 2) {
+            if (rp.mode > 1) {
                 ctx.fillStyle = "lime";
                 ctx.font = "40px Arial";
                 
-                if(rp.type==null){const type=app.getEntityAt(rp.x,rp.y);if(type){rp.type=type.type;}}
                 let rtype="food";
-                if(rp.type==="tree")rtype="wood";
-                if(rp.type==="gold")rtype="gold";
-                if(rp.type==="stone")rtype="stone";    
+                if(rp.mode===3)rtype="wood";
+                if(rp.mode===4)rtype="stone";
+                if(rp.mode===5)rtype="gold";    
                 
                 
                 ctx.fillText(rtype, rp.x+this.game.getCameraX() + 14, rp.y+this.game.getCameraY());
