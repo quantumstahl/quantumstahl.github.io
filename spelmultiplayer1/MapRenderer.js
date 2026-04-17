@@ -116,7 +116,7 @@ class MapRenderer {
 
         ctx.restore();
 
-        if (obj.selected) {
+        if (obj.selected&&obj.hp>0) {
             ctx.save();
             ctx.scale(renderScale, renderScale);
             ctx.lineWidth = 4;

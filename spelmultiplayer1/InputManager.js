@@ -189,40 +189,51 @@ class InputManager {
     }
 
     onTouchEnd(e) {
-    e.preventDefault();
+        e.preventDefault();
 
-    if (this.dragStartWorld && this.dragEndWorld && this.dragMoved) {
-        this.app.handleDragSelect({
-            x1: Math.min(this.dragStartWorld.x, this.dragEndWorld.x),
-            y1: Math.min(this.dragStartWorld.y, this.dragEndWorld.y),
-            x2: Math.max(this.dragStartWorld.x, this.dragEndWorld.x),
-            y2: Math.max(this.dragStartWorld.y, this.dragEndWorld.y)
-        });
-        this.clearDrag();
-    } else if (e.changedTouches.length === 1 && this.allowSingleTap) {
-        const t = e.changedTouches[0];
-        const world = this.getWorldPos(t.clientX, t.clientY);
+        let isMiniDrag = false;
 
-        const clicked = this.app.getEntityAt(world.x, world.y);
-        const selected = this.app.getSelectedMovableEntities();
+        if (this.dragStartWorld && this.dragEndWorld) {
+            const dx = this.dragEndWorld.x - this.dragStartWorld.x;
+            const dy = this.dragEndWorld.y - this.dragStartWorld.y;
+            const dist = Math.hypot(dx, dy);
 
-        if (clicked && clicked.selectable&&selected.length ===0) {
-            this.app.handlePointerLeftDown(world.x, world.y);
-        } else if (selected.length > 0) {
-            this.app.handleTouchCommand(world.x, world.y);
-        } else {
-            this.app.deselectAll();
-            this.app.sendSelectCommand([]);
+            // testa typ 20–40 world px beroende på hur spelet känns
+            isMiniDrag = dist < 50;
         }
 
-        this.clearDrag();
-    } else {
-        this.clearDrag();
-    }
+        if (this.dragStartWorld && this.dragEndWorld && this.dragMoved && !isMiniDrag) {
+            this.app.handleDragSelect({
+                x1: Math.min(this.dragStartWorld.x, this.dragEndWorld.x),
+                y1: Math.min(this.dragStartWorld.y, this.dragEndWorld.y),
+                x2: Math.max(this.dragStartWorld.x, this.dragEndWorld.x),
+                y2: Math.max(this.dragStartWorld.y, this.dragEndWorld.y)
+            });
+            this.clearDrag();
+        } else if (e.changedTouches.length === 1 && this.allowSingleTap) {
+            const t = e.changedTouches[0];
+            const world = this.getWorldPos(t.clientX, t.clientY);
 
-    if (e.touches.length < 2) {
-        this.lastPanCanvasX = null;
-        this.lastPanCanvasY = null;
+            const clicked = this.app.getEntityAt(world.x, world.y);
+            const selected = this.app.getSelectedMovableEntities();
+
+            if (clicked && clicked.selectable && selected.length === 0) {
+                this.app.handlePointerLeftDown(world.x, world.y);
+            } else if (selected.length > 0) {
+                this.app.handleTouchCommand(world.x, world.y);
+            } else {
+                this.app.deselectAll();
+                this.app.sendSelectCommand([]);
+            }
+
+            this.clearDrag();
+        } else {
+            this.clearDrag();
+        }
+
+        if (e.touches.length < 2) {
+            this.lastPanCanvasX = null;
+            this.lastPanCanvasY = null;
+        }
     }
-}
 }

@@ -766,7 +766,7 @@ class ClientGame {
 
         const objs = this.game.world.selectable.filter(o => o.type!=="tree"&& o.type!=="stone"&& o.type!=="gold"&& o.type!=="berry"&& o.type!=="sheep");
         for (const o of objs) {
-            if(!o.isvisable||o.dead)continue;
+            if(!o.isvisable||o.hp===0)continue;
             
             
             if(o.maxHp==null)o.maxHp=o.hp;
