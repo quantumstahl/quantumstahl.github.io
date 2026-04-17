@@ -76,7 +76,7 @@ class ClientApp {
     handleBinaryState(buffer) {
         const view = new DataView(buffer);
 
-        for (let off = 1; off < view.byteLength; off += 17) {
+        for (let off = 1; off < view.byteLength; off += 22) {
             const id = view.getUint16(off + 0, true);
             const hp = view.getUint16(off + 2, true);
             const maxHp = view.getUint16(off + 4, true);
@@ -90,7 +90,9 @@ class ClientApp {
             const trainingTimeMax=view.getUint8(off + 14, true);
             const flashTimer=view.getUint8(off + 15, true);
             const buildProgress=(view.getUint8(off + 16, true))/100;
-
+            const rallyPointX = view.getInt16(off + 17, true);
+            const rallyPointY = view.getInt16(off + 19, true);
+            const rallymode=view.getUint8(off + 21, true);
             const obj = this.game.world.entitiesById.get(id);
             if (!obj) continue;
 
@@ -109,6 +111,24 @@ class ClientApp {
             obj.trainingTimeMax=trainingTimeMax*4;
             obj.flashTimer=flashTimer;
             obj.buildProgress=buildProgress;
+            
+            if(rallyPointX!==32767){
+                
+                if(!obj.rallyPoint){
+                    obj.rallyPoint = {
+                    x: rallyPointX,
+                    y: rallyPointY,
+                    mode: rallymode};
+                }
+                else{
+                    obj.rallyPoint.x=rallyPointX;
+                    obj.rallyPoint.y=rallyPointY;
+                    obj.rallyPoint.mode=rallymode;
+                    
+                }
+            }
+            
+            
         }
     }
     handleBinaryRemove(buffer) {
@@ -145,8 +165,8 @@ class ClientApp {
     
     
     connect() {
-        this.ws = new WebSocket("wss://game.quantumstahl.com");
-       // this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
+       // this.ws = new WebSocket("wss://game.quantumstahl.com");
+        this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
         this.game.setWS(this.ws);
         this.ws.binaryType = "arraybuffer";
 

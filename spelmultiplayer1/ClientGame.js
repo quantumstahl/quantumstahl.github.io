@@ -67,6 +67,7 @@ class ClientGame {
         this.UI(selected,myId,ctx,canvas,leftclicked,app);
         this.drawResourcesUI(ctx, this.game.playerResources);
         this.drawHealthBars();
+        this.drawBuildingRallyPoints(ctx,app);
     }
     updateworkers(){
         const worker = this.getAllWorkersAllTeams();
@@ -798,6 +799,48 @@ class ClientGame {
             ctx.lineWidth = 1;
             ctx.strokeRect(sx, sy + offsetY, barW, barH);
             
+        }
+    }
+    drawBuildingRallyPoints(ctx,app) {
+        const objects = this.game.world.entities;
+
+        for (const b of objects) {
+            if (!b.rallyPoint) continue;
+            if (!b.selected) continue;
+
+            const rp = b.rallyPoint;
+
+            const bx = b.x + b.w / 2;
+            const by = b.y + b.h / 2;
+            
+            ctx.save();
+            ctx.strokeStyle = rp.mode === 2 ? "lime" : "white";
+            ctx.lineWidth = 3;
+
+            ctx.beginPath();
+            ctx.moveTo(bx+this.game.getCameraX(), by+this.game.getCameraY());
+            ctx.lineTo(rp.x+this.game.getCameraX(), rp.y+this.game.getCameraY());
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(rp.x+this.game.getCameraX(), rp.y+this.game.getCameraY(), 10, 0, Math.PI * 2);
+            ctx.stroke();
+
+            if (rp.mode === 2) {
+                ctx.fillStyle = "lime";
+                ctx.font = "16px Arial";
+                
+                const type=app.getEntityAt(rp.x,rp.y).type;
+                let rtype="food";
+                if(type==="tree")rtype="wood";
+                if(type==="gold")rtype="gold";
+                if(type==="stone")rtype="stone";    
+                
+                
+                ctx.fillText(rtype, rp.x+this.game.getCameraX() + 14, rp.y+this.game.getCameraY());
+            }
+
+            ctx.restore();
         }
     }
     

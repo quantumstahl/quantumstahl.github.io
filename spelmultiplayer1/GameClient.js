@@ -433,13 +433,13 @@ class Objectx {
         this.rotimage=0;
         this.iscontrollable=true;
         this.canMove=true;
-        this.ownerID=null;
         this.direction="down";
         this.dead=false;
-        this.ani=1;
+        this.ani=0;
         this.carry=0;
         this.trainingQueue=[];
         this.hp=10;
+        this.owner=this.getOwnerFromType(this.type);
         
         if(this.type==="townhall"||this.type==="rtownhall"||this.type==="gtownhall"||this.type==="ytownhall"||
            this.type==="barrack"||this.type==="rbarrack"||this.type==="gbarrack"||this.type==="ybarrack"||
@@ -453,6 +453,19 @@ class Objectx {
        
            }    
         
+    }
+    getOwnerFromType(type) {
+        if (!type) return null;
+
+        if (type === "tree" || type === "gold" || type === "stone" || type === "berry" || type === "sheep") {
+            return 0; // neutral
+        }
+
+        if (type.startsWith("r")) return 2;
+        if (type.startsWith("y")) return 3;
+        if (type.startsWith("g")) return 4;
+
+        return 1;
     }
 
     resetContacts() {
