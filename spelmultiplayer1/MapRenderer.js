@@ -119,11 +119,16 @@ class MapRenderer {
         if (obj.selected&&obj.hp>0) {
             ctx.save();
             ctx.scale(renderScale, renderScale);
-            ctx.lineWidth = 8;
-            ctx.strokeStyle = "white";
+            ctx.lineWidth = 10;
+            ctx.strokeStyle = "black";
+            
+            
             ctx.strokeRect(camerax + (cx - ax), cameray + (cy - ay), ax * 2, ay * 2);
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = "darkgreen";
+            ctx.lineWidth = 2;
+           ctx.strokeStyle = "blue";
+            if (obj.type.startsWith("r")) ctx.strokeStyle = "red";
+            if (obj.type.startsWith("y")) ctx.strokeStyle = "yellow";
+            if (obj.type.startsWith("g")) ctx.strokeStyle = "lime";
             ctx.strokeRect(camerax + (cx - ax), cameray + (cy - ay), ax * 2, ay * 2);
             ctx.restore();
         }
@@ -236,7 +241,7 @@ class MapRenderer {
                 ctx.beginPath();
                 ctx.ellipse(cx + camX, cy + camY, o.w * 0.65, o.h * 0.30, 0, 0, Math.PI * 2);
                 ctx.strokeStyle = "black";
-                ctx.lineWidth = 3;
+                ctx.lineWidth = o.selected ? 20:3;
                 ctx.stroke();
 
                 ctx.beginPath();
@@ -245,7 +250,7 @@ class MapRenderer {
                 if (type.startsWith("r")) ctx.strokeStyle = "red";
                 if (type.startsWith("y")) ctx.strokeStyle = "yellow";
                 if (type.startsWith("g")) ctx.strokeStyle = "lime";
-                ctx.lineWidth = 3;
+                ctx.lineWidth = o.selected ? 20:3;
                 ctx.stroke();
             }
 
