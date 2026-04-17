@@ -77,7 +77,7 @@ class MapRenderer {
 
         const sprite = objectType.sprites?.[obj.animation]?.getimage?.();
 
-        if (obj.isvisable) {
+        if (obj.isvisable&&!(obj.buildProgress&&obj.buildProgress<1)) {
             try { this.drawSelectRing(ctx, obj, zoom, camerax, cameray); } catch (e) {}
         }
 
