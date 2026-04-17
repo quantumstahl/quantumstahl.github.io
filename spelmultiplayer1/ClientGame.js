@@ -830,11 +830,11 @@ class ClientGame {
                 ctx.fillStyle = "lime";
                 ctx.font = "40px Arial";
                 
-                const type=app.getEntityAt(rp.x,rp.y).type;
+                if(rp.type==null){const type=app.getEntityAt(rp.x,rp.y);if(type){rp.type=type.type;}}
                 let rtype="food";
-                if(type==="tree")rtype="wood";
-                if(type==="gold")rtype="gold";
-                if(type==="stone")rtype="stone";    
+                if(rp.type==="tree")rtype="wood";
+                if(rp.type==="gold")rtype="gold";
+                if(rp.type==="stone")rtype="stone";    
                 
                 
                 ctx.fillText(rtype, rp.x+this.game.getCameraX() + 14, rp.y+this.game.getCameraY());
