@@ -561,7 +561,7 @@ class ClientApp {
         
         const clicked = this.getEntityAt(worldX, worldY);
 
-        if(clicked.owner!==this.myId)this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
+        if(clicked.owner!==this.myId||clicked.type==="sheep")this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
         
         if(clicked&&!isbuilding){this.deselectAll();if(clicked.owner===this.myId){this.handlePointerLeftDown(worldX, worldY);}}
         
