@@ -1135,6 +1135,8 @@ update(scale) {
         return { x, y, w, h, text, action };
     }
     drawButton(btn) {
+        const mobile = mobileAndTabletCheck();
+
         ctx.fillStyle = "rgba(40,40,40,0.9)";
         ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
 
@@ -1145,7 +1147,7 @@ update(scale) {
         ctx.fillStyle = "white";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.font = "28px Arial";
+        ctx.font = mobile ? "28px Arial" : "24px Arial";
         ctx.fillText(btn.text, btn.x + btn.w / 2, btn.y + btn.h / 2);
     }
     pointInButton(x, y, btn) {
@@ -1157,57 +1159,26 @@ update(scale) {
         );
     }
     drawRoomBrowser() {
-        this.uiButtons = [];
-
         ctx.fillStyle = "white";
         ctx.textAlign = "left";
-        ctx.font = "42px Arial";
+        ctx.font = mobileAndTabletCheck() ? "36px Arial" : "42px Arial";
         ctx.fillText("Room Browser", 40, 70);
 
-        ctx.font = "28px Arial";
+        ctx.font = mobileAndTabletCheck() ? "24px Arial" : "30px Arial";
         ctx.fillText(`Name: ${this.playerName}`, 40, 120);
 
-        const isMobile = mobileAndTabletCheck();
-
-        if (isMobile) {
-            const createBtn = this.makeButton(40, 160, 260, 70, "Create Room", "create_room");
-            const nameBtn = this.makeButton(320, 160, 260, 70, "Change Name", "change_name");
-
-            this.uiButtons.push(createBtn, nameBtn);
-
-            this.drawButton(createBtn);
-            this.drawButton(nameBtn);
-        } else {
-            ctx.fillText("Press N to change name", 40, 170);
-            ctx.fillText("Press C to create room", 40, 210);
-        }
-
-        const rooms = this.roomList || [];
-        let y = 280;
-
-        for (let i = 0; i < rooms.length; i++) {
-            const r = rooms[i];
-
-            if (isMobile) {
-                const btn = this.makeButton(40, y, 520, 68, `${r.id} (${r.players})`, `join_room:${r.id}`);
-                this.uiButtons.push(btn);
-                this.drawButton(btn);
-                y += 84;
-            } else {
-                ctx.fillText(`${i + 1}. ${r.id} (${r.players} players) ${r.started ? "[INGAME]" : ""}`, 40, y);
-                y += 40;
-            }
+        this.uiButtons = this.buildRoomBrowserButtons();
+        for (const btn of this.uiButtons) {
+            this.drawButton(btn);
         }
     }
     drawLobby() {
-        this.uiButtons = [];
-
         ctx.fillStyle = "white";
         ctx.textAlign = "left";
-        ctx.font = "42px Arial";
+        ctx.font = mobileAndTabletCheck() ? "36px Arial" : "42px Arial";
         ctx.fillText(`Lobby: ${this.lobby.roomId || "-"}`, 40, 70);
 
-        ctx.font = "28px Arial";
+        ctx.font = mobileAndTabletCheck() ? "24px Arial" : "30px Arial";
         ctx.fillText(`Map: ${this.lobby.settings?.map || "default"}`, 40, 120);
         ctx.fillText(`Name: ${this.playerName}`, 40, 165);
 
@@ -1218,43 +1189,9 @@ update(scale) {
         ctx.fillStyle = "yellow";
         ctx.fillText(`Players: ${namesLine}`, 40, 220);
 
-        let x = 40;
-        let y = 270;
-
-        for (const p of (this.lobby.players || [])) {
-            ctx.fillStyle = "white";
-            ctx.fillText(`${p.name}`, x, y);
-
-            x += ctx.measureText(p.name).width + 14;
-
-            ctx.fillStyle = p.ready ? "lime" : "red";
-            ctx.fillText(p.ready ? "READY" : "NOT", x, y);
-
-            x += ctx.measureText(p.ready ? "READY" : "NOT").width + 28;
-        }
-
-        if (this.gameOverWinner != null) {
-            ctx.fillStyle = "yellow";
-            ctx.fillText(`Last winner: Team ${this.gameOverWinner}`, 40, 340);
-        }
-
-        const isMobile = mobileAndTabletCheck();
-
-        if (isMobile) {
-            const readyBtn = this.makeButton(40, canvas.height - 180, 220, 70, "Ready", "toggle_ready");
-            const leaveBtn = this.makeButton(280, canvas.height - 180, 220, 70, "Leave", "leave_room");
-            const nameBtn = this.makeButton(40, canvas.height - 95, 220, 70, "Name", "change_name");
-
-            this.uiButtons.push(readyBtn, leaveBtn, nameBtn);
-
-            this.drawButton(readyBtn);
-            this.drawButton(leaveBtn);
-            this.drawButton(nameBtn);
-        } else {
-            ctx.fillStyle = "white";
-            ctx.fillText("Press N to change name", 40, canvas.height - 130);
-            ctx.fillText("Press L to leave room", 40, canvas.height - 90);
-            ctx.fillText("Press R to toggle ready", 40, canvas.height - 50);
+        this.uiButtons = this.buildLobbyButtons();
+        for (const btn of this.uiButtons) {
+            this.drawButton(btn);
         }
     }
     handleUIButton(action) {
@@ -1282,9 +1219,8 @@ update(scale) {
         }
 
         if (action.startsWith("join_room:")) {
-            const roomId = action.split(":")[1];
+            const roomId = action.slice("join_room:".length);
             this.joinRoom(roomId);
-            return;
         }
     }
     handleMenuClick(screenX, screenY) {
@@ -1295,6 +1231,56 @@ update(scale) {
             }
         }
         return false;
+    }
+    buildLobbyButtons() {
+        const mobile = mobileAndTabletCheck();
+        const buttons = [];
+
+        if (mobile) {
+            buttons.push(this.makeButton(40, canvas.height - 180, 220, 70, "Ready", "toggle_ready"));
+            buttons.push(this.makeButton(280, canvas.height - 180, 220, 70, "Leave", "leave_room"));
+            buttons.push(this.makeButton(40, canvas.height - 95, 220, 70, "Name", "change_name"));
+        } else {
+            buttons.push(this.makeButton(40, canvas.height - 160, 180, 55, "Ready (R)", "toggle_ready"));
+            buttons.push(this.makeButton(240, canvas.height - 160, 180, 55, "Leave (L)", "leave_room"));
+            buttons.push(this.makeButton(440, canvas.height - 160, 180, 55, "Name (N)", "change_name"));
+        }
+
+        return buttons;
+    }
+    buildRoomBrowserButtons() {
+        const mobile = mobileAndTabletCheck();
+        const buttons = [];
+
+        if (mobile) {
+            buttons.push(this.makeButton(40, 160, 260, 70, "Create Room", "create_room"));
+            buttons.push(this.makeButton(320, 160, 260, 70, "Change Name", "change_name"));
+        } else {
+            buttons.push(this.makeButton(40, 160, 180, 55, "Create (C)", "create_room"));
+            buttons.push(this.makeButton(240, 160, 180, 55, "Name (N)", "change_name"));
+        }
+
+        const rooms = this.roomList || [];
+        let y = mobile ? 260 : 250;
+        const rowH = mobile ? 84 : 64;
+        const btnH = mobile ? 68 : 50;
+        const btnW = mobile ? 520 : 420;
+
+        for (const r of rooms) {
+            buttons.push(
+                this.makeButton(
+                    40,
+                    y,
+                    btnW,
+                    btnH,
+                    `${r.id} (${r.players})${r.started ? " [INGAME]" : ""}`,
+                    `join_room:${r.id}`
+                )
+            );
+            y += rowH;
+        }
+
+        return buttons;
     }
 }
 
