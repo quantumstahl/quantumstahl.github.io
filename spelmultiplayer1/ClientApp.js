@@ -271,13 +271,13 @@ class ClientApp {
     
     
     connect() {
-         this.ws = new WebSocket("wss://game.quantumstahl.com");
-        //this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
+         //this.ws = new WebSocket("wss://game.quantumstahl.com");
+        this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
         this.game.setWS(this.ws);
         this.ws.binaryType = "arraybuffer";
 
         this.ws.onopen = () => {
-            this.appState = "connecting";
+            this.startHeartbeat();
 
             this.ws.send(JSON.stringify({
                 type: "hello",
@@ -314,6 +314,7 @@ class ClientApp {
         };
 
         this.ws.onclose = () => {
+            this.stopHeartbeat();
             console.log("Disconnected from server");
             this.appState = "connecting";
         };
@@ -1289,6 +1290,25 @@ update(scale) {
         this.playerName = value.trim().slice(0, 16) || "Player";
         localStorage.setItem("playerName", this.playerName);
         this.sendRename(this.playerName);
+    }
+    startHeartbeat() {
+        this.stopHeartbeat();
+
+        this.heartbeatTimer = setInterval(() => {
+            if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+            this.ws.send(JSON.stringify({
+                type: "ping",
+                t: Date.now()
+            }));
+        }, 10000);
+    }
+
+    stopHeartbeat() {
+        if (this.heartbeatTimer) {
+            clearInterval(this.heartbeatTimer);
+            this.heartbeatTimer = null;
+        }
     }
 }
 
