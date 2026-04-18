@@ -67,7 +67,7 @@ class ClientGame {
         this.UI(selected,myId,ctx,canvas,leftclicked,app);
         this.drawResourcesUI(ctx, this.game.playerResources);
         this.drawHealthBars();
-        this.drawBuildingRallyPoints(ctx,app);
+        this.drawBuildingRallyPoints(ctx);
     }
     updateworkers(){
         const worker = this.getAllWorkersAllTeams();
@@ -801,8 +801,10 @@ class ClientGame {
             
         }
     }
-    drawBuildingRallyPoints(ctx,app) {
+    drawBuildingRallyPoints(ctx) {
         const objects = this.game.world.entities;
+        const camX = this.game.getCameraX();
+        const camY = this.game.getCameraY();
 
         for (const b of objects) {
             if (!b.rallyPoint) continue;
@@ -811,32 +813,72 @@ class ClientGame {
             const rp = b.rallyPoint;
 
             const bx = b.x + b.w / 2;
-            const by = b.y + b.h / 2;
-            
+            const by = b.y + b.h * 0.75;
+
+            const rx = rp.x + camX;
+            const ry = rp.y + camY;
+            const sx = bx + camX;
+            const sy = by + camY;
+
+            let color = "white";
+            let label = "";
+
+            if (rp.mode > 1) color = "lime";
+            if (rp.mode === 2) label = "F";
+            if (rp.mode === 3) label = "W";
+            if (rp.mode === 4) label = "S";
+            if (rp.mode === 5) label = "G";
+
+            const t = performance.now() * 0.006;
+            const pulse = 1 + Math.sin(t) * 0.12;
+
             ctx.save();
-            ctx.strokeStyle = rp.mode > 1 ? "lime" : "white";
+
+            // svart baklinje
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(rx, ry);
+            ctx.strokeStyle = "black";
+            ctx.lineWidth = 6;
+            ctx.stroke();
+
+            // färgad linje
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(rx, ry);
+            ctx.strokeStyle = color;
             ctx.lineWidth = 3;
-
-            ctx.beginPath();
-            ctx.moveTo(bx+this.game.getCameraX(), by+this.game.getCameraY());
-            ctx.lineTo(rp.x+this.game.getCameraX(), rp.y+this.game.getCameraY());
             ctx.stroke();
 
+            // yttre ring
             ctx.beginPath();
-            ctx.arc(rp.x+this.game.getCameraX(), rp.y+this.game.getCameraY(), 10, 0, Math.PI * 2);
+            ctx.arc(rx, ry, 13 * pulse, 0, Math.PI * 2);
+            ctx.strokeStyle = "black";
+            ctx.lineWidth = 5;
             ctx.stroke();
 
-            if (rp.mode > 1) {
-                ctx.fillStyle = "lime";
-                ctx.font = "40px Arial";
-                
-                let rtype="food";
-                if(rp.mode===3)rtype="wood";
-                if(rp.mode===4)rtype="stone";
-                if(rp.mode===5)rtype="gold";    
-                
-                
-                ctx.fillText(rtype, rp.x+this.game.getCameraX() + 14, rp.y+this.game.getCameraY());
+            // inre ring
+            ctx.beginPath();
+            ctx.arc(rx, ry, 11 * pulse, 0, Math.PI * 2);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // mjuk fyllning
+            ctx.beginPath();
+            ctx.arc(rx, ry, 6, 0, Math.PI * 2);
+            ctx.globalAlpha = 0.25;
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.globalAlpha = 1;
+
+            if (label) {
+                ctx.fillStyle = color;
+                ctx.strokeStyle = "black";
+                ctx.lineWidth = 3;
+                ctx.font = "bold 20px Arial";
+                ctx.strokeText(label, rx + 16, ry + 7);
+                ctx.fillText(label, rx + 16, ry + 7);
             }
 
             ctx.restore();
