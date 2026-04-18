@@ -876,7 +876,7 @@ class ClientGame {
                 ctx.fillStyle = color;
                 ctx.strokeStyle = "black";
                 ctx.lineWidth = 3;
-                ctx.font = "bold 20px Arial";
+                ctx.font = "bold 40px Arial";
                 ctx.strokeText(label, rx + 16, ry + 7);
                 ctx.fillText(label, rx + 16, ry + 7);
             }
