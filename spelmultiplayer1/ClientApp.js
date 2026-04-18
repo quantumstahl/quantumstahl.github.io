@@ -1282,6 +1282,14 @@ update(scale) {
 
         return buttons;
     }
+    changeNamePrompt() {
+        const value = prompt("Enter your name:", this.playerName || "Player");
+        if (value == null) return;
+
+        this.playerName = value.trim().slice(0, 16) || "Player";
+        localStorage.setItem("playerName", this.playerName);
+        this.sendRename(this.playerName);
+    }
 }
 
 
