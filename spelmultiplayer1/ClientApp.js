@@ -579,7 +579,7 @@ class ClientApp {
         
         const clicked = this.getEntityAt(worldX, worldY);
 
-        if(!clicked||(clicked.owner!==this.myId||clicked.type==="sheep")||(clicked.owner===this.myId&&clicked.buildProgress&&clicked.buildProgress<1))this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
+        if(!(selected[0].type==="sheep" && clicked.type==="sheep")&&(!clicked||(clicked.owner!==this.myId||clicked.type==="sheep")||(clicked.owner===this.myId&&clicked.buildProgress&&clicked.buildProgress<1)))this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
     
         if(clicked){if(!isbuilding)this.deselectAll();if(clicked.owner===this.myId&&!(isbuilding&&clicked.type==="sheep")&&!(clicked.buildProgress&&clicked.buildProgress<1) ){this.handlePointerLeftDown(worldX, worldY);}}
         
