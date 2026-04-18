@@ -166,8 +166,8 @@ class ClientApp {
     
     
     connect() {
-        this.ws = new WebSocket("wss://game.quantumstahl.com");
-        //this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
+       // this.ws = new WebSocket("wss://game.quantumstahl.com");
+        this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
         this.game.setWS(this.ws);
         this.ws.binaryType = "arraybuffer";
 
@@ -301,6 +301,23 @@ class ClientApp {
             obj.carry=e.carry;
             obj.r = e.r;
             obj.hp = e.hp;
+            
+            if(e.rallyPointX!==32767){
+                
+                if(!obj.rallyPoint){
+                    obj.rallyPoint = {
+                    x: e.rallyPointX,
+                    y: e.rallyPointY,
+                    mode: e.rallymode
+                            };
+                }
+                else{
+                    obj.rallyPoint.x=e.rallyPointX;
+                    obj.rallyPoint.y=e.rallyPointY;
+                    obj.rallyPoint.mode=e.rallymode;
+                   
+                }
+            }  
         }
     }
     diff16(a, b) {
