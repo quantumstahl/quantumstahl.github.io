@@ -141,6 +141,16 @@ class ClientApp {
             
             return;
         }
+        if (data.type === "match_cancelled") {
+            this.gameOver = false;
+            this.gameOverText = "";
+            this.gameOverTime = 0;
+
+            this.appState = "lobby";
+            this.lobby.started = false;
+
+            return;
+        }
         
 
     }
@@ -1147,11 +1157,20 @@ update(scale) {
         ctx.lineWidth = 2;
         ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
 
-        ctx.fillStyle = "white";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.font = mobile ? "28px Arial" : "24px Arial";
-        ctx.fillText(btn.text, btn.x + btn.w / 2, btn.y + btn.h / 2);
+
+        // 🔹 huvudtext
+        ctx.fillStyle = "white";
+        ctx.font = mobile ? "26px Arial" : "22px Arial";
+        ctx.fillText(btn.text, btn.x + btn.w / 2, btn.y + btn.h / 2 - 10);
+
+        // 🔥 subtext (spelare)
+        if (btn.subtext) {
+            ctx.fillStyle = "yellow";
+            ctx.font = mobile ? "20px Arial" : "18px Arial";
+            ctx.fillText(btn.subtext, btn.x + btn.w / 2, btn.y + btn.h / 2 + 18);
+        }
     }
     pointInButton(x, y, btn) {
         return (
@@ -1176,12 +1195,14 @@ update(scale) {
         }
     }
     drawLobby() {
+        const mobile = mobileAndTabletCheck();
+
         ctx.fillStyle = "white";
         ctx.textAlign = "left";
-        ctx.font = mobileAndTabletCheck() ? "36px Arial" : "42px Arial";
+        ctx.font = mobile ? "36px Arial" : "42px Arial";
         ctx.fillText(`Lobby: ${this.lobby.roomId || "-"}`, 40, 70);
 
-        ctx.font = mobileAndTabletCheck() ? "24px Arial" : "30px Arial";
+        ctx.font = mobile ? "24px Arial" : "30px Arial";
         ctx.fillText(`Map: ${this.lobby.settings?.map || "default"}`, 40, 120);
         ctx.fillText(`Name: ${this.playerName}`, 40, 165);
 
@@ -1191,6 +1212,28 @@ update(scale) {
 
         ctx.fillStyle = "yellow";
         ctx.fillText(`Players: ${namesLine}`, 40, 220);
+
+        let x = 40;
+        let y = 265;
+        ctx.font = mobile ? "22px Arial" : "26px Arial";
+
+        for (const p of (this.lobby.players || [])) {
+            const label = p.id === this.myId ? `[${p.name}]` : p.name;
+
+            ctx.fillStyle = "white";
+            ctx.fillText(label, x, y);
+            x += ctx.measureText(label).width + 10;
+
+            ctx.fillStyle = p.ready ? "lime" : "red";
+            const status = p.ready ? "READY" : "NOT";
+            ctx.fillText(status, x, y);
+            x += ctx.measureText(status).width + 25;
+        }
+
+        if (this.gameOverWinner != null) {
+            ctx.fillStyle = "yellow";
+            ctx.fillText(`Last winner: Team ${this.gameOverWinner}`, 40, 315);
+        }
 
         this.uiButtons = this.buildLobbyButtons();
         for (const btn of this.uiButtons) {
@@ -1256,20 +1299,22 @@ update(scale) {
         const buttons = [];
 
         if (mobile) {
-            buttons.push(this.makeButton(40, 160, 260, 70, "Create Room", "create_room"));
-            buttons.push(this.makeButton(320, 160, 260, 70, "Change Name", "change_name"));
+            buttons.push(this.makeButton(40, 170, 260, 70, "Create Room", "create_room"));
+            buttons.push(this.makeButton(320, 170, 260, 70, "Change Name", "change_name"));
         } else {
-            buttons.push(this.makeButton(40, 160, 180, 55, "Create (C)", "create_room"));
-            buttons.push(this.makeButton(240, 160, 180, 55, "Name (N)", "change_name"));
+            buttons.push(this.makeButton(40, 170, 180, 55, "Create (C)", "create_room"));
+            buttons.push(this.makeButton(240, 170, 180, 55, "Name (N)", "change_name"));
         }
 
         const rooms = this.roomList || [];
-        let y = mobile ? 260 : 250;
-        const rowH = mobile ? 84 : 64;
-        const btnH = mobile ? 68 : 50;
-        const btnW = mobile ? 520 : 420;
+        let y = mobile ? 270 : 250;
 
         for (const r of rooms) {
+            const btnH = mobile ? 90 : 70;
+            const btnW = mobile ? 520 : 420;
+
+            const playerNames = (r.playerNames || []).join(", ");
+
             buttons.push(
                 this.makeButton(
                     40,
@@ -1277,10 +1322,12 @@ update(scale) {
                     btnW,
                     btnH,
                     `${r.id} (${r.players})${r.started ? " [INGAME]" : ""}`,
-                    `join_room:${r.id}`
+                    `join_room:${r.id}`,
+                    playerNames // 🔥 subtext här
                 )
             );
-            y += rowH;
+
+            y += mobile ? 110 : 90;
         }
 
         return buttons;
@@ -1311,6 +1358,9 @@ update(scale) {
             clearInterval(this.heartbeatTimer);
             this.heartbeatTimer = null;
         }
+    }
+    makeButton(x, y, w, h, text, action, subtext = "") {
+        return { x, y, w, h, text, action, subtext };
     }
 }
 
