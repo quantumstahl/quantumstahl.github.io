@@ -1,23 +1,56 @@
 class ClientApp {
     constructor() {
         this.ws = null;
-        this.game = new GameClient(); 
+        this.game = new GameClient();
+
         this.myId = null;
+        this.playerName = localStorage.getItem("playerName") || "Player";
+        this.roomId = "default";
+
+        this.appState = "connecting";
+        // "connecting" | "room_browser" | "lobby" | "starting" | "in_game"
+
+        this.lobby = {
+            roomId: null,
+            players: [],
+            settings: { map: "default" },
+            started: false
+        };
+
         this.dragSelectStart = null;
         this.dragSelectEnd = null;
-        this.input = new InputManager(this,this.game);
+        this.input = new InputManager(this, this.game);
+
         this.input2 = {
             left: false,
             right: false,
             up: false,
             down: false
         };
+
         this.lastTime = 0;
-        this.leftclicked=false;
+        this.leftclicked = false;
         this.latestPacketTime = null;
+        
+        this.playerName = localStorage.getItem("playerName") || "Player";
+        this.nameInputActive = false;
+        this.nameDraft = this.playerName;
+        this.lobby = {
+            roomId: null,
+            players: [],
+            settings: { map: "default" },
+            started: false
+        };
+
+        this.roomList = [];
+        this.gameOver = false;
+        this.gameOverText = "";
+        this.gameOverTime = 0;
+        this.uiButtons = [];
+
     }
     async init() {
-        await this.game.loadGame(); // 🔥 laddar map + world
+        await this.game.loadGame();
         this.setupInput();
         requestAnimationFrame((t) => this.gameLoop(t));
         this.connect();
@@ -25,16 +58,88 @@ class ClientApp {
 
     // ---------------- NETWORK ----------------
     handleServerMessage(data) {
-        if (data.type === "init") {
-            this.myId = data.id;
-            this.game.maps[this.game.currentmap].camerax=data.cx+500;
-            this.game.maps[this.game.currentmap].cameray=data.cy+500;
-            this.applyServerState(data.data);
-            console.log("My ID:", this.myId);
+        if (data.type === "connected") return;
+
+        if (data.type === "hello_ok") {
+            this.myId = data.playerId;
+            this.playerName = data.playerName;
+            this.appState = "room_browser";
             return;
         }
-        else this.applyServerState2(data);
+
+        if (data.type === "room_list") {
+            this.roomList = data.rooms || [];
+
+            if (!this.lobby.roomId) {
+                this.appState = "room_browser";
+            }
+
+            return;
+        }
+        if (data.type === "match_ended") {
+            const winner = data.winner;
+            this.gameOverWinner = winner;
+
+            if (winner === this.myId) this.gameOverText = "YOU WIN";
+            else if (winner === 0) this.gameOverText = "DRAW";
+            else this.gameOverText = "YOU LOSE";
+
+            this.gameOver = true;
+            this.gameOverTime = performance.now();
+            this.appState = "game_over";
+            return;
+        }
         
+        
+        if (data.type === "lobby_state") {
+            this.lobby.roomId = data.roomId;
+            this.lobby.players = data.players || [];
+            this.lobby.settings = data.settings || { map: "default" };
+            this.lobby.started = !!data.started;
+
+            if (!this.gameOver) {
+                this.appState = this.lobby.started ? "starting" : "lobby";
+            }
+
+            return;
+        }
+
+        if (data.type === "left_room") {
+            this.lobby = {
+                roomId: null,
+                players: [],
+                settings: { map: "default" },
+                started: false
+            };
+
+            this.appState = "room_browser";
+            return;
+        }
+
+        if (data.type === "match_start") {
+            this.gameOver = false;
+            this.gameOverText = "";
+            this.gameOverTime = 0;
+            showPanHint();
+            this.appState = "starting";
+            return;
+        }
+
+        if (data.type === "init") {
+            this.myId = data.id;
+            this.game.maps[this.game.currentmap].camerax = data.cx + 500;
+            this.game.maps[this.game.currentmap].cameray = data.cy + 500;
+            this.applyServerState(data.data);
+            this.appState = "in_game";
+            return;
+        }
+        if(data.type === "spawn"){
+            this.applyServerState2(data);
+            
+            return;
+        }
+        
+
     }
     handleBinaryXY(buffer) {
         const view = new DataView(buffer);
@@ -166,10 +271,19 @@ class ClientApp {
     
     
     connect() {
-        this.ws = new WebSocket("wss://game.quantumstahl.com");
-        //this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
+        this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
         this.game.setWS(this.ws);
         this.ws.binaryType = "arraybuffer";
+
+        this.ws.onopen = () => {
+            this.appState = "connecting";
+
+            this.ws.send(JSON.stringify({
+                type: "hello",
+                name: this.playerName,
+                roomId: this.roomId
+            }));
+        };
 
         this.ws.onmessage = (event) => {
             if (typeof event.data === "string") {
@@ -179,21 +293,32 @@ class ClientApp {
             }
 
             if (event.data instanceof ArrayBuffer) {
-                 const view = new DataView(event.data);
-                 const type = view.getUint8(0);
-                 if(type===0) this.handleBinaryState(event.data);
-                 else if(type===1)this.handleBinaryRemove(event.data);
-                 else if(type===2)this.handleBinaryResources(event.data);
-                 else if(type===3)this.handleBinaryXY(event.data);
-
+                if (this.appState !== "in_game") return;
                 
+        
+                
+
+                const view = new DataView(event.data);
+                const type = view.getUint8(0);
+
+                if (type === 0) this.handleBinaryState(event.data);
+                else if (type === 1) this.handleBinaryRemove(event.data);
+                else if (type === 2) this.handleBinaryResources(event.data);
+                else if (type === 3) this.handleBinaryXY(event.data);
+
                 return;
             }
 
             console.log("Unknown websocket message:", event.data);
         };
+
+        this.ws.onclose = () => {
+            console.log("Disconnected from server");
+            this.appState = "connecting";
+        };
     }
     sendSelectCommand(entityIds) {
+        if (this.appState !== "in_game") return;
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
         this.ws.send(JSON.stringify({
@@ -203,6 +328,72 @@ class ClientApp {
     }
     setupInput() {
         window.addEventListener("keydown", (e) => {
+            if (this.appState === "lobby") {
+                if (this.nameInputActive) {
+                    if (e.key === "Enter") {
+                        this.playerName = this.nameDraft.trim().slice(0, 16) || "Player";
+                        localStorage.setItem("playerName", this.playerName);
+                        this.nameInputActive = false;
+                        this.sendRename(this.playerName);
+                        return;
+                    }
+
+                    if (e.key === "Escape") {
+                        this.nameDraft = this.playerName;
+                        this.nameInputActive = false;
+                        return;
+                    }
+
+                    if (e.key === "Backspace") {
+                        e.preventDefault();
+                        this.nameDraft = this.nameDraft.slice(0, -1);
+                        return;
+                    }
+
+                    if (e.key.length === 1 && this.nameDraft.length < 16) {
+                        this.nameDraft += e.key;
+                        return;
+                    }
+
+                    return;
+                }
+                if (e.key === "l" || e.key === "L") {
+                    this.leaveRoom();
+                    return;
+                }
+
+                if (e.key === "n" || e.key === "N") {
+                    this.nameInputActive = true;
+                    this.nameDraft = this.playerName;
+                    return;
+                }
+
+                if (e.key === "r" || e.key === "R") {
+                    const me = this.lobby.players.find(p => p.id === this.myId);
+                    const currentReady = !!me?.ready;
+                    this.setReady(!currentReady);
+                    return;
+                }
+            }
+            if (this.appState === "room_browser") {
+                if (e.key === "c" || e.key === "C") {
+                    const roomName = prompt("Room name:");
+                    if (roomName) this.createRoom(roomName);
+                    return;
+                }
+
+                if (e.key >= "1" && e.key <= "9") {
+                    const idx = Number(e.key) - 1;
+                    const room = this.roomList?.[idx];
+                    if (room) this.joinRoom(room.id);
+                    return;
+                }
+
+                if (e.key === "n" || e.key === "N") {
+                    this.changeNamePrompt();
+                    return;
+                }
+            }
             if (e.key === "a" || e.key === "ArrowLeft") this.input2.left = true;
             if (e.key === "d" || e.key === "ArrowRight") this.input2.right = true;
             if (e.key === "w" || e.key === "ArrowUp") this.input2.up = true;
@@ -214,7 +405,6 @@ class ClientApp {
             if (e.key === "d" || e.key === "ArrowRight") this.input2.right = false;
             if (e.key === "w" || e.key === "ArrowUp") this.input2.up = false;
             if (e.key === "s" || e.key === "ArrowDown") this.input2.down = false;
-   
         });
     }
     
@@ -480,6 +670,7 @@ class ClientApp {
         );
     }
     handlePointerLeftDown(worldX, worldY) {
+        if (this.appState !== "in_game") return;
         this.leftclicked=true;
         if(this.game.UISIZE()||this.game.buildMode)return;
         this.deselectAll();
@@ -503,6 +694,7 @@ class ClientApp {
     }
 
     handleDragSelect(rect) {
+        if (this.appState !== "in_game") return;
         if (this.game.UISIZE() || this.game.buildMode) return;
 
         this.deselectAll();
@@ -549,6 +741,7 @@ class ClientApp {
         this.sendSelectCommand(selectedIds);
     }
     handlePointerRightDown(worldX, worldY) {
+        if (this.appState !== "in_game") return;
         if(this.game.buildMode){
             this.game.buildMode = null;
             this.game.buildSelectedIds = [];
@@ -570,6 +763,7 @@ class ClientApp {
     }
 
     handleTouchCommand(worldX, worldY) {
+        if (this.appState !== "in_game") return;
         this.leftclicked=true;
         if(this.game.UISIZE()||this.game.buildMode)return;
         const selected = this.getSelectedEntities();
@@ -590,6 +784,7 @@ class ClientApp {
     }
 
     sendRightClickCommand(x, y, targetId) {
+        if (this.appState !== "in_game") return;
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
         this.ws.send(JSON.stringify({
@@ -620,40 +815,82 @@ update(scale) {
     if (this.input2.down) if(currentMap.cameray>-2200)currentMap.cameray -= camSpeed;
     if (this.input2.left) if(currentMap.camerax<200)currentMap.camerax += camSpeed; 
     if (this.input2.right) if(currentMap.camerax>-6000)currentMap.camerax -= camSpeed;
-    
+        if (this.gameOver) {
+            const elapsed = performance.now() - this.gameOverTime;
+
+            if (elapsed > 7500) {
+                this.gameOver = false;
+                this.gameOverText = "";
+                this.gameOverTime = 0;
+
+                this.appState = "lobby";
+            }
+        }
     
     
    
 }
 
     draw(scale) {
-       
         this.updateCanvasSize();
+
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        this.updateNetworkRendering();
-        this.game.draw(scale,this.getSelectedEntities(),this.myId,this.leftclicked,this);
-       
-        this.leftclicked=false;
-        
-        if(this.game.buildMode){
-            if(this.canPlaceBuilding(this.game.cursorX-this.game.getCameraX()-this.game.bildModew/2, this.game.cursorY-this.game.getCameraY()-this.game.bildModeh/2,this.game.bildModew,this.game.bildModeh)===true){
-                ctx.fillStyle="green";
-                ctx.fillRect(this.game.cursorX-this.game.bildModew/2-1,this.game.cursorY-this.game.bildModeh/2-1,this.game.bildModew+2,this.game.bildModeh+2);
-                
-                
-            }
-            else{
-                ctx.fillStyle="red";
-                ctx.fillRect(this.game.cursorX-this.game.bildModew/2-1,this.game.cursorY-this.game.bildModeh/2-1,this.game.bildModew+2,this.game.bildModeh+2);
-                
-            }
-            ctx.drawImage(this.game.getObjectType(this.game.buildMode).sprites[0].getimage(),this.game.cursorX-this.game.bildModew/2,this.game.cursorY-this.game.bildModeh/2,this.game.bildModew,this.game.bildModeh );
-            
+
+        if (this.appState === "connecting") {
+            this.drawCenteredText("Connecting...");
+            return;
+        }
+
+        if (this.appState === "lobby" || this.appState === "starting") {
+            this.drawLobby();
+            return;
         }
         
-        
-        
+        if(this.appState ==="room_browser" ){
+            this.drawRoomBrowser();
+            return;
+        }
+
+
+        this.updateNetworkRendering();
+        this.game.draw(scale, this.getSelectedEntities(), this.myId, this.leftclicked, this);
+
+        this.leftclicked = false;
+
+        if (this.game.buildMode) {
+            if (this.canPlaceBuilding(
+                this.game.cursorX - this.game.getCameraX() - this.game.bildModew / 2,
+                this.game.cursorY - this.game.getCameraY() - this.game.bildModeh / 2,
+                this.game.bildModew,
+                this.game.bildModeh
+            ) === true) {
+                ctx.fillStyle = "green";
+                ctx.fillRect(
+                    this.game.cursorX - this.game.bildModew / 2 - 1,
+                    this.game.cursorY - this.game.bildModeh / 2 - 1,
+                    this.game.bildModew + 2,
+                    this.game.bildModeh + 2
+                );
+            } else {
+                ctx.fillStyle = "red";
+                ctx.fillRect(
+                    this.game.cursorX - this.game.bildModew / 2 - 1,
+                    this.game.cursorY - this.game.bildModeh / 2 - 1,
+                    this.game.bildModew + 2,
+                    this.game.bildModeh + 2
+                );
+            }
+
+            ctx.drawImage(
+                this.game.getObjectType(this.game.buildMode).sprites[0].getimage(),
+                this.game.cursorX - this.game.bildModew / 2,
+                this.game.cursorY - this.game.bildModeh / 2,
+                this.game.bildModew,
+                this.game.bildModeh
+            );
+        }
+
         ctx.save();
         ctx.scale(this.game.getZoom(), this.game.getZoom());
         ctx.translate(this.game.getCameraX(), this.game.getCameraY());
@@ -666,16 +903,13 @@ update(scale) {
 
             const dashOffset = (performance.now() * 0.02) % 12;
 
-            // fill
             ctx.fillStyle = "rgba(0, 255, 120, 0.10)";
             ctx.fillRect(x, y, w, h);
 
-            // outer border
             ctx.strokeStyle = "rgba(0, 0, 0, 0.75)";
             ctx.lineWidth = 6;
             ctx.strokeRect(x, y, w, h);
 
-            // animated inner border
             ctx.strokeStyle = "rgba(120,255,180,1)";
             ctx.lineWidth = 2;
             ctx.setLineDash([8, 4]);
@@ -685,6 +919,57 @@ update(scale) {
         }
 
         ctx.restore();
+        if (this.gameOver || this.appState === "game_over") {
+            const t = performance.now() - this.gameOverTime;
+
+            // fade in (0 → 1 på ~400ms)
+            const fade = Math.min(1, t / 400);
+
+            // pulserande skala
+            const pulse = 1 + Math.sin(t * 0.005) * 0.05;
+
+            ctx.save();
+
+            // mörk bakgrund med fade
+            ctx.fillStyle = `rgba(0, 0, 0, ${0.7 * fade})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // center
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            ctx.translate(cx, cy);
+            ctx.scale(pulse, pulse);
+            ctx.translate(-cx, -cy);
+
+            // färg beroende på resultat
+            let color = "white";
+            if (this.gameOverText === "YOU WIN") color = "#00ff88";
+            else if (this.gameOverText === "YOU LOSE") color = "#ff4444";
+            else if (this.gameOverText === "DRAW") color = "#ffff66";
+
+            // glow
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 30 * fade;
+
+            ctx.fillStyle = color;
+            ctx.textAlign = "center";
+            ctx.font = "80px Arial";
+
+            ctx.fillText(this.gameOverText, cx, cy);
+
+            // subtext (fade + liten animation)
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = `rgba(255,255,255,${fade})`;
+            ctx.font = "30px Arial";
+
+            const dots = ".".repeat(Math.floor((t / 400) % 4));
+            ctx.fillText(`Returning to lobby${dots}`, cx, cy + 80);
+
+            ctx.restore();
+            return;
+        }
+        
     }
 
     gameLoop(time) {
@@ -772,8 +1057,244 @@ update(scale) {
             ay + ah > by - pad
         );
     }
-    
-    
+    sendHello(name, roomId = "default") {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+        this.playerName = String(name || "Player").trim().slice(0, 16) || "Player";
+        this.roomId = roomId;
+
+        localStorage.setItem("playerName", this.playerName);
+
+        this.ws.send(JSON.stringify({
+            type: "hello",
+            name: this.playerName,
+            roomId: this.roomId
+        }));
+    }
+
+    setReady(ready) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+        this.ws.send(JSON.stringify({
+            type: "set_ready",
+            ready: !!ready
+        }));
+    }
+
+    setMap(map) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+        this.ws.send(JSON.stringify({
+            type: "set_map",
+            map
+        }));
+    }
+    drawCenteredText(text) {
+        ctx.fillStyle = "white";
+        ctx.font = "40px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    }
+
+    sendRename(name) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+        this.ws.send(JSON.stringify({
+            type: "set_name",
+            name
+        }));
+    }
+    createRoom(roomId) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+        this.ws.send(JSON.stringify({
+            type: "create_room",
+            roomId
+        }));
+    }
+
+    joinRoom(roomId) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+        this.ws.send(JSON.stringify({
+            type: "join_room",
+            roomId
+        }));
+    }
+
+    leaveRoom() {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+        this.ws.send(JSON.stringify({
+            type: "leave_room"
+        }));
+    }
+    makeButton(x, y, w, h, text, action) {
+        return { x, y, w, h, text, action };
+    }
+    drawButton(btn) {
+        ctx.fillStyle = "rgba(40,40,40,0.9)";
+        ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
+
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "28px Arial";
+        ctx.fillText(btn.text, btn.x + btn.w / 2, btn.y + btn.h / 2);
+    }
+    pointInButton(x, y, btn) {
+        return (
+            x >= btn.x &&
+            x <= btn.x + btn.w &&
+            y >= btn.y &&
+            y <= btn.y + btn.h
+        );
+    }
+    drawRoomBrowser() {
+        this.uiButtons = [];
+
+        ctx.fillStyle = "white";
+        ctx.textAlign = "left";
+        ctx.font = "42px Arial";
+        ctx.fillText("Room Browser", 40, 70);
+
+        ctx.font = "28px Arial";
+        ctx.fillText(`Name: ${this.playerName}`, 40, 120);
+
+        const isMobile = mobileAndTabletCheck();
+
+        if (isMobile) {
+            const createBtn = this.makeButton(40, 160, 260, 70, "Create Room", "create_room");
+            const nameBtn = this.makeButton(320, 160, 260, 70, "Change Name", "change_name");
+
+            this.uiButtons.push(createBtn, nameBtn);
+
+            this.drawButton(createBtn);
+            this.drawButton(nameBtn);
+        } else {
+            ctx.fillText("Press N to change name", 40, 170);
+            ctx.fillText("Press C to create room", 40, 210);
+        }
+
+        const rooms = this.roomList || [];
+        let y = 280;
+
+        for (let i = 0; i < rooms.length; i++) {
+            const r = rooms[i];
+
+            if (isMobile) {
+                const btn = this.makeButton(40, y, 520, 68, `${r.id} (${r.players})`, `join_room:${r.id}`);
+                this.uiButtons.push(btn);
+                this.drawButton(btn);
+                y += 84;
+            } else {
+                ctx.fillText(`${i + 1}. ${r.id} (${r.players} players) ${r.started ? "[INGAME]" : ""}`, 40, y);
+                y += 40;
+            }
+        }
+    }
+    drawLobby() {
+        this.uiButtons = [];
+
+        ctx.fillStyle = "white";
+        ctx.textAlign = "left";
+        ctx.font = "42px Arial";
+        ctx.fillText(`Lobby: ${this.lobby.roomId || "-"}`, 40, 70);
+
+        ctx.font = "28px Arial";
+        ctx.fillText(`Map: ${this.lobby.settings?.map || "default"}`, 40, 120);
+        ctx.fillText(`Name: ${this.playerName}`, 40, 165);
+
+        const namesLine = (this.lobby.players || [])
+            .map(p => p.id === this.myId ? `[${p.name}]` : p.name)
+            .join(", ");
+
+        ctx.fillStyle = "yellow";
+        ctx.fillText(`Players: ${namesLine}`, 40, 220);
+
+        let x = 40;
+        let y = 270;
+
+        for (const p of (this.lobby.players || [])) {
+            ctx.fillStyle = "white";
+            ctx.fillText(`${p.name}`, x, y);
+
+            x += ctx.measureText(p.name).width + 14;
+
+            ctx.fillStyle = p.ready ? "lime" : "red";
+            ctx.fillText(p.ready ? "READY" : "NOT", x, y);
+
+            x += ctx.measureText(p.ready ? "READY" : "NOT").width + 28;
+        }
+
+        if (this.gameOverWinner != null) {
+            ctx.fillStyle = "yellow";
+            ctx.fillText(`Last winner: Team ${this.gameOverWinner}`, 40, 340);
+        }
+
+        const isMobile = mobileAndTabletCheck();
+
+        if (isMobile) {
+            const readyBtn = this.makeButton(40, canvas.height - 180, 220, 70, "Ready", "toggle_ready");
+            const leaveBtn = this.makeButton(280, canvas.height - 180, 220, 70, "Leave", "leave_room");
+            const nameBtn = this.makeButton(40, canvas.height - 95, 220, 70, "Name", "change_name");
+
+            this.uiButtons.push(readyBtn, leaveBtn, nameBtn);
+
+            this.drawButton(readyBtn);
+            this.drawButton(leaveBtn);
+            this.drawButton(nameBtn);
+        } else {
+            ctx.fillStyle = "white";
+            ctx.fillText("Press N to change name", 40, canvas.height - 130);
+            ctx.fillText("Press L to leave room", 40, canvas.height - 90);
+            ctx.fillText("Press R to toggle ready", 40, canvas.height - 50);
+        }
+    }
+    handleUIButton(action) {
+        if (action === "create_room") {
+            const roomName = prompt("Room name:");
+            if (roomName) this.createRoom(roomName);
+            return;
+        }
+
+        if (action === "change_name") {
+            this.changeNamePrompt();
+            return;
+        }
+
+        if (action === "leave_room") {
+            this.leaveRoom();
+            return;
+        }
+
+        if (action === "toggle_ready") {
+            const me = this.lobby.players.find(p => p.id === this.myId);
+            const currentReady = !!me?.ready;
+            this.setReady(!currentReady);
+            return;
+        }
+
+        if (action.startsWith("join_room:")) {
+            const roomId = action.split(":")[1];
+            this.joinRoom(roomId);
+            return;
+        }
+    }
+    handleMenuClick(screenX, screenY) {
+        for (const btn of this.uiButtons) {
+            if (this.pointInButton(screenX, screenY, btn)) {
+                this.handleUIButton(btn.action);
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
 

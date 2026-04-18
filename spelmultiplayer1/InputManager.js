@@ -93,7 +93,14 @@ class InputManager {
     onMouseDown(e) {
         e.preventDefault();
         this.updateCursor(e.clientX, e.clientY);
-    
+        
+        if (this.app.appState === "room_browser" || this.app.appState === "lobby") {
+            if (this.app.handleMenuClick(this.cursorScreenX, this.cursorScreenY)) {
+                return;
+            }
+        }
+        
+        
         const world = this.getWorldPos(e.clientX, e.clientY);
   
         if (e.button === 0) {
@@ -131,39 +138,45 @@ class InputManager {
     }
 
     onTouchStart(e) {
-    e.preventDefault();
-
-    if (e.touches.length === 1) {
-        const t = e.touches[0];
-        this.updateCursor(t.clientX, t.clientY);
-
-        const world = this.getWorldPos(t.clientX, t.clientY);
-        this.beginDrag(world.x, world.y);
-
-        this.allowSingleTap = true;
-
-        if (this.tapTimeout !== null) {
-            clearTimeout(this.tapTimeout);
+        e.preventDefault();
+    
+        if (this.app.appState === "room_browser" || this.app.appState === "lobby") {
+            if (this.app.handleMenuClick(this.cursorScreenX, this.cursorScreenY)) {
+                return;
+            }
         }
 
-        this.tapTimeout = setTimeout(() => {
-            this.tapTimeout = null;
-        }, 150);
-    } else {
-        this.allowSingleTap = false;
+        if (e.touches.length === 1) {
+            const t = e.touches[0];
+            this.updateCursor(t.clientX, t.clientY);
 
-        if (this.tapTimeout !== null) {
-            clearTimeout(this.tapTimeout);
-            this.tapTimeout = null;
+            const world = this.getWorldPos(t.clientX, t.clientY);
+            this.beginDrag(world.x, world.y);
+
+            this.allowSingleTap = true;
+
+            if (this.tapTimeout !== null) {
+                clearTimeout(this.tapTimeout);
+            }
+
+            this.tapTimeout = setTimeout(() => {
+                this.tapTimeout = null;
+            }, 150);
+        } else {
+            this.allowSingleTap = false;
+
+            if (this.tapTimeout !== null) {
+                clearTimeout(this.tapTimeout);
+                this.tapTimeout = null;
+            }
+        }
+
+        if (e.touches.length === 2) {
+            const p = this.getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
+            this.lastPanCanvasX = p.x;
+            this.lastPanCanvasY = p.y;
         }
     }
-
-    if (e.touches.length === 2) {
-        const p = this.getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
-        this.lastPanCanvasX = p.x;
-        this.lastPanCanvasY = p.y;
-    }
-}
 
     onTouchMove(e) {
         e.preventDefault();
