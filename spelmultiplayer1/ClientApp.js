@@ -657,16 +657,31 @@ update(scale) {
         ctx.save();
         ctx.scale(this.game.getZoom(), this.game.getZoom());
         ctx.translate(this.game.getCameraX(), this.game.getCameraY());
-        ctx.strokeStyle = "lime";
-    
 
         if (this.dragSelectStart && this.dragSelectEnd) {
-            
             const x = Math.min(this.dragSelectStart.x, this.dragSelectEnd.x);
             const y = Math.min(this.dragSelectStart.y, this.dragSelectEnd.y);
             const w = Math.abs(this.dragSelectEnd.x - this.dragSelectStart.x);
             const h = Math.abs(this.dragSelectEnd.y - this.dragSelectStart.y);
+
+            const dashOffset = (performance.now() * 0.02) % 12;
+
+            // fill
+            ctx.fillStyle = "rgba(0, 255, 120, 0.10)";
+            ctx.fillRect(x, y, w, h);
+
+            // outer border
+            ctx.strokeStyle = "rgba(0, 0, 0, 0.75)";
+            ctx.lineWidth = 6;
             ctx.strokeRect(x, y, w, h);
+
+            // animated inner border
+            ctx.strokeStyle = "rgba(120,255,180,1)";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([8, 4]);
+            ctx.lineDashOffset = -dashOffset;
+            ctx.strokeRect(x, y, w, h);
+            ctx.setLineDash([]);
         }
 
         ctx.restore();
