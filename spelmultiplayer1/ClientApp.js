@@ -32,7 +32,6 @@ class ClientApp {
         this.leftclicked = false;
         this.latestPacketTime = null;
         
-        this.playerName = localStorage.getItem("playerName") || "Player";
         this.nameInputActive = false;
         this.nameDraft = this.playerName;
         this.lobby = {
@@ -1105,7 +1104,6 @@ update(scale) {
 
     sendRename(name) {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-
         this.ws.send(JSON.stringify({
             type: "set_name",
             name
