@@ -62,8 +62,12 @@ class ClientApp {
 
         if (data.type === "hello_ok") {
             this.myId = data.playerId;
-            this.playerName = data.playerName;
+            this.playerName = localStorage.getItem("playerName") || this.playerName || "Player";
             this.appState = "room_browser";
+
+            if (this.playerName !== "Player") {
+                this.sendRename(this.playerName);
+            }
             return;
         }
 
@@ -271,7 +275,7 @@ class ClientApp {
     
     
     connect() {
-         this.ws = new WebSocket("wss://game.quantumstahl.com");
+        this.ws = new WebSocket("wss://game.quantumstahl.com");
         //this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
         this.game.setWS(this.ws);
         this.ws.binaryType = "arraybuffer";
