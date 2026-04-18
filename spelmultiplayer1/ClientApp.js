@@ -116,6 +116,7 @@ class ClientApp {
             };
 
             this.appState = "room_browser";
+            this.forceCanvasResize();
             return;
         }
 
@@ -125,6 +126,7 @@ class ClientApp {
             this.gameOverTime = 0;
             showPanHint();
             this.appState = "starting";
+            this.forceCanvasResize();
             return;
         }
 
@@ -134,6 +136,7 @@ class ClientApp {
             this.game.maps[this.game.currentmap].cameray = data.cy + 500;
             this.applyServerState(data.data);
             this.appState = "in_game";
+            this.forceCanvasResize();
             return;
         }
         if(data.type === "spawn"){
@@ -1361,6 +1364,10 @@ update(scale) {
     }
     makeButton(x, y, w, h, text, action, subtext = "") {
         return { x, y, w, h, text, action, subtext };
+    }
+    forceCanvasResize() {
+        this.lastCanvasScreenW = null;
+        this.lastCanvasScreenH = null;
     }
 }
 
