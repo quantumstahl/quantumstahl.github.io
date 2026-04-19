@@ -1480,9 +1480,9 @@ update(scale) {
         const buttons = [];
 
 
-        buttons.push(this.makeButton(canvas.width/2-210, 110, 130, 48, "Create (C)", "create_room"));
-        buttons.push(this.makeButton(140+canvas.width/2-210, 110, 130, 48, "Name (N)", "change_name"));
-        buttons.push(this.makeButton(280+canvas.width/2-210, 110, 130, 48, "Back", "back_to_title"));
+        buttons.push(this.makeButton(canvas.width/2-210, 140, 130, 48, "Create (C)", "create_room"));
+        buttons.push(this.makeButton(140+canvas.width/2-210, 140, 130, 48, "Name (N)", "change_name"));
+        buttons.push(this.makeButton(280+canvas.width/2-210, 140, 130, 48, "Back", "back_to_title"));
         
 
         const rooms = this.roomList || [];
