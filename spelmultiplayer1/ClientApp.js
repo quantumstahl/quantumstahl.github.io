@@ -7,8 +7,8 @@ class ClientApp {
         this.playerName = localStorage.getItem("playerName") || "Player";
         this.roomId = "default";
 
-        this.appState = "connecting";
-        // "connecting" | "room_browser" | "lobby" | "starting" | "in_game"
+        this.appState = "title";
+        // "title"| "connecting" | "room_browser" | "lobby" | "starting" | "in_game"
 
         this.lobby = {
             roomId: null,
@@ -46,13 +46,16 @@ class ClientApp {
         this.gameOverText = "";
         this.gameOverTime = 0;
         this.uiButtons = [];
+        this.manualDisconnect = false;
+        
+        this.titlescreen=new Image();
+        this.titlescreen.src="images/titlescreenRTS.png";
 
     }
     async init() {
         await this.game.loadGame();
         this.setupInput();
         requestAnimationFrame((t) => this.gameLoop(t));
-        this.connect();
     }
 
     // ---------------- NETWORK ----------------
@@ -332,6 +335,12 @@ class ClientApp {
         this.ws.onclose = () => {
             this.stopHeartbeat();
             console.log("Disconnected from server");
+
+            if (this.manualDisconnect) {
+                this.manualDisconnect = false;
+                return;
+            }
+
             this.appState = "connecting";
         };
     }
@@ -854,7 +863,14 @@ update(scale) {
 
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-
+        
+        if(this.appState === "title"){
+            this.drawTitle();
+            return;
+            
+        }
+        
+        
         if (this.appState === "connecting") {
             this.drawCenteredText("Connecting...");
             return;
@@ -1152,28 +1168,71 @@ update(scale) {
     }
     drawButton(btn) {
         const mobile = mobileAndTabletCheck();
+        const hovered = !!btn.hovered && !btn.disabled;
 
-        ctx.fillStyle = "rgba(40,40,40,0.9)";
+        let top = "#555";
+        let bottom = "#2a2a2a";
+        let border = "#888";
+        let textColor = "white";
+        let subColor = "rgba(255,255,255,0.75)";
+
+        if (btn.disabled) {
+            top = "#2f2f2f";
+            bottom = "#1a1a1a";
+            border = "#555";
+            textColor = "#999";
+            subColor = "#777";
+        } else if (hovered) {
+            top = "#666";
+            bottom = "#2c2c2c";
+            border = "#fff";
+        }
+
+        const grad = ctx.createLinearGradient(btn.x, btn.y, btn.x, btn.y + btn.h);
+        grad.addColorStop(0, top);
+        grad.addColorStop(1, bottom);
+
+        ctx.save();
+
+        ctx.fillStyle = grad;
         ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
 
-        ctx.strokeStyle = "white";
+        ctx.strokeStyle = border;
         ctx.lineWidth = 2;
         ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
+
+        if (hovered) {
+            ctx.shadowColor = "white";
+            ctx.shadowBlur = 10;
+        }
 
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
 
-        // 🔹 huvudtext
-        ctx.fillStyle = "white";
-        ctx.font = mobile ? "26px Arial" : "22px Arial";
-        ctx.fillText(btn.text, btn.x + btn.w / 2, btn.y + btn.h / 2 - 10);
-
-        // 🔥 subtext (spelare)
         if (btn.subtext) {
-            ctx.fillStyle = "yellow";
-            ctx.font = mobile ? "20px Arial" : "18px Arial";
-            ctx.fillText(btn.subtext, btn.x + btn.w / 2, btn.y + btn.h / 2 + 18);
+            ctx.fillStyle = textColor;
+            ctx.font = mobile ? "24px Arial" : "22px Arial";
+            ctx.fillText(btn.text, btn.x + btn.w / 2, btn.y + btn.h / 2 - 12);
+
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = subColor;
+            ctx.font = mobile ? "18px Arial" : "16px Arial";
+            ctx.fillText(btn.subtext, btn.x + btn.w / 2, btn.y + btn.h / 2 + 16);
+        } else {
+            ctx.fillStyle = textColor;
+            ctx.font = mobile ? "26px Arial" : "22px Arial";
+            ctx.fillText(btn.text, btn.x + btn.w / 2, btn.y + btn.h / 2);
         }
+
+        if (btn.tag) {
+            ctx.textAlign = "right";
+            ctx.textBaseline = "top";
+            ctx.font = mobile ? "16px Arial" : "14px Arial";
+            ctx.fillStyle = btn.tag === "INGAME" ? "#ff6666" : "#ffe066";
+            ctx.fillText(btn.tag, btn.x + btn.w - 10, btn.y + 8);
+        }
+
+        ctx.restore();
     }
     pointInButton(x, y, btn) {
         return (
@@ -1184,53 +1243,111 @@ update(scale) {
         );
     }
     drawRoomBrowser() {
+        const mobile = mobileAndTabletCheck();
+        
+    
+       
+        
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(this.titlescreen,0,0,canvas.width,canvas.height);
+        ctx.fillStyle = "rgba(0,0,0,0.65)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // title
         ctx.fillStyle = "white";
-        ctx.textAlign = "left";
-        ctx.font = mobileAndTabletCheck() ? "36px Arial" : "42px Arial";
-        ctx.fillText("Room Browser", 40, 70);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic";
+        ctx.font = mobile ? "34px Arial" : "30px Arial";
+        ctx.fillText("Room Browser", canvas.width / 2, 48);
 
-        ctx.font = mobileAndTabletCheck() ? "24px Arial" : "30px Arial";
-        ctx.fillText(`Name: ${this.playerName}`, 40, 120);
+        // info
+        ctx.font = mobile ? "24px Arial" : "18px Arial";
+        ctx.fillStyle = "rgba(255,255,255,0.92)";
+        ctx.fillText(`Name: ${this.playerName}`, canvas.width / 2, 80);
 
+        ctx.fillStyle = "rgba(255,255,255,0.65)";
+        ctx.fillText(`Rooms online: ${(this.roomList || []).length}`, canvas.width / 2, mobile ? 108 : 102);
+
+        // buttons
         this.uiButtons = this.buildRoomBrowserButtons();
         for (const btn of this.uiButtons) {
             this.drawButton(btn);
         }
+
+        // empty state
+        const rooms = this.roomList || [];
+        if (rooms.length === 0) {
+            ctx.textAlign = "center";
+            ctx.fillStyle = "rgba(255,255,255,0.85)";
+            ctx.font = mobile ? "26px Arial" : "22px Arial";
+            ctx.fillText("No rooms available", canvas.width / 2, mobile ? 340 : 220);
+
+            ctx.fillStyle = "rgba(255,255,255,0.55)";
+            ctx.font = mobile ? "20px Arial" : "17px Arial";
+            ctx.fillText("Create one to get started.", canvas.width / 2, mobile ? 375 : 248);
+        }
     }
     drawLobby() {
         const mobile = mobileAndTabletCheck();
-
+        
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(this.titlescreen,0,0,canvas.width,canvas.height);
+        ctx.fillStyle = "rgba(0,0,0,0.65)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        
         ctx.fillStyle = "white";
-        ctx.textAlign = "left";
+        ctx.textAlign = "center";
         ctx.font = mobile ? "36px Arial" : "42px Arial";
-        ctx.fillText(`Lobby: ${this.lobby.roomId || "-"}`, 40, 70);
+        ctx.fillText(`Lobby: ${this.lobby.roomId || "-"}`, canvas.width / 2, 70);
 
         ctx.font = mobile ? "24px Arial" : "30px Arial";
-        ctx.fillText(`Map: ${this.lobby.settings?.map || "default"}`, 40, 120);
-        ctx.fillText(`Name: ${this.playerName}`, 40, 165);
+        ctx.fillText(`Map: ${this.lobby.settings?.map || "default"}`, canvas.width / 2, 120);
+        ctx.fillText(`Name: ${this.playerName}`, canvas.width / 2, 165);
 
         const namesLine = (this.lobby.players || [])
             .map(p => p.id === this.myId ? `[${p.name}]` : p.name)
             .join(", ");
 
         ctx.fillStyle = "yellow";
-        ctx.fillText(`Players: ${namesLine}`, 40, 220);
+        ctx.fillText(`Players: ${namesLine}`, canvas.width / 2, 220);
 
-        let x = 40;
-        let y = 265;
         ctx.font = mobile ? "22px Arial" : "26px Arial";
 
-        for (const p of (this.lobby.players || [])) {
+        const players = this.lobby.players || [];
+
+        // 🔥 1. räkna ut total bredd
+        let totalWidth = 0;
+
+        for (const p of players) {
+            const label = p.id === this.myId ? `[${p.name}]` : p.name;
+            const status = p.ready ? "READY" : "NOT";
+
+            totalWidth += ctx.measureText(label).width;
+            totalWidth += 10;
+
+            totalWidth += ctx.measureText(status).width;
+            totalWidth += 25;
+        }
+
+        // 🔥 2. starta från mitten
+        let x = canvas.width / 2 - totalWidth / 2;
+        let y = 265;
+
+        for (const p of players) {
             const label = p.id === this.myId ? `[${p.name}]` : p.name;
 
+            ctx.textAlign = "center";
+
             ctx.fillStyle = "white";
-            ctx.fillText(label, x, y);
-            x += ctx.measureText(label).width + 10;
+            ctx.fillText(label, canvas.width / 2 - 60, y);
 
             ctx.fillStyle = p.ready ? "lime" : "red";
-            const status = p.ready ? "READY" : "NOT";
-            ctx.fillText(status, x, y);
-            x += ctx.measureText(status).width + 25;
+            ctx.fillText(p.ready ? "READY" : "NOT", canvas.width / 2 + 60, y);
+
+            y += 35;
         }
 
         if (this.gameOverWinner != null) {
@@ -1243,7 +1360,55 @@ update(scale) {
             this.drawButton(btn);
         }
     }
+    drawTitle() {
+        this.uiButtons = [];
+
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        
+        ctx.drawImage(this.titlescreen,0,0,canvas.width,canvas.height);
+        
+        ctx.textAlign = "center";
+        ctx.font = "64px Cinzel";
+
+        // shadow
+        ctx.shadowColor = "black";
+        ctx.shadowBlur = 20;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+
+        // outline
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "rgba(0,0,0,0.8)";
+        ctx.strokeText("BirdKnight RTS", canvas.width / 2, 150);
+
+        // fill
+        ctx.fillStyle = "white";
+        ctx.fillText("BirdKnight RTS", canvas.width / 2, 150);
+
+        // reset shadow
+        ctx.shadowBlur = 0;
+
+        const mobile = mobileAndTabletCheck();
+
+        const btnW = mobile ? 300 : 260;
+        const btnH = mobile ? 80 : 70;
+        const cx = canvas.width / 2 - btnW / 2;
+
+        const multiBtn = this.makeButton(cx, 300, btnW, btnH, "Multiplayer", "go_multiplayer");
+        const singleBtn = this.makeButton(cx, 400, btnW, btnH, "Singleplayer", "go_singleplayer");
+
+        this.uiButtons.push(multiBtn, singleBtn);
+
+        for (const btn of this.uiButtons) {
+            this.drawButton(btn);
+        }
+    }
+    
     handleUIButton(action) {
+        if (action === "noop") return;
+
         if (action === "create_room") {
             const roomName = prompt("Room name:");
             if (roomName) this.createRoom(roomName);
@@ -1270,6 +1435,23 @@ update(scale) {
         if (action.startsWith("join_room:")) {
             const roomId = action.slice("join_room:".length);
             this.joinRoom(roomId);
+            return;
+        }
+
+        if (action === "back_to_title") {
+            this.backToTitle();
+            return;
+        }
+
+        if (action === "go_multiplayer") {
+            this.connect();
+            this.appState = "connecting";
+            return;
+        }
+
+        if (action === "go_singleplayer") {
+            alert("Coming soon");
+            return;
         }
     }
     handleMenuClick(screenX, screenY) {
@@ -1285,15 +1467,11 @@ update(scale) {
         const mobile = mobileAndTabletCheck();
         const buttons = [];
 
-        if (mobile) {
-            buttons.push(this.makeButton(40, canvas.height - 180, 220, 70, "Ready", "toggle_ready"));
-            buttons.push(this.makeButton(280, canvas.height - 180, 220, 70, "Leave", "leave_room"));
-            buttons.push(this.makeButton(40, canvas.height - 95, 220, 70, "Name", "change_name"));
-        } else {
-            buttons.push(this.makeButton(40, canvas.height - 160, 180, 55, "Ready (R)", "toggle_ready"));
-            buttons.push(this.makeButton(240, canvas.height - 160, 180, 55, "Leave (L)", "leave_room"));
-            buttons.push(this.makeButton(440, canvas.height - 160, 180, 55, "Name (N)", "change_name"));
-        }
+
+            buttons.push(this.makeButton(canvas.width/2-290, canvas.height - 160, 180, 55, "Ready (R)", "toggle_ready"));
+            buttons.push(this.makeButton(200+canvas.width/2-290, canvas.height - 160, 180, 55, "Leave (L)", "leave_room"));
+            buttons.push(this.makeButton(400+canvas.width/2-290, canvas.height - 160, 180, 55, "Name (N)", "change_name"));
+        
 
         return buttons;
     }
@@ -1301,36 +1479,34 @@ update(scale) {
         const mobile = mobileAndTabletCheck();
         const buttons = [];
 
-        if (mobile) {
-            buttons.push(this.makeButton(40, 170, 260, 70, "Create Room", "create_room"));
-            buttons.push(this.makeButton(320, 170, 260, 70, "Change Name", "change_name"));
-        } else {
-            buttons.push(this.makeButton(40, 170, 180, 55, "Create (C)", "create_room"));
-            buttons.push(this.makeButton(240, 170, 180, 55, "Name (N)", "change_name"));
-        }
+
+        buttons.push(this.makeButton(canvas.width/2-210, 110, 130, 48, "Create (C)", "create_room"));
+        buttons.push(this.makeButton(140+canvas.width/2-210, 110, 130, 48, "Name (N)", "change_name"));
+        buttons.push(this.makeButton(280+canvas.width/2-210, 110, 130, 48, "Back", "back_to_title"));
+        
 
         const rooms = this.roomList || [];
-        let y = mobile ? 270 : 250;
+        let y = mobile ? 320 : 190;
 
         for (const r of rooms) {
-            const btnH = mobile ? 90 : 70;
-            const btnW = mobile ? 520 : 420;
-
             const playerNames = (r.playerNames || []).join(", ");
+            const isInGame = !!r.started;
 
             buttons.push(
                 this.makeButton(
-                    40,
+                    canvas.width/2-250,
                     y,
-                    btnW,
-                    btnH,
-                    `${r.id} (${r.players})${r.started ? " [INGAME]" : ""}`,
-                    `join_room:${r.id}`,
-                    playerNames // 🔥 subtext här
+                    500,
+                    72,
+                    `${r.id} (${r.players}/4)`,
+                    isInGame ? "noop" : `join_room:${r.id}`,
+                    playerNames || "No players yet",
+                    isInGame,
+                    isInGame ? "INGAME" : ""
                 )
             );
 
-            y += mobile ? 110 : 90;
+            y += mobile ? 108 : 88;
         }
 
         return buttons;
@@ -1362,12 +1538,50 @@ update(scale) {
             this.heartbeatTimer = null;
         }
     }
-    makeButton(x, y, w, h, text, action, subtext = "") {
-        return { x, y, w, h, text, action, subtext };
+    makeButton(x, y, w, h, text, action, subtext = "", disabled = false, tag = "") {
+        return {
+            x, y, w, h,
+            text,
+            action,
+            subtext,
+            disabled,
+            tag,
+            hovered: false
+        };
     }
     forceCanvasResize() {
         this.lastCanvasScreenW = null;
         this.lastCanvasScreenH = null;
+    }
+    backToTitle() {
+        if (this.ws) {
+            try {
+                this.manualDisconnect = true;
+                this.ws.close();
+            } catch (e) {
+                console.log("close ws failed", e);
+            }
+            this.ws = null;
+        }
+
+        this.stopHeartbeat();
+
+        this.lobby = {
+            roomId: null,
+            players: [],
+            settings: { map: "default" },
+            started: false
+        };
+
+        this.roomList = [];
+        this.myId = null;
+        this.appState = "title";
+        this.forceCanvasResize?.();
+    }
+    updateButtonHover(screenX, screenY) {
+        for (const btn of this.uiButtons) {
+            btn.hovered = this.pointInButton(screenX, screenY, btn);
+        }
     }
 }
 
