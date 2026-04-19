@@ -2,7 +2,7 @@ class ClientApp {
     constructor() {
         this.ws = null;
         this.game = new GameClient();
-
+        this.availableMaps = ["Map1","Map2"];
         this.myId = null;
         this.playerName = localStorage.getItem("playerName") || "Player";
         this.roomId = "default";
@@ -13,6 +13,7 @@ class ClientApp {
         this.lobby = {
             roomId: null,
             players: [],
+            slots: [],
             settings: { map: "default" },
             started: false
         };
@@ -34,12 +35,7 @@ class ClientApp {
         
         this.nameInputActive = false;
         this.nameDraft = this.playerName;
-        this.lobby = {
-            roomId: null,
-            players: [],
-            settings: { map: "default" },
-            started: false
-        };
+
 
         this.roomList = [];
         this.gameOver = false;
@@ -86,7 +82,7 @@ class ClientApp {
             const winner = data.winner;
             this.gameOverWinner = winner;
 
-            if (winner === this.myId) this.gameOverText = "YOU WIN";
+            if (winner === this.myFaction) this.gameOverText = "YOU WIN";
             else if (winner === 0) this.gameOverText = "DRAW";
             else this.gameOverText = "YOU LOSE";
 
@@ -100,13 +96,13 @@ class ClientApp {
         if (data.type === "lobby_state") {
             this.lobby.roomId = data.roomId;
             this.lobby.players = data.players || [];
+            this.lobby.slots = data.slots || [];
             this.lobby.settings = data.settings || { map: "default" };
             this.lobby.started = !!data.started;
 
             if (!this.gameOver) {
                 this.appState = this.lobby.started ? "starting" : "lobby";
             }
-
             return;
         }
 
@@ -114,12 +110,12 @@ class ClientApp {
             this.lobby = {
                 roomId: null,
                 players: [],
+                slots: [],
                 settings: { map: "default" },
                 started: false
             };
 
             this.appState = "room_browser";
-            this.forceCanvasResize();
             return;
         }
 
@@ -135,11 +131,20 @@ class ClientApp {
 
         if (data.type === "init") {
             this.myId = data.id;
+            this.myFaction = data.faction ?? data.id;
+            
+            if (data.mapName) {
+                const idx = this.game.maps.findIndex(m => m.name === data.mapName);
+                if (idx >= 0) {
+                    this.game.currentmap = idx;
+                }
+            }
+            this.game.buildWorldOnCurrentmap();
             this.game.maps[this.game.currentmap].camerax = data.cx + 500;
             this.game.maps[this.game.currentmap].cameray = data.cy + 500;
             this.applyServerState(data.data);
             this.appState = "in_game";
-            this.forceCanvasResize();
+            this.forceCanvasResize?.();
             return;
         }
         if(data.type === "spawn"){
@@ -290,8 +295,8 @@ class ClientApp {
     
     
     connect() {
-        this.ws = new WebSocket("wss://game.quantumstahl.com");
-        //this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
+        //this.ws = new WebSocket("wss://game.quantumstahl.com");
+        this.ws = new WebSocket(`ws://${window.location.hostname}:3000`);
         this.game.setWS(this.ws);
         this.ws.binaryType = "arraybuffer";
 
@@ -399,6 +404,10 @@ class ClientApp {
                     const me = this.lobby.players.find(p => p.id === this.myId);
                     const currentReady = !!me?.ready;
                     this.setReady(!currentReady);
+                    return;
+                }
+                if (e.key === "m" || e.key === "M") {
+                    this.nextMap();
                     return;
                 }
             }
@@ -1290,72 +1299,89 @@ update(scale) {
     }
     drawLobby() {
         const mobile = mobileAndTabletCheck();
-        
-        ctx.fillStyle = "black";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(this.titlescreen,0,0,canvas.width,canvas.height);
         ctx.fillStyle = "rgba(0,0,0,0.65)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        
         ctx.fillStyle = "white";
         ctx.textAlign = "center";
         ctx.font = mobile ? "36px Arial" : "42px Arial";
         ctx.fillText(`Lobby: ${this.lobby.roomId || "-"}`, canvas.width / 2, 70);
 
         ctx.font = mobile ? "24px Arial" : "30px Arial";
+        ctx.fillStyle = "#ffe066";
         ctx.fillText(`Map: ${this.lobby.settings?.map || "default"}`, canvas.width / 2, 120);
+        ctx.fillStyle = "white";
+        
+        
         ctx.fillText(`Name: ${this.playerName}`, canvas.width / 2, 165);
 
-        const namesLine = (this.lobby.players || [])
-            .map(p => p.id === this.myId ? `[${p.name}]` : p.name)
-            .join(", ");
+        const slots = this.lobby.slots || [];
+        let y = 240;
 
-        ctx.fillStyle = "yellow";
-        ctx.fillText(`Players: ${namesLine}`, canvas.width / 2, 220);
+        this.uiButtons = [];
 
-        ctx.font = mobile ? "22px Arial" : "26px Arial";
-
-        const players = this.lobby.players || [];
-
-        // 🔥 1. räkna ut total bredd
-        let totalWidth = 0;
-
-        for (const p of players) {
-            const label = p.id === this.myId ? `[${p.name}]` : p.name;
-            const status = p.ready ? "READY" : "NOT";
-
-            totalWidth += ctx.measureText(label).width;
-            totalWidth += 10;
-
-            totalWidth += ctx.measureText(status).width;
-            totalWidth += 25;
-        }
-
-        // 🔥 2. starta från mitten
-        let x = canvas.width / 2 - totalWidth / 2;
-        let y = 265;
-
-        for (const p of players) {
-            const label = p.id === this.myId ? `[${p.name}]` : p.name;
-
-            ctx.textAlign = "center";
+        for (const s of slots) {
+            const isMe = s.team === this.myId;
+            const label = isMe ? `[Team ${s.team}] ${s.name}` : `Team ${s.team}: ${s.name}`;
 
             ctx.fillStyle = "white";
-            ctx.fillText(label, canvas.width / 2 - 60, y);
+            ctx.font = mobile ? "22px Arial" : "26px Arial";
+            ctx.fillText(label, canvas.width / 2, y);
 
-            ctx.fillStyle = p.ready ? "lime" : "red";
-            ctx.fillText(p.ready ? "READY" : "NOT", canvas.width / 2 + 60, y);
+            if (s.type === "human") {
+                const p = (this.lobby.players || []).find(pp => pp.team === s.team);
+                const ready = !!p?.ready;
 
-            y += 35;
+                ctx.fillStyle = ready ? "lime" : "red";
+                ctx.fillText(ready ? "READY" : "NOT", 250+canvas.width / 2, y);
+            } else if (s.type === "ai") {
+                ctx.fillStyle = "#ffd966";
+                ctx.fillText("AI", 250+canvas.width / 2, y);
+
+                if (!this.lobby.started) {
+                    const btn = this.makeButton(350+canvas.width / 2, y - 28, 120, 36, "Remove AI", `toggle_ai_slot:${s.team}`);
+                    this.uiButtons.push(btn);
+                }
+            } else {
+                ctx.fillStyle = "#aaa";
+                ctx.fillText("OPEN", 250+canvas.width / 2, y);
+
+                if (!this.lobby.started && s.team !== 1) {
+                    const btn = this.makeButton(350+canvas.width / 2, y - 28, 100, 36, "Add AI", `toggle_ai_slot:${s.team}`);
+                    this.uiButtons.push(btn);
+                }
+            }
+                    // 🎨 färg per faction
+            ctx.fillStyle = this.getFactionColor(s.faction);
+            ctx.fillText(`Team ${s.faction}`, 530+canvas.width / 2, y);
+            
+                    // 🔥 knapp för att ändra team
+            if (!this.lobby.started) {
+                const btn = this.makeButton(
+                    600+canvas.width / 2,
+                    y - 28,
+                    120,
+                    36,
+                    "Switch",
+                    `toggle_team:${s.team}`
+                );
+                this.uiButtons.push(btn);
+            }
+            
+
+            y += 48;
         }
 
         if (this.gameOverWinner != null) {
             ctx.fillStyle = "yellow";
-            ctx.fillText(`Last winner: Team ${this.gameOverWinner}`, 40, 315);
+            ctx.fillText(`Last winner: Team ${this.gameOverWinner}`, canvas.width / 2, y + 20);
         }
 
-        this.uiButtons = this.buildLobbyButtons();
+        const actionButtons = this.buildLobbyButtons();
+        for (const btn of actionButtons) {
+            this.uiButtons.push(btn);
+        }
+
         for (const btn of this.uiButtons) {
             this.drawButton(btn);
         }
@@ -1453,6 +1479,21 @@ update(scale) {
             alert("Coming soon");
             return;
         }
+        if (action.startsWith("toggle_ai_slot:")) {
+            const team = Number(action.slice("toggle_ai_slot:".length));
+            this.toggleAISlot(team);
+            return;
+        }
+        if (action === "next_map") {
+            this.nextMap();
+            return;
+        }
+        if (action.startsWith("toggle_team:")) {
+            const team = Number(action.slice("toggle_team:".length));
+            this.toggleTeam(team);
+            return;
+        }
+        
     }
     handleMenuClick(screenX, screenY) {
         for (const btn of this.uiButtons) {
@@ -1468,9 +1509,10 @@ update(scale) {
         const buttons = [];
 
 
-            buttons.push(this.makeButton(canvas.width/2-290, canvas.height - 160, 180, 55, "Ready (R)", "toggle_ready"));
-            buttons.push(this.makeButton(200+canvas.width/2-290, canvas.height - 160, 180, 55, "Leave (L)", "leave_room"));
-            buttons.push(this.makeButton(400+canvas.width/2-290, canvas.height - 160, 180, 55, "Name (N)", "change_name"));
+            buttons.push(this.makeButton(canvas.width/2-390, canvas.height - 160, 180, 55, "Ready (R)", "toggle_ready"));
+            buttons.push(this.makeButton(200+canvas.width/2-390, canvas.height - 160, 180, 55, "Leave (L)", "leave_room"));
+            buttons.push(this.makeButton(400+canvas.width/2-390, canvas.height - 160, 180, 55, "Name (N)", "change_name"));
+            buttons.push(this.makeButton(600+canvas.width/2-390, canvas.height - 160, 180, 55, "Map", "next_map"));
         
 
         return buttons;
@@ -1582,6 +1624,46 @@ update(scale) {
         for (const btn of this.uiButtons) {
             btn.hovered = this.pointInButton(screenX, screenY, btn);
         }
+    }
+    toggleAISlot(team) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+        this.ws.send(JSON.stringify({
+            type: "toggle_ai_slot",
+            team
+        }));
+    }
+    nextMap() {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+        const maps = this.availableMaps || [];
+        if (maps.length === 0) return;
+
+        const current = this.lobby.settings?.map || maps[0];
+        let idx = maps.indexOf(current);
+
+        if (idx < 0) idx = 0;
+        idx = (idx + 1) % maps.length;
+
+        this.ws.send(JSON.stringify({
+            type: "set_map",
+            map: maps[idx]
+        }));
+    }
+    toggleTeam(team) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+        this.ws.send(JSON.stringify({
+            type: "toggle_team",
+            team
+        }));
+    }
+    getFactionColor(faction) {
+        if (faction === 1) return "#66ccff"; // blå/cyan
+        if (faction === 2) return "#ff9966"; // orange/röd
+        if (faction === 3) return "#99ff66"; // grön
+        if (faction === 4) return "#cc99ff"; // lila
+        return "white";
     }
 }
 
