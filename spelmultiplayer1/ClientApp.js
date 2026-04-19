@@ -1326,39 +1326,39 @@ update(scale) {
 
             ctx.fillStyle = "white";
             ctx.font = mobile ? "22px Arial" : "26px Arial";
-            ctx.fillText(label, canvas.width / 2, y);
+            ctx.fillText(label, canvas.width / 2 - 350, y);
 
             if (s.type === "human") {
                 const p = (this.lobby.players || []).find(pp => pp.team === s.team);
                 const ready = !!p?.ready;
 
                 ctx.fillStyle = ready ? "lime" : "red";
-                ctx.fillText(ready ? "READY" : "NOT", 250+canvas.width / 2, y);
+                ctx.fillText(ready ? "READY" : "NOT", 250+canvas.width / 2- 350, y);
             } else if (s.type === "ai") {
                 ctx.fillStyle = "#ffd966";
-                ctx.fillText("AI", 250+canvas.width / 2, y);
+                ctx.fillText("AI", 250+canvas.width / 2- 350, y);
 
                 if (!this.lobby.started) {
-                    const btn = this.makeButton(350+canvas.width / 2, y - 28, 120, 36, "Remove AI", `toggle_ai_slot:${s.team}`);
+                    const btn = this.makeButton(350+canvas.width / 2- 350, y - 28, 120, 36, "Remove AI", `toggle_ai_slot:${s.team}`);
                     this.uiButtons.push(btn);
                 }
             } else {
                 ctx.fillStyle = "#aaa";
-                ctx.fillText("OPEN", 250+canvas.width / 2, y);
+                ctx.fillText("OPEN", 250+canvas.width / 2- 350, y);
 
                 if (!this.lobby.started && s.team !== 1) {
-                    const btn = this.makeButton(350+canvas.width / 2, y - 28, 100, 36, "Add AI", `toggle_ai_slot:${s.team}`);
+                    const btn = this.makeButton(350+canvas.width / 2- 350, y - 28, 100, 36, "Add AI", `toggle_ai_slot:${s.team}`);
                     this.uiButtons.push(btn);
                 }
             }
                     // 🎨 färg per faction
             ctx.fillStyle = this.getFactionColor(s.faction);
-            ctx.fillText(`Team ${s.faction}`, 530+canvas.width / 2, y);
+            ctx.fillText(`Team ${s.faction}`, 530+canvas.width / 2- 350, y);
             
                     // 🔥 knapp för att ändra team
             if (!this.lobby.started) {
                 const btn = this.makeButton(
-                    600+canvas.width / 2,
+                    600+canvas.width / 2- 350,
                     y - 28,
                     120,
                     36,
@@ -1528,7 +1528,7 @@ update(scale) {
         
 
         const rooms = this.roomList || [];
-        let y = mobile ? 320 : 190;
+        let y = 250;
 
         for (const r of rooms) {
             const playerNames = (r.playerNames || []).join(", ");
