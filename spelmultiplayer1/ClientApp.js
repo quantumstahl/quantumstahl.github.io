@@ -115,6 +115,11 @@ class ClientApp {
                 started: false
             };
 
+            this.gameOverWinner = null;
+            this.gameOver = false;
+            this.gameOverText = "";
+            this.gameOverTime = 0;
+
             this.appState = "room_browser";
             return;
         }
