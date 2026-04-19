@@ -1344,7 +1344,7 @@ update(scale) {
                 ctx.fillText("AI", 250+canvas.width / 2- 350, y);
 
                 if (!this.lobby.started) {
-                    const btn = this.makeButton(350+canvas.width / 2- 350, y - 28, 120, 36, "Remove AI", `toggle_ai_slot:${s.team}`);
+                    const btn = this.makeButton(350+canvas.width / 2- 350, y - 28, 130, 36, "Remove AI", `toggle_ai_slot:${s.team}`);
                     this.uiButtons.push(btn);
                 }
             } else {
