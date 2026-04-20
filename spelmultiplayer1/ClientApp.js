@@ -843,7 +843,7 @@ class ClientApp {
             for(const o of this.selectedsingleplayer){
                 objects.push(this.game.world.entitiesById.get(o));
             }
-            
+            alert(objects.length+" "+this.game.world.entitiesById.get(targetId).type);
             if(objects[0].isBuilding) this.game.simulation.handleRightClickBuilding(objects, x, y,this.game.world.entitiesById.get(targetId));
             else this.game.simulation.handleRightClickCommand(objects, x, y, this.game.world.entitiesById.get(targetId)); return;
         }
