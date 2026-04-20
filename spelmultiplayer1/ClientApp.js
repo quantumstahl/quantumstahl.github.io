@@ -920,7 +920,7 @@ update(scale) {
                     if (dead) obj.ani = 4;
                     
                     
-                    obj.carry = 0;
+                    obj.carry = 0;//
                     if (carrytype === "wood") obj.carry = 1;
                     if (carrytype === "stone") obj.carry = 2;
                     if (carrytype === "gold") obj.carry = 3;
