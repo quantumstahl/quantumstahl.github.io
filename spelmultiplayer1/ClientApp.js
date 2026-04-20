@@ -7,8 +7,9 @@ class ClientApp {
         this.playerName = localStorage.getItem("playerName") || "Player";
         this.roomId = "default";
 
+     
         this.appState = "title";
-        // "title"| "connecting" | "room_browser" | "lobby" | "starting" | "in_game"
+        // "title"| "connecting" | "room_browser" | "lobby" | "starting" | "in_game"|"singleplayer_lobby"| singleplayer
 
         this.lobby = {
             roomId: null,
@@ -46,6 +47,12 @@ class ClientApp {
         
         this.titlescreen=new Image();
         this.titlescreen.src="images/titlescreenRTS.png";
+        
+        this.selectedsingleplayer=[];
+        
+        this.gamespeedCounter = 0;
+        this.solverCounter=0;
+        
 
     }
     async init() {
@@ -355,6 +362,8 @@ class ClientApp {
         };
     }
     sendSelectCommand(entityIds) {
+        if (this.appState === "singleplayer"){this.selectedsingleplayer=entityIds; return;}
+        
         if (this.appState !== "in_game") return;
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
@@ -711,7 +720,7 @@ class ClientApp {
         );
     }
     handlePointerLeftDown(worldX, worldY) {
-        if (this.appState !== "in_game") return;
+        if (this.appState !== "in_game"&&this.appState !== "singleplayer") return;
         this.leftclicked=true;
         if(this.game.UISIZE()||this.game.buildMode)return;
         this.deselectAll();
@@ -735,7 +744,7 @@ class ClientApp {
     }
 
     handleDragSelect(rect) {
-        if (this.appState !== "in_game") return;
+        if (this.appState !== "in_game"&&this.appState !== "singleplayer") return;
         if (this.game.UISIZE() || this.game.buildMode) return;
 
         this.deselectAll();
@@ -782,7 +791,7 @@ class ClientApp {
         this.sendSelectCommand(selectedIds);
     }
     handlePointerRightDown(worldX, worldY) {
-        if (this.appState !== "in_game") return;
+        if (this.appState !== "in_game"&&this.appState !== "singleplayer") return;
         if(this.game.buildMode){
             this.game.buildMode = null;
             this.game.buildSelectedIds = [];
@@ -798,13 +807,13 @@ class ClientApp {
         this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
 
         for (const ent of selected) {
-            ent.targetX = worldX;
-            ent.targetY = worldY;
+           // ent.targetX = worldX;
+           // ent.targetY = worldY;
         }
     }
 
     handleTouchCommand(worldX, worldY) {
-        if (this.appState !== "in_game") return;
+        if (this.appState !== "in_game"&&this.appState !== "singleplayer") return;
         this.leftclicked=true;
         if(this.game.UISIZE()||this.game.buildMode)return;
         const selected = this.getSelectedEntities();
@@ -815,16 +824,30 @@ class ClientApp {
         const clicked = this.getEntityAt(worldX, worldY);
 
         if((!clicked||(clicked.owner!==this.myId||clicked.type==="sheep")||(clicked.owner===this.myId&&clicked.buildProgress&&clicked.buildProgress<1)))if(!clicked||!(selected[0].type==="sheep" && clicked.type==="sheep"))this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
-    
+       
+        
+        
         if(clicked){if(!isbuilding)this.deselectAll();if(clicked.owner===this.myId&&!(isbuilding&&clicked.type==="sheep")&&!(clicked.buildProgress&&clicked.buildProgress<1) ){this.handlePointerLeftDown(worldX, worldY);}}
         
         for (const ent of selected) {
-            ent.targetX = worldX;
-            ent.targetY = worldY;
+          //  ent.targetX = worldX;
+          //  ent.targetY = worldY;
         }
     }
 
     sendRightClickCommand(x, y, targetId) {
+        
+        if(this.appState === "singleplayer"){
+            
+            let objects=[];
+            for(const o of this.selectedsingleplayer){
+                objects.push(this.game.world.entitiesById.get(o));
+            }
+            
+            if(objects[0].isBuilding) this.game.simulation.handleRightClickBuilding(objects, x, y,this.game.world.entitiesById.get(targetId));
+            else this.game.simulation.handleRightClickCommand(objects, x, y, this.game.world.entitiesById.get(targetId)); return;
+        }
+        
         if (this.appState !== "in_game") return;
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
@@ -849,6 +872,70 @@ class ClientApp {
 
 update(scale) {
 
+    if(this.appState === "singleplayer"){
+        
+        
+
+        
+        this.gamespeedCounter+=1*scale;
+        this.solverCounter+=1*scale;
+        
+          // full state 5 Hz
+        if (this.gamespeedCounter >= 12) {
+            this.game.updateGameLogic();
+            this.gamespeedCounter = 0;
+            if(!this.spGameOver)this.checkGameOver();
+        }
+          // XY 10 Hz
+        if (this.solverCounter >= 6) {
+            this.game.updateUnitMovement();
+            this.game.updateSolver();
+            this.solverCounter = 0;
+            
+            for(const obj of this.game.world.dynamic){
+            
+                obj.snapshots ||= [];
+                obj.snapshots.push({
+                    time: performance.now() & 0xFFFF,
+                    x:obj.x,
+                    y:obj.y
+                });
+
+                if (obj.snapshots.length > 10) {
+                    obj.snapshots.shift();
+                }
+
+                if (obj.renderX == null) obj.renderX = obj.x;
+                if (obj.renderY == null) obj.renderY = obj.y;
+                
+                if (obj.type === "worker" || obj.type === "rworker" || obj.type === "yworker" || obj.type === "gworker") {
+                    const still = obj.standingstill;
+                    const work =
+                        (obj.state === "attackBoar" && this.game.collideswiths(obj, "boar")) ||
+                        (obj.state === "buildBuilding" && obj.isbuilding === true) ||
+                        obj.state === "gather";
+                    const rtbase = (obj.state === "returnToBase");
+                    const dead = obj.dead;
+                    const carrytype = obj.carryType;
+                    
+                    obj.ani =0;
+                    if (still) obj.ani = 1;
+                    if (work) obj.ani = 2;
+                    if (rtbase) obj.ani = 3;
+                    if (dead) obj.ani = 4;
+
+                    if (carrytype === "wood") obj.carry = 1;
+                    if (carrytype === "stone") obj.carry = 2;
+                    if (carrytype === "gold") obj.carry = 3;
+                }
+            
+            }
+            this.latestPacketTime = performance.now() & 0xFFFF;
+            this.latestArrivalTime = performance.now();        
+        }
+    }
+    
+
 
     const camSpeed = 15*scale; 
     const currentMap = this.game.maps[this.game.currentmap]; 
@@ -867,9 +954,17 @@ update(scale) {
                 this.appState = "lobby";
             }
         }
-    
-    
-   
+        if (this.spGameOver) {
+            const elapsed = performance.now() - this.gameOverTime;
+            if (elapsed > 7500) {
+                this.spGameOver = false;
+                this.spGameOverText = "";
+                this.gameOverTime = 0;
+                this.gameStopped=false;
+
+                this.appState = "singleplayer_lobby";
+            }
+        }
 }
 
     draw(scale) {
@@ -899,6 +994,12 @@ update(scale) {
             this.drawRoomBrowser();
             return;
         }
+        if(this.appState ==="singleplayer_lobby"){
+            
+            this.drawSingleplayerLobby();
+            return;
+        }
+        
 
 
         this.updateNetworkRendering();
@@ -967,7 +1068,7 @@ update(scale) {
         }
 
         ctx.restore();
-        if (this.gameOver || this.appState === "game_over") {
+        if (this.gameOver || this.appState === "game_over"||this.spGameOver) {
             const t = performance.now() - this.gameOverTime;
 
             // fade in (0 → 1 på ~400ms)
@@ -989,30 +1090,55 @@ update(scale) {
             ctx.translate(cx, cy);
             ctx.scale(pulse, pulse);
             ctx.translate(-cx, -cy);
-
-            // färg beroende på resultat
+            
             let color = "white";
-            if (this.gameOverText === "YOU WIN") color = "#00ff88";
-            else if (this.gameOverText === "YOU LOSE") color = "#ff4444";
-            else if (this.gameOverText === "DRAW") color = "#ffff66";
+            if(this.spGameOver){
+                // färg beroende på resultat              
+                if (this.spGameOverText === "YOU WIN") color = "#00ff88";
+                else if (this.spGameOverText === "YOU LOSE") color = "#ff4444";
+                else if (this.spGameOverText === "DRAW") color = "#ffff66";
+                // glow
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 30 * fade;
 
-            // glow
-            ctx.shadowColor = color;
-            ctx.shadowBlur = 30 * fade;
+                ctx.fillStyle = color;
+                ctx.textAlign = "center";
+                ctx.font = "80px Arial";
 
-            ctx.fillStyle = color;
-            ctx.textAlign = "center";
-            ctx.font = "80px Arial";
+                ctx.fillText(this.spGameOverText, cx, cy);
 
-            ctx.fillText(this.gameOverText, cx, cy);
+                // subtext (fade + liten animation)
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = `rgba(255,255,255,${fade})`;
+                ctx.font = "30px Arial";
 
-            // subtext (fade + liten animation)
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = `rgba(255,255,255,${fade})`;
-            ctx.font = "30px Arial";
+                const dots = ".".repeat(Math.floor((t / 400) % 4));
+                ctx.fillText(`Returning to lobby${dots}`, cx, cy + 80);
+            }
+            else{
+                // färg beroende på resultat
+                if (this.gameOverText === "YOU WIN") color = "#00ff88";
+                else if (this.gameOverText === "YOU LOSE") color = "#ff4444";
+                else if (this.gameOverText === "DRAW") color = "#ffff66";
+                // glow
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 30 * fade;
 
-            const dots = ".".repeat(Math.floor((t / 400) % 4));
-            ctx.fillText(`Returning to lobby${dots}`, cx, cy + 80);
+                ctx.fillStyle = color;
+                ctx.textAlign = "center";
+                ctx.font = "80px Arial";
+
+                ctx.fillText(this.gameOverText, cx, cy);
+
+                // subtext (fade + liten animation)
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = `rgba(255,255,255,${fade})`;
+                ctx.font = "30px Arial";
+
+                const dots = ".".repeat(Math.floor((t / 400) % 4));
+                ctx.fillText(`Returning to lobby${dots}`, cx, cy + 80);
+            }
+            
 
             ctx.restore();
             return;
@@ -1376,7 +1502,6 @@ update(scale) {
 
             y += 48;
         }
-
         if (this.gameOverWinner != null) {
             ctx.fillStyle = "yellow";
             ctx.fillText(`Last winner: Team ${this.gameOverWinner}`, canvas.width / 2, y + 20);
@@ -1481,7 +1606,8 @@ update(scale) {
         }
 
         if (action === "go_singleplayer") {
-            alert("Coming soon");
+            this.forceCanvasResize();
+            this.enterSingleplayerLobby();
             return;
         }
         if (action.startsWith("toggle_ai_slot:")) {
@@ -1498,8 +1624,133 @@ update(scale) {
             this.toggleTeam(team);
             return;
         }
+        if (action === "sp_start") {
+            this.startSingleplayer();
+            return;
+        }
+        if (action === "sp_next_map") {
+            
+            const maps = this.availableMaps || [];
+            if (maps.length === 0) return;
+
+            const current = this.singleplayerSettings.map;
+            let idx = maps.indexOf(current);
+
+            if (idx < 0) idx = 0;
+            idx = (idx + 1) % maps.length;
+
+
+            this.singleplayerSettings.map =maps[idx];
+        
+            return;
+        }
+        if (action === "sp_back") {
+            this.endSingleplayer();
+            this.appState = "title";
+            return;
+        }
+
+        if (action.startsWith("sp_toggle_ai:")) {
+            const team = Number(action.slice("sp_toggle_ai:".length));
+
+            if (team >= 2 && team <= 4) {
+                const enabled = team <= (this.singleplayerSettings.aiCount + 1);
+
+                if (enabled) {
+                    this.singleplayerSettings.aiCount--;
+                    if (this.singleplayerSettings.aiCount < 0) this.singleplayerSettings.aiCount = 0;
+                } else {
+                    this.singleplayerSettings.aiCount++;
+                    if (this.singleplayerSettings.aiCount > 3) this.singleplayerSettings.aiCount = 3;
+                }
+            }
+            return;
+        }
+
+        if (action.startsWith("sp_toggle_team:")) {
+            const team = Number(action.slice("sp_toggle_team:".length));
+
+            if (!this.singleplayerSettings.teamFactions) {
+                this.singleplayerSettings.teamFactions = {
+                    1: 1,
+                    2: 2,
+                    3: 3,
+                    4: 4
+                };
+            }
+
+            this.singleplayerSettings.teamFactions[team]++;
+            if (this.singleplayerSettings.teamFactions[team] > 4) {
+                this.singleplayerSettings.teamFactions[team] = 1;
+            }
+
+            return;
+        }
+        
+
         
     }
+    startSingleplayer() {
+        this.myId = 1;
+
+        const mapName = this.singleplayerSettings.map;
+        const idx = this.game.maps.findIndex(m => m.name === mapName);
+        if (idx >= 0) this.game.currentmap = idx;
+
+        this.game.buildWorldOnCurrentmap();
+
+        this.game.simulation = new GameServerSimulation(this.game, {
+            one: { wood: 0, food: 0, gold: 0, stone: 0, pop: 3, popMax: 10 },
+            two: { wood: 0, food: 0, gold: 0, stone: 0, pop: 3, popMax: 10 },
+            three: { wood: 0, food: 0, gold: 0, stone: 0, pop: 3, popMax: 10 },
+            four: { wood: 0, food: 0, gold: 0, stone: 0, pop: 3, popMax: 10 }
+        });
+
+        // AI baserat på val
+        this.game.simulation.aiTeams = [];
+        for (let i = 2; i <= this.singleplayerSettings.aiCount + 1; i++) {
+            this.game.simulation.aiTeams.push(i);
+        }
+
+        this.game.playerResources = this.game.simulation.teamResources.one;
+
+        this.game.simulation.teamFactions = this.singleplayerSettings.teamFactions || {
+            1: 1,
+            2: 2,
+            3: 3,
+            4: 4
+        };
+
+        this.appState = "singleplayer";
+        this.forceCanvasResize();
+    }
+    endSingleplayer() {
+        // stoppa AI/simulation
+        this.game.simulation = null;
+
+        // rensa world
+        this.game.world = null;
+
+        // reset map
+        this.game.currentmap = 0;
+
+        // reset player data
+        this.game.playerResources = {
+            wood: 0, food: 0, gold: 0, stone: 0, pop: 3, popMax: 10
+        };
+
+        // reset selection
+        this.selectedSingleplayerIds = [];
+
+        // reset game over
+        this.gameOver = false;
+        this.gameOverText = "";
+        this.gameOverTime = 0;
+
+        // tillbaka till title
+        this.appState = "title";
+    }
+    
     handleMenuClick(screenX, screenY) {
         for (const btn of this.uiButtons) {
             if (this.pointInButton(screenX, screenY, btn)) {
@@ -1669,6 +1920,182 @@ update(scale) {
         if (faction === 3) return "#99ff66"; // grön
         if (faction === 4) return "#cc99ff"; // lila
         return "white";
+    }
+    enterSingleplayerLobby() {
+        this.appState = "singleplayer_lobby";
+
+        this.singleplayerSettings = {
+            map: this.availableMaps?.[0] || "default",
+            aiCount: 3,
+            teamFactions: {
+                1: 1,
+                2: 2,
+                3: 3,
+                4: 4
+            }
+        };
+    }
+    drawSingleplayerLobby() {
+        const mobile = mobileAndTabletCheck();
+
+        ctx.drawImage(this.titlescreen, 0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "rgba(0,0,0,0.65)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        ctx.font = mobile ? "36px Arial" : "42px Arial";
+        ctx.fillText("Singleplayer", canvas.width / 2, 70);
+
+        ctx.font = mobile ? "24px Arial" : "30px Arial";
+        ctx.fillStyle = "#ffe066";
+        ctx.fillText(`Map: ${this.singleplayerSettings.map}`, canvas.width / 2, 120);
+
+        ctx.fillStyle = "white";
+        ctx.fillText(`Player: ${this.playerName}`, canvas.width / 2, 165);
+
+        const leftX = canvas.width / 2 - 350;
+        let y = 240;
+
+        this.uiButtons = [];
+
+        // Player slot
+        ctx.textAlign = "left";
+        ctx.font = mobile ? "22px Arial" : "26px Arial";
+
+        ctx.fillStyle = "white";
+        ctx.fillText(`[Team 1] ${this.playerName}`, leftX, y);
+
+        const factions = this.singleplayerSettings.teamFactions || {
+            1: 1,
+            2: 2,
+            3: 3,
+            4: 4
+        };
+
+        ctx.fillStyle = this.getFactionColor(factions[1]);
+        ctx.fillText(`Team ${factions[1]}`, leftX + 500, y);
+
+        y += 48;
+
+        // AI/Open slots 2-4
+        for (let team = 2; team <= 4; team++) {
+            const enabled = team <= (this.singleplayerSettings.aiCount + 1);
+
+            ctx.fillStyle = "white";
+            ctx.fillText(`Team ${team}: ${enabled ? "AI" : "OPEN"}`, leftX, y);
+
+            ctx.fillStyle = enabled ? "#ffd966" : "#aaa";
+            ctx.fillText(enabled ? "AI" : "OPEN", leftX + 250, y);
+
+            const factions = this.singleplayerSettings.teamFactions || {
+                1: 1,
+                2: 2,
+                3: 3,
+                4: 4
+            };
+
+            ctx.fillStyle = this.getFactionColor(factions[team]);
+            ctx.fillText(`Team ${factions[team]}`, leftX + 500, y);
+
+            // Toggle AI button
+            const aiBtnText = enabled ? "Remove AI" : "Add AI";
+            const aiBtnWidth = enabled ? 130 : 100;
+
+            const aiBtn = this.makeButton(
+                leftX + 350,
+                y - 28,
+                aiBtnWidth,
+                36,
+                aiBtnText,
+                `sp_toggle_ai:${team}`
+            );
+            this.uiButtons.push(aiBtn);
+
+            // Switch team button
+            const teamBtn = this.makeButton(
+                leftX + 600,
+                y - 28,
+                120,
+                36,
+                "Switch",
+                `sp_toggle_team:${team}`
+            );
+            this.uiButtons.push(teamBtn);
+
+            y += 48;
+        }
+        
+        
+        if (this.spwinnerFaction != null) {
+            ctx.textAlign = "center";
+            ctx.fillStyle = "yellow";
+            ctx.fillText(`Last winner: Team ${this.spwinnerFaction}`, canvas.width / 2, y + 80);
+        }
+        
+        
+        // Info text
+        ctx.textAlign = "center";
+        ctx.fillStyle = "yellow";
+        ctx.font = mobile ? "22px Arial" : "26px Arial";
+        ctx.fillText(`AI Players: ${this.singleplayerSettings.aiCount}`, canvas.width / 2, y + 20);
+
+        // Bottom action buttons
+        const btnY = mobile ? canvas.height - 170 : canvas.height - 120;
+
+        if (mobile) {
+            this.uiButtons.push(
+                this.makeButton(canvas.width / 2 - 250, btnY, 160, 50, "Start", "sp_start"),
+                this.makeButton(canvas.width / 2 - 70, btnY, 160, 50, "Map", "sp_next_map"),
+                this.makeButton(canvas.width / 2 + 110, btnY, 160, 50, "Back", "sp_back")
+            );
+        } else {
+            this.uiButtons.push(
+                this.makeButton(canvas.width / 2 - 220, btnY, 140, 45, "Start", "sp_start"),
+                this.makeButton(canvas.width / 2 - 60, btnY, 140, 45, "Map", "sp_next_map"),
+                this.makeButton(canvas.width / 2 + 100, btnY, 140, 45, "Back", "sp_back")
+            );
+        }
+
+        for (const btn of this.uiButtons) {
+            this.drawButton(btn);
+        }
+    }
+    checkGameOver() {
+        const aliveFactions = new Set();
+
+        for (const e of this.game.world.solids) {
+            if (e.dead) continue;
+            if (!e.owner) continue;
+
+            const isImportant =
+                e.type === "townhall" ||
+                e.type === "rtownhall" ||
+                e.type === "ytownhall" ||
+                e.type === "gtownhall";
+
+            if (!isImportant) continue;
+
+            const faction = this.game.simulation.getFaction(e.owner);
+            if (faction !== 0) {
+                aliveFactions.add(faction);
+            }
+        }
+
+        if (aliveFactions.size <= 1) {
+            const winnerFaction = aliveFactions.size === 1 ? [...aliveFactions][0] : 0;
+
+            this.spGameOver = true;
+            this.spwinnerFaction = winnerFaction;
+            if (winnerFaction === 1) {
+                this.spGameOverText = "YOU WIN";
+            } else if (winnerFaction === 0) {
+                this.spGameOverText = "DRAW";
+            } else {
+                this.spGameOverText = "YOU LOSE";
+            }
+            this.gameOverTime = performance.now();
+        }
     }
 }
 

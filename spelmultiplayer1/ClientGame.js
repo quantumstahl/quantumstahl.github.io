@@ -554,7 +554,10 @@ class ClientGame {
         }
         
          if (this.game.buildMode) {
-            this.sendCommand("build", -1, this.game.buildMode, cursorX-this.game.getCameraX()-this.game.bildModew/2, cursorY-this.game.getCameraY()-this.game.bildModeh/2, this.game.buildSelectedIds);
+             
+            if(app.appState === "singleplayer") this.game.simulation.placeBuilding(cursorX-this.game.getCameraX()-this.game.bildModew/2, cursorY-this.game.getCameraY()-this.game.bildModeh/2, this.game.buildMode, 1, selected);
+            else this.sendCommand("build", -1, this.game.buildMode, cursorX-this.game.getCameraX()-this.game.bildModew/2, cursorY-this.game.getCameraY()-this.game.bildModeh/2, this.game.buildSelectedIds);
+            
             this.game.buildMode = null;
             this.game.buildSelectedIds = [];
             this.game.bildModew=0;
@@ -567,12 +570,14 @@ class ClientGame {
         
         if (value === 1) {
             if (selected.trainWorkerButton && this.pointInRect(cursorX, cursorY, selected.trainWorkerButton)) {
-                this.sendCommand("queueWorker", selected.id);
+                if(app.appState === "singleplayer") this.game.simulation.queueWorkerTrainingForTeam(selected);
+                else this.sendCommand("queueWorker", selected.id);
                 return true;
             }
 
             if (selected.deleteButton && this.pointInRect(cursorX, cursorY, selected.deleteButton)) {
-                this.sendCommand("destroy", selected.id);
+                if(app.appState === "singleplayer") this.game.removeObject(selected.id);
+                else this.sendCommand("destroy", selected.id);
                 return true;
             }
 
@@ -581,12 +586,14 @@ class ClientGame {
 
         if (value === 2) {
             if (selected.trainWarriorButton && this.pointInRect(cursorX, cursorY, selected.trainWarriorButton)) {
-                this.sendCommand("queueWarrior", selected.id);
+                if(app.appState === "singleplayer") this.game.simulation.queueWarriorTrainingForTeam(selected);
+                else this.sendCommand("queueWarrior", selected.id);
                 return true;
             }
 
             if (selected.deleteButton && this.pointInRect(cursorX, cursorY, selected.deleteButton)) {
-                this.sendCommand("destroy", selected.id);
+                if(app.appState === "singleplayer") this.game.removeObject(selected.id);
+                else this.sendCommand("destroy", selected.id);
                 return true;
             }
 
@@ -611,7 +618,8 @@ class ClientGame {
 
         if (value === 3) {
             if (this.pointInRect(cursorX, cursorY, selected.deleteButton)) {
-                this.sendCommand("destroy", selected.id);
+                if(app.appState === "singleplayer") this.game.removeObject(selected.id);
+                else this.sendCommand("destroy", selected.id);
                 return true;
             }
         }

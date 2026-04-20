@@ -94,7 +94,7 @@ class InputManager {
         e.preventDefault();
         this.updateCursor(e.clientX, e.clientY);
         const p = this.getScreenPos(e.clientX, e.clientY);
-        if (this.app.appState === "room_browser" || this.app.appState === "lobby"||this.app.appState === "title") {
+        if (this.app.appState === "room_browser" || this.app.appState === "lobby"||this.app.appState === "title"||this.app.appState ==="singleplayer_lobby") {
             if (this.app.handleMenuClick(p.x, p.y)) {
                 return;
             }
@@ -147,7 +147,7 @@ class InputManager {
             const t = e.touches[0];
             this.updateCursor(t.clientX, t.clientY);
             const p = this.getScreenPos(t.clientX, t.clientY);
-            if (this.app.appState === "room_browser" || this.app.appState === "lobby"||this.app.appState === "title") {
+            if (this.app.appState === "room_browser" || this.app.appState === "lobby"||this.app.appState === "title"||this.app.appState ==="singleplayer_lobby") {
                 if (this.app.handleMenuClick(p.x, p.y)) {
                     return;
                 }

@@ -14,10 +14,28 @@ class GameClient {
         this.playerResources={wood: 0, food: 0, gold: 0, stone: 0, pop: 3, popMax: 10 };
         this.canvas=document.getElementById("myCanvas");
         this.ctx=canvas.getContext("2d");
+        this.pathfinder = new PathfinderOBB();
+        this.unreachableResources = new Set();
+        
+       
+        
     }
     setWS(ws){
         this.ws=ws;
         
+    }
+    updateSolver(){
+        
+        SimSolver.step(this);
+        
+        
+    }
+    markStaticsDirty(){
+        SimSolver.markStaticsDirty();
+        
+    }
+    updateGameLogic() {
+        this.simulation.updateGameLogic();
     }
 
     async loadGame() {
@@ -292,6 +310,370 @@ class GameClient {
     getZoom(){
         return this.maps[this.currentmap].zoom;  
     }
+    updateUnitMovement() {
+        const objects = this.world.dynamic;
+
+        for (let obj of objects) {
+            if (obj.targetX == null || obj.targetY == null){obj.standingstill=true; continue;}
+            const dx = obj.targetX - obj.x;
+            const dy = obj.targetY - obj.y;
+            const dist = Math.hypot(dx, dy);
+            if(dist<2*6||obj.standingstill){obj.targetX=null;obj.targetY=null;obj.standingstill=true;continue;}
+            obj.y += ((dy / dist) * obj.speed*6);
+            obj.x += ((dx / dist) * obj.speed*6);
+            let stop=false; 
+
+            const absdx = Math.abs(dx);
+            const absdy = Math.abs(dy);
+            // om vi är blockerade i x-led och försöker gå i x-led:
+            
+            
+            
+            if ((absdx > absdy && obj.blockedx)||obj.avoidDirxconter>0) {
+                if (!obj.avoidDirx) {
+                    if (absdx > absdy) obj.direction = dx > 0 ? "right" : "left";
+                    else obj.direction = dy > 0 ? "down" : "up";
+
+                    if(obj.wasdynblocked){
+                        if(obj.direction==="right"||obj.direction==="down")obj.avoidDirx ="down" ;
+                        else obj.avoidDirx = "up";
+                    }
+                    else obj.avoidDirx = dy > 0 ? "down" : "up";
+                    obj.avoidDirxconter=8;
+
+                }
+                obj.avoidDirxconter-=1;
+                obj.direction = obj.avoidDirx;
+            }
+
+            // om vi är blockerade i y-led och försöker gå i y-led:
+            else if ((absdy >= absdx && obj.blockedy)||obj.avoidDiryconter>0) {
+                
+                if (!obj.avoidDiry) {
+                    if (absdx > absdy) obj.direction = dx > 0 ? "right" : "left";
+                    else obj.direction = dy > 0 ? "down" : "up";
+
+                    if(obj.wasdynblocked){
+                        if(obj.direction==="down"||obj.direction==="right")obj.avoidDiry = "right";
+                        else obj.avoidDiry = "left";
+                    }
+                    else{ obj.avoidDiry = dx > 0 ? "right" : "left";}
+                    obj.avoidDiryconter=8;
+                }
+                obj.direction = obj.avoidDiry;
+                obj.avoidDiryconter-=1;
+            }
+            else{
+                if (absdx > absdy) obj.direction = dx > 0 ? "right" : "left";
+                else obj.direction = dy > 0 ? "down" : "up";
+
+                obj.avoidDirx=null;
+                obj.avoidDiry=null;
+            }
+       
+            if (obj.targetBuilding && this.collideswithanoterobject(obj, obj.targetBuilding)) {
+                    stop = true;
+            }
+           
+            if(stop==false&&(obj.blocked)){
+                if(obj.direction=="left"){obj.x -= obj.speed*6;}
+                if(obj.direction=="right"){obj.x += obj.speed*6;}
+                if(obj.direction=="up"){obj.y -= obj.speed*6;}
+                if(obj.direction=="down"){obj.y += obj.speed*6;}
+            }
+        } 
+    }
+    collideswiths(obj, type) {
+            return (
+                this._matchContact(obj.contactsSolid.left, type) ||
+                this._matchContact(obj.contactsSolid.right, type) ||
+                this._matchContact(obj.contactsSolid.up, type) ||
+                this._matchContact(obj.contactsSolid.down, type) ||
+                this._matchContact(obj.contactsDyn.left, type) ||
+                this._matchContact(obj.contactsDyn.right, type) ||
+                this._matchContact(obj.contactsDyn.up, type) ||
+                this._matchContact(obj.contactsDyn.down, type) ||
+                this._matchContact(obj.contactsGhost.ghost1, type)||
+                this._matchContact(obj.contactsGhost.ghost2, type)||
+                this._matchContact(obj.contactsGhost.ghost3, type)
+            );
+
+
+        return null;
+    }
+
+    collideswith(obj, type, dir) {
+        try {
+            if (dir === "ghost") {  
+                return this._matchContact(obj.contactsGhost.ghost1, type)||
+                       this._matchContact(obj.contactsGhost.ghost2, type)||
+                       this._matchContact(obj.contactsGhost.ghost3, type);
+            }
+
+            if (dir === "any") {
+                return (
+                    this._matchContact(obj.contactsSolid.left, type) ||
+                    this._matchContact(obj.contactsSolid.right, type) ||
+                    this._matchContact(obj.contactsSolid.up, type) ||
+                    this._matchContact(obj.contactsSolid.down, type) ||
+                    this._matchContact(obj.contactsDyn.left, type) ||
+                    this._matchContact(obj.contactsDyn.right, type) ||
+                    this._matchContact(obj.contactsDyn.up, type) ||
+                    this._matchContact(obj.contactsDyn.down, type) ||
+                    this._matchContact(obj.contactsGhost.ghost1, type)||
+                    this._matchContact(obj.contactsGhost.ghost2, type)||
+                    this._matchContact(obj.contactsGhost.ghost3, type)
+                );
+            }
+
+            return (
+                this._matchContact(obj.contactsSolid[dir], type) ||
+                this._matchContact(obj.contactsDyn[dir], type)
+            );
+        } catch (error) {}
+
+        return null;
+    }
+    collideswithanoterobject(obj, obj2) {
+        return (
+            obj.contactsSolid.left === obj2 ||
+            obj.contactsSolid.right === obj2 ||
+            obj.contactsSolid.up === obj2 ||
+            obj.contactsSolid.down === obj2 ||
+            obj.contactsDyn.left === obj2 ||
+            obj.contactsDyn.right === obj2 ||
+            obj.contactsDyn.up === obj2 ||
+            obj.contactsDyn.down === obj2 ||
+            obj.contactsGhost.ghost1 === obj2||
+            obj.contactsGhost.ghost2 === obj2||
+            obj.contactsGhost.ghost3 === obj2
+        );
+    }
+    _matchContact(ref, type){
+        
+        
+        
+        if (!ref) return null;
+        if (type === "any") return ref;
+        if (ref.type === type) return ref;
+        return null;
+    }
+     //---------------------pathfinding
+
+    pathfinding = {
+        raw: [],
+        options: {
+            cell: 32,
+            inflate: 10,
+            pad: 320,
+            maxGrid: 256,
+            smooth: true,
+            bucket: 96,
+            isBlocker: null
+        }
+    };
+    getPathBlockingObjects() {
+        if (!this.world) return [];
+
+        const isBlocker =
+            this.pathfinding.options.isBlocker ||
+            ((o) => {
+                if (!o) return false;
+                if (o.dead) return false;
+
+                // solids blockerar normalt
+                if (o.kind === "solid") return true;
+
+                // vanliga terräng/blockers som ibland kan ligga som dynamic/ghost i äldre kartor
+                if (
+                    o.type === "tree" ||
+                    o.type === "stone" ||
+                    o.type === "gold" ||
+                    o.type === "river" ||
+                    o.type === "berry"
+                ) {
+                    return true;
+                }
+
+                return false;
+            });
+
+        return this.world.entities.filter(isBlocker);
+    }
+
+    rebuildPathfinding(opt = {}) {
+        this.pathfinding.options = { ...this.pathfinding.options, ...opt };
+
+        const blockers = this.getPathBlockingObjects();
+        const raw = [];
+
+        for (const o of blockers) {
+            const p = (o.bottomsolid ?? 100) / 100;
+            const baseH = Math.max(1, Math.floor(o.h * p));
+
+            raw.push({
+                cx: o.x + o.w / 2,
+                cy: o.y + (o.h - baseH) + baseH / 2,
+                w: o.w,
+                h: baseH,
+                angleRad: (o.r || 0) * Math.PI / 180
+            });
+        }
+
+        this.pathfinding.raw = raw;
+
+        // bygg om index i Pathfinder-klassen
+        this.pathfinder.clearCaches();
+        this.pathfinder.setObstacles(raw, this.pathfinding.options.bucket || 96);
+
+        this.needsPathRebuild = false;
+    }
+
+    findPath(startX, startY, goalX, goalY, opt = {}) {
+        if (this.needsPathRebuild || !this.pathfinder.obbCache?.index) {
+            this.rebuildPathfinding(opt);
+        }
+
+        const options = { ...this.pathfinding.options, ...opt };
+
+        return this.pathfinder.findPath(
+            { x: startX, y: startY },
+            { x: goalX, y: goalY },
+            null,
+            {
+                cell: options.cell,
+                inflate: options.inflate,
+                pad: options.pad,
+                maxGrid: options.maxGrid,
+                smooth: options.smooth,
+                obbIndex: this.pathfinder.obbCache?.index,
+                obbKey: this.pathfinder.obbCache?.key
+            }
+        );
+    }
+
+    assignPath(unit, path) {
+        if (!unit) return;
+
+        if (!Array.isArray(path) || path.length === 0) {
+            unit.path = null;
+            unit.pathIndex = 1;
+            return;
+        }
+
+        unit.path = path.slice();
+        unit.pathIndex = 1;
+
+        while (unit.pathIndex < unit.path.length) {
+            const p = unit.path[unit.pathIndex];
+            const dx = p.x - unit.x;
+            const dy = p.y - unit.y;
+            const d = Math.hypot(dx, dy);
+
+            if (d > 8) break;
+            unit.pathIndex++;
+        }
+
+        if (unit.pathIndex >= unit.path.length) {
+            unit.path = null;
+            unit.pathIndex = 1;
+            unit.targetX = null;
+            unit.targetY = null;
+            return;
+        }
+
+        unit.targetX = unit.path[unit.pathIndex].x;
+        unit.targetY = unit.path[unit.pathIndex].y;
+        unit.standingstill = false;
+    }
+
+    clearPath(unit) {
+        if (!unit) return;
+        unit.path = null;
+        unit.pathIndex = 1;
+    }
+
+    followPath(unit, opt = {}) {
+        if (!unit || !unit.path || unit.path.length === 0) return false;
+        unit.standingstill=false;
+        const reachDist = opt.reachDist ?? 10;
+        const nextBetterMargin = opt.nextBetterMargin ?? 12;
+
+        if (unit.pathIndex == null) unit.pathIndex = 1;
+
+        if (unit.pathIndex >= unit.path.length) {
+            unit.path = null;
+            unit.pathIndex = 1;
+            return false;
+        }
+
+        let p = unit.path[unit.pathIndex];
+        let d = Math.hypot(p.x - unit.x, p.y - unit.y);
+
+        if (d <= reachDist) {
+            unit.pathIndex++;
+
+            if (unit.pathIndex >= unit.path.length) {
+                unit.path = null;
+                unit.pathIndex = 1;
+                return false;
+            }
+
+            p = unit.path[unit.pathIndex];
+            d = Math.hypot(p.x - unit.x, p.y - unit.y);
+        } else {
+            const nextIndex = unit.pathIndex + 1;
+            if (nextIndex < unit.path.length) {
+                const pNext = unit.path[nextIndex];
+                const dNext = Math.hypot(pNext.x - unit.x, pNext.y - unit.y);
+
+                if (dNext + nextBetterMargin < d) {
+                    unit.pathIndex = nextIndex;
+                    p = pNext;
+                }
+            }
+        }
+
+        unit.targetX = p.x;
+        unit.targetY = p.y;
+        unit.standingstill = false;
+        return true;
+    }
+
+    pathUnitTo(unit, tx, ty, opt = {}) {
+        if (!unit) return null;
+
+        const path = this.findPath(unit.x, unit.y, tx, ty, opt);
+
+        if (path && path.length > 0) {
+            this.assignPath(unit, path);
+            return path;
+        }
+
+        unit.path = null;
+        unit.pathIndex = 1;
+        unit.targetX = tx;
+        unit.targetY = ty;
+        unit.standingstill = false;
+        return null;
+    }
+
+    canPathTo(unit, tx, ty, opt = {}) {
+        if (!unit) return false;
+
+        const path = this.findPath(unit.x, unit.y, tx, ty, opt);
+        if (!Array.isArray(path) || path.length === 0) return false;
+
+        const last = path[path.length - 1];
+        const dx = last.x - tx;
+        const dy = last.y - ty;
+        const d = Math.hypot(dx, dy);
+
+        if (d < 24) return true;
+        if (d < 80) return true;
+
+        return false;
+    }
 }
 
 class Maps {
@@ -440,6 +822,16 @@ class Objectx {
         this.trainingQueue=[];
         this.hp=10;
         this.owner=this.getOwnerFromType(this.type);
+        
+        this.targetX=null;
+        this.targetY=null;
+        this.direction="down";
+        this.speed=1.25;
+        this.standingstill=true;
+        this.sistabit=false;
+        this.dead=false;
+        this.rtype=null;
+        
         
         if(this.type==="townhall"||this.type==="rtownhall"||this.type==="gtownhall"||this.type==="ytownhall"||
            this.type==="barrack"||this.type==="rbarrack"||this.type==="gbarrack"||this.type==="ybarrack"||
