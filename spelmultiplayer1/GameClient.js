@@ -191,15 +191,19 @@ class GameClient {
         return objectType.objects[objectType.objects.length - 1];
     }
     addObject(x, y, w, h, r, flipped, kind = "dynamic", type = "generic",noId=false) {
+        
+       
+        
         if (!this.world) {
             throw new Error("World is not initialized");
         }
         let obj=null;
-        if(noId){
+        if(noId){       
             obj = new Objectx(x, y, w, h, r, flipped, -1, kind, type);
             
         }
         else{
+          
             obj = new Objectx(x, y, w, h, r, flipped, this.idcounter, kind, type);
             this.idcounter++;
             this.world.entities.push(obj);
@@ -819,7 +823,6 @@ class Objectx {
         this.dead=false;
         this.ani=0;
         this.carry=0;
-        this.trainingQueue=[];
         this.hp=10;
         this.owner=this.getOwnerFromType(this.type);
         

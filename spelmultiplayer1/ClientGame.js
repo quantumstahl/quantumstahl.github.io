@@ -650,14 +650,14 @@ class ClientGame {
         
     }
     drawTownhallTrainingQueue(ctx, townhall, currentMap) {        
-        if (townhall.trainingQueue<=0) return;
+        if (townhall.trainingQueue2<=0) return;
            
         const owner = townhall.owner ;
         const iconSize = 30;
         const gap = 4;
         const maxVisible = 8;
 
-        const queue = townhall.trainingQueue;
+        const queue = townhall.trainingQueue2;
         const totalW = queue * iconSize + (queue - 1) * gap;
 
         const startX = townhall.x + currentMap.camerax + townhall.w / 2 - totalW / 2;
@@ -697,25 +697,25 @@ class ClientGame {
             }
         }
 
-        if (townhall.trainingQueue > maxVisible) {
+        if (townhall.trainingQueue2 > maxVisible) {
             ctx.fillStyle = "white";
             ctx.font = "14px Cinzel";
             ctx.fillText(
-                "+" + (townhall.trainingQueue - maxVisible),
+                "+" + (townhall.trainingQueue2 - maxVisible),
                 startX + maxVisible * (iconSize + gap),
                 y + 16
             );
         }
     } 
     drawBarrackTrainingQueue(ctx, barrack, currentMap) {
-         if (barrack.trainingQueue<=0) return;
+         if (barrack.trainingQueue2<=0) return;
            
         const owner = barrack.owner ;
         const iconSize = 30;
         const gap = 4;
         const maxVisible = 8;
 
-        const queue = barrack.trainingQueue;
+        const queue = barrack.trainingQueue2;
         const totalW = queue * iconSize + (queue - 1) * gap;
 
         const startX = barrack.x + currentMap.camerax + barrack.w / 2 - totalW / 2;
@@ -755,11 +755,11 @@ class ClientGame {
             }
         }
 
-        if (barrack.trainingQueue > maxVisible) {
+        if (barrack.trainingQueue2 > maxVisible) {
             ctx.fillStyle = "white";
             ctx.font = "14px Cinzel";
             ctx.fillText(
-                "+" + (barrack.trainingQueue - maxVisible),
+                "+" + (barrack.trainingQueue2 - maxVisible),
                 startX + maxVisible * (iconSize + gap),
                 y + 16
             );
@@ -831,11 +831,11 @@ class ClientGame {
             let color = "white";
             let label = "";
 
-            if (rp.mode > 1) color = "lime";
-            if (rp.mode === 2) label = "F";
-            if (rp.mode === 3) label = "W";
-            if (rp.mode === 4) label = "S";
-            if (rp.mode === 5) label = "G";
+            if (rp.mode > 1||rp.mode==="resource") color = "lime";
+            if (rp.mode === 2||rp.resourceType==="food") label = "F";
+            if (rp.mode === 3||rp.resourceType==="wood") label = "W";
+            if (rp.mode === 4||rp.resourceType==="stone") label = "S";
+            if (rp.mode === 5||rp.resourceType==="gold") label = "G";
 
             const t = performance.now() * 0.006;
             const pulse = 1 + Math.sin(t) * 0.12;

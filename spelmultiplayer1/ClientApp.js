@@ -247,9 +247,9 @@ class ClientApp {
             obj.ani=ani;
             obj.carry=carry;
             obj.owner=owner;
-            obj.trainingQueue=trainingQueue;
-            obj.trainingTimer=trainingTimer*4;
-            obj.trainingTimeMax=trainingTimeMax*4;
+            obj.trainingQueue2=trainingQueue;
+            obj.trainingTimer2=trainingTimer*4;
+            obj.trainingTimeMax2=trainingTimeMax*4;
             obj.flashTimer=flashTimer;
             obj.buildProgress=buildProgress;
             
@@ -928,10 +928,19 @@ update(scale) {
                     if (carrytype === "stone") obj.carry = 2;
                     if (carrytype === "gold") obj.carry = 3;
                 }
+                
+                
+                
             
             }
             this.latestPacketTime = performance.now() & 0xFFFF;
-            this.latestArrivalTime = performance.now();        
+            this.latestArrivalTime = performance.now();     
+            
+            for(const obj of this.game.world.solids){
+                if(obj.trainingQueue){obj.trainingQueue2=obj.trainingQueue.length;}
+                
+            }
+            
         }
     }
     
