@@ -248,8 +248,8 @@ class ClientApp {
             obj.carry=carry;
             obj.owner=owner;
             obj.trainingQueue2=trainingQueue;
-            obj.trainingTimer2=trainingTimer*4;
-            obj.trainingTimeMax2=trainingTimeMax*4;
+            obj.trainingTimer=trainingTimer*4;
+            obj.trainingTimeMax=trainingTimeMax*4;
             obj.flashTimer=flashTimer;
             obj.buildProgress=buildProgress;
             
@@ -534,14 +534,13 @@ class ClientApp {
             obj.flashTimer=e.flashTimer;
             obj.trainingTimer=e.trainingTimer;
             obj.trainingTimeMax=e.trainingTimeMax;
-            obj.trainingQueue=e.trainingQueue;
+            obj.trainingQueue2=e.trainingQueue;
             obj.owner=e.owner;
             obj.direction=e.dir;
             obj.ani=e.ani;
             obj.carry=e.carry;
             obj.r = e.r;
             obj.hp = e.hp;
-            
             if(e.rallyPointX!==32767){
                 
                 if(!obj.rallyPoint){
