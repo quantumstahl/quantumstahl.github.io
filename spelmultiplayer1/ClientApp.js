@@ -918,7 +918,9 @@ update(scale) {
                     if (work) obj.ani = 2;
                     if (rtbase) obj.ani = 3;
                     if (dead) obj.ani = 4;
-
+                    
+                    
+                    obj.carry = 0;
                     if (carrytype === "wood") obj.carry = 1;
                     if (carrytype === "stone") obj.carry = 2;
                     if (carrytype === "gold") obj.carry = 3;
