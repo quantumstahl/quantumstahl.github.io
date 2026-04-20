@@ -218,7 +218,7 @@ class MapRenderer {
             ctx.fill();
             ctx.restore();
         }
-        else if (o.hp > 0 && (o.kind === "dynamic" || type === "tree")) {
+        else if ((o.hp > 0 && (o.kind === "dynamic")) || type === "tree") {
             const rx = o.renderX ?? o.x;
             const ry = o.renderY ?? o.y;
             const cx = rx + o.w / 2;
