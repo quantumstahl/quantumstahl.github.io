@@ -827,7 +827,7 @@ class ClientApp {
         
         const clicked = this.getEntityAt(worldX, worldY);
         if(this.getEntityAt(worldX, worldY)) alert("3"+this.getEntityAt(worldX, worldY).type);
-        if((!clicked||(clicked.owner!==this.myId||clicked.type==="sheep")||(clicked.owner===this.myId&&clicked.buildProgress&&clicked.buildProgress<1)))if(!clicked||!(selected[0].type==="sheep" && clicked.type==="sheep"))this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);
+        if((!clicked||(clicked.owner!==this.myId||clicked.type==="sheep")||(clicked.owner===this.myId&&clicked.buildProgress&&clicked.buildProgress<1)))if(!clicked||!(selected[0].type==="sheep" && clicked.type==="sheep")){if(this.getEntityAt(worldX, worldY)) alert("4"+this.getEntityAt(worldX, worldY).type);this.sendRightClickCommand(worldX, worldY, clicked ? clicked.id : null);}
        
         
         
@@ -843,7 +843,7 @@ class ClientApp {
             for(const o of this.selectedsingleplayer){
                 objects.push(this.game.world.entitiesById.get(o));
             }
-           
+            if(targetId) alert("5"+targetId);
             if(objects[0].isBuilding) this.game.simulation.handleRightClickBuilding(objects, x, y,this.game.world.entitiesById.get(targetId));
             else this.game.simulation.handleRightClickCommand(objects, x, y, this.game.world.entitiesById.get(targetId)); return;
         }
