@@ -117,7 +117,7 @@ class GameServerSimulation {
     handleRightClickCommand(selectedUnits, x, y, target) {
         
         
-        
+        alert(selectedUnits.length+" "+ target.type);
         
         
         const selectedWorkers = selectedUnits.filter(o => !o.dead&&(o.type === "worker"||o.type === "rworker"||o.type === "gworker"||o.type === "yworker"));
