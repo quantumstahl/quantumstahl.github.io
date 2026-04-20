@@ -852,7 +852,7 @@ class Objectx {
     getOwnerFromType(type) {
         if (!type) return null;
 
-        if (type === "tree" || type === "gold" || type === "stone" || type === "berry" || type === "sheep") {
+        if (type === "tree" || type === "gold" || type === "stone" || type === "berry" || type === "sheep"|| type === "boar") {
             return 0; // neutral
         }
 
