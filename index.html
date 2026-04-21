@@ -26,9 +26,16 @@
     }
 
     header {
-      padding: 320px 20px;
-      background: url('headerbg.png') center/cover no-repeat;
-    }
+        padding: 20px;
+        width: 100%;
+        min-height: 60vh; /* viktig */
+        background: url('headerbg.png') center/cover no-repeat;
+        position: relative;
+          display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+      }
     header {
         position: relative;
       }
@@ -108,10 +115,13 @@
 }
 @media (max-width: 700px) {
     
-    header {
-      padding: 50px 10px;
-      
-    }
+  
+  header {
+    min-height: 70vh;
+    padding: 40px 15px;
+    background-position: center top;
+  }
+
     
   .project {
     flex-direction: column;
