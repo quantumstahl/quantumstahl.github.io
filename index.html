@@ -1,354 +1,260 @@
 <!DOCTYPE html>
-<html lang="sv">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Mina egna webbaserade spel och verktyg – byggda från grunden i JavaScript. Allt körs direkt i webbläsaren, utan nedladdning.">
-  <link rel="alternate" hreflang="en" href="https://quantumstahl.github.io/en.html">
-  <title>QuantumStahl – Mina spel och verktyg</title>
-   <link rel="icon" href="spel1/images/output-onlinepngtools (2).png" type="image/vnd.microsoft.icon" />
-   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta name="description" content="Play fast browser games and tools built in JavaScript. No download required.">
+  <title>QuantumStahl – Play Games in Your Browser</title>
+
+  <link rel="icon" href="spel1/images/output-onlinepngtools (2).png">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+
   <style>
     :root {
-      --primary: #00bcd4;
-      --primary-dark: #007b9e;
-      --background: #1e2a3a;
-      --card-bg: #2f3f55;
-      --text-light: #ccc;
-      --text-muted: #999;
-      --transition: 0.3s ease;
-    }
-
-    * {
-      box-sizing: border-box;
+      --primary: #3498db;
+      --primary-dark: #3498db;
+      --bg: #000d1a;
+      --card: #01193b;
     }
 
     body {
       margin: 0;
       font-family: 'Inter', sans-serif;
-      background: linear-gradient(to bottom right, var(--background), #2b3b52);
+      background: linear-gradient(to bottom right, var(--bg), #000d1a);
       color: white;
-      padding: 0;
-      transition: background var(--transition), color var(--transition);
-      
-    }
-
-    body.light {
-      background: #f1f1f1;
-      color: #222;
-    }
-
-    body.light .project,
-    body.light section.about {
-      background: #ffffff;
-      color: #222;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-
-    body.light footer {
-      color: #555;
+      text-align: center;
     }
 
     header {
-      text-align: center;
-      padding: 60px 20px 40px 20px;
+      padding: 320px 20px;
       background: url('headerbg.png') center/cover no-repeat;
-      color: white;
     }
+    header {
+        position: relative;
+      }
 
-    header img.logo {
-      width: 64px;
-      height: 64px;
-      margin-bottom: 10px;
-      opacity: 0.9;
-    }
+      header::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.15);
+      }
+
+      header * {
+        position: relative;
+      }
 
     h1 {
-      font-size: 2.4em;
-      margin-bottom: 0.2em;
+      font-size: 2.5em;
+      margin-bottom: 10px;
     }
 
-    p.subtitle {
-      color: var(--text-light);
-      margin-top: 0;
+    .subtitle {
+      font-size: 1.8em;  
+      color: #FFF;
+      margin-bottom: 50px;
     }
+
+    .cta-buttons a {
+        display: inline-block;
+        margin: 10px;
+        padding: 14px 22px;
+        border-radius: 8px;
+        color: white;
+        text-decoration: none;
+        font-weight: bold;
+        transition: transform 0.2s ease, filter 0.2s ease;
+      }
+
+      .cta-buttons a:hover {
+        transform: scale(1.05);
+        filter: brightness(1.1);
+      }
+
+      /* Färger */
+      .btn-red {
+        background: #e74c3c;
+      }
+
+      .btn-blue {
+        background: #3498db;
+      }
+
+      .btn-green {
+        background: #27ae60;
+      }
 
     main {
-      max-width: 800px;
-      margin: 0 auto;
+      max-width: 1600px;
+      margin: auto;
       padding: 20px;
     }
 
-    section.about {
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 40px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      transition: background var(--transition), color var(--transition);
-    }
+    .section {
+  display: flex;
+  justify-content: center;
+}
 
-    .category {
-      margin-top: 40px;
-    }
+.project {
+  background: #1b2430;
+  padding: 20px;
+  border-radius: 12px;
+  margin: 20px auto;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  max-width: 1200px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+}
+@media (max-width: 700px) {
+  .project {
+    flex-direction: column;
+  }
 
-    .category h2 {
-      border-bottom: 1px solid #555;
-      padding-bottom: 8px;
-      margin-bottom: 20px;
-    }
-
-    .project {
-      background: var(--card-bg);
-      padding: 20px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
-      transition: transform 0.2s ease, box-shadow 0.2s ease, background var(--transition), color var(--transition);
-      animation: fadeInUp 0.5s ease forwards;
-      opacity: 0;
-    }
-
-    .project img.thumb {
-      width: 100%;
-     
-      object-fit: cover;
-      border-radius: 8px;
-      margin-bottom: 12px;
-    }
-
-    @keyframes fadeInUp {
-      0% { transform: translateY(20px); opacity: 0; }
-      100% { transform: translateY(0); opacity: 1; }
-    }
-
-    .project:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    }
-
-    .project h3 {
-      margin: 0 0 10px 0;
-    }
-
-    .project p {
-      margin: 0 0 15px 0;
-    }
+  .project-info {
+    text-align: center;
+  }
+}
+    .project img {
+  
+  max-width: 900px;
+  border-radius: 8px;
+}
 
     .project a {
-      background: linear-gradient(to right, var(--primary), var(--primary-dark));
-      color: white;
-      padding: 10px 16px;
-      text-decoration: none;
-      border-radius: 6px;
-      font-weight: bold;
       display: inline-block;
-    }
-
-    .project a:hover {
-      background: var(--primary-dark);
-    }
-
-    .theme-toggle {
-      position: fixed;
-      top: 16px;
-      right: 16px;
-      background: var(--card-bg);
-      border: none;
+      margin-top: 10px;
+      padding: 10px 16px;
+      border-radius: 6px;
+     
       color: white;
-      padding: 8px 12px;
-      border-radius: 8px;
+      text-decoration: none;
       font-weight: bold;
-      cursor: pointer;
-      transition: background var(--transition);
-    }
-
-    body.light .theme-toggle {
-      background: #ddd;
-      color: #222;
     }
 
     footer {
-      text-align: center;
       margin: 40px 0;
-      font-size: 0.9em;
-      color: var(--text-muted);
+      color: #999;
     }
 
     footer a {
       color: #66ccff;
       text-decoration: none;
     }
-    a {
-    color: #0077cc;
-    text-decoration: underline;
-    transition: color 0.2s ease-in-out;
-    }
-    a:hover {
-      color: #005599;
-    }
-    
-    
-    .lang-switch { position: absolute; top: 16px; left: 16px; background: rgba(0,0,0,0.5); padding: 6px 12px; border-radius: 8px; font-weight: bold; color: white; text-decoration: none; }
+    @media (max-width: 700px) {
+  .project {
+    flex-direction: column;
+  }
+
+  .project img {
+    width: 100%;
+  }
+
+
+}
+.project-info {
+  padding: 10px 20px;
+}
+
+.project-info h3 {
+  margin: 0 0 14px;
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+.project-info p {
+  margin: 0 0 20px;
+  line-height: 1.6;
+  color: #c7d2e0;
+}
+.project-info p strong {
+  color: #00bcd4;
+}
+.project-info a {
+
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-weight: bold;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.project-info a:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+}
   </style>
 </head>
+
 <body>
-  <button class="theme-toggle" onclick="toggleTheme()">🌝 / 🌑</button>
-  <header>
-    <a href="en.html" class="lang-switch">🇬🇧 English</a>  
-    <img src="loggatrans.png" alt="QuantumStahl logotyp" class="logo">
-    <h1>QuantumStahl – Mina Projekt</h1><img src="loggatrans.png" alt="QuantumStahl logotyp" class="logo">
-    <p class="subtitle">Spel och verktyg utvecklade i JavaScript, anpassade för PC och mobil</p>
-  </header>
 
-  <main>
-    <section class="about">
-      <h2>👤 Om mig</h2>
-      <p>Jag heter Max Nilsson Ståhl och bygger hobbyprojekt i JavaScript, mest spel och verktyg som fungerar både i webbläsare och på mobil. Jag gillar att experimentera med retrospel, map editors och verktyg som kan ersätta enklare appar som MS Paint.</p>
-      <p>All kod är byggd från grunden, inklusive egen spelmotor, karta och ritverktyg. Du hittar mig även på <a href="https://github.com/quantumstahl" target="_blank">
-  <i class="fab fa-github"></i> GitHub
-</a>.</p>
-    </section>
+<header>
 
-    <div class="category">
-      <h2>🔧 Verktyg</h2>
+  <p class="subtitle">Play games directly in your browser – PC & Mobile - No download</p>
 
-      <div class="project">
-        <img src="thumbs/paint.png" alt="Miniatyr för MaxPaint" class="thumb">
-        <h3>MaxPaint</h3>
-        <p>Ritprogram som fungerar med mus eller pekskärm. Flood fill, rutnät och mycket mer.</p>
-        <a href="/paint/">Starta</a>
-      </div>
-      
-      <div class="project">
-        <h3>MaxPaintAnimate</h3>
-        <p>Ritprogram med animations funktion.</p>
-        <a href="/animate/">Starta</a>
-      </div>
-      
+  <div class="cta-buttons">
+    <a href="/spelmultiplayer1/" class="btn-red">Play Multiplayer RTS</a>
+    <a href="/spel9/" class="btn-blue">Play Birdknight</a>
+    <a href="/paint/" class="btn-green">Open MaxPaint</a>
+  </div>
+</header>
 
-      <div class="project">
-        <img src="thumbs/golv.png" alt="Miniatyr för Golvläggningsprogram" class="thumb">
-        <h3>Golvläggningsprogram</h3>
-        <p>Planera golvläggning med bilder och material.</p>
-        <a href="/golv/">Starta</a>
-      </div>
+<main>
+    <h2>🎮 Featured Game</h2>
+  <div class="section">
+    
 
-      <div class="project">
-        <img src="thumbs/creator.png" alt="Miniatyr för Creator" class="thumb">
-        <h3>Creator</h3>
-        <p>Bygg egna banor/kartor. <strong>OBS:</strong> Full funktionalitet endast via nedladdning på PC.</p>
-        <p>Webbläsaren stöder ej uppladdning av animationer/bilder. Fungerar med min egen spelmotor.</p>
-        <a href="/tradet/">Starta</a>
+    <div class="project">
+  <img src="thumbs/rts.png" alt="RTS">
+
+  <div class="project-info">
+    <h3>Birdknight Multiplayer</h3>
+    <p><strong>Fast-paced RTS</strong>. Birds vs Rats. Play online.</p>
+    <a href="/spelmultiplayer1/" class="btn-red">Play Now</a>
+  </div>
+</div>
+  </div>
+    <h2>🕹 Other Game</h2>
+  <div class="section">
+    
+
+    <div class="project">
+      <img src="thumbs/bird.png" alt="Birdknight" >  
+      <div class="project-info">
+      <h3>Birdknight</h3>
+      <p><strong>2D platformer</strong> with sword combat.</p>
+      <a href="/spel9/" class="btn-blue">Play Now</a>
       </div>
-      
-       <div class="project">
-        <img src="thumbs/duel.png" alt="Miniatyr för wow calculator" class="thumb">
-        <h3>WoW-turneringskalkylator</h3>
-        <p>Gör en turneringsberäkning i world of warcraft.</p>
-        <a href="/spel7/">Starta</a>
-      </div>
-      
-      <div class="project">
-        <h3>IBC-lager</h3>
-        <p>Lagerprogram.</p>
-        <a href="/lager/">Starta</a>
-      </div>
-      
-      
     </div>
+  </div>
+    <h2>🛠 Tool</h2>
+  <div class="section">
+    
 
-      
-   
-      
-      
-    <div class="category">
-      <h2>🎮 Spel</h2>
+    <div class="project">
+      <img src="thumbs/paint.png" alt="MaxPaint">
+      <div class="project-info">
+      <h3>MaxPaint</h3>
+      <p>Draw using mouse or touch. Simple and powerful browser paint tool.</p>
+      <a href="/paint/" class="btn-green">Open</a>
+      </div>
+    </div>
+  </div>
+<h2>👤 About</h2>
+  <div class="section">
+    
+    <p>
+      I'm Max, I build browser games and tools in JavaScript.
+      Everything runs directly in the browser with no downloads.
+    </p>
 
-      <div class="project">
-        <img src="thumbs/mario1.png" alt="Miniatyr för Mario-spel" class="thumb">
-        <h3>Mario-spel</h3>
-        <p>Hopp- och plattformsspel inspirerat av klassiska NES-spel.</p>
-        <a href="/spel1/">Spela</a>
-      </div>
+  </div>
 
-      <div class="project">
-        <img src="thumbs/diablo.png" alt="Miniatyr för Diablo-inspirerat spel" class="thumb">
-        <h3>Diablo-inspirerat spel</h3>
-        <p>Slåss mot monster med vapen och piltangenter. Retro-action från ovanperspektiv.</p>
-        <a href="/spel3/">Spela</a>
-      </div>
+</main>
 
-      <div class="project">
-        <img src="thumbs/mario2.png" alt="Miniatyr för Mario spel 2" class="thumb">
-        <h3>Mario spel 2</h3>
-        <p>Uppföljare med nya banor och utmaningar.</p>
-        <a href="/spel2/">Spela</a>
-      </div>
+<footer>
+  © 2026 QuantumStahl
+</footer>
 
-      <div class="project">
-        <img src="thumbs/ducktales.png" alt="Miniatyr för DuckTales spel" class="thumb">
-        <h3>DuckTales spel</h3>
-        <p>Inspirerat av klassikern från NES. Studsa med staven!</p>
-        <a href="/spel4/">Spela</a>
-      </div>
-
-      <div class="project">
-        <img src="thumbs/zelda.png" alt="Miniatyr för Zelda spel" class="thumb">
-        <h3>Zelda spel</h3>
-        <p>Äventyr med svärd och magi i top-down stil. Utforska grottor och lös pussel.</p>
-        <a href="/spel5/">Spela</a>
-      </div>
-
-      <div class="project">
-        <img src="thumbs/zelda_test.png" alt="Miniatyr för Zelda test" class="thumb">
-        <h3>Zelda spel test</h3>
-        <p>Debug-version för att testa alla objekt och items i spelet.</p>
-        <a href="/spel6/">Spela</a>
-      </div>
-      <div class="project">
-        <img src="thumbs/rts.png" alt="Miniatyr för RTS spel" class="thumb">  
-        <h3>RTS test</h3>
-        <p>RTS-test – prototyp av RTS-spel.</p>
-        <a href="/spel8/">Spela</a>
-      </div>
-      <div class="project">
-         
-        <h3>Birdknight</h3>
-        <p>2d platformer med svärd.</p>
-        <a href="/spel9/">Spela</a>
-      </div>
-      <div class="project">
-         
-        <h3>RTS2</h3>
-        <p>Andra försöket med RTS.</p>
-        <a href="/spel10/">Spela</a>
-      </div>
-        <div class="project">
-         
-        <h3>Birdknight-RatWars</h3>
-        <p>Birdknight RTS</p>
-        <a href="/spel11/">Spela</a>
-      </div>
-      <div class="project">
-         
-        <h3>Birdknight-Multiplayer</h3>
-        <p>Birdknight RTS Multiplayer</p>
-        <a href="/spelmultiplayer1/">Spela</a>
-      </div>
-      
-   </div>
-  </main>
-
-  <footer>
-    © 2025 QuantumStahl | <a href="https://github.com/quantumstahl">GitHub</a>
-  </footer>
-
-  <script>
-    function toggleTheme() {
-      document.body.classList.toggle('light');
-    }
-  </script>
 </body>
 </html>
