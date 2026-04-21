@@ -18,26 +18,25 @@
     }
 
     body {
-      margin: 0;
+      
       font-family: 'Inter', sans-serif;
       background: linear-gradient(to bottom right, var(--bg), #000d1a);
       color: white;
       text-align: center;
+      
     }
 
     header {
-        padding: 20px;
-        width: 100%;
+      
+        width: 101%;
         min-height: 60vh; /* viktig */
         background: url('headerbg.png') center/cover no-repeat;
         position: relative;
           display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: center;
-      }
-    header {
-        position: relative;
+  right:1%;
+  
       }
 
       header::before {
@@ -92,91 +91,55 @@
       }
 
     main {
-      max-width: 1600px;
-      margin: auto;
-      padding: 20px;
+        
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+     
     }
 
     .section {
   display: flex;
   justify-content: center;
+
 }
 
 .project {
   background: #1b2430;
   padding: 20px;
   border-radius: 12px;
-  margin: 20px auto;
+  margin: auto auto;
   display: flex;
   gap: 20px;
   align-items: center;
   max-width: 1200px;
   box-shadow: 0 8px 25px rgba(0,0,0,0.5);
 }
-@media (max-width: 700px) {
-    
-  
-  header {
-    min-height: 70vh;
-    padding: 40px 15px;
-    background-position: center top;
-  }
+.project a {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 10px 16px;
+  border-radius: 6px;
 
-    
-  .project {
-    flex-direction: column;
-  }
-
-  .project-info {
-    text-align: center;
-  }
-}
-    .project img {
-  
-  max-width: 900px;
-  border-radius: 8px;
+  color: white;
+  text-decoration: none;
+  font-weight: bold;
 }
 
-    .project a {
-      display: inline-block;
-      margin-top: 10px;
-      padding: 10px 16px;
-      border-radius: 6px;
-     
-      color: white;
-      text-decoration: none;
-      font-weight: bold;
-    }
+footer {
+  margin: 40px 0;
+  color: #999;
+}
 
-    footer {
-      margin: 40px 0;
-      color: #999;
-    }
-
-    footer a {
-      color: #66ccff;
-      text-decoration: none;
-    }
-    @media (max-width: 700px) {
-  .project {
-    flex-direction: column;
-  }
-
-  .project img {
-    width: 100%;
-  }
-
-
+footer a {
+  color: #66ccff;
+  text-decoration: none;
 }
 .project-info {
   padding: 10px 20px;
 }
 
-.project-info h3 {
-  margin: 0 0 14px;
-  font-size: 2rem;
-  line-height: 1.1;
-}
+
 
 .project-info p {
   margin: 0 0 20px;
@@ -199,6 +162,112 @@
   transform: translateY(-2px);
   box-shadow: 0 4px 10px rgba(0,0,0,0.4);
 }
+@media (max-width: 900px) and (orientation: landscape) {
+  .section {
+    display: flex;
+    justify-content: center;
+    font-size: 10px;
+  }  
+  header {
+    min-height: 50vh;
+    padding: 12px;
+    background-position: center center;
+    
+  }
+
+  h1 {
+    font-size: clamp(1.6rem, 5vw, 3rem);
+    margin-bottom: 6px;
+  }
+
+  .subtitle {
+    font-size: clamp(0.9rem, 2vw, 1.2rem);
+    margin-bottom: 12px;
+    max-width: 90%;
+    top:95px;
+    margin-left: 5%;
+  }
+
+  .cta-buttons {
+    gap: 8px;
+  }
+  .project-info{
+      font-size: 20px;
+      
+  }
+  .cta-buttons a {
+    padding: 10px 14px;
+    font-size: 0.95rem;
+  }
+  .project {
+    margin: 100px;  
+    flex-direction: column;
+    width: 50%;
+    margin: 20px auto;
+   
+  }
+      .project img {
+  width:100%;
+  max-width: 5px;
+  border-radius: 8px;
+}
+}
+
+
+@media (max-width: 700px){
+  .cta-buttons a {
+        font-size: 12px;
+        padding: 3px 3px;
+        top:90px;
+        margin: 5px;
+      }  
+      .section {
+  display: flex;
+  justify-content: center;
+}
+.project-info{
+      font-size: 15px;
+      
+  }
+  header {
+    min-height: 40vh;
+    padding: 40px 15px;
+    background-position: center top;
+    right:5%;
+  }
+  .subtitle {
+      top:70px;
+      font-size: 0.8em;  
+      color: #FFF;
+      margin-bottom: 20px;
+    }
+    
+  .project {
+    margin: 100px;  
+    flex-direction: column;
+    width: 80%;
+    margin: 20px auto;
+   
+  }
+
+  .project-info {
+    text-align: center;
+  }
+    .project {
+    flex-direction: column;
+  }
+
+  .project img {
+    width: 100%;
+  }
+}
+    .project img {
+  
+  max-width: 900px;
+  border-radius: 8px;
+}
+
+
   </style>
 </head>
 
@@ -206,7 +275,7 @@
 
 <header>
 
-  <p class="subtitle">Play games directly in your browser – PC & Mobile - No download</p>
+  <p class="subtitle">Browser games for PC & mobile</p>
 
   <div class="cta-buttons">
     <a href="/birdRTS/" class="btn-red">Play Multiplayer RTS</a>
