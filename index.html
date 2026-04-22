@@ -104,6 +104,11 @@
 
 }
 
+.project video {
+  max-width: 900px;
+  border-radius: 8px;
+}
+
 .project {
   background: #1b2430;
   padding: 20px;
@@ -162,6 +167,8 @@ footer a {
   transform: translateY(-2px);
   box-shadow: 0 4px 10px rgba(0,0,0,0.4);
 }
+
+
 @media (max-width: 900px) and (orientation: landscape) {
   .section {
     display: flex;
@@ -206,6 +213,11 @@ footer a {
     margin: 20px auto;
    
   }
+.project video {
+  width:100%;
+ 
+  border-radius: 8px;
+}
       .project img {
   width:100%;
   max-width: 5px;
@@ -224,6 +236,7 @@ footer a {
       .section {
   display: flex;
   justify-content: center;
+  margin-left: 10px;
 }
 .project-info{
       font-size: 15px;
@@ -247,6 +260,7 @@ footer a {
     flex-direction: column;
     width: 80%;
     margin: 20px auto;
+    
    
   }
 
@@ -266,7 +280,11 @@ footer a {
   max-width: 900px;
   border-radius: 8px;
 }
-
+.project video {
+  width:100%;
+ 
+  border-radius: 8px;
+}
 
   </style>
 </head>
@@ -290,7 +308,12 @@ footer a {
     
 
     <div class="project">
-  <img src="thumbs/rts.png" alt="RTS">
+        
+    <video autoplay muted loop playsinline poster="thumbs/rts.png">
+    <source src="thumbs/rts.mp4" type="video/mp4">
+    </video>    
+        
+
 
   <div class="project-info">
     <h3>Birdknight Multiplayer</h3>
@@ -304,7 +327,9 @@ footer a {
     
 
     <div class="project">
-      <img src="thumbs/bird.png" alt="Birdknight" >  
+      <video autoplay muted loop playsinline poster="thumbs/bird.png">
+    <source src="thumbs/bird.mp4" type="video/mp4">
+    </video>   
       <div class="project-info">
       <h3>Birdknight</h3>
       <p><strong>2D platformer</strong> with sword combat.</p>
