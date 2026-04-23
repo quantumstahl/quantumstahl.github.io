@@ -58,6 +58,7 @@ class GameClient {
     }
     async load() {
         this.maps = [];
+        this.idcounter = 0;
 
         await new Promise((resolve, reject) => {
             const client = new XMLHttpRequest();
