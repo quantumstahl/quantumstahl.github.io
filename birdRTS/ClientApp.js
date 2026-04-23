@@ -155,7 +155,7 @@ class ClientApp {
             this.game.buildWorldOnCurrentmap();
             this.game.maps[this.game.currentmap].camerax = data.cx + 500;
             this.game.maps[this.game.currentmap].cameray = data.cy + 500;
-            this.applyServerState(data.data);
+            //this.applyServerState(data.data);
             this.appState = "in_game";
             this.forceCanvasResize?.();
             return;
