@@ -2,7 +2,7 @@ class ClientApp {
     constructor() {
         this.ws = null;
         this.game = new GameClient();
-        this.availableMaps = ["Map1","Map2"];
+        this.availableMaps = ["Map1"];
         this.myId = null;
         this.playerName = localStorage.getItem("playerName") || "Player";
         this.roomId = "default";
@@ -62,7 +62,7 @@ class ClientApp {
     }
 
     // ---------------- NETWORK ----------------
-    handleServerMessage(data) {
+    async handleServerMessage(data) {
         if (data.type === "connected") return;
 
         if (data.type === "hello_ok") {
@@ -142,6 +142,7 @@ class ClientApp {
         }
 
         if (data.type === "init") {
+            await this.game.loadGame();
             this.myId = data.id;
             this.myFaction = data.faction ?? data.id;
             
@@ -920,7 +921,7 @@ update(scale) {
                     if (dead) obj.ani = 4;
                     
                     
-                    obj.carry = 0;//
+                    obj.carry = 0;
                     if (carrytype === "wood") obj.carry = 1;
                     if (carrytype === "stone") obj.carry = 2;
                     if (carrytype === "gold") obj.carry = 3;
@@ -981,6 +982,11 @@ update(scale) {
         
         if(this.appState === "title"){
             this.drawTitle();
+            
+            ctx.fillStyle = "white";
+            ctx.font = "22px Arial";
+            ctx.fillText("v0.1.0", canvas.width -40, canvas.height - 10);
+            
             return;
             
         }
@@ -1696,15 +1702,15 @@ update(scale) {
 
         
     }
-    startSingleplayer() {
+    async startSingleplayer() {
+        await this.game.loadGame();
         this.myId = 1;
 
         const mapName = this.singleplayerSettings.map;
         const idx = this.game.maps.findIndex(m => m.name === mapName);
         if (idx >= 0) this.game.currentmap = idx;
-
-        this.game.buildWorldOnCurrentmap();
-
+         this.game.buildWorldOnCurrentmap();
+       
         this.game.simulation = new GameServerSimulation(this.game, {
             one: { wood: 0, food: 0, gold: 0, stone: 0, pop: 3, popMax: 10 },
             two: { wood: 0, food: 0, gold: 0, stone: 0, pop: 3, popMax: 10 },

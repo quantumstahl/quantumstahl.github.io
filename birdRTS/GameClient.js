@@ -823,7 +823,6 @@ class Objectx {
         this.dead=false;
         this.ani=0;
         this.carry=0;
-        this.hp=10;
         this.owner=this.getOwnerFromType(this.type);
         
         this.targetX=null;

@@ -1844,8 +1844,8 @@ class GameServerSimulation {
 
             if (!blocksPlacement) continue;
 
-            if(AI)if (this.rectsOverlap(x, y, w, h, o.x, o.y, o.w, o.h, 100)) {return false;}
-            else if (this.rectsOverlap(x, y, w, h, o.x, o.y, o.w, o.h,0)) {return false;}
+            if(AI){if (this.rectsOverlap(x, y, w, h, o.x, o.y, o.w, o.h, 100)) {return false;}}
+            else{ if (this.rectsOverlap(x, y, w, h, o.x, o.y, o.w, o.h,0)) {return false;}}
         }
 
         return true;
