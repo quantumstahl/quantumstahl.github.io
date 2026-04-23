@@ -152,7 +152,7 @@ class ClientApp {
                     this.game.currentmap = idx;
                 }
             }
-            //this.game.buildWorldOnCurrentmap();
+            this.game.buildWorldOnCurrentmap();
             this.game.maps[this.game.currentmap].camerax = data.cx + 500;
             this.game.maps[this.game.currentmap].cameray = data.cy + 500;
             this.applyServerState(data.data);
