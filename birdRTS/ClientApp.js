@@ -53,6 +53,8 @@ class ClientApp {
         this.gamespeedCounter = 0;
         this.solverCounter=0;
         
+        this.roomScroll = 0;
+        
 
     }
     async init() {
@@ -1576,7 +1578,15 @@ update(scale) {
     
     handleUIButton(action) {
         if (action === "noop") return;
+        if (action === "scroll_up") {
+            this.roomScroll--;
+            return;
+        }
 
+        if (action === "scroll_down") {
+            this.roomScroll++;
+            return;
+        }
         if (action === "create_room") {
             const roomName = prompt("Room name:");
             if (roomName) this.createRoom(roomName);
@@ -1794,11 +1804,34 @@ update(scale) {
         buttons.push(this.makeButton(140+canvas.width/2-210, 140, 130, 48, "Name (N)", "change_name"));
         buttons.push(this.makeButton(280+canvas.width/2-210, 140, 130, 48, "Back", "back_to_title"));
         
+        buttons.push(this.makeButton(canvas.width - 80, 250, 70, 50, "▲", "scroll_up"));
+        buttons.push(this.makeButton(canvas.width - 80, canvas.height - 100, 70, 50, "▼", "scroll_down"));
 
         const rooms = this.roomList || [];
-        let y = 250;
+        const rowHeight = mobile ? 108 : 88;
+        const listStartY = 250;
+        const maxHeight = canvas.height - listStartY - 100; // lite marginal
 
-        for (const r of rooms) {
+        const visibleCount = Math.floor(maxHeight / rowHeight);
+        const maxScroll = Math.max(0, rooms.length - visibleCount);
+
+        if (this.roomScroll < 0) this.roomScroll = 0;
+        if (this.roomScroll > maxScroll) this.roomScroll = maxScroll;
+
+        const visibleRooms = rooms.slice(this.roomScroll, this.roomScroll + visibleCount);
+        
+        
+        ctx.fillStyle = "rgba(255,255,255,0.5)";
+        ctx.font = "14px Arial";
+        ctx.fillText(
+            `Rooms ${this.roomScroll + 1}-${Math.min(this.roomScroll + visibleCount, rooms.length)} / ${rooms.length}`,
+            canvas.width / 2,
+            canvas.height - 20
+        );
+        
+        let y = listStartY;
+
+        for (const r of visibleRooms) {
             const playerNames = (r.playerNames || []).join(", ");
             const isInGame = !!r.started;
 
