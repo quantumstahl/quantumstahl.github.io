@@ -142,7 +142,7 @@ class ClientApp {
         }
 
         if (data.type === "init") {
-            //await this.game.loadGame();
+            await this.game.loadGame();
             this.myId = data.id;
             this.myFaction = data.faction ?? data.id;
             
