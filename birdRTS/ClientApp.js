@@ -142,7 +142,7 @@ class ClientApp {
         }
 
         if (data.type === "init") {
-            await this.game.loadGame();
+            await this.game.load();
             this.myId = data.id;
             this.myFaction = data.faction ?? data.id;
             
@@ -1703,7 +1703,7 @@ update(scale) {
         
     }
     async startSingleplayer() {
-        await this.game.loadGame();
+        await this.game.load();
         this.myId = 1;
 
         const mapName = this.singleplayerSettings.map;
