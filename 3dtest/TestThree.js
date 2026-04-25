@@ -71,7 +71,7 @@ this.scene.add(this.roof);
         new THREE.CapsuleGeometry(0.35, 0.8, 4, 8),
         new THREE.MeshStandardMaterial({ color: 0x3366ff })
     );
-    this.player.position.set(0, -0.2, 0);
+    this.player.position.set(2, -0.2, 0);
     this.player.castShadow = true;
     this.scene.add(this.player);
 
