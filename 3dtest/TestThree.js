@@ -4,14 +4,13 @@ class TestThree {
     constructor() {
         
       
-this.updateCanvasSize();
+        this.updateCanvasSize();
 
         this.joy = new JoyStick('myCanvas');
 
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(60, canvas.width / canvas.height, 0.1, 1000);
-        this.renderer = new THREE.WebGLRenderer({ canvas: canvas,
-    antialias: true });
+        this.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
         this.renderer.shadowMap.enabled = true;
         
         this.texture = new THREE.TextureLoader().load("housewall.png");
@@ -30,27 +29,27 @@ this.updateCanvasSize();
         this.house = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), this.material);
         this.house.castShadow = true;
         this.roof = this.createRoof();
-this.scene.add(this.roof);
+        this.scene.add(this.roof);
         // ground texture valfritt
-            const groundMat = new THREE.MeshStandardMaterial({
-              map:this.texture2,
-              color: 0xcccccc
-            });
+        const groundMat = new THREE.MeshStandardMaterial({
+          map:this.texture2,
+          color: 0xcccccc
+        });
 
-            this.ground = new THREE.Mesh(
-              new THREE.PlaneGeometry(20, 20),
-              groundMat
-            );
-    this.ground.receiveShadow = true;
+        this.ground = new THREE.Mesh(
+          new THREE.PlaneGeometry(20, 20),
+          groundMat
+        );
+        this.ground.receiveShadow = true;
 
-            // plane ligger vertikalt från början, rotera ner den
-            this.ground.rotation.x = -Math.PI / 2;
+        // plane ligger vertikalt från början, rotera ner den
+        this.ground.rotation.x = -Math.PI / 2;
 
-            // lägg den under huset
-            this.ground.position.y = -1;
+        // lägg den under huset
+        this.ground.position.y = -1;
 
-            this.scene.add(this.ground);
-        
+        this.scene.add(this.ground);
+
     
         this.scene.add(this.house);
         this.camera.position.z = 5;
@@ -64,20 +63,53 @@ this.scene.add(this.roof);
         
         this.camera.position.set(4, 3, 6);
         
-         this.moveX = 0;
-    this.moveZ = 0;
+        this.moveX = 0;
+        this.moveZ = 0;
+        
+        
+         this.player=null;
+        const mtlLoader = new THREE.MTLLoader();
 
-    this.player = new THREE.Mesh(
-        new THREE.CapsuleGeometry(0.35, 0.8, 4, 8),
-        new THREE.MeshStandardMaterial({ color: 0x3366ff })
-    );
-    this.player.position.set(2, -0.2, 0);
-    this.player.castShadow = true;
-    this.scene.add(this.player);
+mtlLoader.load("birdknight_archer.mtl", (materials) => {materials.preload();
 
-    this.cameraOffset = new THREE.Vector3(4, 5, 6);
+    const objLoader = new THREE.OBJLoader();
+    objLoader.setMaterials(materials);
 
-    this.setupKeyboard();
+    objLoader.load("birdknight_archer.obj", (object) => {
+        
+        object.scale.set(1, 1, 1);   // justera storlek
+        object.position.set(3, -1, 3);
+
+        object.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+            }
+        });
+        this.player=object;
+        this.scene.add(this.player);
+    });
+});
+        
+        
+        
+     const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(0.5, 16),
+    new THREE.MeshBasicMaterial({
+        color: 0x000000,
+        transparent: true,
+        opacity: 0.3
+    })
+);
+
+shadow.rotation.x = -Math.PI / 2;
+shadow.position.y = 0.01;
+
+this.scene.add(shadow);
+this.shadow = shadow;
+
+        this.cameraOffset = new THREE.Vector3(4, 5, 6);
+
+        this.setupKeyboard();
         
         
     }
@@ -94,20 +126,10 @@ this.scene.add(this.roof);
         
         
         
-        const roof2 = new THREE.MeshStandardMaterial({
-    map: texture,
-    side: THREE.DoubleSide
-});
-
-const wall = new THREE.MeshStandardMaterial({
-    map: wallTexture,
-    side: THREE.DoubleSide
-});
-        
+        const roof2 = new THREE.MeshStandardMaterial({map: texture,side: THREE.DoubleSide});
+        const wall = new THREE.MeshStandardMaterial({map: wallTexture,side: THREE.DoubleSide});
         const materials = [roof2, wall];
-        
         const geometry = new THREE.BufferGeometry();
-
         const positions = new Float32Array([
             // left sloped roof side
             -1.3, 1,  1.3,
@@ -204,16 +226,20 @@ const wall = new THREE.MeshStandardMaterial({
         
     }
     update(scale) {
+        
+    if(this.player==null)return;    
+        
     const speed = 0.06 * scale;
 
     this.player.position.x += this.moveX * speed;
     this.player.position.z += this.moveZ * speed;
-
+    this.shadow.position.x = this.player.position.x;
+    this.shadow.position.z = this.player.position.z;
     // vrid gubben mot rörelseriktningen
     if (this.moveX !== 0 || this.moveZ !== 0) {
-        const angle = Math.atan2(this.moveX, this.moveZ);
-        this.player.rotation.y = angle;
-    }
+    const angle = Math.atan2(this.moveX, this.moveZ);
+    this.player.rotation.y = angle + Math.PI;
+}
 
     // kamera följer spelaren snett uppifrån
     const targetCamPos = this.player.position.clone().add(this.cameraOffset);
