@@ -8,8 +8,13 @@
     <script src="https://unpkg.com/three@0.140.0/examples/js/loaders/OBJLoader.js"></script>
     <script src="https://unpkg.com/three@0.140.0/examples/js/loaders/MTLLoader.js"></script>
     <script src="MaxPaint3D.js"></script>
-    
-    
+    <script src="EditorCamera.js"></script>
+    <script src="EditorRenderer.js"></script>
+    <script src="InputManager.js"></script>
+    <script src="ToolManager.js"></script>
+    <script src="SelectTool.js"></script>
+    <script src="MoveTool.js"></script>
+    <script src="joy.js"></script>
     
     <style> 
 html, body {
@@ -33,14 +38,15 @@ html, body {
     display: block;
     background: transparent;
     pointer-events: auto;
-    touch-action: none;
+  
 }
+
     </style> 
 </head>
 <body>
     <canvas id="myCanvas2" width="10" height="10" style="border:0px solid black"></canvas>
     <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
-
+    <div id="joystickZone"></div>
     
     <script>
 
@@ -51,7 +57,7 @@ html, body {
         const canvas2 = document.getElementById("myCanvas");
         const ctx = canvas2.getContext("2d");
         
-         const app= new MaxPaint3D();
+         const app= new MaxPaint3D(canvas,canvas2);
               app.init();
             
 

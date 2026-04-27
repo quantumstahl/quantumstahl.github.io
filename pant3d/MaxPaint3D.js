@@ -1,193 +1,91 @@
 
 
 class MaxPaint3D {
-    constructor() {
-        this.move={x:0,z:0,y:0};
-      
-        this.updateCanvasSize();
-
+    constructor(canvas,canvas2) {
+       
+        this.canvas = canvas;
+        this.selected = null;
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(60, canvas.width / canvas.height, 0.1, 1000);
-        this.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
-        
-      
+         this.objects = [];
+        this.addTestCube();
+        this.camera = new EditorCamera(this.selected);
+        this.renderer = new EditorRenderer(canvas,canvas2, this.scene, this.camera.camera);
         const ambient = new THREE.AmbientLight(0xffffff, 1);
         this.scene.add(ambient);
+        this.input = new InputManager(canvas2);
+        this.tools = new ToolManager(this);
+        this.createGround();
+        this.tools.setTool("move");
         
-        
-        this.texture = new THREE.TextureLoader().load("texture.png");
-        this.material = new THREE.MeshStandardMaterial({ map: this.texture });
-        this.model = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), this.material);
-        this.scene.add(this.model);
 
-        this.camera.position.set(4, 2, 6);
-        this.setupKeyboard();
-        this.setupMouse();
-
-    }
-    init(){
-        requestAnimationFrame((t) => this.gameLoop(t));    
-    }
-    update(scale) {
-        const speed = 0.06 * scale;
-        
-        // Framåt där kameran tittar
-        const forward = new THREE.Vector3();
-        this.camera.getWorldDirection(forward);
-
-        // håll rörelsen platt på X/Z-plan
-        forward.y = 0;
-        forward.normalize();
-
-        // Höger/vänster relativt kameran
-        const right = new THREE.Vector3();
-        right.crossVectors(forward, this.camera.up).normalize();
-
-        const moveVec = new THREE.Vector3();
-
-        // W/S
-        moveVec.addScaledVector(forward, -this.move.z);
-
-        // A/D
-        moveVec.addScaledVector(right, this.move.x);
-
-        if (moveVec.lengthSq() > 0) {
-            moveVec.normalize();
-            this.camera.position.addScaledVector(moveVec, speed);
-        }
-
-        this.camera.position.y += this.move.y * speed;
-
-        this.camera.lookAt(
-            this.model.position.x,
-            this.model.position.y,
-            this.model.position.z
-        );
-    } 
-    draw(scale) {
-        const resized = this.updateCanvasSize();
-        if (resized) {
-            this.camera.aspect = canvas.width / canvas.height;
-            this.camera.updateProjectionMatrix();
-            this.renderer.setSize(canvas.width, canvas.height, false);
-        }
-        this.renderer.render(this.scene, this.camera); 
+        this.clock = {
+            lastTime: 0,
+            scale: 1
+        };
     }
 
-    gameLoop(time) {
-        if (!this.lastTime) this.lastTime = time;
-        let deltaMs = time - this.lastTime;
-        this.lastTime = time;
+    init() {
+        
+        requestAnimationFrame(t => this.loop(t));
+    }
+
+    loop(time) {
+        const dt = this.getDelta(time);
+
+        this.input.update();
+        this.camera.update(this.input, dt);
+        this.tools.update(dt);
+
+        this.renderer.render();
+
+        requestAnimationFrame(t => this.loop(t));
+    }
+
+    getDelta(time) {
+        if (!this.clock.lastTime) this.clock.lastTime = time;
+        let deltaMs = time - this.clock.lastTime;
+        this.clock.lastTime = time;
+
         if (deltaMs > 50) deltaMs = 50;
-        const scale = deltaMs / (1000 / 60);
-        this.update(scale);
-        this.draw(scale);
-        requestAnimationFrame((t) => this.gameLoop(t));
+        return deltaMs / (1000 / 60);
     }
-    updateCanvasSize() {
-        const screenW = window.innerWidth;
-        const screenH = window.innerHeight;
 
-        if (this.lastCanvasScreenW === screenW && this.lastCanvasScreenH === screenH) {
-            return false;
-        }
+    addTestCube() {
+        const geo = new THREE.BoxGeometry(2, 2, 2);
+        const mat = new THREE.MeshStandardMaterial({ color: 0x66aa55 });
+        const cube = new THREE.Mesh(geo, mat);
 
-        this.lastCanvasScreenW = screenW;
-        this.lastCanvasScreenH = screenH;
-
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        
-        canvas2.width = window.innerWidth;
-        canvas2.height = window.innerHeight;
-        return true;
+        this.scene.add(cube);
+        this.objects.push(cube);
+        this.selected = cube;
     }
-    setupKeyboard() {
-        this.keys = {};
+    createGround() {
+        const size = 40;
+        const divisions = 40;
 
-        window.addEventListener("keydown", e => {
-            this.keys[e.key.toLowerCase()] = true;
-            this.updateMoveInput();
+        const grid = new THREE.GridHelper(size, divisions);
+        this.scene.add(grid);
+
+        const geo = new THREE.PlaneGeometry(size, size);
+        const mat = new THREE.MeshStandardMaterial({
+            color: 0x333333,
+            roughness: 1
         });
 
-        window.addEventListener("keyup", e => {
-            this.keys[e.key.toLowerCase()] = false;
-            this.updateMoveInput();
-        });
+        const ground = new THREE.Mesh(geo, mat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.01; // lite under grid
+        ground.name = "ground";
 
-        
-        
+        this.scene.add(ground);
+        this.ground = ground;
     }
-    updateMoveInput() {
-        let x = 0;
-        let z = 0;
-        let y = 0;
-        
-        if (this.keys["a"] || this.keys["arrowleft"]) x -= 1;
-        if (this.keys["d"] || this.keys["arrowright"]) x += 1;
-        
-        if(this.keys["shift"]){
-            if (this.keys["w"] || this.keys["arrowup"]) y -= 1;
-            if (this.keys["s"] || this.keys["arrowdown"]) y += 1;
-        }
-        else{
-            if (this.keys["w"] || this.keys["arrowup"]) z -= 1;
-            if (this.keys["s"] || this.keys["arrowdown"]) z += 1;
-        }
-        const len = Math.hypot(x, z);
-        if (len > 0) {
-            x /= len;
-            z /= len;
-        }
-
-        this.move.x = x;
-        this.move.z = z;
-        this.move.y = y;
+    snapToGrid(value, gridSize = 1) {
+        return Math.round(value / gridSize) * gridSize;
     }
-    
-    setupMouse() {
-        this.isRotating = false;
-        this.lastMouse = { x: 0, y: 0 };
-        
-        window.addEventListener("contextmenu", (e) => {
-            e.preventDefault();
-        });
-        
-        window.addEventListener("mousedown", (e) => {
-            e.preventDefault();
-            
-            if (e.button === 2) {  // right mouse
-                this.isRotating = true;
-                this.lastMouse.x = e.clientX;
-                this.lastMouse.y = e.clientY;
-            }
-        });
-
-        window.addEventListener("mouseup", (e) => {
-            if (e.button === 2) {
-                this.isRotating = false;
-            }
-        });
-
-        window.addEventListener("mousemove", (e) => {
-            if (!this.isRotating) return;
-
-            const dx = e.clientX - this.lastMouse.x;
-            const dy = e.clientY - this.lastMouse.y;
-
-            this.lastMouse.x = e.clientX;
-            this.lastMouse.y = e.clientY;
-
-            const rotSpeed = 0.005;
-
-            this.model.rotation.y += dx * rotSpeed;
-            this.model.rotation.x += dy * rotSpeed;
-
-            // stoppa modellen från att gå över upp-och-ner
-            const limit = Math.PI / 2 - 0.05;
-            this.model.rotation.x = Math.max(-limit, Math.min(limit, this.model.rotation.x));
-          
-        });
+    snapPositionToGrid(pos, gridSize = 1) {
+        pos.x = this.snapToGrid(pos.x, gridSize);
+        pos.z = this.snapToGrid(pos.z, gridSize);
     }
-    
-}    
+
+}
