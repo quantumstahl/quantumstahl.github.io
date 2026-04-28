@@ -187,7 +187,7 @@ var JoyStick = (function (container, parameters, callback) {
     }
 
    function redraw() {
-    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.clearRect(0, canvas.height-500, 500, canvas.height);
 
     updateGeometry();
     updateDefaultCenter();
