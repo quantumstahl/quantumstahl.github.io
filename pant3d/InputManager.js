@@ -27,7 +27,7 @@ class InputManager {
         this.mouse.justReleased = false;
         this.mouse.wheel = 0;
         
-        if("ontouchstart" in document.documentElement ){
+        if( mobileAndTabletCheck()){
                     this.keys["d"]=false;this.keys["a"] = false;this.keys["w"]=false;this.keys["s"] = false;
                     if(this.joy.GetDir()=="N"){this.keys["w"] = true;}
                     else if(this.joy.GetDir()=="NE"){this.keys["d"] = true;this.keys["w"] = true;}    
@@ -42,6 +42,7 @@ class InputManager {
                     }
             
                  this.joy.redraw();
+           
                 }
         
         
@@ -199,8 +200,8 @@ class InputManager {
     const w = window.innerWidth;
     const h = window.innerHeight;
 
-    const zoneWidth = 400;
-    const zoneHeight = 400;
+    const zoneWidth = 500;
+    const zoneHeight = 500;
 
     return (
         touch.clientX >= 0 &&

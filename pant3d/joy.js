@@ -371,9 +371,9 @@ var JoyStick = (function (container, parameters, callback) {
         document.addEventListener("touchend", onTouchEnd, { passive: true });
         document.addEventListener("touchcancel", onTouchEnd, { passive: true });
     } else {
-        canvas.addEventListener("mousedown", onMouseDown, false);
-        document.addEventListener("mousemove", onMouseMove, false);
-        document.addEventListener("mouseup", onMouseUp, false);
+        //canvas.addEventListener("mousedown", onMouseDown, false);
+        //document.addEventListener("mousemove", onMouseMove, false);
+       // document.addEventListener("mouseup", onMouseUp, false);
     }
 
     //redraw();

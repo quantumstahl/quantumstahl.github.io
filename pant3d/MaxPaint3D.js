@@ -16,6 +16,7 @@ class MaxPaint3D {
         this.tools = new ToolManager(this);
         this.createGround();
         this.tools.setTool("move");
+        this.UI= new UI(canvas2,this.input);
         
 
         this.clock = {
@@ -58,6 +59,9 @@ class MaxPaint3D {
         this.scene.add(cube);
         this.objects.push(cube);
         this.selected = cube;
+        
+       
+        
     }
     createGround() {
         const size = 40;
