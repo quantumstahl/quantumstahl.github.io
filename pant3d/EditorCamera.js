@@ -14,9 +14,9 @@ class EditorCamera {
         this.updateCameraPosition();
     }
 
-    update(input, scale) {
+    update(input, scale,selected) {
         const rotSpeed = 0.005;
-
+        this.selected=selected;
         if (input.mouse.rightDown) {
             if(this.selected==null)return;
             this.target.y+=input.mouse.dy * rotSpeed;

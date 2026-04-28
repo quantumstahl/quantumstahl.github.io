@@ -24,11 +24,17 @@ class SelectTool {
         const hits = this.raycaster.intersectObjects(this.app.objects, true);
 
         if (hits.length > 0) {
+            if(this.app.selected!==null)this.app.setSelected(null);
+            
             this.app.selected = hits[0].object;
-            console.log("Selected:", this.app.selected.name || this.app.selected);
+            this.app.setSelected(this.app.selected);
+            
+            this.app.tools.setTool("move");
+            this.app.UI.selectedtool="[Move]";
+            
         } else {
             this.app.selected = null;
-            console.log("Selected: none");
+            
         }
     }
 }

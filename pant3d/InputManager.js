@@ -137,6 +137,14 @@ class InputManager {
             this.mouse.y = pos.y;
             this.mouse.dx = 0;
             this.mouse.dy = 0;
+            
+            if(this.mouse.y>this.canvas.height-225){
+                this.mouse.down = true;
+                    this.mouse.rightDown = false;
+                    this.mouse.justPressed = true;
+                
+            }
+            
 
             
         }, { passive: false });
@@ -197,17 +205,12 @@ class InputManager {
         };
     }
     _isInsideJoystickZone(touch) {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-
-    const zoneWidth = 500;
-    const zoneHeight = 500;
 
     return (
-        touch.clientX >= 0 &&
-        touch.clientX <= zoneWidth &&
-        touch.clientY >= h - zoneHeight &&
-        touch.clientY <= h
+        touch.clientX >= this.canvas.width * 0.12-Math.min(this.canvas.width, this.canvas.height) * 0.030 &&
+        touch.clientX <= this.canvas.width * 0.12-Math.min(this.canvas.width, this.canvas.height) * 0.030 +Math.min(this.canvas.width, this.canvas.height) * 0.18 &&
+        touch.clientY >= this.canvas.height * 0.79-Math.min(this.canvas.width, this.canvas.height) * 0.09 &&
+        touch.clientY <= this.canvas.height * 0.79-Math.min(this.canvas.width, this.canvas.height) * 0.09+Math.min(this.canvas.width, this.canvas.height) * 0.18
     );
 }
 }
