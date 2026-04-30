@@ -7,16 +7,34 @@ class MaxPaint3D {
         this.selected = null;
         this.scene = new THREE.Scene();
          this.objects = [];
-        this.camera = new EditorCamera(this.selected);
+        this.camera = new EditorCamera(this);
         this.renderer = new EditorRenderer(canvas,canvas2, this.scene, this.camera.camera);
-        const ambient = new THREE.AmbientLight(0xffffff, 1);
+        
+        const ambient = new THREE.AmbientLight(0xffffff, 0.4);
         this.scene.add(ambient);
+        const light = new THREE.DirectionalLight(0xffffff, 1.2);
+        light.position.set(5, 10, 5);
+        light.castShadow = true;
+
+        // viktig tweak (shadow quality)
+        light.shadow.mapSize.width = 1024;
+        light.shadow.mapSize.height = 1024;
+
+        light.shadow.camera.near = 1;
+        light.shadow.camera.far = 50;
+        
+        this.scene.add(light);
+        const light2 = new THREE.DirectionalLight(0xffffff, 0.4);
+        light2.position.set(-5, 5, -5);
+        this.scene.add(light2);
+        
         this.input = new InputManager(canvas2);
         this.tools = new ToolManager(this);
         this.createGround();
         this.tools.setTool("move");
         this.UI= new UI(canvas2,this.input,this);
         this.createSelectionBox();
+        
 
         this.clock = {
             lastTime: 0,
@@ -33,7 +51,7 @@ class MaxPaint3D {
         const dt = this.getDelta(time);
 
         this.updateSelectionBox();
-        this.camera.update(this.input, dt,this.selected);
+        this.camera.update(this.input, dt);
         this.tools.update(dt);
         this.UI.update();
         this.renderer.render();
@@ -68,7 +86,7 @@ class MaxPaint3D {
         ground.rotation.x = -Math.PI / 2;
         ground.position.y = -0.01; // lite under grid
         ground.name = "ground";
-
+        ground.receiveShadow = true;
         this.scene.add(ground);
         this.ground = ground;
     }
@@ -100,7 +118,9 @@ class MaxPaint3D {
 
         if (!geo) return;
 
-        const mat = new THREE.MeshStandardMaterial({ color: 0x66aa55 });
+        const mat = new THREE.MeshStandardMaterial({color: 0x66aa55,roughness: 0.7,metalness: 0.0});
+        
+        
         const mesh = new THREE.Mesh(geo, mat);
 
         mesh.position.copy(this.camera.target);
@@ -108,7 +128,10 @@ class MaxPaint3D {
         // sätt på marken
         const box = new THREE.Box3().setFromObject(mesh);
         mesh.position.y -= box.min.y;
-
+        mesh.castShadow = true;
+        mesh.receiveShadow = false;
+        
+        
         this.scene.add(mesh);
         this.objects.push(mesh);
         
@@ -141,5 +164,38 @@ class MaxPaint3D {
         this.selectionBox.visible = true;
         this.selectionBox.setFromObject(this.selected);
     }
+    deleteSelected() {
+        if (!this.selected) return;
 
+        // ta bort från scen
+        this.scene.remove(this.selected);
+
+        // ta bort från array
+        const i = this.objects.indexOf(this.selected);
+        if (i !== -1) {
+            this.objects.splice(i, 1);
+        }
+
+        // nollställ selection
+        this.setSelected(null);
+    }
+    duplicateSelected() {
+        if (!this.selected) return;
+
+        const clone = this.selected.clone();
+
+        // offset så den inte ligger exakt i samma position
+        clone.position.x += 1;
+        clone.position.z += 1;
+        clone.material = clone.material.clone();
+        this.scene.add(clone);
+        this.objects.push(clone);
+
+        this.setSelected(clone);
+    }
+    setColor(hex) {
+        if (!this.selected) return;
+
+        this.selected.material.color.setHex(hex);
+    }
 }

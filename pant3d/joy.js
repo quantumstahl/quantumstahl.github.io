@@ -96,7 +96,7 @@ var JoyStick = (function (container, parameters, callback) {
 
         if (!isPortrait) {
             defaultCenterX = canvas.width * 0.12;
-            defaultCenterY = canvas.height * 0.78;
+            defaultCenterY = canvas.height * 0.60;
         } else {
             defaultCenterX = canvas.width * 0.18;
             defaultCenterY = canvas.height * 0.79;
@@ -137,7 +137,7 @@ var JoyStick = (function (container, parameters, callback) {
         const dx = pos.x - centerX;
         const dy = pos.y - centerY;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        return dist <= externalRadius + internalRadius + 30;
+        return dist <= externalRadius + internalRadius ;
     }
 
     function isInsideLeftZone(pos) {
@@ -152,10 +152,10 @@ var JoyStick = (function (container, parameters, callback) {
 
         if (isPortrait) {
             centerX = clamp(pos.x, margin, canvas.width * 0.35);
-            centerY = clamp(pos.y, canvas.height * 0.62, canvas.height * 0.90);
+            centerY = clamp(pos.y, canvas.height * 0.52, canvas.height * 0.90);
         } else {
             centerX = clamp(pos.x, margin, canvas.width * 0.28);
-            centerY = clamp(pos.y, canvas.height * 0.60, canvas.height * 0.92);
+            centerY = clamp(pos.y, canvas.height * 0.50, canvas.height * 0.92);
         }
 
         movedX = centerX;
@@ -191,7 +191,7 @@ var JoyStick = (function (container, parameters, callback) {
     updateGeometry();
     updateDefaultCenter();
 
-    if (centerY < 300 || changedir()) {
+    if (centerY < 10 || changedir()) {
         centerX = defaultCenterX;
         centerY = defaultCenterY;
         movedX = centerX;

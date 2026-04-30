@@ -8,8 +8,15 @@ class MoveTool {
         const selected = this.app.selected;
 
         if (!selected) return;
+        
+        
+        const isLandscape = this.app.canvas.width > this.app.canvas.height;
 
-        if (input.mouse.down&&input.mouse.y<this.app.canvas.height-225) {
+        const btnSize = isLandscape
+            ? Math.min(90, this.app.canvas.height * 0.18)
+            : Math.min(150, this.app.canvas.width * 0.20);
+        
+        if (input.mouse.down&&input.mouse.y<this.app.canvas.height-btnSize*1.5) {
             this.moveSelectedToMouse();
         }
     }

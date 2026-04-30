@@ -138,7 +138,13 @@ class InputManager {
             this.mouse.dx = 0;
             this.mouse.dy = 0;
             
-            if(this.mouse.y>this.canvas.height-225){
+            const isLandscape = this.canvas.width > this.canvas.height;
+
+            const btnSize = isLandscape
+                ? Math.min(90, this.canvas.height * 0.18)
+                : Math.min(150, this.canvas.width * 0.20);
+            
+            if(this.mouse.y>this.canvas.height-btnSize*1.5 || this.mouse.y<btnSize*0.5){
                 this.mouse.down = true;
                     this.mouse.rightDown = false;
                     this.mouse.justPressed = true;
@@ -205,12 +211,25 @@ class InputManager {
         };
     }
     _isInsideJoystickZone(touch) {
-
-    return (
-        touch.clientX >= this.canvas.width * 0.12-Math.min(this.canvas.width, this.canvas.height) * 0.030 &&
-        touch.clientX <= this.canvas.width * 0.12-Math.min(this.canvas.width, this.canvas.height) * 0.030 +Math.min(this.canvas.width, this.canvas.height) * 0.18 &&
-        touch.clientY >= this.canvas.height * 0.79-Math.min(this.canvas.width, this.canvas.height) * 0.09 &&
-        touch.clientY <= this.canvas.height * 0.79-Math.min(this.canvas.width, this.canvas.height) * 0.09+Math.min(this.canvas.width, this.canvas.height) * 0.18
-    );
-}
+     
+     
+        const isPortrait = this.canvas.height > this.canvas.width;
+        if(!isPortrait){
+            return (
+                touch.clientX >= this.canvas.width * 0.12-Math.min(this.canvas.width, this.canvas.height) * 0.030 &&
+                touch.clientX <= this.canvas.width * 0.12-Math.min(this.canvas.width, this.canvas.height) * 0.030 +Math.min(this.canvas.width, this.canvas.height) * 0.18 &&
+                touch.clientY >= this.canvas.height * 0.60-Math.min(this.canvas.width, this.canvas.height) * 0.09 &&
+                touch.clientY <= this.canvas.height * 0.60-Math.min(this.canvas.width, this.canvas.height) * 0.09+Math.min(this.canvas.width, this.canvas.height) * 0.18
+            );
+            
+        }
+        else{
+            return (
+                touch.clientX >= this.canvas.width * 0.12-Math.min(this.canvas.width, this.canvas.height) * 0.030 &&
+                touch.clientX <= this.canvas.width * 0.12-Math.min(this.canvas.width, this.canvas.height) * 0.030 +Math.min(this.canvas.width, this.canvas.height) * 0.18 &&
+                touch.clientY >= this.canvas.height * 0.79-Math.min(this.canvas.width, this.canvas.height) * 0.09 &&
+                touch.clientY <= this.canvas.height * 0.79-Math.min(this.canvas.width, this.canvas.height) * 0.09+Math.min(this.canvas.width, this.canvas.height) * 0.18
+            );
+        }
+    }
 }

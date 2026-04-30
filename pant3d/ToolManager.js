@@ -5,8 +5,9 @@ class ToolManager {
         this.tools = {
             select: new SelectTool(app),
             move: new MoveTool(app),
-            rotate: null,
-            scale: null
+            rotate: new RotateTool(app),
+            scale: new ScaleTool(app),
+            uniscale: new UniformScale(app)
         };
 
         this.current = this.tools.select;

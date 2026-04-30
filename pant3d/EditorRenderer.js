@@ -11,6 +11,9 @@ class EditorRenderer {
         });
 
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1));
+        this.renderer.setClearColor(0x1e1f33);
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.resize();
     }
 

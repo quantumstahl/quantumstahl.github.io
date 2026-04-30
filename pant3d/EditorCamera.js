@@ -1,7 +1,6 @@
 class EditorCamera {
-    constructor(selected) {
-        this.selected=selected;
-        
+    constructor(app) {
+        this.app=app;
         this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
 
         // Vi använder bara target nu för att hålla det rent
@@ -14,18 +13,18 @@ class EditorCamera {
         this.updateCameraPosition();
     }
 
-    update(input, scale,selected) {
+    update(input, scale) {
         const rotSpeed = 0.005;
-        this.selected=selected;
+
         if (input.mouse.rightDown) {
-            if(this.selected==null)return;
+
             this.target.y+=input.mouse.dy * rotSpeed;
             this.yaw -= input.mouse.dx * rotSpeed;
             const limit = Math.PI / 2 - 0.05;
             this.pitch = Math.max(-limit, Math.min(limit, this.pitch));
         }
 
-        this.moveTarget(input, scale);
+        if(this.app?.tools?.current !== this.app?.tools?.tools.rotate &&this.app?.tools?.current !== this.app?.tools?.tools.scale&&this.app?.tools?.current !== this.app?.tools?.tools.uniscale)this.moveTarget(input, scale);
         this.updateCameraPosition();
     }
 

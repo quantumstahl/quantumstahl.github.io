@@ -14,10 +14,24 @@ class UI {
         this.sphere.src = "images/sphere.png";
         this.plane = new Image();
         this.plane.src = "images/plane.png";
-        
+        this.trash = new Image();
+        this.trash.src = "images/trash.png";
         
         this.selected="";
         this.selectedtool="[Move]";
+        
+        this.colors = [
+            0x66aa55, // grön (du har)
+            0x99cc66, // ljusgrön
+            0x8B5A2B, // brun (trä)
+            0xC68642, // hudfärg (ljus)
+            0x7A5230, // hudfärg (mörkare)
+            0xFF0000, // röd
+            0x4D7CFE, // blå
+            0xF4D35E, // gul
+            0xFFFFFF, // vit
+            0x222222  // mörk/grå istället för svart (ser bättre ut)
+        ];
         
     }
     update(){
@@ -26,14 +40,34 @@ class UI {
         
     }
     makeprimitives(){
-        this.drawbutton("cube",0,this.canvas.height-150,150,150);
-        this.drawbutton("cone",150,this.canvas.height-150,150,150);
-        this.drawbutton("cylinder",300,this.canvas.height-150,150,150);
-        this.drawbutton("sphere",450,this.canvas.height-150,150,150);
-        this.drawbutton("plane",600,this.canvas.height-150,150,150);
         
-        this.drawbuttonstools("[Select]",0,this.canvas.height-225,150,75);
-        this.drawbuttonstools("[Move]",150,this.canvas.height-225,150,75);
+        const isLandscape = this.canvas.width > this.canvas.height;
+
+        const btnSize = isLandscape
+            ? Math.min(90, this.canvas.height * 0.18)
+            : Math.min(150, this.canvas.width * 0.20);
+        
+        this.drawbutton("cube",0,this.canvas.height-btnSize,btnSize,btnSize);
+        this.drawbutton("cone",btnSize,this.canvas.height-btnSize,btnSize,btnSize);
+        this.drawbutton("cylinder",btnSize*2,this.canvas.height-btnSize,btnSize,btnSize);
+        this.drawbutton("sphere",btnSize*3,this.canvas.height-btnSize,btnSize,btnSize);
+        this.drawbutton("plane",btnSize*4,this.canvas.height-btnSize,btnSize,btnSize);
+        this.drawbutton("trash",btnSize*5,this.canvas.height-btnSize*0.75,btnSize*0.75,btnSize*0.75);
+        
+        this.drawbuttonstools("[Select]",0,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
+        this.drawbuttonstools("[Move]",btnSize,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
+        this.drawbuttonstools("[Rotate]",btnSize*2,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
+        this.drawbuttonstools("[Scale]",btnSize*3,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
+        this.drawbuttonstools("[UniScale]",btnSize*4,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
+        this.drawbuttonstools("[Duplicate]",btnSize*5,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
+        
+        
+        
+        for(let i=0;i<this.colors.length;i++){
+            
+            this.drawColorButton(this.colors[i], 0+(i*btnSize/2), 0 , btnSize/2);
+            
+        }
         
         
     }
@@ -64,7 +98,7 @@ class UI {
 
         this.ctx.shadowBlur = 0;
         this.ctx.fillStyle = subColor;
-        this.ctx.font = mobile ? "25px Arial" : "20px Arial";
+        this.ctx.font = (dx/6)+"px Arial";
         this.ctx.fillText(text, x + dx / 2, y + dy -30);
 
         if(this.input.mouse.justPressed&&
@@ -75,6 +109,11 @@ class UI {
             this.selectedtool=text;
             if(text==="[Select]"){this.app.tools.setTool("select");}
             if(text==="[Move]"){this.app.tools.setTool("move");}
+            if(text==="[Rotate]"){this.app.tools.setTool("rotate");}
+            if(text==="[Scale]"){this.app.tools.setTool("scale");}
+            if(text==="[UniScale]"){this.app.tools.setTool("uniscale");}
+            if(text==="[Duplicate]"){this.app.duplicateSelected();}
+            
         }
         
         if(this.selectedtool===text){
@@ -121,7 +160,7 @@ class UI {
         if(text=="cylinder")this.ctx.drawImage(this.cylinder,x+20,y+2,dx-40,dy-40);
         if(text=="sphere")this.ctx.drawImage(this.sphere,x+20,y+2,dx-40,dy-40);
         if(text=="plane")this.ctx.drawImage(this.plane,x+20,y+2,dx-40,dy-40);
-
+        if(text=="trash")this.ctx.drawImage(this.trash,x+23,y+8,dx-50,dy-50);
         this.ctx.textAlign = "center";
         this.ctx.textBaseline = "middle";
 
@@ -130,7 +169,7 @@ class UI {
 
         this.ctx.shadowBlur = 0;
         this.ctx.fillStyle = subColor;
-        this.ctx.font = mobile ? "25px Arial" : "20px Arial";
+        this.ctx.font = (dx/6)+"px Arial";
         this.ctx.fillText(text, x + dx / 2, y + dy -30);
 
         if(this.input.mouse.justPressed&&
@@ -138,7 +177,13 @@ class UI {
                 this.input.mouse.x <= x + dx &&
                 this.input.mouse.y >= y &&
                 this.input.mouse.y <= y + dy){
+            
+            if(text=="trash"){this.app.deleteSelected(); return;}
+            
             this.selected=text;
+            this.app.UI.selectedtool="[Move]";
+            this.app.tools.setTool("move");
+            
             this.app.addPrimitive(text);
         }
         
@@ -149,6 +194,19 @@ class UI {
  
         }
         this.ctx.restore();
+    }
+    drawColorButton(color, x, y, size) {
+        this.ctx.fillStyle = "#" + color.toString(16).padStart(6, "0");
+        this.ctx.fillRect(x, y, size, size);
+
+        if (this.input.mouse.justPressed &&
+            this.input.mouse.x >= x &&
+            this.input.mouse.x <= x + size &&
+            this.input.mouse.y >= y &&
+            this.input.mouse.y <= y + size) {
+
+            this.app.setColor(color);
+        }
     }
 
 }
