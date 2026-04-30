@@ -2,7 +2,7 @@
 
 class MaxPaint3D {
     constructor(canvas,canvas2) {
-       
+        this.Yblue=false;
         this.canvas = canvas;
         this.selected = null;
         this.scene = new THREE.Scene();
@@ -28,10 +28,10 @@ class MaxPaint3D {
         light2.position.set(-5, 5, -5);
         this.scene.add(light2);
         
-        this.input = new InputManager(canvas2);
+        this.input = new InputManager(canvas2,this);
         this.tools = new ToolManager(this);
         this.createGround();
-        this.tools.setTool("move");
+        this.tools.setTool("select");
         this.UI= new UI(canvas2,this.input,this);
         this.createSelectionBox();
         

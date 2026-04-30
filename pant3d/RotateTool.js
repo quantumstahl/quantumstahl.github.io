@@ -8,20 +8,21 @@ class RotateTool {
         const input = this.app.input;
         if (!selected) return;
 
-        const rotSpeed = 0.01 * scale;
+        const rotSpeed = 0.005 * scale;
 
-        // joystick / mobileMove
-        if (input.mobileMove) {
-            selected.rotation.y += input.mobileMove.x * rotSpeed;
-            selected.rotation.x += input.mobileMove.z * rotSpeed;
+      if(this.app.Yblue){
+          if (input.keys["w"])    selected.rotation.y += rotSpeed;
+          if (input.keys["s"])  selected.rotation.y -= rotSpeed;
+          
+          
+       }
+       else{
+            // PC fallback
+            if (input.keys["a"])  selected.rotation.z += rotSpeed;
+            if (input.keys["d"]) selected.rotation.z -= rotSpeed;
+            if (input.keys["w"])    selected.rotation.x += rotSpeed;
+            if (input.keys["s"])  selected.rotation.x -= rotSpeed;
         }
-
-        // PC fallback
-        if (input.keys["a"])  selected.rotation.z += rotSpeed;
-        if (input.keys["d"]) selected.rotation.z -= rotSpeed;
-        if (input.keys["w"])    selected.rotation.x += rotSpeed;
-        if (input.keys["s"])  selected.rotation.x -= rotSpeed;
-
         // snap om du vill med t.ex. space
         if (input.keys[" "]) {
             this.snapRotation(selected, Math.PI / 4); // 45 grader

@@ -9,16 +9,34 @@ class ScaleTool {
 
         if (!selected) return;
 
-        const speed = 0.01 * scale;
+        const speed = 0.004 * scale;
 
       
-
-
+       if(this.app.Yblue){
+          if (input.keys["w"])    selected.scale.y += speed;
+          if (input.keys["s"])  selected.scale.y -= speed;
+          
+          
+       }
+       
+       else{
         // PC fallback
         if (input.keys["a"])  selected.scale.x -= speed;
         if (input.keys["d"]) selected.scale.x += speed;
-        if (input.keys["w"])    selected.scale.y += speed;
-        if (input.keys["s"])  selected.scale.y -= speed;
+        if (input.keys["w"])    selected.scale.z += speed;
+        if (input.keys["s"])  selected.scale.z -= speed;
+        
+        }
+
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
         const box = new THREE.Box3().setFromObject(selected);
 

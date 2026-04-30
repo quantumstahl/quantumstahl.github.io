@@ -1,6 +1,7 @@
 class InputManager {
-    constructor(canvas) {
+    constructor(canvas,app) {
         this.canvas = canvas;
+        this.app=app;
         this.keys = {};
         this.mouse = {
             x: 0,
@@ -28,17 +29,35 @@ class InputManager {
         this.mouse.wheel = 0;
         
         if( mobileAndTabletCheck()){
-                    this.keys["d"]=false;this.keys["a"] = false;this.keys["w"]=false;this.keys["s"] = false;
-                    if(this.joy.GetDir()=="N"){this.keys["w"] = true;}
-                    else if(this.joy.GetDir()=="NE"){this.keys["d"] = true;this.keys["w"] = true;}    
-                    else if(this.joy.GetDir()=="E"){this.keys["d"] = true;}
-                    else if(this.joy.GetDir()=="SE"){this.keys["d"] = true;this.keys["s"] = true;}    
-                    else if(this.joy.GetDir()=="S"){this.keys["s"] = true;}
-                    else if(this.joy.GetDir()=="SW"){this.keys["a"] = true;this.keys["s"] = true;}    
-                    else if(this.joy.GetDir()=="W"){this.keys["a"] = true;}    
-                    else if(this.joy.GetDir()=="NW"){this.keys["a"] = true;this.keys["w"] = true;}     
-                    else if(this.joy.GetDir()=="C") {
-
+            
+                    
+                    
+                    if(this.app?.tools?.current === this.app?.tools?.tools.select){
+                        
+                        this.joy.SetDirectionMode(8);
+                        
+                        this.keys["d"]=false;this.keys["a"] = false;this.keys["w"]=false;this.keys["s"] = false;
+                        if(this.joy.GetDir()=="N"){this.keys["w"] = true;}
+                        else if(this.joy.GetDir()=="NE"){this.keys["d"] = true;this.keys["w"] = true;}    
+                        else if(this.joy.GetDir()=="E"){this.keys["d"] = true;}
+                        else if(this.joy.GetDir()=="SE"){this.keys["d"] = true;this.keys["s"] = true;}    
+                        else if(this.joy.GetDir()=="S"){this.keys["s"] = true;}
+                        else if(this.joy.GetDir()=="SW"){this.keys["a"] = true;this.keys["s"] = true;}    
+                        else if(this.joy.GetDir()=="W"){this.keys["a"] = true;}    
+                        else if(this.joy.GetDir()=="NW"){this.keys["a"] = true;this.keys["w"] = true;}     
+                        else if(this.joy.GetDir()=="C") {}
+                    }
+                    else{
+                        this.joy.SetDirectionMode(4);
+                        
+                        this.keys["d"]=false;this.keys["a"] = false;this.keys["w"]=false;this.keys["s"] = false;
+                        if(this.joy.GetDir()=="N"){this.keys["w"] = true;}   
+                        else if(this.joy.GetDir()=="E"){this.keys["d"] = true;}
+                        else if(this.joy.GetDir()=="S"){this.keys["s"] = true;}
+                        else if(this.joy.GetDir()=="W"){this.keys["a"] = true;}    
+                        else if(this.joy.GetDir()=="C") {}
+                        
+                        
                     }
             
                  this.joy.redraw();

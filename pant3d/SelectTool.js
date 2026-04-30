@@ -29,11 +29,11 @@ class SelectTool {
             this.app.selected = hits[0].object;
             this.app.setSelected(this.app.selected);
             
-            this.app.tools.setTool("move");
-            this.app.UI.selectedtool="[Move]";
+           // this.app.tools.setTool("move");
+          //  this.app.UI.selectedtool="[Move]";
             
         } else {
-            this.app.selected = null;
+            //this.app.selected = null;
             
         }
     }

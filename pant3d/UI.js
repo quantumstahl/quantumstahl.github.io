@@ -18,7 +18,8 @@ class UI {
         this.trash.src = "images/trash.png";
         
         this.selected="";
-        this.selectedtool="[Move]";
+        this.selectedtool="[Select]";
+ 
         
         this.colors = [
             0x66aa55, // grön (du har)
@@ -54,12 +55,13 @@ class UI {
         this.drawbutton("plane",btnSize*4,this.canvas.height-btnSize,btnSize,btnSize);
         this.drawbutton("trash",btnSize*5,this.canvas.height-btnSize*0.75,btnSize*0.75,btnSize*0.75);
         
-        this.drawbuttonstools("[Select]",0,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
-        this.drawbuttonstools("[Move]",btnSize,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
-        this.drawbuttonstools("[Rotate]",btnSize*2,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
-        this.drawbuttonstools("[Scale]",btnSize*3,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
-        this.drawbuttonstools("[UniScale]",btnSize*4,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
-        this.drawbuttonstools("[Duplicate]",btnSize*5,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
+        this.drawYbutton("Y",0,this.canvas.height-btnSize*1.5,btnSize/2,btnSize/2);
+        this.drawbuttonstools("[Select]",btnSize/2,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
+        this.drawbuttonstools("[Move]",btnSize*1.5,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
+        this.drawbuttonstools("[Rotate]",btnSize*2.5,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
+        this.drawbuttonstools("[Scale]",btnSize*3.5,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
+        this.drawbuttonstools("[UniScale]",btnSize*4.5,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
+        this.drawbuttonstools("[Duplicate]",btnSize*5.5,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
         
         
         
@@ -71,6 +73,62 @@ class UI {
         
         
     }
+    drawYbutton(text,x,y,dx,dy){
+        
+         const mobile = mobileAndTabletCheck();
+
+        let top = "#555";
+        let bottom = "#2a2a2a";
+        let border = "#888";
+        let textColor = "white";
+        let subColor = "rgba(255,255,255,0.75)";
+
+        this.ctx.save();
+
+        this.ctx.fillStyle = "#252628";
+        this.ctx.fillRect(x, y, dx, dy);
+
+        this.ctx.strokeStyle = border;
+        this.ctx.lineWidth = 4;
+        this.ctx.strokeRect(x, y, dx-4, dy-4);
+
+        this.ctx.textAlign = "center";
+        this.ctx.textBaseline = "middle";
+
+       
+ 
+
+        this.ctx.shadowBlur = 0;
+        this.ctx.fillStyle = subColor;
+        this.ctx.font = (dx/3)+"px Arial";
+        this.ctx.fillText(text, x + dx / 2 -2, y + dy -30);
+
+        if(this.input.mouse.justPressed&&
+                this.input.mouse.x >= x &&
+                this.input.mouse.x <= x + dx &&
+                this.input.mouse.y >= y &&
+                this.input.mouse.y <= y + dy){
+            if(this.app.Yblue===true)this.app.Yblue=false;
+            else if(this.app.Yblue===false)this.app.Yblue=true;
+            
+        }
+        
+        if(this.app.Yblue===true){
+            this.ctx.strokeStyle = "blue";
+            this.ctx.lineWidth = 4;
+            this.ctx.strokeRect(x, y, dx-4, dy-4);
+       
+ 
+        }
+  
+        
+        this.ctx.restore();
+        
+        
+    }
+    
+    
+    
     drawbuttonstools(text,x,y,dx,dy){
         
         const mobile = mobileAndTabletCheck();

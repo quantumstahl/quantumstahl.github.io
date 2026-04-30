@@ -24,7 +24,7 @@ class EditorCamera {
             this.pitch = Math.max(-limit, Math.min(limit, this.pitch));
         }
 
-        if(this.app?.tools?.current !== this.app?.tools?.tools.rotate &&this.app?.tools?.current !== this.app?.tools?.tools.scale&&this.app?.tools?.current !== this.app?.tools?.tools.uniscale)this.moveTarget(input, scale);
+        if(this.app?.tools?.current === this.app?.tools?.tools.select )this.moveTarget(input, scale);
         this.updateCameraPosition();
     }
 

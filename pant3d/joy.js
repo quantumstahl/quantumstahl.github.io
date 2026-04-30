@@ -68,7 +68,10 @@ var JoyStick = (function (container, parameters, callback) {
 
     var activeTouchId = null;
     var showBase = !floating;
-
+    
+    
+    var directionMode = (typeof parameters.directionMode === "undefined" ? 8 : parameters.directionMode);
+    
     function getCanvasPos(clientX, clientY) {
         const rect = canvas.getBoundingClientRect();
         const scaleX = canvas.width / rect.width;
@@ -203,16 +206,34 @@ var JoyStick = (function (container, parameters, callback) {
 }
 
     function getCardinalDirection() {
+        const horizontal = movedX - centerX;
+        const vertical = movedY - centerY;
+
+        const deadZone = maxMoveStick * 0.25;
+
+        // Ingen riktning om man är nära mitten
+        if (Math.abs(horizontal) < deadZone && Math.abs(vertical) < deadZone) {
+            return "C";
+        }
+
+        // 4-vägs joystick
+        if (directionMode === 4) {
+            if (Math.abs(horizontal) > Math.abs(vertical)) {
+                return horizontal < 0 ? "W" : "E";
+            } else {
+                return vertical < 0 ? "N" : "S";
+            }
+        }
+
+        // 8-vägs joystick
         let result = "C";
-        let horizontal = movedX - centerX;
-        let vertical = movedY - centerY;
 
-        if (vertical < directionVerticalLimitNeg) result = "N";
-        else if (vertical > directionVerticalLimitPos) result = "S";
+        if (vertical < -deadZone) result = "N";
+        else if (vertical > deadZone) result = "S";
 
-        if (horizontal < directionHorizontalLimitNeg) {
+        if (horizontal < -deadZone) {
             result = (result === "C") ? "W" : result + "W";
-        } else if (horizontal > directionHorizontalLimitPos) {
+        } else if (horizontal > deadZone) {
             result = (result === "C") ? "E" : result + "E";
         }
 
@@ -355,7 +376,16 @@ var JoyStick = (function (container, parameters, callback) {
             resetStick();
         }
     }
+    this.SetDirectionMode = function (mode) {
+        if (mode !== 4 && mode !== 8) return;
 
+        directionMode = mode;
+        updateStatus();
+    };
+
+    this.GetDirectionMode = function () {
+        return directionMode;
+    };
     // Init
   //  updateGeometry();
     updateDefaultCenter();
