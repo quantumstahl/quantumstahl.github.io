@@ -198,7 +198,6 @@ class MoveTool {
 
         const center = box.getCenter(new THREE.Vector3());
         const bottomY = box.min.y;
-        console.log(point.x+"  " + point.z);
         const dx = point.x - center.x;
         const dz = point.z - center.z;
         const dy = point.y - bottomY;

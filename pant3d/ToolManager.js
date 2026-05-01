@@ -7,7 +7,8 @@ class ToolManager {
             move: new MoveTool(app),
             rotate: new RotateTool(app),
             scale: new ScaleTool(app),
-            uniscale: new UniformScale(app)
+            uniscale: new UniformScale(app),
+            group: new GroupTool(app)
         };
 
         this.current = this.tools.select;

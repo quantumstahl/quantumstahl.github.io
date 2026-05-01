@@ -34,7 +34,11 @@ class MaxPaint3D {
         this.tools.setTool("select");
         this.UI= new UI(canvas2,this.input,this);
         this.createSelectionBox();
+        this.groupSelection = [];
+        this.groups = [];
         
+        this.groupSelection = [];
+        this.groupHelpers = [];
 
         this.clock = {
             lastTime: 0,
@@ -56,6 +60,7 @@ class MaxPaint3D {
         this.UI.update();
         this.renderer.render();
         this.input.update();
+        this.updateGroupHelpers();
         requestAnimationFrame(t => this.loop(t));
     }
 
@@ -167,35 +172,111 @@ class MaxPaint3D {
     deleteSelected() {
         if (!this.selected) return;
 
-        // ta bort från scen
-        this.scene.remove(this.selected);
+        const obj = this.selected;
 
-        // ta bort från array
-        const i = this.objects.indexOf(this.selected);
-        if (i !== -1) {
-            this.objects.splice(i, 1);
+        this.setSelected(null);
+
+        if (obj.parent) {
+            obj.parent.remove(obj);
         }
 
-        // nollställ selection
-        this.setSelected(null);
+        this.objects = this.objects.filter(o => o !== obj);
+
+        if (this.groups) {
+            this.groups = this.groups.filter(g => g !== obj);
+        }
     }
     duplicateSelected() {
         if (!this.selected) return;
 
-        const clone = this.selected.clone();
+        this.selected.updateMatrixWorld(true);
 
-        // offset så den inte ligger exakt i samma position
+        const clone = this.selected.clone(true);
+
+        clone.traverse(child => {
+            child.uuid = THREE.MathUtils.generateUUID();
+
+            if (child.isMesh) {
+                if (child.material) child.material = child.material.clone();
+                if (child.geometry) child.geometry = child.geometry.clone();
+            }
+        });
+
+        clone.name = (this.selected.name || "Object") + "_copy";
+
         clone.position.x += 1;
         clone.position.z += 1;
-        clone.material = clone.material.clone();
-        this.scene.add(clone);
-        this.objects.push(clone);
 
+        this.scene.add(clone);
+        clone.updateMatrixWorld(true);
+
+        this.objects.push(clone);
         this.setSelected(clone);
     }
     setColor(hex) {
         if (!this.selected) return;
 
         this.selected.material.color.setHex(hex);
+    }
+    createGroup() {
+        if (!this.groupSelection || this.groupSelection.length < 2) return;
+
+        const selectedObjects = [...this.groupSelection];
+
+        const group = new THREE.Group();
+        group.name = "Group " + (this.groups.length + 1);
+
+        this.scene.add(group);
+
+        for (const obj of selectedObjects) {
+            group.attach(obj);
+        }
+
+        // ta bort barnen från selectable-listan
+        this.objects = this.objects.filter(o => !selectedObjects.includes(o));
+
+        // lägg bara till gruppen
+        this.objects.push(group);
+        this.groups.push(group);
+
+        this.groupSelection = [];
+
+        this.setSelected(group);
+    }
+    updateGroupHelpers() {
+        // ta bort gamla helpers
+        for (const h of this.groupHelpers) {
+            this.scene.remove(h);
+        }
+        this.groupHelpers = [];
+
+        // skapa nya helpers
+        for (const obj of this.groupSelection) {
+            const helper = new THREE.BoxHelper(obj, 0xffff00);
+            this.scene.add(helper);
+            this.groupHelpers.push(helper);
+        }
+    }
+    clearGroupSelection() {
+        this.groupSelection = [];
+
+        for (const h of this.groupHelpers) {
+            this.scene.remove(h);
+        }
+
+        this.groupHelpers = [];
+    }
+    getSelectableRoot(obj) {
+        let current = obj;
+
+        while (current.parent && current.parent !== this.scene) {
+            if (this.objects.includes(current.parent)) {
+                return current.parent;
+            }
+
+            current = current.parent;
+        }
+
+        return current;
     }
 }

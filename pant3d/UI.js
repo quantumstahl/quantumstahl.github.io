@@ -19,7 +19,7 @@ class UI {
         
         this.selected="";
         this.selectedtool="[Select]";
- 
+        this.grouptoggle=false;
         
         this.colors = [
             0x66aa55, // grön (du har)
@@ -56,13 +56,13 @@ class UI {
         this.drawbutton("trash",btnSize*5,this.canvas.height-btnSize*0.75,btnSize*0.75,btnSize*0.75);
         
         this.drawYbutton("Y",0,this.canvas.height-btnSize*1.5,btnSize/2,btnSize/2);
-        this.drawbuttonstools("[Select]",btnSize/2,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
-        this.drawbuttonstools("[Move]",btnSize*1.5,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
-        this.drawbuttonstools("[Rotate]",btnSize*2.5,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
-        this.drawbuttonstools("[Scale]",btnSize*3.5,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
-        this.drawbuttonstools("[UniScale]",btnSize*4.5,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
-        this.drawbuttonstools("[Duplicate]",btnSize*5.5,this.canvas.height-btnSize*1.5,btnSize,btnSize/2);
-        
+        this.drawbuttonstools("[Select]",btnSize/2,this.canvas.height-btnSize*1.5,btnSize*0.75,btnSize/2);
+        this.drawbuttonstools("[Move]",btnSize*1.25,this.canvas.height-btnSize*1.5,btnSize*0.75,btnSize/2);
+        this.drawbuttonstools("[Rotate]",btnSize*2,this.canvas.height-btnSize*1.5,btnSize*0.75,btnSize/2);
+        this.drawbuttonstools("[Scale]",btnSize*2.75,this.canvas.height-btnSize*1.5,btnSize*0.75,btnSize/2);
+        this.drawbuttonstools("[UniScale]",btnSize*3.50,this.canvas.height-btnSize*1.5,btnSize*0.75,btnSize/2);
+        this.drawbuttonstools("[Duplicate]",btnSize*4.25,this.canvas.height-btnSize*1.5,btnSize*0.75,btnSize/2);
+        this.drawbuttonstools("[Group]",btnSize*5,this.canvas.height-btnSize*1.5,btnSize*0.75,btnSize/2);
         
         
         for(let i=0;i<this.colors.length;i++){
@@ -171,13 +171,18 @@ class UI {
             if(text==="[Scale]"){this.app.tools.setTool("scale");}
             if(text==="[UniScale]"){this.app.tools.setTool("uniscale");}
             if(text==="[Duplicate]"){this.app.duplicateSelected();}
-            
+            if(text==="[Group]"){this.app.tools.setTool("group");this.app.createGroup();if(this.grouptoggle){this.grouptoggle=false} else this.grouptoggle=true;}
         }
         
         if(this.selectedtool===text){
-            this.ctx.strokeStyle = "blue";
-            this.ctx.lineWidth = 4;
-            this.ctx.strokeRect(x, y, dx-4, dy-4);
+            
+            if(text==="[Group]" && !this.grouptoggle){}
+            else{
+                this.ctx.strokeStyle = "blue";
+                this.ctx.lineWidth = 4;
+                this.ctx.strokeRect(x, y, dx-4, dy-4);
+            }
+            if(text!=="[Group]")this.app.clearGroupSelection();
  
         }
         this.ctx.restore();
