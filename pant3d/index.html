@@ -46,28 +46,61 @@ html, body {
     pointer-events: auto;
   
 }
+#loadFileInput {
+    position: fixed;
+    z-index: 10001;
+
+    opacity: 0;
+    pointer-events: auto;
+
+    /* viktigt på iPhone */
+    display: block;
+}
 
     </style> 
 </head>
 <body>
     <canvas id="myCanvas2" width="10" height="10" style="border:0px solid black"></canvas>
     <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
-    
-    <script>
 
+   
+    <input id="loadFileInput" type="file" accept=".mp3d,application/json">
+
+    <script>
+        const isMobile = {
+            Android: function() { return navigator.userAgent.match(/Android/i); },
+            BlackBerry: function() { return navigator.userAgent.match(/BlackBerry/i); },
+            iOS: function() { return navigator.userAgent.match(/iPhone|iPod/i); },
+            Opera: function() { return navigator.userAgent.match(/Opera Mini/i); },
+            Windows: function() { return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i); },
+            any: function() {
+                return (
+                    isMobile.Android() ||
+                    isMobile.BlackBerry() ||
+                    isMobile.iOS() ||
+                    isMobile.Opera() ||
+                    isMobile.Windows() ||
+                    (
+                        navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&
+                        navigator.maxTouchPoints &&
+                        navigator.maxTouchPoints > 1
+                    )
+                );
+            }
+        };
+
+        function mobileAndTabletCheck() { return isMobile.any(); }
         
-        const isMobile = {Android: function() {return navigator.userAgent.match(/Android/i);},BlackBerry: function() {return navigator.userAgent.match(/BlackBerry/i);},iOS: function() {return navigator.userAgent.match(/iPhone|iPod/i);},Opera: function() {return navigator.userAgent.match(/Opera Mini/i);},Windows: function() {return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i);},any: function() {return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows()|| (navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints && navigator.maxTouchPoints > 1));}};
-        function mobileAndTabletCheck() {return isMobile.any();}
+        if (!mobileAndTabletCheck()) {
+            document.getElementById("loadFileInput").style.display = "none";
+        }
+        
         const canvas = document.getElementById("myCanvas2");
         const canvas2 = document.getElementById("myCanvas");
         const ctx = canvas2.getContext("2d");
-        
-         const app= new MaxPaint3D(canvas,canvas2);
-              app.init();
-            
 
-              
-        
+        const app = new MaxPaint3D(canvas, canvas2);
+        app.init();
     </script>
 </body>
 </html>

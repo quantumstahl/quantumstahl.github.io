@@ -9,11 +9,12 @@ class UniformScale {
 
         if (!selected) return;
 
-        const speed = 0.01 * scale;
+        const speed = 0.005 * scale;
 
    
-        if (input.keys["s"]) { selected.scale.x -= speed;selected.scale.y -= speed;selected.scale.z -= speed;}
-        if (input.keys["w"]) {selected.scale.x += speed;selected.scale.y += speed;selected.scale.z += speed;}
+        if (input.keys["s"]) {   this.app.beginEdit();selected.scale.x -= speed;selected.scale.y -= speed;selected.scale.z -= speed;}
+        else if (input.keys["w"]) {  this.app.beginEdit();selected.scale.x += speed;selected.scale.y += speed;selected.scale.z += speed;}
+        else this.app.endEdit();
       //  if (input.keys["a"])    selected.scale.z += speed;
        // if (input.keys["d"])  selected.scale.z -= speed;
         

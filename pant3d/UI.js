@@ -54,6 +54,8 @@ class UI {
         this.drawbutton("sphere",btnSize*3,this.canvas.height-btnSize,btnSize,btnSize);
         this.drawbutton("plane",btnSize*4,this.canvas.height-btnSize,btnSize,btnSize);
         this.drawbutton("trash",btnSize*5,this.canvas.height-btnSize*0.75,btnSize*0.75,btnSize*0.75);
+        this.drawbutton("undo",btnSize*5.75,this.canvas.height-btnSize*1,btnSize*0.75,btnSize*0.50);
+        this.drawbutton("redo",btnSize*5.75,this.canvas.height-btnSize*0.5,btnSize*0.75,btnSize*0.50);
         
         this.drawYbutton("Y",0,this.canvas.height-btnSize*1.5,btnSize/2,btnSize/2);
         this.drawbuttonstools("[Select]",btnSize/2,this.canvas.height-btnSize*1.5,btnSize*0.75,btnSize/2);
@@ -67,10 +69,11 @@ class UI {
         
         for(let i=0;i<this.colors.length;i++){
             
-            this.drawColorButton(this.colors[i], 0+(i*btnSize/2), 0 , btnSize/2);
+            this.drawColorButton(this.colors[i], 0+(i*btnSize/2 + btnSize*1.5), 0 , btnSize/2);
             
         }
-        
+        this.drawbuttonstools("LOAD",btnSize*0.75,0,btnSize*0.75,btnSize/2);
+        this.drawbuttonstools("SAVE",0,0,btnSize*0.75,btnSize/2);
         
     }
     drawYbutton(text,x,y,dx,dy){
@@ -143,7 +146,35 @@ class UI {
 
         this.ctx.fillStyle = "#252628";
         this.ctx.fillRect(x, y, dx, dy);
+        
+        if(text==="LOAD"){
+            
+            
+              const input = document.getElementById("loadFileInput");
+  
 
+          
+
+                input.style.left = x + "px";
+                input.style.top = y + "px";
+                input.style.width = dx + "px";
+                input.style.height = dy + "px";
+
+            
+            
+            
+            
+            
+        }
+        
+        
+        
+        
+        
+        
+        
+        
+        
         this.ctx.strokeStyle = border;
         this.ctx.lineWidth = 4;
         this.ctx.strokeRect(x, y, dx-4, dy-4);
@@ -172,6 +203,9 @@ class UI {
             if(text==="[UniScale]"){this.app.tools.setTool("uniscale");}
             if(text==="[Duplicate]"){this.app.duplicateSelected();}
             if(text==="[Group]"){this.app.tools.setTool("group");this.app.createGroup();if(this.grouptoggle){this.grouptoggle=false} else this.grouptoggle=true;}
+            
+            if(text==="LOAD"){this.app.loadProject();}
+            if(text==="SAVE"){this.app.saveProject();}
         }
         
         if(this.selectedtool===text){
@@ -242,6 +276,8 @@ class UI {
                 this.input.mouse.y <= y + dy){
             
             if(text=="trash"){this.app.deleteSelected(); return;}
+            if(text=="undo"){this.app.undo(); return;}
+            if(text=="redo"){this.app.redo(); return;}
             
             this.selected=text;
             this.app.UI.selectedtool="[Move]";

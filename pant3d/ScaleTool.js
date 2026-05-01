@@ -9,23 +9,23 @@ class ScaleTool {
 
         if (!selected) return;
 
-        const speed = 0.004 * scale;
+        const speed = 0.008 * scale;
 
       
        if(this.app.Yblue){
-          if (input.keys["w"])    selected.scale.y += speed;
-          if (input.keys["s"])  selected.scale.y -= speed;
-          
+          if (input.keys["w"]){  this.app.beginEdit();   selected.scale.y += speed;}
+          else if (input.keys["s"]){ this.app.beginEdit();  selected.scale.y -= speed;}
+          else   this.app.endEdit();
           
        }
        
        else{
         // PC fallback
-        if (input.keys["a"])  selected.scale.x -= speed;
-        if (input.keys["d"]) selected.scale.x += speed;
-        if (input.keys["w"])    selected.scale.z += speed;
-        if (input.keys["s"])  selected.scale.z -= speed;
-        
+        if (input.keys["a"]){ this.app.beginEdit();  selected.scale.x -= speed;}
+        else if (input.keys["d"]){ this.app.beginEdit(); selected.scale.x += speed;}
+        else if (input.keys["w"]){ this.app.beginEdit();    selected.scale.z += speed;}
+        else if (input.keys["s"]){  this.app.beginEdit(); selected.scale.z -= speed;}
+        else   this.app.endEdit();
         }
 
         

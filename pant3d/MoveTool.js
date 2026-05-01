@@ -18,8 +18,16 @@ class MoveTool {
         
         if (input.mouse.down&&input.mouse.y<this.app.canvas.height-btnSize*1.5) {
             this.moveSelectedToMouse();
+            if(input.mouse.justPressed){
+                this.app.beginEdit();
+            }
         }
-        const moveSpeed = 0.005 * scale;
+        if(input.mouse.justReleased){
+            this.app.endEdit();
+            
+        }
+        
+        const moveSpeed = 0.008 * scale;
         
         if (this.app.Yblue) {
             if (input.keys["w"]) selected.position.y += moveSpeed;
