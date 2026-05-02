@@ -7,8 +7,14 @@ class SelectTool {
 
     update(scale) {
         const input = this.app.input;
+        
+        const isLandscape = this.app.canvas.width > this.app.canvas.height;
 
-        if (!input.mouse.justPressed) return;
+        const btnSize = isLandscape
+            ? Math.min(90, this.app.canvas.height * 0.18)
+            : Math.min(150, this.app.canvas.width * 0.20);
+        
+        if (!input.mouse.justPressed||input.mouse.y<btnSize*0.5) return;
 
         const canvas = this.app.renderer.canvas;
         const rect = canvas.getBoundingClientRect();
