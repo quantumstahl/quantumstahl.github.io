@@ -33,7 +33,22 @@
       text-align: center;
       
     }
-
+    .button{
+          background-color: #2ecc71;
+  border: none;
+  color: white;
+  padding: 15px 32px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  cursor: pointer;
+        
+    }
+    section {
+        font-size: 10px;
+        
+    }
     header {
       
         width: 101%;
@@ -64,7 +79,13 @@
     }
 
     .subtitle {
+        margin: 2.2em;
       font-size: 1.8em;  
+      color: #FFF;
+      margin-bottom: 50px;
+    }
+    .subtitle2{
+      font-size: 1.2em;  
       color: #FFF;
       margin-bottom: 50px;
     }
@@ -96,6 +117,9 @@
 
       .btn-green {
         background: #27ae60;
+      }
+      .btn-yellow {
+        background: #D5B60A;
       }
 
     main {
@@ -199,10 +223,16 @@ footer a {
     font-size: clamp(0.9rem, 2vw, 1.2rem);
     margin-bottom: 12px;
     max-width: 90%;
+    top:55px;
+    margin-left: 5%;
+  }
+  .subtitle2 {
+    font-size: clamp(0.4rem, 2vw, 0.9rem);
+    margin-bottom: 12px;
+    max-width: 90%;
     top:95px;
     margin-left: 5%;
   }
-
   .cta-buttons {
     gap: 8px;
   }
@@ -262,7 +292,12 @@ footer a {
       color: #FFF;
       margin-bottom: 20px;
     }
-    
+  .subtitle2 {
+      top:70px;
+      font-size: 0.6em;  
+      color: #FFF;
+      margin-bottom: 20px;
+    }  
   .project {
     margin: 100px;  
     flex-direction: column;
@@ -301,17 +336,46 @@ footer a {
 
 <header>
 
-  <p class="subtitle">Browser games for PC & mobile</p>
+  <p class="subtitle">Free browser games & tools for PC & mobile</p>
+  <p class="subtitle2">No install. No login. Just open and create.</p>
 
   <div class="cta-buttons">
+    <a href="/pant3d/" class="btn-yellow" onclick="gtag('event','maxpaint3D_click')">Open MaxPaint3D</a>
+    <a href="/paint/" class="btn-green" onclick="gtag('event','maxpaint_click')">Open MaxPaint</a>
     <a href="/birdRTS/" class="btn-red" onclick="gtag('event','rts_click')">Play Multiplayer RTS</a>
     <a href="/birdknight/" class="btn-blue" onclick="gtag('event','birdknight_click')">Play Birdknight</a>
-    <a href="/paint/" class="btn-green" onclick="gtag('event','maxpaint_click')">Open MaxPaint</a>
+    
   </div>
 </header>
 
 <main>
-    <h2>🎮 Featured Game</h2>
+  <h2>🛠 Creative Tools</h2>  
+  <div class="section">
+    <div class="project">
+      <img src="thumbs/maxpaint3d.png" alt="MaxPaint">
+      <div class="project-info">
+      <h3>MaxPaint3D</h3>
+      <p>A simple browser-based low poly 3D editor for creating game assets. Build with primitives, groups, colors, undo/redo, save/load and GLB export.</p>
+      <a href="/pant3d/" class="btn-yellow" onclick="gtag('event','maxpaint3D_click')">Open</a>
+      </div>
+    </div>
+  </div>     
+  <h2> </h2>
+  <div class="section">
+    
+
+    <div class="project">
+      <img src="thumbs/paint.png" alt="MaxPaint">
+      <div class="project-info">
+      <h3>MaxPaint</h3>
+      <p>Draw using mouse or touch. Simple and powerful browser paint tool.</p>
+      <a href="/paint/" class="btn-green" onclick="gtag('event','maxpaint_click')">Open</a>
+      </div>
+    </div>
+  </div>
+ 
+    
+    <h2>🎮 Games</h2>
   <div class="section">
     
 
@@ -330,7 +394,7 @@ footer a {
   </div>
 </div>
   </div>
-    <h2>🕹 Other Game</h2>
+    <h2> </h2>
   <div class="section">
     
 
@@ -345,39 +409,7 @@ footer a {
       </div>
     </div>
   </div>
-    <h2>🛠 Tool</h2>
-  <div class="section">
-    
 
-    <div class="project">
-      <img src="thumbs/paint.png" alt="MaxPaint">
-      <div class="project-info">
-      <h3>MaxPaint</h3>
-      <p>Draw using mouse or touch. Simple and powerful browser paint tool.</p>
-      <a href="/paint/" class="btn-green" onclick="gtag('event','maxpaint_click')">Open</a>
-      </div>
-    </div>
-  </div>
-    <h2>🛠 Test</h2>  
-  <div class="section">
-    <div class="project">
-      <div class="project-info">
-      <h3>3DTest</h3>
-      <p>3D test i made</p>
-      <a href="/3dtest/" class="btn-green" onclick="gtag('event','maxpaint_click')">Open</a>
-      </div>
-    </div>
-  </div>  
-      <h2>🛠 Test</h2>  
-  <div class="section">
-    <div class="project">
-      <div class="project-info">
-      <h3>MaxPaint3D</h3>
-      <p>3D paint</p>
-      <a href="/pant3d/" class="btn-green" onclick="gtag('event','maxpaint_click')">Open</a>
-      </div>
-    </div>
-  </div>    
 <h2>👤 About</h2>
   <div class="section">
     
@@ -390,6 +422,19 @@ footer a {
 
 </main>
 
+<section>
+    
+  <h3>Changelog</h3>
+  <ul>
+    <li><strong>2026-05-02:</strong> Added MaxPaint3D V1.</li>
+  </ul>
+</section>    
+ <a class="button" href="mailto:quantumstahl@gmail.com?subject=Quantumstahl site feedback">
+  Send feedback
+</a>   
+    
+    
+    
 <footer>
   © 2026 QuantumStahl
 </footer>
