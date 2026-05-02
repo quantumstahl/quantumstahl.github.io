@@ -144,7 +144,7 @@ class InputManager {
                     this.mouse.rightDown = false;
                     this.mouse.justPressed = true;
                     
-                }}, 500); // <-- delay (testa 80–120 ms)
+                }}, 200); // <-- delay (testa 80–120 ms)
                 
                 
                 
