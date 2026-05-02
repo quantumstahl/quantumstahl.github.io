@@ -58,13 +58,12 @@ class MoveTool {
 
         const snap = this.findBestSnapPoint(hit);
 
-        if (snap) {
-            this.placeObjectBottomCenterAt(selected, snap);
-        } else if (hit.object === this.app.ground) {
-            this.snapToGround(selected, hit.point);
-        } else {
-            this.placeObjectBottomCenterAt(selected, hit.point);
-        }
+      //  if (snap) {this.placeObjectBottomCenterAt(selected, snap);}
+      //  else if (hit.object === this.app.ground) { this.snapToGround(selected, hit.point);} 
+      //  else {this.placeObjectBottomCenterAt(selected, hit.point);}
+      this.placeObjectBottomCenterAt(selected, hit.point);
+      if (snap) {this.placeObjectBottomCenterAt(selected, snap);}
+      else if (hit.object === this.app.ground) { this.snapToGround(selected, hit.point);} 
     }
     snapToObjectSurface(obj, hit) {
         const p = hit.point.clone();
@@ -202,20 +201,24 @@ class MoveTool {
         return null;
     }
     placeObjectBottomCenterAt(obj, point) {
+        obj.updateWorldMatrix(true, true);
+
         const box = new THREE.Box3().setFromObject(obj);
 
-        const center = new THREE.Vector3();
-        box.getCenter(center);
+        const bottomCenter = new THREE.Vector3(
+            (box.min.x + box.max.x) / 2,
+            box.min.y,
+            (box.min.z + box.max.z) / 2
+        );
 
         const delta = new THREE.Vector3(
-            point.x - center.x,
-            point.y - center.y,
-            point.z - center.z
+            point.x - bottomCenter.x,
+            point.y - bottomCenter.y,
+            point.z - bottomCenter.z
         );
 
         obj.position.add(delta);
-
-      
+        obj.updateWorldMatrix(true, true);
     }
     findClosestScreenPoint(points, maxPixels) {
         let best = null;
