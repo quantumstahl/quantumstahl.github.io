@@ -14,7 +14,7 @@ class MaxPaint3D {
         const ambient = new THREE.AmbientLight(0xffffff, 0.4);
         this.scene.add(ambient);
         const light = new THREE.DirectionalLight(0xffffff, 1.2);
-        light.position.set(5, 10, 5);
+        light.position.set(60, 120, 60);
         light.castShadow = true;
 
         // viktig tweak (shadow quality)
@@ -22,7 +22,12 @@ class MaxPaint3D {
         light.shadow.mapSize.height = 1024;
 
         light.shadow.camera.near = 1;
-        light.shadow.camera.far = 50;
+        light.shadow.camera.left = -160;
+        light.shadow.camera.right = 160;
+        light.shadow.camera.top = 160;
+        light.shadow.camera.bottom = -160;
+        light.shadow.camera.far = 300;
+        
         
         this.scene.add(light);
         const light2 = new THREE.DirectionalLight(0xffffff, 0.4);
