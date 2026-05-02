@@ -36,7 +36,22 @@ class UI {
         
     }
     update(){
+        this.ctx.clearRect(0,0,200,200);
+        
+        this.ctx.save();
+        const stats = this.app.countTriangles();
+        const text = "Tris: " + stats.triangles + " / 1000";
+        this.ctx.font = 20+"px Arial";
+        this.ctx.textAlign = "left";
+        this.ctx.textBaseline = "top";
+        this.ctx.fillStyle = "white";
+        
+        
+        this.ctx.fillStyle = stats.triangles > 1000 ? "#ff6666" : "white";
+        this.ctx.fillText(text, 10, 95);
+        this.ctx.restore();
         this.makeprimitives();
+
         
         
     }

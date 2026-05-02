@@ -70,6 +70,10 @@ class MaxPaint3D {
         this.renderer.render();
         this.input.update();
         this.updateGroupHelpers();
+        
+        
+        
+        
         requestAnimationFrame(t => this.loop(t));
     }
 
@@ -578,16 +582,16 @@ class MaxPaint3D {
 
         if (type === "cube") {
             geo = new THREE.BoxGeometry(2, 2, 2);
-        } 
+        }
         else if (type === "cone") {
-            geo = new THREE.ConeGeometry(1, 2, 16);
-        } 
+            geo = new THREE.ConeGeometry(1, 2, 8);
+        }
         else if (type === "cylinder") {
-            geo = new THREE.CylinderGeometry(1, 1, 2, 16);
-        } 
+            geo = new THREE.CylinderGeometry(1, 1, 2, 8);
+        }
         else if (type === "sphere") {
-            geo = new THREE.SphereGeometry(1, 16, 12);
-        } 
+            geo = new THREE.SphereGeometry(1, 8, 6);
+        }
         else if (type === "plane") {
             geo = new THREE.BoxGeometry(2, 0.1, 2);
         }
@@ -848,5 +852,34 @@ class MaxPaint3D {
         setTimeout(() => {
             URL.revokeObjectURL(url);
         }, 1000);
+    }
+    countTriangles() {
+        let triangles = 0;
+        let meshes = 0;
+        let groups = 0;
+
+        for (const root of this.objects) {
+            root.traverse(obj => {
+                if (obj.isGroup) groups++;
+
+                if (obj.isMesh && obj.geometry) {
+                    meshes++;
+
+                    const geo = obj.geometry;
+
+                    if (geo.index) {
+                        triangles += geo.index.count / 3;
+                    } else if (geo.attributes.position) {
+                        triangles += geo.attributes.position.count / 3;
+                    }
+                }
+            });
+        }
+
+        return {
+            triangles: Math.floor(triangles),
+            meshes,
+            groups
+        };
     }
 }
