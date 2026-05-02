@@ -758,4 +758,95 @@ class MaxPaint3D {
 
         return tex;
     }
+    exportGLB() {
+        const exporter = new THREE.GLTFExporter();
+
+        const exportRoot = new THREE.Group();
+        exportRoot.name = "MaxPaint3D_Model";
+
+        for (const obj of this.objects) {
+            const clone = obj.clone(true);
+
+            clone.traverse(child => {
+                if (child.isMesh) {
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material = child.material.map(m => m.clone());
+                        } else {
+                            child.material = child.material.clone();
+                        }
+                    }
+
+                    child.castShadow = false;
+                    child.receiveShadow = false;
+                }
+            });
+
+            exportRoot.add(clone);
+        }
+
+        exporter.parse(
+            exportRoot,
+            async (result) => {
+                const blob = new Blob([result], {
+                    type: "model/gltf-binary"
+                });
+
+                await this.saveBlob(
+                    blob,
+                    "maxpaint3d_model.glb",
+                    "model/gltf-binary",
+                    ".glb",
+                    "GLB 3D Model"
+                );
+            },
+            (error) => {
+                console.error("GLB export failed:", error);
+                alert("Export failed");
+            },
+            {
+                binary: true,
+                onlyVisible: false,
+                trs: true
+            }
+        );
+    }
+    async saveBlob(blob, filename, mimeType, extension, description) {
+        try {
+            if (window.showSaveFilePicker) {
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: filename,
+                    types: [{
+                        description: description,
+                        accept: {
+                            [mimeType]: [extension]
+                        }
+                    }]
+                });
+
+                const writable = await handle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+            } else {
+                this.downloadBlob(blob, filename);
+            }
+        } catch (err) {
+            console.warn("Save cancelled or failed:", err);
+        }
+    }
+    downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 1000);
+    }
 }

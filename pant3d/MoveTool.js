@@ -202,17 +202,18 @@ class MoveTool {
         return null;
     }
     placeObjectBottomCenterAt(obj, point) {
-        const box = this.getRealBox(obj);
+        const box = new THREE.Box3().setFromObject(obj);
 
-        const center = box.getCenter(new THREE.Vector3());
-        const bottomY = box.min.y;
-        const dx = point.x - center.x;
-        const dz = point.z - center.z;
-        const dy = point.y - bottomY;
+        const center = new THREE.Vector3();
+        box.getCenter(center);
 
-        obj.position.x += dx;
-        obj.position.y += dy;
-        obj.position.z += dz;
+        const delta = new THREE.Vector3(
+            point.x - center.x,
+            point.y - center.y,
+            point.z - center.z
+        );
+
+        obj.position.add(delta);
 
       
     }

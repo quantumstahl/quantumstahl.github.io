@@ -69,11 +69,13 @@ class UI {
         
         for(let i=0;i<this.colors.length;i++){
             
-            this.drawColorButton(this.colors[i], 0+(i*btnSize/2 + btnSize*1.5), 0 , btnSize/2);
+            this.drawColorButton(this.colors[i], 0+(i*btnSize/2.3 + btnSize*2.25), 0 , btnSize/2.3);
             
         }
+        this.drawbuttonstools("EXPORT",btnSize*1.5,0,btnSize*0.75,btnSize/2);
         this.drawbuttonstools("LOAD",btnSize*0.75,0,btnSize*0.75,btnSize/2);
         this.drawbuttonstools("SAVE",0,0,btnSize*0.75,btnSize/2);
+        
         
     }
     drawYbutton(text,x,y,dx,dy){
@@ -206,6 +208,7 @@ class UI {
             
             if(text==="LOAD"){this.app.loadProject();}
             if(text==="SAVE"){this.app.saveProject();}
+            if(text==="EXPORT"){this.app.exportGLB();}
         }
         
         if(this.selectedtool===text){
