@@ -61,8 +61,8 @@ class MoveTool {
       //  if (snap) {this.placeObjectBottomCenterAt(selected, snap);}
       //  else if (hit.object === this.app.ground) { this.snapToGround(selected, hit.point);} 
       //  else {this.placeObjectBottomCenterAt(selected, hit.point);}
-      this.placeObjectBottomCenterAt(selected, hit.point);
-      if (snap) {this.placeObjectBottomCenterAt(selected, snap);}
+      if(hit.point && hit.object!==this.app.ground)this.placeObjectBottomCenterAt(selected, hit.point);
+      else if (snap) {this.placeObjectBottomCenterAt(selected, snap);}
       else if (hit.object === this.app.ground) { this.snapToGround(selected, hit.point);} 
     }
     snapToObjectSurface(obj, hit) {
@@ -161,7 +161,7 @@ class MoveTool {
             new THREE.Vector3(box.max.x, box.max.y, box.max.z),
         ];
     }
-    getAirSnapPoints(objects, maxDist = 30.0) {
+    getAirSnapPoints(objects, maxDist = 3.0) {
         const points = [];
 
         for (let i = 0; i < objects.length; i++) {
@@ -198,7 +198,7 @@ class MoveTool {
             o !== selected && o !== this.app.ground
         );
 
-        const airPoints = this.getAirSnapPoints(objects, 30.0);
+        const airPoints = this.getAirSnapPoints(objects, 3.0);
 
         // 1. Testa luft-punkter först
         const bestAir = this.findClosestScreenPoint(airPoints, 50);
