@@ -1,6 +1,8 @@
 class RotateTool {
     constructor(app) {
         this.app = app;
+        this.wasRotating = false;
+        this.wasSnapping = false;
     }
 
     update(scale) {
@@ -10,24 +12,42 @@ class RotateTool {
 
         const rotSpeed = 0.005 * scale;
 
-      if(this.app.Yblue){
-          if (input.keys["w"]) {  this.app.beginEdit(); selected.rotation.y += rotSpeed;}
-          else if (input.keys["s"]){  this.app.beginEdit();selected.rotation.y -= rotSpeed;}
-          else this.app.endEdit();
-          
-       }
-       else{
-            // PC fallback
-            if (input.keys["a"]){  this.app.beginEdit();selected.rotation.z += rotSpeed;}
-            else if (input.keys["d"]){this.app.beginEdit(); selected.rotation.z -= rotSpeed;}
-            else if (input.keys["w"]){ this.app.beginEdit();   selected.rotation.x += rotSpeed;}
-            else if (input.keys["s"]){ this.app.beginEdit(); selected.rotation.x -= rotSpeed;}
-            else this.app.endEdit();
+        const isRotating =
+            input.keys["w"] ||
+            input.keys["a"] ||
+            input.keys["s"] ||
+            input.keys["d"];
+
+        if (isRotating && !this.wasRotating) {
+            this.app.beginEdit();
         }
-        // snap om du vill med t.ex. space
-        if (input.keys[" "]) {
-            this.snapRotation(selected, Math.PI / 4); // 45 grader
+
+        if (isRotating) {
+            if (this.app.Yblue) {
+                if (input.keys["w"]) selected.rotation.y += rotSpeed;
+                if (input.keys["s"]) selected.rotation.y -= rotSpeed;
+            } else {
+                if (input.keys["a"]) selected.rotation.z += rotSpeed;
+                if (input.keys["d"]) selected.rotation.z -= rotSpeed;
+                if (input.keys["w"]) selected.rotation.x += rotSpeed;
+                if (input.keys["s"]) selected.rotation.x -= rotSpeed;
+            }
         }
+
+        if (!isRotating && this.wasRotating) {
+            this.app.endEdit();
+        }
+
+        this.wasRotating = isRotating;
+
+        // Snap bara en gång per space-tryck, annars snappar den varje frame
+        if (input.keys[" "] && !this.wasSnapping) {
+            this.app.beginEdit();
+            this.snapRotation(selected, Math.PI / 4);
+            this.app.endEdit();
+        }
+
+        this.wasSnapping = !!input.keys[" "];
     }
 
     snapRotation(obj, step) {

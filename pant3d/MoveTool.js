@@ -41,10 +41,7 @@ class MoveTool {
             }
         }
         else{
-            if (input.keys["a"])  selected.position.z += moveSpeed;
-            if (input.keys["d"]) selected.position.z -= moveSpeed;
-            if (input.keys["w"])    selected.position.x -= moveSpeed;
-            if (input.keys["s"])  selected.position.x += moveSpeed;
+            this.moveSelectedCameraRelative(selected, input, moveSpeed);
         }
         
     }
@@ -310,4 +307,35 @@ class MoveTool {
 
         // Ingen Math.round här
     }
+    moveSelectedCameraRelative(selected, input, moveSpeed) {
+        if (!selected) return;
+
+        const camera = this.app.camera.camera;
+
+        // Kamerans framåtriktning
+        const forward = new THREE.Vector3();
+        camera.getWorldDirection(forward);
+
+        // Ignorera Y så movement blir längs marken
+        forward.y = 0;
+        forward.normalize();
+
+        // Högervektor relativt kameran
+        const right = new THREE.Vector3();
+        right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+
+        const move = new THREE.Vector3();
+
+        if (input.keys["w"]) move.add(forward);
+        if (input.keys["s"]) move.sub(forward);
+        if (input.keys["d"]) move.add(right);
+        if (input.keys["a"]) move.sub(right);
+
+        if (move.lengthSq() > 0) {
+            move.normalize().multiplyScalar(moveSpeed);
+            selected.position.add(move);
+        }
+    }
+    
+    
 }
