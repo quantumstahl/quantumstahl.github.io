@@ -114,11 +114,27 @@ class MoveTool {
         return null;
     }
     snapToGround(obj, p) {
-        obj.position.x = Math.round(p.x);
-        obj.position.z = Math.round(p.z);
+        obj.updateWorldMatrix(true, true);
 
-        const box = this.getRealBox(obj);
-        obj.position.y -= box.min.y;
+        let box = this.getRealBox(obj);
+
+        const bottomCenter = new THREE.Vector3(
+            (box.min.x + box.max.x) / 2,
+            box.min.y,
+            (box.min.z + box.max.z) / 2
+        );
+
+        obj.position.x += Math.round(p.x) - bottomCenter.x;
+        obj.position.z += Math.round(p.z) - bottomCenter.z;
+
+        obj.updateWorldMatrix(true, true);
+
+        box = this.getRealBox(obj);
+
+        const targetY = p.y ?? 0;
+        obj.position.y += targetY - box.min.y;
+
+        obj.updateWorldMatrix(true, true);
     }
     getSnapPointsForObject(o) {
         const box = new THREE.Box3().setFromObject(o);
