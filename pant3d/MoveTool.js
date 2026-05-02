@@ -16,7 +16,7 @@ class MoveTool {
             ? Math.min(90, this.app.canvas.height * 0.18)
             : Math.min(150, this.app.canvas.width * 0.20);
         
-        if (input.mouse.down&&input.mouse.y<this.app.canvas.height-btnSize*1.5) {
+        if (input.mouse.down&&input.mouse.y<this.app.canvas.height-btnSize*1.5 ||input.mouse.x>btnSize*6.5 ) {
             this.moveSelectedToMouse();
             if(input.mouse.justPressed){
                 this.app.beginEdit();
