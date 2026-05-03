@@ -3608,8 +3608,8 @@ function _activatePastedBitmap(imgBitmap,whole) {
     }
 
     // Centera bilden kring vymitten
-    const cx = Math.max(0, (centerImg.x) | 0);
-    const cy = Math.max(0, (centerImg.y) | 0);
+    const cx = Math.max(0, (centerImg.x - w/2) | 0);
+    const cy = Math.max(0, (centerImg.y - h/2) | 0);
 
   // 3) Mata in i selection-systemet
   
