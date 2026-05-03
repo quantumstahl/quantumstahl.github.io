@@ -124,12 +124,12 @@ var JoyStick = (function (container, parameters, callback) {
             movedY = posY;
         }
     }
-    
+    let counter=0;
     let savedisportrait=canvas.height > canvas.width;
     function changedir(){
         const isPortrait = canvas.height > canvas.width;
         
-        if(isPortrait!==savedisportrait){savedisportrait=isPortrait;return true;}
+        if(isPortrait!==savedisportrait||counter>0){if(counter==0)counter=2;savedisportrait=isPortrait;return true;}
         
         return false;
         
@@ -194,12 +194,12 @@ var JoyStick = (function (container, parameters, callback) {
     updateGeometry();
     updateDefaultCenter();
 
-  //  if (centerY < 10 || changedir()) {
+    if (centerY < 10 || changedir()) {
         centerX = defaultCenterX;
         centerY = defaultCenterY;
         movedX = centerX;
         movedY = centerY;
-  //  }
+    }
 
     drawExternal();
     drawInternal();
