@@ -129,7 +129,7 @@ var JoyStick = (function (container, parameters, callback) {
     function changedir(){
         const isPortrait = canvas.height > canvas.width;
         
-        if(isPortrait!==savedisportrait||counter>0){if(counter==0)counter=3;savedisportrait=isPortrait;counter--;return true;}
+        if(isPortrait!==savedisportrait||counter>0){if(counter==0)counter=10;savedisportrait=isPortrait;counter--;return true;}
         
         return false;
         
