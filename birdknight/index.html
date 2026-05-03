@@ -407,8 +407,8 @@ requestAnimationFrame(gameLoop);
                     canvas.width=1920*1.25;
                     canvas.height=1080*1.25;
                     canvas.style.position="absolute";
-                    canvas.style.width  = "100vw";
-                    canvas.style.height = "100vh";;
+                    canvas.style.width  = document.body.clientWidth + "px";
+                    canvas.style.height = document.body.clientHeight + "px";
                 }
                 else{
                    // canvas.width=document.body.clientWidth;
@@ -425,8 +425,8 @@ requestAnimationFrame(gameLoop);
                         canvas.height=1100*1.2;
                     }
                     canvas.style.position="absolute";
-                    canvas.style.width  = "100vw";
-                    canvas.style.height = "100vh";;
+                    canvas.style.width  = document.body.clientWidth + "px";
+                    canvas.style.height = document.body.clientHeight + "px";
 
 
                 }
