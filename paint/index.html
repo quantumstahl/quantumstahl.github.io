@@ -646,7 +646,7 @@ canvas{
 
 </head>
 <body>  
-<div id="swBadge" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:#111;color:#ffffff;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui">v1.09</div>
+<div id="swBadge" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:#111;color:#ffffff;padding:6px 10px;border:1px solid #333;border-radius:8px;font:12px system-ui">v1.10</div>
 
 <div id="hide">
 <label for="directFileInput">Open Image</label>
@@ -2002,21 +2002,21 @@ function switchTool(newTool, opts = {}) {
             // Ensure the drawing canvas is big enough for the image
             function ensureCanvasSize(width, height) {
                 // Resize the drawing canvas if the new dimensions are larger
-                if (width > drawingCanvas.width || height > drawingCanvas.height) {
+                if (width/ _effectiveZoom() > Math.ceil(drawareax / _effectiveZoom()) || height/ _effectiveZoom() > Math.ceil(drawareay / _effectiveZoom())) {
                     // Save current content
                     const oldContent = document.createElement('canvas');
-                    oldContent.width = drawingCanvas.width;
-                    oldContent.height = drawingCanvas.height;
+                    oldContent.width = Math.ceil(drawareax / _effectiveZoom());
+                    oldContent.height = Math.ceil(drawareay / _effectiveZoom());
                     const oldCtx = oldContent.getContext('2d');
                     oldCtx.drawImage(drawingCanvas, 0, 0);
 
                     // Resize the canvas
-                    drawingCanvas.width = Math.max(width, drawingCanvas.width);
-                    drawingCanvas.height = Math.max(height, drawingCanvas.height);
+                    drawingCanvas.width = Math.max(width, Math.ceil(drawareax / _effectiveZoom()));
+                    drawingCanvas.height = Math.max(height, Math.ceil(drawareay / _effectiveZoom()));
 
                     // Fill with white and restore content
                     drawingCtx.fillStyle = "white";
-                    drawingCtx.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                    drawingCtx.fillRect(0, 0, Math.ceil(drawareax / _effectiveZoom()), Math.ceil(drawareay / _effectiveZoom()));
                     drawingCtx.drawImage(oldContent, 0, 0);
 
                     // Ensure smooth rendering is disabled
@@ -2024,7 +2024,6 @@ function switchTool(newTool, opts = {}) {
 
 
 
-                    console.log(`Canvas resized to ${drawingCanvas.width}x${drawingCanvas.height}`);
                 }
             }
             
@@ -3467,7 +3466,9 @@ const res = await window.pasteFromClipboard();
 if (res.type === 'image') {
   const blob = await (await fetch('data:image/png;base64,' + res.base64PNG)).blob();
   const bmp  = await createImageBitmap(blob);
-  _activatePastedBitmap(bmp);
+  //_fitViewportToImage(bmp.width, bmp.height);
+  //_activatePastedBitmap(bmp);
+  _activateLoadedBitmap(bmp,false);
       bmp.close();
       
   //  const img = new Image();
@@ -3502,7 +3503,9 @@ if (res.type === 'image') {
           if (t) {
             const blob = await item.getType(t);
             const bmp  = await createImageBitmap(blob);
-            _activatePastedBitmap(bmp);
+            _activateLoadedBitmap(bmp,false);
+           // _fitViewportToImage(bmp.width, bmp.height);
+           // _activatePastedBitmap(bmp);
             bmp.close();
             return;
           }
@@ -3514,7 +3517,9 @@ if (res.type === 'image') {
             const src = _parseImgSrcFromHTML(html);
             if (src && _looksLikeImageURL(src)) {
               const bmp = await _loadBitmapFromURL(src);
-              _activatePastedBitmap(bmp);
+              _activateLoadedBitmap(bmp,false);
+              //_fitViewportToImage(bmp.width, bmp.height);
+              //_activatePastedBitmap(bmp);
               bmp.close();
               return;
             }
@@ -3530,7 +3535,9 @@ if (res.type === 'image') {
               const bmp = norm.startsWith('data:image/')
                 ? await _bitmapFromDataURL(norm)
                 : await _loadBitmapFromURL(norm);
-              _activatePastedBitmap(bmp);
+                _activateLoadedBitmap(bmp,false);
+               // _fitViewportToImage(bmp.width, bmp.height);
+             // _activatePastedBitmap(bmp);
               bmp.close();
               return;
             }
@@ -3549,7 +3556,8 @@ if (res.type === 'image') {
         const bmp = norm.startsWith('data:image/')
           ? await _bitmapFromDataURL(norm)
           : await _loadBitmapFromURL(norm);
-        _activatePastedBitmap(bmp);
+          _activateLoadedBitmap(bmp,false);
+       // _activatePastedBitmap(bmp);
         bmp.close();
         return;
       }
@@ -3584,13 +3592,13 @@ function _activatePastedBitmap(imgBitmap,whole) {
   cctx.drawImage(imgBitmap, 0, 0);
 
     // 2) Placera i mitten av vyn (bildkoordinater)
-    const z = (typeof _effectiveZoom === 'function') ? _effectiveZoom() : (window.zoom || 1);
+    const z = _effectiveZoom();
 
     // Rätt sätt: konvertera canvas-mitten → bildkoordinater
     
     let centerImg;
     if (typeof _canvasXYtoImageXY === 'function') {
-      centerImg = _canvasXYtoImageXY(drawareax/2, drawareay/2);
+      centerImg = _canvasXYtoImageXY(drawareax/2 /z, drawareay/2/z);
     } else {
       // Fallback om helper saknas: (canvasX - drawstart) / zoom
       centerImg = {
@@ -3600,8 +3608,8 @@ function _activatePastedBitmap(imgBitmap,whole) {
     }
 
     // Centera bilden kring vymitten
-    const cx = Math.max(0, (centerImg.x - w/2) | 0);
-    const cy = Math.max(0, (centerImg.y - h/2) | 0);
+    const cx = Math.max(0, (centerImg.x) | 0);
+    const cy = Math.max(0, (centerImg.y) | 0);
 
   // 3) Mata in i selection-systemet
   
@@ -4170,9 +4178,9 @@ async function _loadBitmapFromURL(src) {
   }
 }
 //NYTT
-function _fitViewportToImage(newW, newH) {
+function _fitViewportToImage(newW, newH,fit) {
   // Behåll beteendet: auto-fit till ~80% av fönstret, men lyft upp till ~50% om det blir för smått
-  
+  if((newW* zoom<drawareax&&newH* zoom<drawareay)&&!fit)return;
  
   let newZoom = zoom;
   const availW = window.innerWidth;
@@ -4207,12 +4215,14 @@ function _fitViewportToImage(newW, newH) {
   
   
 }
-async function _activateLoadedBitmap(imgBitmap) {
+async function _activateLoadedBitmap(imgBitmap,fit=true) {
   if (!imgBitmap || !imgBitmap.width || !imgBitmap.height) return;
   beginAction();
+  if(fit===true){camera.x=0;camera.y=0;}
   ensureCanvasSize(imgBitmap.width, imgBitmap.height); // behåll din säkerhetsmarginal
-  _fitViewportToImage(imgBitmap.width, imgBitmap.height);
-  _activatePastedBitmap(imgBitmap,true);                     // in i nya selectTool-flödet
+  _fitViewportToImage(imgBitmap.width, imgBitmap.height,fit);
+  _activatePastedBitmap(imgBitmap,true);  
+  
   if (typeof currentTool !== 'undefined') { switchTool('select'); currentTool = 'select'; }
 }
 //NYTT
@@ -4605,6 +4615,9 @@ canvas.addEventListener('pointerdown', (ev) => {
       const canvasX = Math.floor((x - drawstartx) / zoom);
       const canvasY = Math.floor((y - drawstarty) / zoom);
       if (currentTool === 'eyedropper') {
+          
+        if(document.querySelector('.color-swatch.active').dataset.color === "checkerboard")return;
+          
         updateEyedropperBuffer();
         const data = eyedropperCtx.getImageData(canvasX, canvasY, 1, 1).data;
         const hexColor = `#${data[0].toString(16).padStart(2,'0')}${data[1].toString(16).padStart(2,'0')}${data[2].toString(16).padStart(2,'0')}`;
