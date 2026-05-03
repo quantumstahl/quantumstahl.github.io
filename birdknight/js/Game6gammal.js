@@ -1624,7 +1624,7 @@ const selectenable=false;
 const offscreenCanvas = document.createElement('canvas');
 const offCtx = offscreenCanvas.getContext('2d');
 let waterRipples = [];
-class Game6 {
+class Game6gammal {
     
     kollitions = [];
     kollitions2 = [];
