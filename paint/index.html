@@ -3596,16 +3596,10 @@ function _activatePastedBitmap(imgBitmap,whole) {
 
     // Rätt sätt: konvertera canvas-mitten → bildkoordinater
     
-    let centerImg;
-    if (typeof _canvasXYtoImageXY === 'function') {
-      centerImg = _canvasXYtoImageXY(drawareax/2 , drawareay/2);
-    } else {
-      // Fallback om helper saknas: (canvasX - drawstart) / zoom
-      centerImg = {
-        x: ((drawareax/2) - drawstartx) / z,
-        y: ((drawareay/2) - drawstarty) / z
-      };
-    }
+
+
+    let centerImg = _canvasXYtoImageXY(-camera.x/z , -camera.y/z);
+    
 
     // Centera bilden kring vymitten
     const cx = Math.max(0, (centerImg.x - w/2) | 0);
