@@ -3598,7 +3598,7 @@ function _activatePastedBitmap(imgBitmap,whole) {
     
     let centerImg;
     if (typeof _canvasXYtoImageXY === 'function') {
-      centerImg = _canvasXYtoImageXY(drawareax/2 /z, drawareay/2/z);
+      centerImg = _canvasXYtoImageXY(drawareax/2 , drawareay/2);
     } else {
       // Fallback om helper saknas: (canvasX - drawstart) / zoom
       centerImg = {
