@@ -194,12 +194,12 @@ var JoyStick = (function (container, parameters, callback) {
     updateGeometry();
     updateDefaultCenter();
 
-    if (centerY < 10 || changedir()) {
+  //  if (centerY < 10 || changedir()) {
         centerX = defaultCenterX;
         centerY = defaultCenterY;
         movedX = centerX;
         movedY = centerY;
-    }
+  //  }
 
     drawExternal();
     drawInternal();
