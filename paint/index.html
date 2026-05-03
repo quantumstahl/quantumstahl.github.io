@@ -2015,8 +2015,8 @@ function switchTool(newTool, opts = {}) {
                     drawingCanvas.height = Math.max(height, Math.ceil(drawareay / _effectiveZoom()));
 
                     // Fill with white and restore content
-                    drawingCtx.fillStyle = "white";
-                    drawingCtx.fillRect(0, 0, Math.ceil(drawareax / _effectiveZoom()), Math.ceil(drawareay / _effectiveZoom()));
+                   // drawingCtx.fillStyle = "white";
+                    drawingCtx.clearRect(0, 0, Math.ceil(drawareax / _effectiveZoom()), Math.ceil(drawareay / _effectiveZoom()));
                     drawingCtx.drawImage(oldContent, 0, 0);
 
                     // Ensure smooth rendering is disabled
@@ -4212,7 +4212,8 @@ function _fitViewportToImage(newW, newH,fit) {
 async function _activateLoadedBitmap(imgBitmap,fit=true) {
   if (!imgBitmap || !imgBitmap.width || !imgBitmap.height) return;
   beginAction();
-  if(fit===true){camera.x=0;camera.y=0;}
+  if(fit===true){camera.x=0;camera.y=0;drawingCtx.clearRect(0, 0, Math.ceil(drawareax / _effectiveZoom()), Math.ceil(drawareay / _effectiveZoom()));}
+   
   ensureCanvasSize(imgBitmap.width, imgBitmap.height); // behåll din säkerhetsmarginal
   _fitViewportToImage(imgBitmap.width, imgBitmap.height,fit);
   _activatePastedBitmap(imgBitmap,true);  
