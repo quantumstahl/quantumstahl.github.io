@@ -3598,11 +3598,11 @@ function _activatePastedBitmap(imgBitmap,whole) {
     
 
 
-    let centerImg = _canvasXYtoImageXY(canvas.width/2-drawingCanvas.width , canvas.height/2-drawingCanvas.height);
+    let centerImg = _canvasXYtoImageXY(-w/2 , -h/2);
     
 
     // Centera bilden kring vymitten
-    const cx = Math.max(0, (centerImg.x - w/2) | 0);
+    const cx = Math.max(0, (centerImg.x ) | 0);
     const cy = Math.max(0, (centerImg.y ) | 0);
 
   // 3) Mata in i selection-systemet
