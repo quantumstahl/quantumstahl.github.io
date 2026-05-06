@@ -5,6 +5,8 @@ class MaxPaint3D {
         this.nextObjectId = 1;
         this.Yblue=false;
         this.canvas = canvas;
+        this.canvas2=canvas2;
+        this.ctx=this.canvas2.getContext("2d");
         this.selected = null;
         this.scene = new THREE.Scene();
          this.objects = [];
@@ -58,6 +60,17 @@ class MaxPaint3D {
         this.scene.background = this.createGradientBackground();
         this.pushUndoState();
         
+        this.subgroups = [];
+        this.subgroupSelection = [];
+        this.selectedSubgroup = null;
+        this.poses = [];
+        
+        this.poseAIndex = 0;
+        this.poseBIndex = 1;
+        this.poseT = 0;
+        this.isPlayingPose = false;
+        this.posePlaySpeed = 0.005;
+        
     }
 
     init() {
@@ -67,16 +80,20 @@ class MaxPaint3D {
 
     loop(time) {
         const dt = this.getDelta(time);
-
+        
+        this.ctx.clearRect(0,0,canvas2.width,canvas2.height);
+        this.updatePosePlayback(dt);
         this.updateSelectionBox();
         this.camera.update(this.input, dt);
         this.tools.update(dt);
         this.UI.update();
-        this.renderer.render();
+       
         this.input.update();
         this.updateGroupHelpers();
         
         
+        
+         this.renderer.render();
         
         
         requestAnimationFrame(t => this.loop(t));
@@ -308,6 +325,13 @@ class MaxPaint3D {
             this.scene.add(helper);
             this.groupHelpers.push(helper);
         }
+        // skapa nya helpers
+        for (const obj of this.subgroupSelection) {
+            const helper = new THREE.BoxHelper(obj, 0xffff00);
+            this.scene.add(helper);
+            this.groupHelpers.push(helper);
+        
+        }
     }
     clearGroupSelection() {
         this.groupSelection = [];
@@ -319,6 +343,13 @@ class MaxPaint3D {
         this.groupHelpers = [];
         
     }
+    
+    
+    
+    
+    
+    
+    
     getSelectableRoot(obj) {
         let current = obj;
 
@@ -886,5 +917,379 @@ class MaxPaint3D {
             meshes,
             groups
         };
+    }
+    enterAnimateMode() {
+        if (!this.modelGroup) {
+            this.createModelGroupFromAllObjects();
+        }
+
+        this.animatetoggle = true;
+        this.currentTool = "anim_select";
+        this.selected = this.modelGroup;
+    }
+
+    exitAnimateMode() {
+        this.animatetoggle = false;
+        this.currentTool = "select";
+    }
+    createModelGroupFromAllObjects() {
+        if (this.modelGroup) return;
+
+        const selectedObjects = this.objects.filter(o =>
+            o &&
+            o !== this.ground &&
+            o.parent === this.scene
+        );
+
+        if (selectedObjects.length === 0) return;
+
+        const group = new THREE.Group();
+        group.name = "Model";
+
+        this.scene.add(group);
+        this.scene.updateMatrixWorld(true);
+
+        for (const obj of selectedObjects) {
+            group.attach(obj);
+        }
+
+        this.objects = this.objects.filter(o => !selectedObjects.includes(o));
+        this.objects.push(group);
+
+        this.groups.push(group);
+        this.modelGroup = group;
+
+        this.setSelected(group);
+        this.ensureObjectId(group);
+        this.pushUndoState();
+    }
+    createSubgroup() {
+        if (!this.modelGroup) return;
+        if (!this.subgroupSelection || this.subgroupSelection.length === 0) return;
+
+        let name = prompt("Subgroup name:", "Subgroup " + (this.subgroups.length + 1));
+
+        if (!name) {
+            name = "Subgroup " + (this.subgroups.length + 1);
+        }
+
+        const selectedObjects = [...this.subgroupSelection];
+
+        const subgroup = new THREE.Group();
+        subgroup.name = name;
+        subgroup.userData.isSubgroup = true;
+
+        this.modelGroup.add(subgroup);
+        this.modelGroup.updateMatrixWorld(true);
+
+        for (const obj of selectedObjects) {
+            subgroup.attach(obj);
+        }
+
+        this.subgroups.push(subgroup);
+        
+        this.subgroupSelection = [];
+        this.selectedSubgroup = subgroup;
+        this.setSelected(subgroup);
+        this.ensureObjectId(subgroup);
+        this.createPivotMarker(subgroup);
+        this.saveSubgroupRestTransform(subgroup);
+        this.pushUndoState();
+    }
+    deleteSelectedSubgroup() {
+        const subgroup = this.selectedSubgroup;
+
+        if (!subgroup) return;
+        if (!subgroup.userData?.isSubgroup) return;
+        if (!this.modelGroup) return;
+
+        this.scene.updateMatrixWorld(true);
+
+        const children = [...subgroup.children];
+
+        for (const child of children) {
+            this.modelGroup.attach(child);
+        }
+
+        this.modelGroup.remove(subgroup);
+
+        this.subgroups = this.subgroups.filter(sg => sg !== subgroup);
+
+        if (this.selected === subgroup) {
+            this.setSelected(null);
+        }
+
+        this.selectedSubgroup = null;
+        this.subgroupSelection = [];
+        this.updateGroupHelpers?.();
+
+        this.pushUndoState();
+    }
+    renameSelectedSubgroup() {
+        const subgroup = this.selectedSubgroup;
+        if (!subgroup) return;
+
+        const name = prompt("Rename subgroup:", subgroup.name);
+        if (!name) return;
+
+        subgroup.name = name;
+        this.pushUndoState();
+    }
+    createPivotMarker(subgroup) {
+        const geo = new THREE.SphereGeometry(0.12, 12, 8);
+        const mat = new THREE.MeshBasicMaterial({ color: 0xff0000,depthTest: false });
+
+        const marker = new THREE.Mesh(geo, mat);
+        marker.name = subgroup.name + "_pivot";
+        marker.userData.isPivotMarker = true;
+
+        this.scene.add(marker);
+
+        subgroup.userData.pivotMarker = marker;
+        // starta vid subgroupens bounding box-center
+        const box = new THREE.Box3().setFromObject(subgroup);
+        const center = box.getCenter(new THREE.Vector3());
+
+        marker.position.copy(center);
+    }
+    rotateObjectAroundWorldPoint(obj, point, axis, angle) {
+        const q = new THREE.Quaternion();
+        q.setFromAxisAngle(axis.normalize(), angle);
+
+        obj.position.sub(point);
+        obj.position.applyQuaternion(q);
+        obj.position.add(point);
+
+        obj.quaternion.premultiply(q);
+
+        obj.updateMatrixWorld(true);
+    }
+    resetSelectedSubgroupTransform() {
+        const sg = this.selectedSubgroup;
+        if (!sg) return;
+
+        const restPos = sg.userData.restPosition;
+        const restQuat = sg.userData.restQuaternion;
+        const restScale = sg.userData.restScale;
+
+        if (!restPos || !restQuat || !restScale) return;
+
+        this.beginEdit?.();
+
+        sg.position.copy(restPos);
+        sg.quaternion.copy(restQuat);
+        sg.scale.copy(restScale);
+
+        sg.updateMatrixWorld(true);
+
+        this.endEdit?.();
+        this.pushUndoState?.();
+    }
+    saveSubgroupRestTransform(subgroup) {
+        subgroup.userData.restPosition = subgroup.position.clone();
+        subgroup.userData.restQuaternion = subgroup.quaternion.clone();
+        subgroup.userData.restScale = subgroup.scale.clone();
+    }
+    savePose() {
+        if (!this.subgroups || this.subgroups.length === 0) return;
+
+        let name = prompt("Pose name:", "Pose " + (this.poses.length + 1));
+        if (!name) name = "Pose " + (this.poses.length + 1);
+
+        const pose = {
+            name,
+            groups: {}
+        };
+
+        for (const sg of this.subgroups) {
+            this.ensureObjectId(sg);
+
+            pose.groups[sg.userData.id] = {
+                name: sg.name,
+
+                position: {
+                    x: sg.position.x,
+                    y: sg.position.y,
+                    z: sg.position.z
+                },
+
+                quaternion: {
+                    x: sg.quaternion.x,
+                    y: sg.quaternion.y,
+                    z: sg.quaternion.z,
+                    w: sg.quaternion.w
+                },
+
+                scale: {
+                    x: sg.scale.x,
+                    y: sg.scale.y,
+                    z: sg.scale.z
+                }
+            };
+        }
+
+        this.poses.push(pose);
+
+        console.log("Saved pose:", pose);
+    }
+    loadPose(pose) {
+        if (!pose) return;
+
+        for (const sg of this.subgroups) {
+            const id = sg.userData.id;
+            const data = pose.groups[id];
+
+            if (!data) continue;
+
+            sg.position.set(
+                data.position.x,
+                data.position.y,
+                data.position.z
+            );
+
+            sg.quaternion.set(
+                data.quaternion.x,
+                data.quaternion.y,
+                data.quaternion.z,
+                data.quaternion.w
+            );
+
+            sg.scale.set(
+                data.scale.x,
+                data.scale.y,
+                data.scale.z
+            );
+
+            sg.updateMatrixWorld(true);
+        }
+
+        this.updateGroupHelpers?.();
+    }
+    loadLastPose() {
+        if (!this.poses || this.poses.length === 0) return;
+
+        this.loadPose(this.poses[this.poses.length - 1]);
+    }
+    interpolatePoses(poseA, poseB, t) {
+        if (!poseA || !poseB) return;
+
+        t = Math.max(0, Math.min(1, t));
+
+        for (const sg of this.subgroups) {
+            const id = sg.userData.id;
+
+            const a = poseA.groups[id];
+            const b = poseB.groups[id];
+
+            if (!a || !b) continue;
+
+            // position
+            sg.position.set(
+                THREE.MathUtils.lerp(a.position.x, b.position.x, t),
+                THREE.MathUtils.lerp(a.position.y, b.position.y, t),
+                THREE.MathUtils.lerp(a.position.z, b.position.z, t)
+            );
+
+            // scale
+            sg.scale.set(
+                THREE.MathUtils.lerp(a.scale.x, b.scale.x, t),
+                THREE.MathUtils.lerp(a.scale.y, b.scale.y, t),
+                THREE.MathUtils.lerp(a.scale.z, b.scale.z, t)
+            );
+
+            // rotation via quaternion
+            const qa = new THREE.Quaternion(
+                a.quaternion.x,
+                a.quaternion.y,
+                a.quaternion.z,
+                a.quaternion.w
+            );
+
+            const qb = new THREE.Quaternion(
+                b.quaternion.x,
+                b.quaternion.y,
+                b.quaternion.z,
+                b.quaternion.w
+            );
+
+            sg.quaternion.copy(qa).slerp(qb, t);
+
+            sg.updateMatrixWorld(true);
+        }
+
+        this.updateGroupHelpers?.();
+    }
+    updatePosePlayback(dt) {
+        if (!this.isPlayingPose) return;
+        if (!this.poses || this.poses.length < 2) return;
+
+        const poseA = this.poses[this.poseAIndex];
+        const poseB = this.poses[this.poseBIndex];
+
+        if (!poseA || !poseB) return;
+
+        this.poseT += dt * this.posePlaySpeed;
+
+        // ping-pong-loop 0 → 1 → 0
+        const t = (Math.sin(this.poseT * Math.PI * 2) + 1) / 2;
+
+        this.interpolatePoses(poseA, poseB, t);
+    }
+    togglePosePlay() {
+        if (!this.poses || this.poses.length < 2) return;
+
+        this.poseAIndex = 0;
+        this.poseBIndex = 1;
+
+        this.isPlayingPose = !this.isPlayingPose;
+    }
+    setSubgroupPivot(subgroup, pivotWorld) {
+        if (!subgroup || !this.modelGroup) return;
+
+        this.scene.updateMatrixWorld(true);
+        this.modelGroup.updateMatrixWorld(true);
+        subgroup.updateMatrixWorld(true);
+
+        // Spara barnen
+        const children = [...subgroup.children];
+
+        // Flytta ut barnen temporärt till modelGroup, men behåll world position
+        for (const child of children) {
+            this.modelGroup.attach(child);
+        }
+
+        // Sätt subgroupens origin till pivoten
+        const pivotLocal = this.modelGroup.worldToLocal(pivotWorld.clone());
+
+        subgroup.position.copy(pivotLocal);
+        subgroup.quaternion.identity();
+        subgroup.scale.set(1, 1, 1);
+
+        this.modelGroup.add(subgroup);
+        subgroup.updateMatrixWorld(true);
+
+        // Flytta tillbaka barnen in i subgroupen, men behåll world position
+        for (const child of children) {
+            subgroup.attach(child);
+        }
+
+        // Spara pivot
+        subgroup.userData.pivot = pivotWorld.clone();
+
+        // Spara ny rest transform
+        subgroup.userData.restPosition = subgroup.position.clone();
+        subgroup.userData.restQuaternion = subgroup.quaternion.clone();
+        subgroup.userData.restScale = subgroup.scale.clone();
+
+        subgroup.updateMatrixWorld(true);
+    }
+    applyPivotToSelectedSubgroup() {
+        const sg = this.selectedSubgroup;
+        if (!sg) return;
+
+        const marker = sg.userData.pivotMarker;
+        if (!marker) return;
+
+        this.setSubgroupPivot(sg, marker.position);
     }
 }

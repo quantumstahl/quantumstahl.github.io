@@ -8,7 +8,10 @@ class ToolManager {
             rotate: new RotateTool(app),
             scale: new ScaleTool(app),
             uniscale: new UniformScale(app),
-            group: new GroupTool(app)
+            group: new GroupTool(app),
+            subgroup:new SubgroupTool(app),
+            pivit:new PivotTool(app),
+            anirot:new AnimRotateTool(app)
         };
 
         this.current = this.tools.select;
