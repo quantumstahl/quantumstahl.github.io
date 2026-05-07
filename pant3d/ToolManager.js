@@ -11,7 +11,8 @@ class ToolManager {
             group: new GroupTool(app),
             subgroup:new SubgroupTool(app),
             pivit:new PivotTool(app),
-            anirot:new AnimRotateTool(app)
+            anirot:new AnimRotateTool(app),
+            selectsub:new SelectSubgroupTool(app)
         };
 
         this.current = this.tools.select;

@@ -60,6 +60,7 @@ class MaxPaint3D {
         this.scene.background = this.createGradientBackground();
         this.pushUndoState();
         
+        this.selectedSubgroup = null;
         this.subgroups = [];
         this.subgroupSelection = [];
         this.selectedSubgroup = null;

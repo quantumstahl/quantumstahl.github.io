@@ -340,6 +340,7 @@ class UI {
     }
     drawAnimateUI(btnSize) {
         
+        this.drawbuttonstools("[SelectSG]", 0, this.canvas.height - btnSize*1.5 , btnSize, btnSize / 2);
         this.drawbuttonstools("[SavePose]", 0, this.canvas.height - btnSize, btnSize, btnSize / 2);
         this.drawbuttonstools("[LoadPose]", btnSize, this.canvas.height - btnSize, btnSize, btnSize / 2);
         
@@ -361,7 +362,7 @@ class UI {
         this.ctx.fillText(
             "Selected parts: " + this.app.subgroupSelection.length,
             0,
-            this.canvas.height - btnSize * 1.15
+            this.canvas.height - btnSize * 1.65
         );
 
         this.drawSubgroupList(btnSize);
@@ -394,9 +395,14 @@ class UI {
     handleAnimateButton(name) {
         if (name === "[Subgroup]") {
             this.app.tools.setTool("subgroup");
+            this.app.selectedSubgroup = null;
             return;
         }
-
+        if (name === "[SelectSG]") {
+            this.app.tools.setTool("selectsub");
+            this.app.subgroupSelection = [];
+            return;
+        }
         if (name === "[Create]") {
              this.app.createSubgroup();
             return;
