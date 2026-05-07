@@ -54,6 +54,7 @@ if (!sg) return;
         }
         if (didRotate) {
             subgroup.updateMatrixWorld(true);
+            app.markSubgroupChanged(subgroup);
         }
     }
 }

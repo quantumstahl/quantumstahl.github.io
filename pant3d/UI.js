@@ -39,7 +39,7 @@ class UI {
     update(){
         this.ctx.clearRect(0,0,200,200);
         
-        this.ctx.save();
+      //  this.ctx.save();
         const stats = this.app.countTriangles();
         const text = "Tris: " + stats.triangles + " / 1000";
         this.ctx.font = 20+"px Arial";
@@ -50,7 +50,8 @@ class UI {
         
         this.ctx.fillStyle = stats.triangles > 1000 ? "#ff6666" : "white";
         this.ctx.fillText(text, 10, 95);
-        this.ctx.restore();
+        this.ctx.textBaseline = "alphabetic";
+        //this.ctx.restore();
         this.makeprimitives();
 
         
@@ -94,6 +95,8 @@ class UI {
         }
         else{
             this.drawAnimateUI(btnSize);
+            this.drawAnimationList(btnSize);
+            this.handleAnimationListClick();
             
         }
         this.drawbuttonstools("Animate",btnSize*2.25,0,btnSize*0.75,btnSize/2);
@@ -341,6 +344,13 @@ class UI {
     drawAnimateUI(btnSize) {
         
         this.drawbuttonstools("[SelectSG]", 0, this.canvas.height - btnSize*1.5 , btnSize, btnSize / 2);
+        this.drawbuttonstools("[CreateAni]", btnSize * 1, this.canvas.height - btnSize*1.5, btnSize, btnSize / 2);
+        this.drawbuttonstools("[Speed-]", btnSize * 2, this.canvas.height - btnSize*1.5, btnSize, btnSize / 2);
+        this.drawbuttonstools("[Speed+]", btnSize * 3, this.canvas.height - btnSize*1.5, btnSize, btnSize / 2);
+        
+        
+        
+        
         this.drawbuttonstools("[SavePose]", 0, this.canvas.height - btnSize, btnSize, btnSize / 2);
         this.drawbuttonstools("[LoadPose]", btnSize, this.canvas.height - btnSize, btnSize, btnSize / 2);
         
@@ -362,7 +372,7 @@ class UI {
         this.ctx.fillText(
             "Selected parts: " + this.app.subgroupSelection.length,
             0,
-            this.canvas.height - btnSize * 1.65
+            this.canvas.height - btnSize * 1.85
         );
 
         this.drawSubgroupList(btnSize);
@@ -391,6 +401,8 @@ class UI {
             this.ctx.fillStyle = "white";
             this.ctx.fillText(sg.name, x + 6, y + btnSize * 0.18);
         }
+
+        
     }
     handleAnimateButton(name) {
         if (name === "[Subgroup]") {
@@ -452,6 +464,26 @@ class UI {
             this.app.interpolatePoses(this.app.poses[0], this.app.poses[1], this.app.poseT);
             return;
         }
+        if (name === "[Speed-]") {
+            this.app.changeAnimationSpeed(-0.001);
+            return;
+        }
+
+        if (name === "[Speed+]") {
+            this.app.changeAnimationSpeed(0.001);
+            return;
+        }
+
+        if (name === "[CreateAni]") {
+            this.app.createAnimation();
+            return;
+        }
+
+        if (name === "[Play]") {
+            this.app.toggleAnimationPlay();
+            return;
+        }
+        
         
     }
     drawPoseList(btnSize) {
@@ -476,8 +508,88 @@ class UI {
             this.ctx.fillText(pose.name, x + 6, y + btnSize * 0.2);
         }
     }
+    drawAnimationList(btnSize) {
+        if (!this.app.animations) return;
 
+        let x = this.canvas.width - btnSize * 2.6;
+        let y = btnSize * 4.2;
 
+        this.ctx.font = Math.floor(btnSize * 0.18) + "px Arial";
+        this.ctx.fillStyle = "white";
+        this.ctx.fillText("Animations", x, y);
+
+        this.animationListButtons = [];
+
+        for (let i = 0; i < this.app.animations.length; i++) {
+            const anim = this.app.animations[i];
+
+            y += btnSize * 0.35;
+
+            const rowW = btnSize * 2.5;
+            const rowH = btnSize * 0.3;
+
+            this.ctx.fillStyle = anim === this.app.selectedAnimation
+                ? "rgba(80,160,255,0.85)"
+                : "rgba(0,0,0,0.55)";
+
+            this.ctx.fillRect(x, y, rowW, rowH);
+
+            this.ctx.fillStyle = "white";
+            this.ctx.fillText(anim.name, x + 6, y + btnSize * 0.21);
+
+            // Play button
+            const playX = x + btnSize * 1.45;
+            const trashX = x + btnSize * 1.95;
+
+            this.ctx.fillStyle = "rgba(0,0,0,0.75)";
+            this.ctx.fillRect(playX, y, btnSize * 0.45, rowH);
+            this.ctx.fillRect(trashX, y, btnSize * 0.45, rowH);
+
+            this.ctx.fillStyle = "white";
+            this.ctx.fillText("▶", playX + 6, y + btnSize * 0.21);
+            this.ctx.fillText("X", trashX + 8, y + btnSize * 0.21);
+
+            this.animationListButtons.push({
+                type: "play",
+                anim,
+                x: playX,
+                y,
+                w: btnSize * 0.45,
+                h: rowH
+            });
+
+            this.animationListButtons.push({
+                type: "trash",
+                anim,
+                x: trashX,
+                y,
+                w: btnSize * 0.45,
+                h: rowH
+            });
+        }
+    }
+    handleAnimationListClick() {
+        if (!this.animationListButtons) return false;
+
+        for (const b of this.animationListButtons) {
+            if (this.input.mouse.justPressed &&
+                this.input.mouse.x >= b.x &&
+                this.input.mouse.x <= b.x + b.w &&
+                this.input.mouse.y >= b.y &&
+                this.input.mouse.y <= b.y + b.h
+            ) {
+                if (b.type === "play") {
+                    this.app.toggleAnimationPlay(b.anim);
+                } else if (b.type === "trash") {
+                    this.app.deleteAnimation(b.anim);
+                }
+
+                return true;
+            }
+        }
+
+        return false;
+    }
 
 
 }

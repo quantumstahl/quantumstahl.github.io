@@ -72,6 +72,10 @@ class MaxPaint3D {
         this.isPlayingPose = false;
         this.posePlaySpeed = 0.005;
         
+        this.animations = [];
+        this.selectedAnimation = null;
+        this.poseChangedSubgroups = new Set();
+        
     }
 
     init() {
@@ -1089,7 +1093,7 @@ class MaxPaint3D {
         sg.scale.copy(restScale);
 
         sg.updateMatrixWorld(true);
-
+        this.markSubgroupChanged(sg);
         this.endEdit?.();
         this.pushUndoState?.();
     }
@@ -1099,7 +1103,12 @@ class MaxPaint3D {
         subgroup.userData.restScale = subgroup.scale.clone();
     }
     savePose() {
-        if (!this.subgroups || this.subgroups.length === 0) return;
+        const groupsToSave = this.getPoseSubgroupsToSave();
+
+        if (groupsToSave.length === 0) {
+            alert("Move/rotate one or more subgroups first.");
+            return;
+        }
 
         let name = prompt("Pose name:", "Pose " + (this.poses.length + 1));
         if (!name) name = "Pose " + (this.poses.length + 1);
@@ -1109,25 +1118,22 @@ class MaxPaint3D {
             groups: {}
         };
 
-        for (const sg of this.subgroups) {
+        for (const sg of groupsToSave) {
             this.ensureObjectId(sg);
 
             pose.groups[sg.userData.id] = {
                 name: sg.name,
-
                 position: {
                     x: sg.position.x,
                     y: sg.position.y,
                     z: sg.position.z
                 },
-
                 quaternion: {
                     x: sg.quaternion.x,
                     y: sg.quaternion.y,
                     z: sg.quaternion.z,
                     w: sg.quaternion.w
                 },
-
                 scale: {
                     x: sg.scale.x,
                     y: sg.scale.y,
@@ -1189,23 +1195,22 @@ class MaxPaint3D {
             const a = poseA.groups[id];
             const b = poseB.groups[id];
 
+            // Om animationen inte innehåller denna subgroup:
+            // lämna den helt orörd.
             if (!a || !b) continue;
 
-            // position
             sg.position.set(
                 THREE.MathUtils.lerp(a.position.x, b.position.x, t),
                 THREE.MathUtils.lerp(a.position.y, b.position.y, t),
                 THREE.MathUtils.lerp(a.position.z, b.position.z, t)
             );
 
-            // scale
             sg.scale.set(
                 THREE.MathUtils.lerp(a.scale.x, b.scale.x, t),
                 THREE.MathUtils.lerp(a.scale.y, b.scale.y, t),
                 THREE.MathUtils.lerp(a.scale.z, b.scale.z, t)
             );
 
-            // rotation via quaternion
             const qa = new THREE.Quaternion(
                 a.quaternion.x,
                 a.quaternion.y,
@@ -1221,13 +1226,33 @@ class MaxPaint3D {
             );
 
             sg.quaternion.copy(qa).slerp(qb, t);
-
             sg.updateMatrixWorld(true);
         }
-
-        this.updateGroupHelpers?.();
     }
     updatePosePlayback(dt) {
+        const playingAnimations = this.animations.filter(e => e.playing === true);
+
+        for (const anim of playingAnimations) {
+            if (!anim.poses || anim.poses.length < 2) continue;
+
+            if (anim.time === undefined) anim.time = 0;
+
+            anim.time += anim.speed;
+
+            const t = (Math.sin(anim.time * Math.PI * 2) + 1) / 2;
+
+            this.interpolatePoses(
+                anim.poses[0],
+                anim.poses[1],
+                t
+            );
+        }
+
+        if (playingAnimations.length > 0) {
+            return;
+        }
+
+        // Preview-läge för osparade poses
         if (!this.isPlayingPose) return;
         if (!this.poses || this.poses.length < 2) return;
 
@@ -1238,7 +1263,6 @@ class MaxPaint3D {
 
         this.poseT += dt * this.posePlaySpeed;
 
-        // ping-pong-loop 0 → 1 → 0
         const t = (Math.sin(this.poseT * Math.PI * 2) + 1) / 2;
 
         this.interpolatePoses(poseA, poseB, t);
@@ -1248,7 +1272,7 @@ class MaxPaint3D {
 
         this.poseAIndex = 0;
         this.poseBIndex = 1;
-
+         this.resetAllSubgroups();
         this.isPlayingPose = !this.isPlayingPose;
     }
     setSubgroupPivot(subgroup, pivotWorld) {
@@ -1299,5 +1323,131 @@ class MaxPaint3D {
         if (!marker) return;
 
         this.setSubgroupPivot(sg, marker.position);
+    }
+    createAnimation() {
+        if (!this.poses || this.poses.length < 2) {
+            alert("You need at least 2 poses to create an animation.");
+            return;
+        }
+
+        let name = prompt("Animation name:", "walk");
+        if (!name) name = "Animation " + (this.animations.length + 1);
+
+        const anim = {
+            name,
+            poses: JSON.parse(JSON.stringify(this.poses)),
+            speed: this.posePlaySpeed ?? 0.005,
+            mode: "pingpong",
+            playing: false,
+            time: 0
+        };
+
+        this.animations.push(anim);
+        this.selectedAnimation = anim;
+
+        // Rensa pose-arbetsytan
+        this.poses = [];
+        this.poseAIndex = 0;
+        this.poseBIndex = 1;
+        this.isPlayingPose = false;
+        this.poseTime = 0;
+        this.poseChangedSubgroups.clear();
+
+        console.log("Created animation:", anim);
+    }
+    playSelectedAnimation() {
+        if (!this.selectedAnimation) {
+            if (this.animations.length > 0) {
+                this.selectedAnimation = this.animations[0];
+            } else {
+                return;
+            }
+        }
+
+        this.poseAIndex = this.selectedAnimation.poseAIndex;
+        this.poseBIndex = this.selectedAnimation.poseBIndex;
+        this.posePlaySpeed = this.selectedAnimation.speed;
+
+        this.isPlayingPose = true;
+    }
+    toggleAnimationPlay(anim) {
+        if (anim.playing) {
+            anim.playing = false;
+            anim.time = 0;
+            if(this.animations.filter(e => e.playing === true).length===0)this.resetAllSubgroups();
+            return;
+        }
+
+        this.playAnimation(anim);
+    }
+    changeAnimationSpeed(delta) {
+        this.posePlaySpeed += delta;
+
+        if (this.posePlaySpeed < 0.001) {
+            this.posePlaySpeed = 0.001;
+        }
+
+        if (this.posePlaySpeed > 0.05) {
+            this.posePlaySpeed = 0.05;
+        }
+
+        if (this.selectedAnimation) {
+            this.selectedAnimation.speed = this.posePlaySpeed;
+        }
+
+        console.log("Speed:", this.posePlaySpeed);
+    }
+    playAnimation(anim) {
+        if (!anim || !anim.poses || anim.poses.length < 2) return;
+
+        this.selectedAnimation = anim;
+        anim.playing = true;
+        this.poseTime = 0;
+        this.isPlayingPose = true;
+    }
+    deleteAnimation(anim) {
+        if (!anim) return;
+
+        const ok = confirm("Delete animation '" + anim.name + "'?");
+        if (!ok) return;
+
+        this.animations = this.animations.filter(a => a !== anim);
+
+        if (this.selectedAnimation === anim) {
+            this.selectedAnimation = null;
+        }
+
+        if (this.currentPlayingAnimation === anim) {
+            this.currentPlayingAnimation = null;
+            this.isPlayingPose = false;
+        }
+    }
+    resetAllSubgroups() {
+        for (const sg of this.subgroups) {
+            if (!sg.userData.restPosition) continue;
+
+            sg.position.copy(sg.userData.restPosition);
+            sg.quaternion.copy(sg.userData.restQuaternion);
+            sg.scale.copy(sg.userData.restScale);
+
+            sg.updateMatrixWorld(true);
+        }
+    }
+    getPoseSubgroupsToSave() {
+        if (this.poseChangedSubgroups && this.poseChangedSubgroups.size > 0) {
+            return [...this.poseChangedSubgroups];
+        }
+
+        if (this.selectedSubgroup) {
+            return [this.selectedSubgroup];
+        }
+
+        return [];
+    }
+    markSubgroupChanged(sg) {
+        if (!sg) return;
+        if (!this.poseChangedSubgroups) this.poseChangedSubgroups = new Set();
+
+        this.poseChangedSubgroups.add(sg);
     }
 }
