@@ -56,7 +56,7 @@ class SubgroupTool {
 
         return current;
     }
-
+    
     toggleSelection(obj) {
         
 

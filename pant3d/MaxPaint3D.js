@@ -290,23 +290,31 @@ class MaxPaint3D {
         if (!this.groupSelection || this.groupSelection.length < 2) return;
 
         const selectedObjects = [...this.groupSelection];
+        if (selectedObjects.length === 0) return;
 
         const group = new THREE.Group();
-        group.name = "Group " + (this.groups.length + 1);
+
+        // Om det inte finns någon modelGroup ännu kan första gruppen bli Model
+        if (!this.modelGroup) {
+            group.name = "Model";
+            group.userData.isModelGroup = true;
+            this.modelGroup = group;
+        } else {
+            group.name = "Group " + (this.groups.length + 1);
+            group.userData.isBuildGroup = true;
+        }
 
         this.scene.add(group);
+        this.scene.updateMatrixWorld(true);
 
         for (const obj of selectedObjects) {
             group.attach(obj);
         }
 
-        // ta bort barnen från selectable-listan
         this.objects = this.objects.filter(o => !selectedObjects.includes(o));
-
-        // lägg bara till gruppen
         this.objects.push(group);
-        this.groups.push(group);
 
+        this.groups.push(group);
         this.groupSelection = [];
 
         this.setSelected(group);
@@ -969,10 +977,7 @@ class MaxPaint3D {
         if (!this.subgroupSelection || this.subgroupSelection.length === 0) return;
 
         let name = prompt("Subgroup name:", "Subgroup " + (this.subgroups.length + 1));
-
-        if (!name) {
-            name = "Subgroup " + (this.subgroups.length + 1);
-        }
+        if (!name) name = "Subgroup " + (this.subgroups.length + 1);
 
         const selectedObjects = [...this.subgroupSelection];
 
@@ -981,20 +986,22 @@ class MaxPaint3D {
         subgroup.userData.isSubgroup = true;
 
         this.modelGroup.add(subgroup);
-        this.modelGroup.updateMatrixWorld(true);
+        this.scene.updateMatrixWorld(true);
 
         for (const obj of selectedObjects) {
             subgroup.attach(obj);
         }
 
         this.subgroups.push(subgroup);
-        
+
         this.subgroupSelection = [];
         this.selectedSubgroup = subgroup;
         this.setSelected(subgroup);
+
+        this.createPivotMarker?.(subgroup);
+        this.saveSubgroupRestTransform?.(subgroup);
+
         this.ensureObjectId(subgroup);
-        this.createPivotMarker(subgroup);
-        this.saveSubgroupRestTransform(subgroup);
         this.pushUndoState();
     }
     deleteSelectedSubgroup() {

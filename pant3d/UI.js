@@ -354,7 +354,7 @@ class UI {
         this.drawbuttonstools("[Delete]", btnSize*2, this.canvas.height - btnSize/2, btnSize, btnSize / 2);
         this.drawbuttonstools("[Rename]", btnSize*3, this.canvas.height - btnSize/2, btnSize, btnSize / 2);
         this.drawbuttonstools("[Pivot]", btnSize*4, this.canvas.height - btnSize/2, btnSize, btnSize / 2);
-        this.drawbuttonstools("[Rotate]", btnSize*5, this.canvas.height - btnSize/2, btnSize, btnSize / 2);
+        this.drawbuttonstools("[RotateSG]", btnSize*5, this.canvas.height - btnSize/2, btnSize, btnSize / 2);
         
         this.drawYbutton("Y",btnSize*6,this.canvas.height - btnSize/2,btnSize/2,btnSize/2);
         this.ctx.fillStyle = "white";
@@ -419,7 +419,7 @@ class UI {
              this.app.tools.setTool("pivit");
             return;
         }
-        if (name === "[Rotate]") {
+        if (name === "[RotateSG]") {
             this.app.tools.setTool("anirot");
             return;
         }
