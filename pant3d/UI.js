@@ -223,7 +223,7 @@ class UI {
 
         this.ctx.shadowBlur = 0;
         this.ctx.fillStyle = subColor;
-        this.ctx.font = (dx/6)+"px Arial";
+        this.ctx.font = (dx/7)+"px Arial";
         this.ctx.fillText(text, x + dx / 2, y + dy -30);
 
         if(this.input.mouse.justPressed&&
@@ -243,7 +243,7 @@ class UI {
             if(text==="LOAD"){this.app.loadProject();}
             if(text==="SAVE"){this.app.saveProject();}
             if(text==="EXPORT"){this.app.exportGLB();}
-            if(text==="Animate"){if(this.animatetoggle){this.animatetoggle=false;this.app.exitAnimateMode();}else {this.animatetoggle=true;this.app.enterAnimateMode();}}
+            if(text==="Animate"){if(this.animatetoggle){this.animatetoggle=false;this.app.exitAnimateMode();this.app.tools.setTool("select");this.selectedtool="[Select]";}else {this.app.tools.setTool("select");this.selectedtool="[Select]";this.animatetoggle=true;this.app.enterAnimateMode();}}
             
             this.handleAnimateButton(text);
         }
@@ -353,17 +353,17 @@ class UI {
         this.drawbuttonstools("[CreateAni]", btnSize * 1, this.canvas.height - btnSize*1.5, btnSize, btnSize / 2);
         this.drawbuttonstools("[Speed-]", btnSize * 2, this.canvas.height - btnSize*1.5, btnSize, btnSize / 2);
         this.drawbuttonstools("[Speed+]", btnSize * 3, this.canvas.height - btnSize*1.5, btnSize, btnSize / 2);
-        
-        
+        this.drawbuttonstools("[Reset]", btnSize*4, this.canvas.height - btnSize*1.5, btnSize, btnSize / 2);
+        this.drawbuttonstools("[ScaleSG]", btnSize * 5, this.canvas.height - btnSize*1.5, btnSize, btnSize / 2);
         
         
         this.drawbuttonstools("[SavePose]", 0, this.canvas.height - btnSize, btnSize, btnSize / 2);
         this.drawbuttonstools("[LoadPose]", btnSize, this.canvas.height - btnSize, btnSize, btnSize / 2);
         
-        this.drawbuttonstools("[T-]", btnSize * 2, this.canvas.height - btnSize, btnSize , btnSize / 2);
-        this.drawbuttonstools("[T+]", btnSize * 3, this.canvas.height - btnSize, btnSize , btnSize / 2);
+        this.drawbuttonstools("[PoseTime-]", btnSize * 2, this.canvas.height - btnSize, btnSize , btnSize / 2);
+        this.drawbuttonstools("[PoseTime+]", btnSize * 3, this.canvas.height - btnSize, btnSize , btnSize / 2);
         this.drawbuttonstools("[Play]", btnSize * 4, this.canvas.height - btnSize, btnSize , btnSize / 2);
-        this.drawbuttonstools("[Reset]", btnSize*5, this.canvas.height - btnSize, btnSize, btnSize / 2);
+        this.drawbuttonstools("[MoveSG]", btnSize * 5, this.canvas.height - btnSize , btnSize, btnSize / 2);
         
         this.drawbuttonstools("[Subgroup]", 0, this.canvas.height - btnSize/2, btnSize, btnSize / 2);
         this.drawbuttonstools("[Create]", btnSize, this.canvas.height - btnSize/2, btnSize, btnSize / 2);
@@ -459,24 +459,22 @@ class UI {
             this.app.togglePosePlay();
             return;
         }
-        if (name === "[T-]") {
-            this.app.poseT = Math.max(0, this.app.poseT - 0.1);
-            this.app.interpolatePoses(this.app.poses[0], this.app.poses[1], this.app.poseT);
+        if (name === "[PoseTime-]") {
+             this.app.changeCurrentSegmentDuration(-0.05);
             return;
         }
 
-        if (name === "[T+]") {
-            this.app.poseT = Math.min(1, this.app.poseT + 0.1);
-            this.app.interpolatePoses(this.app.poses[0], this.app.poses[1], this.app.poseT);
+        if (name === "[PoseTime+]") {
+            this.app.changeCurrentSegmentDuration(0.05);
             return;
         }
         if (name === "[Speed-]") {
-            this.app.changeAnimationSpeed(-0.001);
+            this.app.changeAnimationSpeedPercent(-10);
             return;
         }
 
         if (name === "[Speed+]") {
-            this.app.changeAnimationSpeed(0.001);
+            this.app.changeAnimationSpeedPercent(10);
             return;
         }
 
@@ -487,6 +485,14 @@ class UI {
 
         if (name === "[Play]") {
             this.app.toggleAnimationPlay();
+            return;
+        }
+        if (name === "[MoveSG]") {
+            this.app.tools.setTool("animove");
+            return;
+        }
+        if (name === "[ScaleSG]") {
+            this.app.tools.setTool("aniscale");
             return;
         }
         
@@ -513,6 +519,18 @@ class UI {
             this.ctx.fillStyle = "white";
             this.ctx.fillText(pose.name, x + 6, y + btnSize * 0.2);
         }
+        this.ctx.fillStyle = "white";
+        this.ctx.font = Math.floor(btnSize * 0.18) + "px Arial";
+        this.ctx.fillText(
+            "Next segment: " + this.app.currentSegmentDuration.toFixed(2) + "s",
+            0,
+            this.canvas.height - btnSize * 1.7
+        );
+        this.ctx.fillStyle = "white";
+        this.ctx.font = Math.floor(btnSize * 0.18) + "px Arial";
+
+   
+        
     }
     drawAnimationList(btnSize) {
         if (!this.app.animations) return;
@@ -554,6 +572,12 @@ class UI {
             this.ctx.fillStyle = "white";
             this.ctx.fillText("▶", playX + 6, y + btnSize * 0.21);
             this.ctx.fillText("X", trashX + 8, y + btnSize * 0.21);
+
+const speedText = (anim.speedPercent ?? 100) + "%";
+this.ctx.fillText(anim.name + " " + speedText, x + 6, y + btnSize * 0.21);
+
+
+
 
             this.animationListButtons.push({
                 type: "play",

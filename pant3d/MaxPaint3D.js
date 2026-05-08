@@ -75,6 +75,8 @@ class MaxPaint3D {
         this.animations = [];
         this.selectedAnimation = null;
         this.poseChangedSubgroups = new Set();
+        this.currentSegmentDuration = 0.3; // sekunder
+        this.poseSegmentDurations = [];
         
     }
 
@@ -87,7 +89,7 @@ class MaxPaint3D {
         const dt = this.getDelta(time);
         
         this.ctx.clearRect(0,0,canvas2.width,canvas2.height);
-        this.updatePosePlayback(dt);
+        this.updatePosePlayback(this.getDeltaSeconds(time));
         this.updateSelectionBox();
         this.camera.update(this.input, dt);
         this.tools.update(dt);
@@ -112,7 +114,16 @@ class MaxPaint3D {
         if (deltaMs > 50) deltaMs = 50;
         return deltaMs / (1000 / 60);
     }
+    getDeltaSeconds(time) {
+        if (!this.clock.lastTimeSeconds) this.clock.lastTimeSeconds = time;
 
+        let deltaMs = time - this.clock.lastTimeSeconds;
+        this.clock.lastTimeSeconds = time;
+
+        if (deltaMs > 50) deltaMs = 50;
+
+        return deltaMs / 1000;
+    }
 
     createGround() {
         const size = 40;
@@ -1142,9 +1153,16 @@ class MaxPaint3D {
             };
         }
 
+        // Om det redan finns minst 1 pose,
+        // då skapas ett nytt segment från förra posen till denna
+        if (this.poses.length >= 1) {
+            this.poseSegmentDurations.push(this.currentSegmentDuration);
+        }
+
         this.poses.push(pose);
 
         console.log("Saved pose:", pose);
+        console.log("Segment speeds:", this.poseSegmentSpeeds);
     }
     loadPose(pose) {
         if (!pose) return;
@@ -1229,44 +1247,6 @@ class MaxPaint3D {
             sg.updateMatrixWorld(true);
         }
     }
-    updatePosePlayback(dt) {
-        const playingAnimations = this.animations.filter(e => e.playing === true);
-
-        for (const anim of playingAnimations) {
-            if (!anim.poses || anim.poses.length < 2) continue;
-
-            if (anim.time === undefined) anim.time = 0;
-
-            anim.time += anim.speed;
-
-            const t = (Math.sin(anim.time * Math.PI * 2) + 1) / 2;
-
-            this.interpolatePoses(
-                anim.poses[0],
-                anim.poses[1],
-                t
-            );
-        }
-
-        if (playingAnimations.length > 0) {
-            return;
-        }
-
-        // Preview-läge för osparade poses
-        if (!this.isPlayingPose) return;
-        if (!this.poses || this.poses.length < 2) return;
-
-        const poseA = this.poses[this.poseAIndex];
-        const poseB = this.poses[this.poseBIndex];
-
-        if (!poseA || !poseB) return;
-
-        this.poseT += dt * this.posePlaySpeed;
-
-        const t = (Math.sin(this.poseT * Math.PI * 2) + 1) / 2;
-
-        this.interpolatePoses(poseA, poseB, t);
-    }
     togglePosePlay() {
         if (!this.poses || this.poses.length < 2) return;
 
@@ -1326,32 +1306,33 @@ class MaxPaint3D {
     }
     createAnimation() {
         if (!this.poses || this.poses.length < 2) {
-            alert("You need at least 2 poses to create an animation.");
+            alert("Need at least 2 poses.");
             return;
         }
 
-        let name = prompt("Animation name:", "walk");
+        let name = prompt("Animation name:", "Animation " + (this.animations.length + 1));
         if (!name) name = "Animation " + (this.animations.length + 1);
 
         const anim = {
             name,
             poses: JSON.parse(JSON.stringify(this.poses)),
-            speed: this.posePlaySpeed ?? 0.005,
-            mode: "pingpong",
+            segmentDurations: [...this.poseSegmentDurations],
+            mode: "loop",
             playing: false,
-            time: 0
+            segmentIndex: 0,
+            segmentT: 0,
+            direction: 1,
+            speedPercent: 100
         };
 
         this.animations.push(anim);
         this.selectedAnimation = anim;
 
-        // Rensa pose-arbetsytan
+        // reset draft
         this.poses = [];
-        this.poseAIndex = 0;
-        this.poseBIndex = 1;
-        this.isPlayingPose = false;
-        this.poseTime = 0;
-        this.poseChangedSubgroups.clear();
+        this.poseSegmentSpeeds = [];
+        this.currentSegmentSpeed = 0.005;
+        this.poseChangedSubgroups.clear?.();
 
         console.log("Created animation:", anim);
     }
@@ -1374,28 +1355,40 @@ class MaxPaint3D {
         if (anim.playing) {
             anim.playing = false;
             anim.time = 0;
+            anim.segmentIndex = 0;
+            anim.segmentT = 0;
+            anim.direction = 1;
+            this.selectedAnimation = anim;
             if(this.animations.filter(e => e.playing === true).length===0)this.resetAllSubgroups();
             return;
         }
 
         this.playAnimation(anim);
     }
-    changeAnimationSpeed(delta) {
-        this.posePlaySpeed += delta;
 
-        if (this.posePlaySpeed < 0.001) {
-            this.posePlaySpeed = 0.001;
+    changeAnimationSpeedPercent(deltaPercent) {
+        const anim = this.selectedAnimation;
+
+        if (!anim) {
+            alert("Select an animation first.");
+            return;
         }
 
-        if (this.posePlaySpeed > 0.05) {
-            this.posePlaySpeed = 0.05;
+        if (anim.speedPercent === undefined) {
+            anim.speedPercent = 100;
         }
 
-        if (this.selectedAnimation) {
-            this.selectedAnimation.speed = this.posePlaySpeed;
+        anim.speedPercent += deltaPercent;
+
+        if (anim.speedPercent < 10) {
+            anim.speedPercent = 10;
         }
 
-        console.log("Speed:", this.posePlaySpeed);
+        if (anim.speedPercent > 400) {
+            anim.speedPercent = 400;
+        }
+
+        console.log(anim.name + " speed:", anim.speedPercent + "%");
     }
     playAnimation(anim) {
         if (!anim || !anim.poses || anim.poses.length < 2) return;
@@ -1449,5 +1442,160 @@ class MaxPaint3D {
         if (!this.poseChangedSubgroups) this.poseChangedSubgroups = new Set();
 
         this.poseChangedSubgroups.add(sg);
+    }
+    updateAnimation(anim, dt) {
+        if (!anim.poses || anim.poses.length < 2) return;
+
+        if (anim.segmentIndex === undefined) anim.segmentIndex = 0;
+        if (anim.segmentT === undefined) anim.segmentT = 0;
+        if (anim.direction === undefined) anim.direction = 1;
+
+        const lastSegment = anim.poses.length - 2;
+
+        if (!anim.segmentDurations || anim.segmentDurations.length === 0) {
+            anim.segmentDurations = new Array(anim.poses.length - 1).fill(0.3);
+        }
+
+        anim.segmentIndex = Math.max(0, Math.min(anim.segmentIndex, lastSegment));
+
+        const duration = anim.segmentDurations[anim.segmentIndex] ?? 0.3;
+        const speedMultiplier = (anim.speedPercent ?? 100) / 100;
+
+        anim.segmentT += (dt * speedMultiplier) / duration;
+
+        while (anim.segmentT >= 1) {
+            anim.segmentT -= 1;
+
+            if (anim.mode === "loop") {
+                anim.segmentIndex++;
+                if (anim.segmentIndex > lastSegment) {
+                    anim.segmentIndex = 0;
+                }
+            } else if (anim.mode === "once") {
+                if (anim.segmentIndex < lastSegment) {
+                    anim.segmentIndex++;
+                } else {
+                    anim.segmentIndex = lastSegment;
+                    anim.segmentT = 1;
+                    anim.playing = false;
+                    break;
+                }
+            } else if (anim.mode === "pingpong") {
+                anim.segmentIndex += anim.direction;
+
+                if (anim.segmentIndex > lastSegment) {
+                    anim.segmentIndex = Math.max(0, lastSegment - 1);
+                    anim.direction = -1;
+                }
+
+                if (anim.segmentIndex < 0) {
+                    anim.segmentIndex = 0;
+                    anim.direction = 1;
+                }
+            }
+        }
+
+        const poseA = anim.poses[anim.segmentIndex];
+        const poseB = anim.poses[anim.segmentIndex + 1];
+
+        this.interpolatePoses(poseA, poseB, anim.segmentT);
+    }
+    updatePosePlayback(dt) {
+        const playingAnimations = this.animations.filter(e => e.playing === true);
+
+        for (const anim of playingAnimations) {
+            this.updateAnimation(anim, dt);
+        }
+
+        if (playingAnimations.length > 0) {
+            return;
+        }
+
+        // Preview-läge för osparade poses
+        if (!this.isPlayingPose) return;
+        if (!this.poses || this.poses.length < 2) return;
+
+        if (!this.previewAnim) {
+            this.previewAnim = {
+                poses: JSON.parse(JSON.stringify(this.poses)),
+                segmentDurations: [...this.poseSegmentDurations],
+                mode: "loop",
+                playing: false,
+                segmentIndex: 0,
+                segmentT: 0,
+                direction: 1,
+                speedPercent: 100
+            };
+        }
+
+ 
+            
+       
+
+
+        this.previewAnim.poses = this.poses;
+
+
+        this.updateAnimation(this.previewAnim, dt);
+    }
+
+    changeCurrentSegmentDuration(delta) {
+        this.currentSegmentDuration += delta;
+
+        if (this.currentSegmentDuration < 0.05) {
+            this.currentSegmentDuration = 0.05;
+        }
+
+        if (this.currentSegmentDuration > 5.0) {
+            this.currentSegmentDuration = 5.0;
+        }
+
+        console.log("Current segment duration:", this.currentSegmentDuration);
+    }
+    scaleSubgroupKeepCenter(sg, scaleFunc) {
+        if (!sg) return;
+
+        this.scene.updateMatrixWorld(true);
+
+        const beforeBox = new THREE.Box3().setFromObject(sg);
+        const beforeCenter = beforeBox.getCenter(new THREE.Vector3());
+
+        // ändra scale
+        scaleFunc();
+
+        // skydda mot för liten/negativ scale
+        sg.scale.x = Math.max(0.05, sg.scale.x);
+        sg.scale.y = Math.max(0.05, sg.scale.y);
+        sg.scale.z = Math.max(0.05, sg.scale.z);
+
+        sg.updateMatrixWorld(true);
+        this.scene.updateMatrixWorld(true);
+
+        const afterBox = new THREE.Box3().setFromObject(sg);
+        const afterCenter = afterBox.getCenter(new THREE.Vector3());
+
+        // world-delta som behövs för att flytta tillbaka centret
+        const deltaWorld = beforeCenter.sub(afterCenter);
+
+        // konvertera world-delta till parent-local delta
+        const parent = sg.parent;
+        if (parent) {
+            const parentQuat = new THREE.Quaternion();
+            parent.getWorldQuaternion(parentQuat);
+
+            const parentScale = new THREE.Vector3();
+            parent.getWorldScale(parentScale);
+
+            deltaWorld.applyQuaternion(parentQuat.invert());
+
+            deltaWorld.x /= parentScale.x;
+            deltaWorld.y /= parentScale.y;
+            deltaWorld.z /= parentScale.z;
+        }
+
+        sg.position.add(deltaWorld);
+
+        sg.updateMatrixWorld(true);
+        this.markSubgroupChanged?.(sg);
     }
 }
