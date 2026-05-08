@@ -372,7 +372,7 @@ class UI {
         this.ctx.fillText(
             "Selected parts: " + this.app.subgroupSelection.length,
             0,
-            this.canvas.height - btnSize * 1.85
+            this.canvas.height - btnSize * 1.55
         );
 
         this.drawSubgroupList(btnSize);
@@ -511,8 +511,13 @@ class UI {
     drawAnimationList(btnSize) {
         if (!this.app.animations) return;
 
-        let x = this.canvas.width - btnSize * 2.6;
-        let y = btnSize * 4.2;
+        const isPortrait = this.canvas.height > this.canvas.width;
+
+        const rowW = btnSize * 2.5;
+        const rowH = btnSize * 0.32;
+
+        let x = this.canvas.width - rowW - 8;
+        let y = isPortrait ? btnSize * 3.2 : btnSize * 4.2;
 
         this.ctx.font = Math.floor(btnSize * 0.18) + "px Arial";
         this.ctx.fillStyle = "white";
@@ -523,10 +528,7 @@ class UI {
         for (let i = 0; i < this.app.animations.length; i++) {
             const anim = this.app.animations[i];
 
-            y += btnSize * 0.35;
-
-            const rowW = btnSize * 2.5;
-            const rowH = btnSize * 0.3;
+            y += btnSize * 0.38;
 
             this.ctx.fillStyle = anim === this.app.selectedAnimation
                 ? "rgba(80,160,255,0.85)"
@@ -535,26 +537,28 @@ class UI {
             this.ctx.fillRect(x, y, rowW, rowH);
 
             this.ctx.fillStyle = "white";
-            this.ctx.fillText(anim.name, x + 6, y + btnSize * 0.21);
+            this.ctx.fillText(anim.name, x + 6, y + btnSize * 0.22);
 
-            // Play button
-            const playX = x + btnSize * 1.45;
-            const trashX = x + btnSize * 1.95;
+            const playW = btnSize * 0.45;
+            const trashW = btnSize * 0.45;
+
+            const playX = x + rowW - playW - trashW;
+            const trashX = x + rowW - trashW;
 
             this.ctx.fillStyle = "rgba(0,0,0,0.75)";
-            this.ctx.fillRect(playX, y, btnSize * 0.45, rowH);
-            this.ctx.fillRect(trashX, y, btnSize * 0.45, rowH);
+            this.ctx.fillRect(playX, y, playW, rowH);
+            this.ctx.fillRect(trashX, y, trashW, rowH);
 
             this.ctx.fillStyle = "white";
-            this.ctx.fillText("▶", playX + 6, y + btnSize * 0.21);
-            this.ctx.fillText("X", trashX + 8, y + btnSize * 0.21);
+            this.ctx.fillText("▶", playX + 6, y + btnSize * 0.22);
+            this.ctx.fillText("X", trashX + 8, y + btnSize * 0.22);
 
             this.animationListButtons.push({
                 type: "play",
                 anim,
                 x: playX,
                 y,
-                w: btnSize * 0.45,
+                w: playW,
                 h: rowH
             });
 
@@ -563,7 +567,7 @@ class UI {
                 anim,
                 x: trashX,
                 y,
-                w: btnSize * 0.45,
+                w: trashW,
                 h: rowH
             });
         }
