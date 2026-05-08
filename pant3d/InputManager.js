@@ -138,11 +138,11 @@ class InputManager {
             
             const pos = this._getCanvasPos(t);
             clearTimeout(this.touchTimer);
-            
+            this.mouse.justPressed = true;
             this.touchTimer = setTimeout(() => {if(e.touches.length===1){
                     this.mouse.down = true;
                     this.mouse.rightDown = false;
-                    this.mouse.justPressed = true;
+                  //  this.mouse.justPressed = true;
                     
                 }}, 200); // <-- delay (testa 80–120 ms)
                 
@@ -166,7 +166,7 @@ class InputManager {
             if(this.mouse.y>this.canvas.height-btnSize*1.5 || this.mouse.y<btnSize*0.5){
                 this.mouse.down = true;
                     this.mouse.rightDown = false;
-                    this.mouse.justPressed = true;
+                //    this.mouse.justPressed = true;
                 
             }
             

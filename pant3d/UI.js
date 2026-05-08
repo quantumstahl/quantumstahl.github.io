@@ -39,7 +39,7 @@ class UI {
     update(){
         this.ctx.clearRect(0,0,200,200);
         
-        this.ctx.save();
+     //   this.ctx.save();
         const stats = this.app.countTriangles();
         const text = "Tris: " + stats.triangles + " / 1000";
         this.ctx.font = 20+"px Arial";
@@ -51,7 +51,7 @@ class UI {
         this.ctx.fillStyle = stats.triangles > 1000 ? "#ff6666" : "white";
         this.ctx.fillText(text, 10, 95);
         this.ctx.textBaseline = "alphabetic";
-        this.ctx.restore();
+      //  this.ctx.restore();
         this.makeprimitives();
 
         
@@ -94,9 +94,10 @@ class UI {
             }
         }
         else{
-            this.drawAnimateUI(btnSize);
             this.drawAnimationList(btnSize);
             this.handleAnimationListClick();
+            this.drawAnimateUI(btnSize);
+            
             
         }
         this.drawbuttonstools("Animate",btnSize*2.25,0,btnSize*0.75,btnSize/2);
@@ -126,7 +127,10 @@ class UI {
         this.ctx.strokeRect(x, y, dx-4, dy-4);
 
         this.ctx.textAlign = "center";
-        this.ctx.textBaseline = "middle";
+        const isLandscape = this.canvas.width > this.canvas.height;
+        
+        if(isLandscape)this.ctx.textBaseline = "top";
+        else this.ctx.textBaseline = "middle";
 
        
  
@@ -210,8 +214,10 @@ class UI {
         this.ctx.strokeRect(x, y, dx-4, dy-4);
 
         this.ctx.textAlign = "center";
-        this.ctx.textBaseline = "middle";
-
+         const isLandscape = this.canvas.width > this.canvas.height;
+        
+        if(isLandscape)this.ctx.textBaseline = "top";
+        else this.ctx.textBaseline = "middle";
        
  
 
@@ -510,14 +516,9 @@ class UI {
     }
     drawAnimationList(btnSize) {
         if (!this.app.animations) return;
-
-        const isPortrait = this.canvas.height > this.canvas.width;
-
-        const rowW = btnSize * 2.5;
-        const rowH = btnSize * 0.32;
-
-        let x = this.canvas.width - rowW - 8;
-        let y = isPortrait ? btnSize * 3.2 : btnSize * 4.2;
+        
+        let x = this.canvas.width - btnSize * 2.6;
+        let y = btnSize * 4.2;
 
         this.ctx.font = Math.floor(btnSize * 0.18) + "px Arial";
         this.ctx.fillStyle = "white";
@@ -528,7 +529,10 @@ class UI {
         for (let i = 0; i < this.app.animations.length; i++) {
             const anim = this.app.animations[i];
 
-            y += btnSize * 0.38;
+            y += btnSize * 0.35;
+
+            const rowW = btnSize * 2.5;
+            const rowH = btnSize * 0.3;
 
             this.ctx.fillStyle = anim === this.app.selectedAnimation
                 ? "rgba(80,160,255,0.85)"
@@ -537,28 +541,26 @@ class UI {
             this.ctx.fillRect(x, y, rowW, rowH);
 
             this.ctx.fillStyle = "white";
-            this.ctx.fillText(anim.name, x + 6, y + btnSize * 0.22);
+            this.ctx.fillText(anim.name, x + 6, y + btnSize * 0.21);
 
-            const playW = btnSize * 0.45;
-            const trashW = btnSize * 0.45;
-
-            const playX = x + rowW - playW - trashW;
-            const trashX = x + rowW - trashW;
+            // Play button
+            const playX = x + btnSize * 1.45;
+            const trashX = x + btnSize * 1.95;
 
             this.ctx.fillStyle = "rgba(0,0,0,0.75)";
-            this.ctx.fillRect(playX, y, playW, rowH);
-            this.ctx.fillRect(trashX, y, trashW, rowH);
+            this.ctx.fillRect(playX, y, btnSize * 0.45, rowH);
+            this.ctx.fillRect(trashX, y, btnSize * 0.45, rowH);
 
             this.ctx.fillStyle = "white";
-            this.ctx.fillText("▶", playX + 6, y + btnSize * 0.22);
-            this.ctx.fillText("X", trashX + 8, y + btnSize * 0.22);
+            this.ctx.fillText("▶", playX + 6, y + btnSize * 0.21);
+            this.ctx.fillText("X", trashX + 8, y + btnSize * 0.21);
 
             this.animationListButtons.push({
                 type: "play",
                 anim,
                 x: playX,
                 y,
-                w: playW,
+                w: btnSize * 0.45,
                 h: rowH
             });
 
@@ -567,7 +569,7 @@ class UI {
                 anim,
                 x: trashX,
                 y,
-                w: trashW,
+                w: btnSize * 0.45,
                 h: rowH
             });
         }
