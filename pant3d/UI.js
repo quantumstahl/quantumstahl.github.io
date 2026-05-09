@@ -535,7 +535,7 @@ class UI {
     drawAnimationList(btnSize) {
         if (!this.app.animations) return;
         
-        let x = this.canvas.width - btnSize * 2.6;
+        let x = this.canvas.width - btnSize * 2.8;
         let y = btnSize * 4.2;
 
         this.ctx.font = Math.floor(btnSize * 0.18) + "px Arial";
@@ -549,7 +549,7 @@ class UI {
 
             y += btnSize * 0.35;
 
-            const rowW = btnSize * 2.5;
+            const rowW = btnSize * 2.8;
             const rowH = btnSize * 0.3;
 
             this.ctx.fillStyle = anim === this.app.selectedAnimation
@@ -562,16 +562,23 @@ class UI {
             this.ctx.fillText(anim.name, x + 6, y + btnSize * 0.21);
 
             // Play button
-            const playX = x + btnSize * 1.45;
-            const trashX = x + btnSize * 1.95;
+            const trashW = btnSize * 0.35;
+            const playW = btnSize * 0.35;
+            const modeW = btnSize * 0.35;
+
+            const trashX = x + rowW - trashW;
+            const playX = trashX - playW;
+            const modeX = playX - modeW;
 
             this.ctx.fillStyle = "rgba(0,0,0,0.75)";
-            this.ctx.fillRect(playX, y, btnSize * 0.45, rowH);
-            this.ctx.fillRect(trashX, y, btnSize * 0.45, rowH);
+            this.ctx.fillRect(modeX, y, modeW, rowH);
+            this.ctx.fillRect(playX, y, playW, rowH);
+            this.ctx.fillRect(trashX, y, trashW, rowH);
 
             this.ctx.fillStyle = "white";
-            this.ctx.fillText("▶", playX + 6, y + btnSize * 0.21);
-            this.ctx.fillText("X", trashX + 8, y + btnSize * 0.21);
+            this.ctx.fillText(this.app.getAnimationModeLabel(anim), modeX + modeW / 2, y + btnSize * 0.21);
+            this.ctx.fillText("▶", playX + playW / 2, y + btnSize * 0.21);
+            this.ctx.fillText("X", trashX + trashW / 2, y + btnSize * 0.21);
 
 const speedText = (anim.speedPercent ?? 100) + "%";
 this.ctx.fillText(anim.name + " " + speedText, x + 6, y + btnSize * 0.21);
@@ -580,11 +587,20 @@ this.ctx.fillText(anim.name + " " + speedText, x + 6, y + btnSize * 0.21);
 
 
             this.animationListButtons.push({
+                type: "mode",
+                anim,
+                x: modeX,
+                y,
+                w: modeW,
+                h: rowH
+            });
+
+            this.animationListButtons.push({
                 type: "play",
                 anim,
                 x: playX,
                 y,
-                w: btnSize * 0.45,
+                w: playW,
                 h: rowH
             });
 
@@ -593,7 +609,7 @@ this.ctx.fillText(anim.name + " " + speedText, x + 6, y + btnSize * 0.21);
                 anim,
                 x: trashX,
                 y,
-                w: btnSize * 0.45,
+                w: trashW,
                 h: rowH
             });
         }
@@ -608,7 +624,9 @@ this.ctx.fillText(anim.name + " " + speedText, x + 6, y + btnSize * 0.21);
                 this.input.mouse.y >= b.y &&
                 this.input.mouse.y <= b.y + b.h
             ) {
-                if (b.type === "play") {
+                if (b.type === "mode") {
+                    this.app.cycleAnimationMode(b.anim);
+                } else if (b.type === "play") {
                     this.app.toggleAnimationPlay(b.anim);
                 } else if (b.type === "trash") {
                     this.app.deleteAnimation(b.anim);

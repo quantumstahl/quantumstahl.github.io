@@ -78,6 +78,8 @@ class MaxPaint3D {
         this.currentSegmentDuration = 0.3; // sekunder
         this.poseSegmentDurations = [];
         
+      
+        
     }
 
     init() {
@@ -501,7 +503,8 @@ class MaxPaint3D {
     serializeScene() {
         return {
             version: 2,
-            objects: this.objects.map(obj => this.serializeNode(obj))
+            objects: this.objects.map(obj => this.serializeNode(obj)),
+            animation: this.getAnimationSaveData()
         };
     }
 
@@ -552,7 +555,7 @@ class MaxPaint3D {
             this.scene.add(obj);
             this.objects.push(obj);
         }
-
+        this.loadAnimationSaveData(data.animation);
         this.setSelected(null);
     }
     deserializeNode(saved) {
@@ -823,6 +826,12 @@ class MaxPaint3D {
         return tex;
     }
     exportGLB() {
+        this.ensureUniqueObjectNames();
+
+        const clips = this.createAnimationClipsForExport();
+
+        console.log("Exporting animation clips:", clips.map(c => c.name));
+
         const exporter = new THREE.GLTFExporter();
 
         const exportRoot = new THREE.Group();
@@ -832,6 +841,11 @@ class MaxPaint3D {
             const clone = obj.clone(true);
 
             clone.traverse(child => {
+                // Ta bort editor/pivot markers om någon råkar ligga i modellen
+                if (child.userData?.isPivotMarker) {
+                    child.visible = false;
+                }
+
                 if (child.isMesh) {
                     if (child.material) {
                         if (Array.isArray(child.material)) {
@@ -848,6 +862,9 @@ class MaxPaint3D {
 
             exportRoot.add(clone);
         }
+
+
+
 
         exporter.parse(
             exportRoot,
@@ -871,7 +888,8 @@ class MaxPaint3D {
             {
                 binary: true,
                 onlyVisible: false,
-                trs: true
+                trs: true,
+                animations: clips
             }
         );
     }
@@ -1358,8 +1376,13 @@ class MaxPaint3D {
             anim.segmentIndex = 0;
             anim.segmentT = 0;
             anim.direction = 1;
+
+            
             this.selectedAnimation = anim;
-            if(this.animations.filter(e => e.playing === true).length===0)this.resetAllSubgroups();
+         //   if(this.animations.filter(e => e.playing === true).length===0)this.resetAllSubgroups();
+            
+           this.resetAllSubgroups();
+            
             return;
         }
 
@@ -1397,7 +1420,29 @@ class MaxPaint3D {
         anim.playing = true;
         this.poseTime = 0;
         this.isPlayingPose = true;
+     // För once: play ska alltid starta om från början
+    if (anim.mode === "once") {
+        this.startAnimation(anim);
+        return;
     }
+        
+    }
+    startAnimation(anim) {
+        if (!anim) return;
+
+        this.selectedAnimation = anim;
+
+        anim.playing = true;
+
+        // nolla playback state
+        anim.time = 0;
+        anim.segmentIndex = 0;
+        anim.segmentT = 0;
+        anim.direction = 1;
+
+        anim.playOrder = ++this.animationPlayCounter;
+    }
+    
     deleteAnimation(anim) {
         if (!anim) return;
 
@@ -1449,6 +1494,7 @@ class MaxPaint3D {
         if (anim.segmentIndex === undefined) anim.segmentIndex = 0;
         if (anim.segmentT === undefined) anim.segmentT = 0;
         if (anim.direction === undefined) anim.direction = 1;
+        if (!anim.mode) anim.mode = "loop";
 
         const lastSegment = anim.poses.length - 2;
 
@@ -1468,37 +1514,56 @@ class MaxPaint3D {
 
             if (anim.mode === "loop") {
                 anim.segmentIndex++;
+
                 if (anim.segmentIndex > lastSegment) {
                     anim.segmentIndex = 0;
                 }
-            } else if (anim.mode === "once") {
-                if (anim.segmentIndex < lastSegment) {
-                    anim.segmentIndex++;
-                } else {
+            }
+
+            else if (anim.mode === "once") {
+                anim.segmentIndex++;
+
+                if (anim.segmentIndex > lastSegment) {
                     anim.segmentIndex = lastSegment;
                     anim.segmentT = 1;
                     anim.playing = false;
                     break;
                 }
-            } else if (anim.mode === "pingpong") {
-                anim.segmentIndex += anim.direction;
+            }
 
-                if (anim.segmentIndex > lastSegment) {
-                    anim.segmentIndex = Math.max(0, lastSegment - 1);
-                    anim.direction = -1;
-                }
-
-                if (anim.segmentIndex < 0) {
-                    anim.segmentIndex = 0;
-                    anim.direction = 1;
+            else if (anim.mode === "pingpong") {
+                if (anim.direction === 1) {
+                    if (anim.segmentIndex < lastSegment) {
+                        anim.segmentIndex++;
+                    } else {
+                        anim.direction = -1;
+                    }
+                } else {
+                    if (anim.segmentIndex > 0) {
+                        anim.segmentIndex--;
+                    } else {
+                        anim.direction = 1;
+                    }
                 }
             }
         }
 
-        const poseA = anim.poses[anim.segmentIndex];
-        const poseB = anim.poses[anim.segmentIndex + 1];
+        let poseA;
+        let poseB;
+        let t = anim.segmentT;
 
-        this.interpolatePoses(poseA, poseB, anim.segmentT);
+        if (anim.mode === "pingpong" && anim.direction === -1) {
+            poseA = anim.poses[anim.segmentIndex + 1];
+            poseB = anim.poses[anim.segmentIndex];
+        } else {
+            poseA = anim.poses[anim.segmentIndex];
+            poseB = anim.poses[anim.segmentIndex + 1];
+        }
+
+
+        if (!poseA || !poseB) return;
+
+        this.interpolatePoses(poseA, poseB, t);
     }
     updatePosePlayback(dt) {
         const playingAnimations = this.animations.filter(e => e.playing === true);
@@ -1597,5 +1662,444 @@ class MaxPaint3D {
 
         sg.updateMatrixWorld(true);
         this.markSubgroupChanged?.(sg);
+    }
+    getAnimationModeLabel(anim) {
+        if (!anim.mode) anim.mode = "loop";
+
+        if (anim.mode === "loop") return "L";
+        if (anim.mode === "once") return "O";
+        if (anim.mode === "pingpong") return "P";
+
+        return "?";
+    }
+    cycleAnimationMode(anim) {
+        if (!anim) return;
+
+        if (!anim.mode) anim.mode = "loop";
+
+        if (anim.mode === "loop") {
+            anim.mode = "once";
+        } else if (anim.mode === "once") {
+            anim.mode = "pingpong";
+        } else {
+            anim.mode = "loop";
+        }
+
+        console.log(anim.name + " mode:", anim.mode);
+    }
+    getAnimationSaveData() {
+        const subgroups = this.subgroups || [];
+        const animations = this.animations || [];
+
+        return {
+            version: 2,
+
+            modelGroupId: this.modelGroup ? this.ensureObjectId(this.modelGroup) : null,
+
+            subgroups: subgroups.map(sg => {
+                this.ensureObjectId(sg);
+
+                const pivot = sg.userData.pivotMarker
+                    ? sg.userData.pivotMarker.position
+                    : (sg.userData.pivot || sg.position);
+
+                return {
+                    id: sg.userData.id,
+                    name: sg.name,
+
+                    childIds: sg.children.map(child => this.ensureObjectId(child)),
+
+                    pivot: {
+                        x: pivot.x,
+                        y: pivot.y,
+                        z: pivot.z
+                    },
+
+                    restPosition: sg.userData.restPosition ? {
+                        x: sg.userData.restPosition.x,
+                        y: sg.userData.restPosition.y,
+                        z: sg.userData.restPosition.z
+                    } : null,
+
+                    restQuaternion: sg.userData.restQuaternion ? {
+                        x: sg.userData.restQuaternion.x,
+                        y: sg.userData.restQuaternion.y,
+                        z: sg.userData.restQuaternion.z,
+                        w: sg.userData.restQuaternion.w
+                    } : null,
+
+                    restScale: sg.userData.restScale ? {
+                        x: sg.userData.restScale.x,
+                        y: sg.userData.restScale.y,
+                        z: sg.userData.restScale.z
+                    } : null
+                };
+            }),
+
+            animations: animations.map(anim => ({
+                name: anim.name,
+                poses: anim.poses || [],
+                segmentDurations: anim.segmentDurations || [],
+                mode: anim.mode || "loop",
+                speedPercent: anim.speedPercent ?? 100
+            }))
+        };
+    }
+    loadAnimationSaveData(data) {
+        if (!data) return;
+
+        this.subgroups = [];
+        this.animations = [];
+        this.selectedSubgroup = null;
+        this.selectedAnimation = null;
+        this.subgroupSelection = [];
+        this.poseChangedSubgroups = new Set();
+
+        const objectMap = this.buildObjectMap();
+
+        this.modelGroup = data.modelGroupId
+            ? objectMap.get(data.modelGroupId)
+            : null;
+
+        if (!this.modelGroup) {
+            console.warn("No modelGroup found in animation data");
+            return;
+        }
+
+        // återskapa subgroups
+        for (const sgData of data.subgroups || []) {
+            const subgroup = objectMap.get(sgData.id);
+
+            if (!subgroup) {
+                console.warn("Missing subgroup:", sgData.name, sgData.id);
+                continue;
+            }
+
+            subgroup.name = sgData.name;
+            subgroup.userData.isSubgroup = true;
+
+            if (sgData.restPosition) {
+                subgroup.userData.restPosition = new THREE.Vector3(
+                    sgData.restPosition.x,
+                    sgData.restPosition.y,
+                    sgData.restPosition.z
+                );
+            }
+
+            if (sgData.restQuaternion) {
+                subgroup.userData.restQuaternion = new THREE.Quaternion(
+                    sgData.restQuaternion.x,
+                    sgData.restQuaternion.y,
+                    sgData.restQuaternion.z,
+                    sgData.restQuaternion.w
+                );
+            }
+
+            if (sgData.restScale) {
+                subgroup.userData.restScale = new THREE.Vector3(
+                    sgData.restScale.x,
+                    sgData.restScale.y,
+                    sgData.restScale.z
+                );
+            }
+
+            this.subgroups.push(subgroup);
+
+            // pivot marker
+            if (sgData.pivot) {
+                this.createPivotMarker(subgroup);
+
+                const marker = subgroup.userData.pivotMarker;
+                if (marker) {
+                    marker.position.set(
+                        sgData.pivot.x,
+                        sgData.pivot.y,
+                        sgData.pivot.z
+                    );
+                }
+
+                subgroup.userData.pivot = new THREE.Vector3(
+                    sgData.pivot.x,
+                    sgData.pivot.y,
+                    sgData.pivot.z
+                );
+            }
+        }
+
+        // animations
+        this.animations = (data.animations || []).map(anim => {
+            const loaded = {
+                name: anim.name,
+                poses: anim.poses || [],
+                segmentDurations: anim.segmentDurations || [],
+                mode: anim.mode || "loop",
+                speedPercent: anim.speedPercent ?? 100
+            };
+
+            this.restoreAnimationRuntimeState(loaded);
+
+            return loaded;
+        });
+    }
+    buildObjectMap() {
+        const map = new Map();
+
+        this.scene.traverse(obj => {
+            if (obj.userData && obj.userData.id) {
+                map.set(obj.userData.id, obj);
+            }
+        });
+
+        return map;
+    }
+    restoreAnimationRuntimeState(anim) {
+        if (!anim) return;
+
+        anim.playing = false;
+        anim.time = 0;
+
+        // om du fortfarande använder dessa någonstans
+        anim.segmentIndex = 0;
+        anim.segmentT = 0;
+        anim.direction = 1;
+
+        anim.playOrder = 0;
+
+        if (anim.speedPercent === undefined) {
+            anim.speedPercent = 100;
+        }
+
+        if (!anim.mode) {
+            anim.mode = "loop";
+        }
+
+        if (!anim.poses) {
+            anim.poses = [];
+        }
+
+        if (!anim.segmentDurations) {
+            anim.segmentDurations = [];
+        }
+    }
+    ensureUniqueObjectNames() {
+        const used = new Set();
+
+        this.scene.traverse(obj => {
+            if (obj.userData?.isPivotMarker) return;
+
+            if (!obj.name || obj.name.trim() === "") {
+                obj.name = obj.type || "Object";
+            }
+
+            let base = obj.name.replace(/\s+/g, "_");
+            let name = base;
+            let i = 1;
+
+            while (used.has(name)) {
+                name = base + "_" + i;
+                i++;
+            }
+
+            obj.name = name;
+            used.add(name);
+        });
+    }
+    createClipFromAnimation(anim) {
+        if (!anim || !anim.poses || anim.poses.length < 2) return null;
+
+        const exportData = this.getExportPosesAndDurations(anim);
+        const poses = exportData.poses;
+        const durations = exportData.durations;
+
+        if (!poses || poses.length < 2) return null;
+
+        const tracks = [];
+
+        const speedMultiplier = (anim.speedPercent ?? 100) / 100;
+
+        const times = [0];
+        let totalTime = 0;
+
+        for (let i = 0; i < poses.length - 1; i++) {
+            let d = durations?.[i] ?? 0.3;
+
+            // Baka in speedPercent
+            d = d / speedMultiplier;
+
+            totalTime += d;
+            times.push(totalTime);
+        }
+
+        const subgroupIds = new Set();
+
+        for (const pose of poses) {
+            if (!pose.groups) continue;
+
+            for (const id in pose.groups) {
+                subgroupIds.add(id);
+            }
+        }
+
+        for (const id of subgroupIds) {
+            const sg = this.subgroups.find(s => String(s.userData.id) === String(id));
+
+            if (!sg) {
+                console.warn("Export animation: missing subgroup", id);
+                continue;
+            }
+
+            const positionValues = [];
+            const quaternionValues = [];
+            const scaleValues = [];
+
+            let valid = true;
+
+            for (const pose of poses) {
+                const g = pose.groups[id];
+
+                if (!g) {
+                    valid = false;
+                    break;
+                }
+
+                positionValues.push(
+                    g.position.x,
+                    g.position.y,
+                    g.position.z
+                );
+
+                quaternionValues.push(
+                    g.quaternion.x,
+                    g.quaternion.y,
+                    g.quaternion.z,
+                    g.quaternion.w
+                );
+
+                scaleValues.push(
+                    g.scale.x,
+                    g.scale.y,
+                    g.scale.z
+                );
+            }
+
+            if (!valid) {
+                console.warn("Skipping incomplete subgroup track:", sg.name);
+                continue;
+            }
+
+            const path = sg.name;
+
+            tracks.push(
+                new THREE.VectorKeyframeTrack(
+                    path + ".position",
+                    times,
+                    positionValues
+                )
+            );
+
+            tracks.push(
+                new THREE.QuaternionKeyframeTrack(
+                    path + ".quaternion",
+                    times,
+                    quaternionValues
+                )
+            );
+
+            tracks.push(
+                new THREE.VectorKeyframeTrack(
+                    path + ".scale",
+                    times,
+                    scaleValues
+                )
+            );
+        }
+
+        if (tracks.length === 0) return null;
+
+        return new THREE.AnimationClip(
+            anim.name || "Animation",
+            totalTime,
+            tracks
+        );
+    }
+    createAnimationClipsForExport() {
+        const clips = [];
+
+        if (!this.animations) return clips;
+
+        for (const anim of this.animations) {
+            const clip = this.createClipFromAnimation(anim);
+
+            if (clip) {
+                clips.push(clip);
+            }
+        }
+
+        return clips;
+    }
+    setEditorHelpersVisible(visible) {
+        if (this.groupHelpers) {
+            for (const h of this.groupHelpers) {
+                h.visible = visible;
+            }
+        }
+
+        if (this.subgroups) {
+            for (const sg of this.subgroups) {
+                if (sg.userData.pivotMarker) {
+                    sg.userData.pivotMarker.visible = visible;
+                }
+
+                if (sg.userData.pivotAxes) {
+                    sg.userData.pivotAxes.visible = visible;
+                }
+            }
+        }
+    }
+    getExportPosesAndDurations(anim) {
+        let poses = anim.poses || [];
+        let durations = anim.segmentDurations || [];
+
+        if (poses.length < 2) {
+            return { poses, durations };
+        }
+
+        // Säkerställ durationer
+        if (durations.length !== poses.length - 1) {
+            durations = new Array(poses.length - 1).fill(0.3);
+        }
+
+        // Vanlig loop/once exporteras som den är
+        if (anim.mode !== "pingpong") {
+            return {
+                poses,
+                durations
+            };
+        }
+
+        // Pingpong:
+        // Framåt: pose0, pose1, pose2
+        // Bakåt:  pose1, pose0
+        const exportPoses = [...poses];
+        const exportDurations = [...durations];
+
+        // Lägg till bakåt-poser, men hoppa över sista posen
+        // så vi inte får pose2 → pose2
+        for (let i = poses.length - 2; i >= 0; i--) {
+            exportPoses.push(poses[i]);
+        }
+
+        // Lägg till bakåt-durationer
+        // durations[i] hör till pose i -> pose i+1
+        // Bakåt från pose2 -> pose1 använder durations[1]
+        // Bakåt från pose1 -> pose0 använder durations[0]
+        for (let i = durations.length - 1; i >= 0; i--) {
+            exportDurations.push(durations[i]);
+        }
+
+        return {
+            poses: exportPoses,
+            durations: exportDurations
+        };
     }
 }
