@@ -2143,7 +2143,7 @@ class MaxPaint3D {
         }
      
         gif.on("finished", async (blob) => {
-            alert("JAA");
+      
             
             this.lastGifBlob = blob;
 
