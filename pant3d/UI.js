@@ -89,9 +89,10 @@ class UI {
 
             for(let i=0;i<this.colors.length;i++){
 
-                this.drawColorButton(this.colors[i], 0+(i*btnSize/2.8 + btnSize*3), 0 , btnSize/2.8);
+                this.drawColorButton(this.colors[i], 0+(i*btnSize/3.6 + btnSize*3.75), 0 , btnSize/2.0);
 
             }
+            this.drawbuttonstools("Ungroup",btnSize*3,0,btnSize*0.75,btnSize/2);
         }
         else{
             this.drawAnimationList(btnSize);
@@ -103,6 +104,7 @@ class UI {
             
             
         }
+        
         this.drawbuttonstools("Animate",btnSize*2.25,0,btnSize*0.75,btnSize/2);
         this.drawbuttonstools("EXPORT",btnSize*1.5,0,btnSize*0.75,btnSize/2);
         this.drawbuttonstools("LOAD",btnSize*0.75,0,btnSize*0.75,btnSize/2);
@@ -250,7 +252,7 @@ class UI {
             if(text==="Animate"){if(this.animatetoggle){this.animatetoggle=false;this.app.exitAnimateMode();this.app.tools.setTool("select");this.selectedtool="[Select]";}else {this.app.tools.setTool("select");this.selectedtool="[Select]";this.animatetoggle=true;this.app.enterAnimateMode();}}
             if(text==="recordGIF"){this.app.exportGifPreview();}
             if(text==="ShareGIF"){this.app.shareLastGif();}
-            
+            if(text==="Ungroup"){this.app.ungroupAllToPrimitives();}
             
             this.handleAnimateButton(text);
         }

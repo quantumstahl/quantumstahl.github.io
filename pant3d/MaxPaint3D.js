@@ -78,7 +78,7 @@ class MaxPaint3D {
         this.currentSegmentDuration = 0.3; // sekunder
         this.poseSegmentDurations = [];
         
-      
+        this.suppressSelectionBox=false;
         
     }
 
@@ -240,7 +240,7 @@ class MaxPaint3D {
             return;
         }
 
-        this.selectionBox.visible = true;
+        if(!this.suppressSelectionBox)this.selectionBox.visible = true;
         this.selectionBox.setFromObject(this.selected);
     }
     deleteSelected() {
@@ -959,7 +959,7 @@ class MaxPaint3D {
         if (!this.modelGroup) {
             this.createModelGroupFromAllObjects();
         }
-
+        this.setPivotMarkersVisible(true);
         this.animatetoggle = true;
         this.currentTool = "anim_select";
         this.selected = this.modelGroup;
@@ -972,7 +972,7 @@ class MaxPaint3D {
         this.subgroupSelection = [];
         this.poseChangedSubgroups?.clear?.();
 
-        this.setPivotMarkersVisible?.(false);
+        this.setPivotMarkersVisible(false);
         this.clearGroupHelpers?.();
 
         // Viktigt: välj modelGroup eller inget, inte subgroup
@@ -1009,15 +1009,44 @@ class MaxPaint3D {
         return current;
     }
     createModelGroupFromAllObjects() {
-        if (this.modelGroup) return;
+        if (this.modelGroup) return this.modelGroup;
 
-        const roots = this.objects.filter(o =>
-            o &&
-            o !== this.ground &&
-            o.parent === this.scene
-        );
+        this.scene.updateMatrixWorld(true);
 
-        if (roots.length === 0) return;
+        const primitives = [];
+
+        // Samla från this.objects, men gå igenom barn också
+        for (const root of this.objects || []) {
+            if (!root || root === this.ground) continue;
+
+            root.traverse(obj => {
+                if (
+                    obj.isMesh &&
+                    !obj.userData?.isPivotMarker &&
+                    obj !== this.ground
+                ) {
+                    primitives.push(obj);
+                }
+            });
+        }
+
+        // Fallback om objects-listan är fel
+        if (primitives.length === 0) {
+            this.scene.traverse(obj => {
+                if (
+                    obj.isMesh &&
+                    !obj.userData?.isPivotMarker &&
+                    obj !== this.ground
+                ) {
+                    primitives.push(obj);
+                }
+            });
+        }
+
+        if (primitives.length === 0) {
+            console.warn("No primitives found for ModelGroup");
+            return null;
+        }
 
         const model = new THREE.Group();
         model.name = "Model";
@@ -1026,41 +1055,30 @@ class MaxPaint3D {
         this.scene.add(model);
         this.scene.updateMatrixWorld(true);
 
-        // samla alla riktiga primitives/meshes, även inuti build groups
-        const primitives = [];
-
-        for (const root of roots) {
-            root.traverse(child => {
-                if (child.isMesh && !child.userData?.isPivotMarker) {
-                    primitives.push(child);
-                }
-            });
-        }
-
-        // flytta varje primitive direkt till Model och behåll world transform
         for (const obj of primitives) {
             this.ensureObjectId(obj);
             model.attach(obj);
         }
 
-        // ta bort gamla build roots/groups från scenen om de blivit tomma
-        for (const root of roots) {
-            if (root.parent === this.scene && root.children.length === 0) {
-                this.scene.remove(root);
-            }
-        }
+        this.removeEmptyGroups(this.scene);
 
         this.objects = [model];
-        this.groups = this.groups.filter(g => g === model);
-
+        this.groups = [];
         this.modelGroup = model;
 
         this.groupSelection = [];
+        this.subgroupSelection = [];
+        this.selectedSubgroup = null;
+
         this.setSelected(model);
         this.ensureObjectId(model);
 
         this.scene.updateMatrixWorld(true);
-        this.pushUndoState();
+        this.pushUndoState?.();
+
+        console.log("Created ModelGroup with primitives:", primitives.length);
+
+        return model;
     }
     createSubgroup() {
         if (!this.modelGroup) return;
@@ -2236,7 +2254,7 @@ class MaxPaint3D {
 
         const frameCount = seconds * fps;
         const delay = 1000 / fps;
-
+         this.setEditorVisualsVisible(false);
         for (let i = 0; i < frameCount; i++) {
             // uppdatera animationer med fast dt
             this.updatePosePlayback(1 / fps);
@@ -2255,7 +2273,7 @@ class MaxPaint3D {
         }
      
         gif.on("finished", async (blob) => {
-      
+            this.setEditorVisualsVisible(true);
             
             this.lastGifBlob = blob;
 
@@ -2296,6 +2314,116 @@ class MaxPaint3D {
                 ".gif",
                 "GIF Preview"
             );
+        }
+    }
+    ungroupAllToPrimitives() {
+        const ok = confirm(
+            "Ungroup all? This will remove groups, subgroups and animations, but keep all primitives."
+        );
+        if (!ok) return;
+
+        this.scene.updateMatrixWorld(true);
+
+        // 1. Samla ALLA riktiga meshes i hela scenen
+        const primitives = [];
+
+        this.scene.traverse(obj => {
+            if (
+                obj.isMesh &&
+                !obj.userData?.isPivotMarker &&
+                obj.name !== "ground" &&
+                obj !== this.ground
+            ) {
+                primitives.push(obj);
+            }
+        });
+
+        if (primitives.length === 0) return;
+
+        // 2. Ta bort pivot markers/helpers
+        for (const sg of this.subgroups || []) {
+            if (sg.userData.pivotMarker) {
+                sg.userData.pivotMarker.parent?.remove(sg.userData.pivotMarker);
+            }
+            if (sg.userData.pivotAxes) {
+                sg.userData.pivotAxes.parent?.remove(sg.userData.pivotAxes);
+            }
+        }
+
+        if (this.groupHelpers) {
+            for (const h of this.groupHelpers) {
+                h.parent?.remove(h);
+            }
+            this.groupHelpers = [];
+        }
+
+        // 3. Flytta alla meshes direkt till scene, behåll world transform
+        for (const mesh of primitives) {
+            this.ensureObjectId(mesh);
+            this.scene.attach(mesh);
+
+            mesh.userData.isSubgroup = false;
+            mesh.userData.isBuildGroup = false;
+            mesh.userData.isModelGroup = false;
+        }
+
+        // 4. Ta bort alla tomma grupper rekursivt
+        this.removeEmptyGroups(this.scene);
+
+        // 5. Nollställ all grupp/animations-state
+        this.objects = primitives;
+        this.groups = [];
+        this.modelGroup = null;
+
+        this.subgroups = [];
+        this.subgroupSelection = [];
+        this.groupSelection = [];
+        this.selectedSubgroup = null;
+
+        this.poses = [];
+        this.animations = [];
+        this.poseSegmentDurations = [];
+        this.poseChangedSubgroups = new Set();
+
+        this.setSelected(null);
+
+        this.scene.updateMatrixWorld(true);
+        this.pushUndoState?.();
+
+        console.log("Ungroup all complete. Primitives:", primitives.map(p => p.name || p.type));
+    }
+    removeEmptyGroups(root) {
+        for (const child of [...root.children]) {
+            this.removeEmptyGroups(child);
+
+            if (
+                child.type === "Group" &&
+                child.children.length === 0 &&
+                child !== this.ground
+            ) {
+                root.remove(child);
+            }
+        }
+    }
+    setPivotMarkersVisible(visible) {
+        for (const sg of this.subgroups || []) {
+            if (sg.userData.pivotMarker) {
+                sg.userData.pivotMarker.visible = visible;
+            }
+
+            if (sg.userData.pivotAxes) {
+                sg.userData.pivotAxes.visible = visible;
+            }
+        }
+    }
+    setEditorVisualsVisible(visible) {
+        this.setPivotMarkersVisible(visible);
+        
+        this.selectionBox.visible=visible;
+        this.suppressSelectionBox =!visible;
+        
+        for (const h of this.groupHelpers || []) {
+            h.visible = visible;
         }
     }
 }
