@@ -97,6 +97,9 @@ class UI {
             this.drawAnimationList(btnSize);
             this.handleAnimationListClick();
             this.drawAnimateUI(btnSize);
+            this.drawbuttonstools("recordGIF",btnSize*3,0,btnSize*0.75,btnSize/2);
+            this.drawbuttonstools("ShareGIF",btnSize*3.75,0,btnSize*0.75,btnSize/2);
+            
             
             
         }
@@ -244,6 +247,9 @@ class UI {
             if(text==="SAVE"){this.app.saveProject();}
             if(text==="EXPORT"){this.app.exportGLB();}
             if(text==="Animate"){if(this.animatetoggle){this.animatetoggle=false;this.app.exitAnimateMode();this.app.tools.setTool("select");this.selectedtool="[Select]";}else {this.app.tools.setTool("select");this.selectedtool="[Select]";this.animatetoggle=true;this.app.enterAnimateMode();}}
+            if(text==="recordGIF"){this.app.exportGifPreview();}
+            if(text==="ShareGIF"){this.app.shareLastGif();}
+            
             
             this.handleAnimateButton(text);
         }

@@ -2102,4 +2102,88 @@ class MaxPaint3D {
             durations: exportDurations
         };
     }
+    async exportGifPreview(seconds = 3, fps = 20) {
+        const src = this.canvas;
+        const maxWidth = 640;
+        const scale = Math.min(1, maxWidth / src.width);
+
+        const w = Math.floor(src.width * scale);
+        const h = Math.floor(src.height * scale);
+
+        const capture = document.createElement("canvas");
+        capture.width = w;
+        capture.height = h;
+        const ctx = capture.getContext("2d");
+        
+        const gif = new GIF({
+            workers: 2,
+            quality: 10,
+            width: w,
+            height: h
+        });
+
+        const frameCount = seconds * fps;
+        const delay = 1000 / fps;
+
+        for (let i = 0; i < frameCount; i++) {
+            // uppdatera animationer med fast dt
+            this.updatePosePlayback(1 / fps);
+
+            this.renderer.render(this.scene, this.camera);
+
+            ctx.clearRect(0, 0, w, h);
+            ctx.drawImage(src, 0, 0, w, h);
+
+            gif.addFrame(capture, {
+                copy: true,
+                delay
+            });
+
+            await new Promise(r => setTimeout(r, 0));
+        }
+     
+        gif.on("finished", async (blob) => {
+            alert("JAA");
+            
+            this.lastGifBlob = blob;
+
+            await this.saveBlob(
+                blob,
+                "maxpaint3d_preview.gif",
+                "image/gif",
+                ".gif",
+                "GIF Preview"
+            );
+        });
+
+    gif.render();
+    }
+    async shareLastGif() {
+        if (!this.lastGifBlob) {
+            alert("No GIF created yet.");
+            return;
+        }
+
+        const file = new File(
+            [this.lastGifBlob],
+            "maxpaint3d_preview.gif",
+            { type: "image/gif" }
+        );
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+                title: "MaxPaint3D GIF Preview",
+                text: "Made with MaxPaint3D",
+                files: [file]
+            });
+        } else {
+            await this.saveBlob(
+                this.lastGifBlob,
+                "maxpaint3d_preview.gif",
+                "image/gif",
+                ".gif",
+                "GIF Preview"
+            );
+        }
+    }
 }
