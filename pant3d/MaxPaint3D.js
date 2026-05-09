@@ -311,15 +311,10 @@ class MaxPaint3D {
 
         const group = new THREE.Group();
 
-        // Om det inte finns någon modelGroup ännu kan första gruppen bli Model
-        if (!this.modelGroup) {
-            group.name = "Model";
-            group.userData.isModelGroup = true;
-            this.modelGroup = group;
-        } else {
+  
             group.name = "Group " + (this.groups.length + 1);
             group.userData.isBuildGroup = true;
-        }
+        
 
         this.scene.add(group);
         this.scene.updateMatrixWorld(true);
@@ -972,37 +967,99 @@ class MaxPaint3D {
 
     exitAnimateMode() {
         this.animatetoggle = false;
-        this.currentTool = "select";
+
+        this.selectedSubgroup = null;
+        this.subgroupSelection = [];
+        this.poseChangedSubgroups?.clear?.();
+
+        this.setPivotMarkersVisible?.(false);
+        this.clearGroupHelpers?.();
+
+        // Viktigt: välj modelGroup eller inget, inte subgroup
+        if (this.modelGroup) {
+            this.setSelected(this.modelGroup);
+        } else {
+            this.setSelected(null);
+        }
+
+        this.tools.setTool("select");
+    }
+    exitPrimSelectMode() {
+        const selected = this.selected;
+
+        if (!selected) return;
+
+        // Om selected är en mesh inuti en group/model
+        if (selected.isMesh && selected.parent) {
+            const root = this.getBuildSelectableRoot(selected);
+            this.setSelected(root);
+        }
+    }
+    getBuildSelectableRoot(obj) {
+        let current = obj;
+
+        while (
+            current.parent &&
+            current.parent !== this.scene &&
+            current.parent !== this.modelGroup
+        ) {
+            current = current.parent;
+        }
+
+        return current;
     }
     createModelGroupFromAllObjects() {
         if (this.modelGroup) return;
 
-        const selectedObjects = this.objects.filter(o =>
+        const roots = this.objects.filter(o =>
             o &&
             o !== this.ground &&
             o.parent === this.scene
         );
 
-        if (selectedObjects.length === 0) return;
+        if (roots.length === 0) return;
 
-        const group = new THREE.Group();
-        group.name = "Model";
+        const model = new THREE.Group();
+        model.name = "Model";
+        model.userData.isModelGroup = true;
 
-        this.scene.add(group);
+        this.scene.add(model);
         this.scene.updateMatrixWorld(true);
 
-        for (const obj of selectedObjects) {
-            group.attach(obj);
+        // samla alla riktiga primitives/meshes, även inuti build groups
+        const primitives = [];
+
+        for (const root of roots) {
+            root.traverse(child => {
+                if (child.isMesh && !child.userData?.isPivotMarker) {
+                    primitives.push(child);
+                }
+            });
         }
 
-        this.objects = this.objects.filter(o => !selectedObjects.includes(o));
-        this.objects.push(group);
+        // flytta varje primitive direkt till Model och behåll world transform
+        for (const obj of primitives) {
+            this.ensureObjectId(obj);
+            model.attach(obj);
+        }
 
-        this.groups.push(group);
-        this.modelGroup = group;
+        // ta bort gamla build roots/groups från scenen om de blivit tomma
+        for (const root of roots) {
+            if (root.parent === this.scene && root.children.length === 0) {
+                this.scene.remove(root);
+            }
+        }
 
-        this.setSelected(group);
-        this.ensureObjectId(group);
+        this.objects = [model];
+        this.groups = this.groups.filter(g => g === model);
+
+        this.modelGroup = model;
+
+        this.groupSelection = [];
+        this.setSelected(model);
+        this.ensureObjectId(model);
+
+        this.scene.updateMatrixWorld(true);
         this.pushUndoState();
     }
     createSubgroup() {
@@ -1280,33 +1337,53 @@ class MaxPaint3D {
         this.modelGroup.updateMatrixWorld(true);
         subgroup.updateMatrixWorld(true);
 
-        // Spara barnen
         const children = [...subgroup.children];
 
-        // Flytta ut barnen temporärt till modelGroup, men behåll world position
-        for (const child of children) {
+        // Ta inte med pivotMarker om den råkar ligga i subgroupen
+        const realChildren = children.filter(child => !child.userData?.isPivotMarker);
+
+        // Flytta ut barnen temporärt till modelGroup, behåll world transform
+        for (const child of realChildren) {
             this.modelGroup.attach(child);
         }
 
-        // Sätt subgroupens origin till pivoten
+        // World pivot -> local pivot i modelGroup
         const pivotLocal = this.modelGroup.worldToLocal(pivotWorld.clone());
 
+        // Sätt subgroupens origin till pivoten
         subgroup.position.copy(pivotLocal);
         subgroup.quaternion.identity();
         subgroup.scale.set(1, 1, 1);
 
-        this.modelGroup.add(subgroup);
-        subgroup.updateMatrixWorld(true);
+        if (subgroup.parent !== this.modelGroup) {
+            this.modelGroup.add(subgroup);
+        }
 
-        // Flytta tillbaka barnen in i subgroupen, men behåll world position
-        for (const child of children) {
+        subgroup.updateMatrixWorld(true);
+        this.modelGroup.updateMatrixWorld(true);
+
+        // Flytta tillbaka barnen in i subgroupen, behåll world transform
+        for (const child of realChildren) {
             subgroup.attach(child);
         }
 
-        // Spara pivot
+        // Spara pivot local
+        subgroup.userData.pivotLocal = pivotLocal.clone();
+
+        // Valfritt debug/säkerhet
         subgroup.userData.pivot = pivotWorld.clone();
 
-        // Spara ny rest transform
+        // Flytta marker till samma local-position i modelGroup
+        if (subgroup.userData.pivotMarker) {
+            const marker = subgroup.userData.pivotMarker;
+
+            if (marker.parent !== this.modelGroup) {
+                this.modelGroup.attach(marker);
+            }
+
+            marker.position.copy(pivotLocal);
+        }
+
         subgroup.userData.restPosition = subgroup.position.clone();
         subgroup.userData.restQuaternion = subgroup.quaternion.clone();
         subgroup.userData.restScale = subgroup.scale.clone();
@@ -1320,8 +1397,43 @@ class MaxPaint3D {
         const marker = sg.userData.pivotMarker;
         if (!marker) return;
 
-        this.setSubgroupPivot(sg, marker.position);
+        const pivotWorld = marker.getWorldPosition(new THREE.Vector3());
+
+        this.setSubgroupPivot(sg, pivotWorld);
     }
+    createPivotMarker(subgroup) {
+        if (!this.modelGroup) return;
+
+        const geo = new THREE.SphereGeometry(0.12, 12, 8);
+        const mat = new THREE.MeshBasicMaterial({
+            color: 0xff0000,
+            depthTest: false
+        });
+
+        const marker = new THREE.Mesh(geo, mat);
+        marker.name = subgroup.name + "_pivot";
+        marker.userData.isPivotMarker = true;
+        marker.renderOrder = 999;
+
+        this.scene.updateMatrixWorld(true);
+        subgroup.updateMatrixWorld(true);
+        this.modelGroup.updateMatrixWorld(true);
+
+        const box = new THREE.Box3().setFromObject(subgroup);
+        const centerWorld = box.getCenter(new THREE.Vector3());
+
+        // gör world-position till local-position i modelGroup
+        const centerLocal = this.modelGroup.worldToLocal(centerWorld.clone());
+
+        marker.position.copy(centerLocal);
+
+        this.modelGroup.add(marker);
+
+        subgroup.userData.pivotMarker = marker;
+        subgroup.userData.pivotLocal = centerLocal.clone();
+    }
+    
+    
     createAnimation() {
         if (!this.poses || this.poses.length < 2) {
             alert("Need at least 2 poses.");

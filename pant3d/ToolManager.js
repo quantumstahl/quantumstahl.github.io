@@ -14,7 +14,8 @@ class ToolManager {
             anirot:new AnimRotateTool(app),
             selectsub:new SelectSubgroupTool(app),
             animove: new AniMoveTool(app),
-            aniscale: new AniScaleTool(app)
+            aniscale: new AniScaleTool(app),
+            primselect: new PrimSelectTool(app)
         };
 
         this.current = this.tools.select;
@@ -22,7 +23,9 @@ class ToolManager {
 
     setTool(name) {
         if (!this.tools[name]) return;
-
+        
+        
+        
         if (this.current?.exit) this.current.exit();
 
         this.current = this.tools[name];

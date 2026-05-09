@@ -85,7 +85,7 @@ class UI {
             this.drawbuttonstools("[UniScale]",btnSize*3.50,this.canvas.height-btnSize*1.5,btnSize*0.75,btnSize/2);
             this.drawbuttonstools("[Duplicate]",btnSize*4.25,this.canvas.height-btnSize*1.5,btnSize*0.75,btnSize/2);
             this.drawbuttonstools("[Group]",btnSize*5,this.canvas.height-btnSize*1.5,btnSize*0.75,btnSize/2);
-
+            this.drawbuttonstools("[PrimSelect]", btnSize * 5.75, this.canvas.height - btnSize * 1.5, btnSize*0.75, btnSize / 2);
 
             for(let i=0;i<this.colors.length;i++){
 
@@ -242,6 +242,7 @@ class UI {
             if(text==="[UniScale]"){this.app.tools.setTool("uniscale");}
             if(text==="[Duplicate]"){this.app.duplicateSelected();}
             if(text==="[Group]"){this.app.tools.setTool("group");this.app.createGroup();if(this.grouptoggle){this.grouptoggle=false} else this.grouptoggle=true;}
+            if (text === "[PrimSelect]") {this.app.tools.setTool("primselect");}
             
             if(text==="LOAD"){this.app.loadProject();}
             if(text==="SAVE"){this.app.saveProject();}
