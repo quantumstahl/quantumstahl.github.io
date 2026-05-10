@@ -498,7 +498,10 @@ class MaxPaint3D {
     serializeScene() {
         return {
             version: 2,
-            objects: this.objects.map(obj => this.serializeNode(obj)),
+            objects: (this.objects || [])
+            .filter(obj => !obj.userData?.isPivotMarker)
+            .filter(obj => !obj.userData?.isEditorHelper)
+            .map(obj => this.serializeNode(obj)),
             animation: this.getAnimationSaveData()
         };
     }
@@ -514,7 +517,7 @@ class MaxPaint3D {
                 rotation: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },
                 scale: { x: obj.scale.x, y: obj.scale.y, z: obj.scale.z },
                 children: obj.children
-                    .filter(child => child.isMesh || child.isGroup)
+                    .filter(child => child.isMesh || child.isGroup).filter(child => !child.userData?.isPivotMarker)
                     .map(child => this.serializeNode(child))
             };
         }
@@ -932,7 +935,11 @@ class MaxPaint3D {
         let groups = 0;
 
         for (const root of this.objects) {
+            
             root.traverse(obj => {
+                if(obj.userData?.isPivotMarker) return;
+                if (obj.userData?.isEditorHelper) return;
+                if (obj.userData?.ignoreTriangleCount) return;
                 if (obj.isGroup) groups++;
 
                 if (obj.isMesh && obj.geometry) {
@@ -1422,7 +1429,7 @@ class MaxPaint3D {
     createPivotMarker(subgroup) {
         if (!this.modelGroup) return;
 
-        const geo = new THREE.SphereGeometry(0.12, 12, 8);
+        const geo = new THREE.SphereGeometry(0.12, 6, 4);
         const mat = new THREE.MeshBasicMaterial({
             color: 0xff0000,
             depthTest: false

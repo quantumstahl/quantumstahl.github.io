@@ -488,6 +488,7 @@ class UI {
         }
 
         if (name === "[CreateAni]") {
+            this.app.tools.setTool("selectsub");
             this.app.createAnimation();
             return;
         }
