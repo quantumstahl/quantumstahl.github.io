@@ -834,7 +834,7 @@ class MaxPaint3D {
 
         const exportRoot = new THREE.Group();
         exportRoot.name = "MaxPaint3D_Model";
-
+        this.removeEditorObjectsFromClone(exportRoot);
         for (const obj of this.objects) {
             const clone = obj.clone(true);
 
@@ -2433,4 +2433,25 @@ class MaxPaint3D {
             h.visible = visible;
         }
     }
+    removeEditorObjectsFromClone(root) {
+        const toRemove = [];
+
+        root.traverse(obj => {
+            if (
+                obj.userData?.isPivotMarker ||
+                obj.userData?.isEditorHelper ||
+                obj.userData?.ignoreSave ||
+                obj.userData?.ignoreExport
+            ) {
+                toRemove.push(obj);
+            }
+        });
+
+        for (const obj of toRemove) {
+            if (obj.parent) {
+                obj.parent.remove(obj);
+            }
+        }
+    }
+    
 }
