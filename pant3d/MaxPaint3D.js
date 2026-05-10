@@ -834,10 +834,10 @@ class MaxPaint3D {
 
         const exportRoot = new THREE.Group();
         exportRoot.name = "MaxPaint3D_Model";
-        this.removeEditorObjectsFromClone(exportRoot);
+        
         for (const obj of this.objects) {
             const clone = obj.clone(true);
-
+            this.removeEditorObjectsFromClone(clone);
             clone.traverse(child => {
                 // Ta bort editor/pivot markers om någon råkar ligga i modellen
                 if (child.userData?.isPivotMarker) {
