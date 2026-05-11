@@ -159,7 +159,7 @@ class MaxPaint3D {
     addPrimitive(type) {
          const mesh = this.createPrimitive(type);
          if (!mesh) return;
-
+         mesh.geometry = mesh.geometry.toNonIndexed();
         mesh.position.copy(this.camera.target);
 
         // sätt på marken
@@ -517,6 +517,9 @@ class MaxPaint3D {
                 position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
                 rotation: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },
                 scale: { x: obj.scale.x, y: obj.scale.y, z: obj.scale.z },
+                
+                
+                
                 children: obj.children
                     .filter(child => child.isMesh || child.isGroup).filter(child => !child.userData?.isPivotMarker)
                     .map(child => this.serializeNode(child))
@@ -525,9 +528,14 @@ class MaxPaint3D {
 
         // Primitive / mesh
         if (obj.isMesh) {
-            return {
+            
+            if (obj.geometry?.attributes?.color) {
+                return {
+                vertexColors : Array.from(obj.geometry.attributes.color.array),
+                hasVertexColors : true,
                 nodeType: "primitive",
                 id: this.ensureObjectId(obj),
+                flatShading: obj.userData.flatShading ?? obj.material?.flatShading ?? true,
                 primitiveType: obj.userData.type || "cube",
                 resolution: obj.userData.resolution || "medium",
                 name: obj.name || obj.userData.type || "primitive",
@@ -535,7 +543,25 @@ class MaxPaint3D {
                 rotation: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },
                 scale: { x: obj.scale.x, y: obj.scale.y, z: obj.scale.z },
                 color: obj.material?.color ? obj.material.color.getHex() : 0xffffff
-            };
+                };
+            }
+            else{
+            
+                return {
+                    nodeType: "primitive",
+                    flatShading: obj.userData.flatShading ?? obj.material?.flatShading ?? true,
+                    id: this.ensureObjectId(obj),
+                    primitiveType: obj.userData.type || "cube",
+                    resolution: obj.userData.resolution || "medium",
+                    name: obj.name || obj.userData.type || "primitive",
+                    position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
+                    rotation: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },
+                    scale: { x: obj.scale.x, y: obj.scale.y, z: obj.scale.z },
+                    color: obj.material?.color ? obj.material.color.getHex() : 0xffffff
+
+
+                };
+            }
         }
 
         return null;
@@ -605,7 +631,10 @@ class MaxPaint3D {
             const resolution = saved.resolution || "medium";
             obj = this.createPrimitive(saved.primitiveType,resolution);
             if (!obj) return null;
-
+            this.applyVertexColors(obj, saved);
+            obj.material.flatShading = saved.flatShading ?? false;
+            obj.material.needsUpdate = true;
+            obj.userData.flatShading = obj.material.flatShading;
             obj.name = saved.name || saved.primitiveType;
             obj.userData.type = saved.primitiveType;
             if (saved.id) {
@@ -860,6 +889,44 @@ class MaxPaint3D {
 
         return tex;
     }
+    prepareMeshForGLBExport(mesh) {
+        if (!mesh.isMesh || !mesh.geometry) return;
+
+        const wantsFlat =
+            mesh.userData?.flatShading === true ||
+            mesh.material?.flatShading === true;
+
+        // Klona geometry så du inte ändrar editorns original
+        let geo = mesh.geometry.clone();
+
+        if (wantsFlat) {
+            // Non-indexed + computeVertexNormals ger face normals / flat look
+            if (geo.index) {
+                geo = geo.toNonIndexed();
+            }
+
+            geo.computeVertexNormals();
+        }
+
+        mesh.geometry = geo;
+
+        if (mesh.material) {
+            const materials = Array.isArray(mesh.material)
+                ? mesh.material
+                : [mesh.material];
+
+            for (const mat of materials) {
+                mat.flatShading = wantsFlat;
+                mat.needsUpdate = true;
+
+                // Om mesh har vertex colors
+                if (mesh.geometry.attributes.color) {
+                    mat.vertexColors = true;
+                    mat.color.setHex(0xffffff);
+                }
+            }
+        }
+    }
     exportGLB() {
         this.ensureUniqueObjectNames();
 
@@ -876,24 +943,25 @@ class MaxPaint3D {
             const clone = obj.clone(true);
             this.removeEditorObjectsFromClone(clone);
             clone.traverse(child => {
-                // Ta bort editor/pivot markers om någon råkar ligga i modellen
-                if (child.userData?.isPivotMarker) {
-                    child.visible = false;
-                }
+            if (child.userData?.isPivotMarker) {
+                child.visible = false;
+            }
 
-                if (child.isMesh) {
-                    if (child.material) {
-                        if (Array.isArray(child.material)) {
-                            child.material = child.material.map(m => m.clone());
-                        } else {
-                            child.material = child.material.clone();
-                        }
+            if (child.isMesh) {
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material = child.material.map(m => m.clone());
+                    } else {
+                        child.material = child.material.clone();
                     }
-
-                    child.castShadow = false;
-                    child.receiveShadow = false;
                 }
-            });
+
+                this.prepareMeshForGLBExport(child);
+
+                child.castShadow = false;
+                child.receiveShadow = false;
+            }
+        });
 
             exportRoot.add(clone);
         }
@@ -2498,8 +2566,136 @@ class MaxPaint3D {
         } else {
             this.primitiveResolution = "low";
         }
-
-        
     }
-    
+    enableVertexColors(mesh) {
+        if (!mesh || !mesh.isMesh || !mesh.geometry) return;
+
+        let geo = mesh.geometry;
+
+        // För face painting vill du helst ha non-indexed geometry.
+        // Då har varje triangel egna vertices och färgen läcker inte till andra faces.
+        if (geo.index) {
+            geo = geo.toNonIndexed();
+            mesh.geometry = geo;
+        }
+
+        const count = geo.attributes.position.count;
+
+        if (!geo.attributes.color) {
+            const colors = new Float32Array(count * 3);
+
+            const base = new THREE.Color(
+                mesh.material?.color ? mesh.material.color.getHex() : 0xffffff
+            );
+
+            for (let i = 0; i < count; i++) {
+                colors[i * 3 + 0] = base.r;
+                colors[i * 3 + 1] = base.g;
+                colors[i * 3 + 2] = base.b;
+            }
+
+            geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+        }
+
+        if (Array.isArray(mesh.material)) {
+            for (const mat of mesh.material) {
+                mat.vertexColors = true;
+                mat.needsUpdate = true;
+            }
+        } else if (mesh.material) {
+            mesh.material.vertexColors = true;
+            mesh.material.needsUpdate = true;
+        }
+    }
+    paintHitFace(hit, colorHex) {
+        const mesh = hit.object;
+        
+        if (!mesh || !mesh.isMesh) return;
+        mesh.userData.hasVertexColors = true;
+        this.enableVertexColors(mesh);
+
+        const geo = mesh.geometry;
+        const colorAttr = geo.attributes.color;
+
+        if (!colorAttr) return;
+
+        const faceIndex = hit.faceIndex;
+        if (faceIndex === undefined || faceIndex === null) return;
+
+        const color = new THREE.Color(colorHex);
+
+        // Non-indexed geometry:
+        // varje triangel = 3 vertices
+        const start = faceIndex * 3;
+
+        colorAttr.setXYZ(start + 0, color.r, color.g, color.b);
+        colorAttr.setXYZ(start + 1, color.r, color.g, color.b);
+        colorAttr.setXYZ(start + 2, color.r, color.g, color.b);
+
+        colorAttr.needsUpdate = true;
+
+        // Gör materialet vitt/neutralt om vertex colors ska synas exakt.
+        // Annars multipliceras vertexfärg med material.color.
+        if (mesh.material && !Array.isArray(mesh.material)) {
+            mesh.material.vertexColors = true;
+            mesh.material.color.setHex(0xffffff);
+            mesh.material.needsUpdate = true;
+        }
+    }
+    applyVertexColors(obj, data) {
+        if (!obj || !obj.isMesh) return;
+        if (!data.vertexColors) return;
+
+        let geo = obj.geometry;
+
+        // Viktigt: om vertex colors sparades från non-indexed geometry
+        // behöver load också vara non-indexed.
+        if (geo.index) {
+            geo = geo.toNonIndexed();
+            obj.geometry = geo;
+        }
+
+        const arr = new Float32Array(data.vertexColors);
+
+        if (arr.length !== geo.attributes.position.count * 3) {
+            console.warn("Vertex color count mismatch", obj.name);
+            return;
+        }
+
+        geo.setAttribute("color", new THREE.BufferAttribute(arr, 3));
+
+        if (obj.material) {
+            if (Array.isArray(obj.material)) {
+                for (const mat of obj.material) {
+                    mat.vertexColors = true;
+                    mat.color.setHex(0xffffff);
+                    mat.needsUpdate = true;
+                }
+            } else {
+                obj.material.vertexColors = true;
+                obj.material.color.setHex(0xffffff);
+                obj.material.needsUpdate = true;
+            }
+        }
+
+        obj.userData.hasVertexColors = true;
+    }
+    toggleFlatSmoothSelected() {
+        if (!this.selected) return;
+
+        this.selected.traverse(obj => {
+            if (!obj.isMesh || !obj.material) return;
+
+            const materials = Array.isArray(obj.material)
+                ? obj.material
+                : [obj.material];
+
+            for (const mat of materials) {
+                mat.flatShading = !mat.flatShading;
+                mat.needsUpdate = true;
+            }
+
+            obj.userData.flatShading = materials[0].flatShading;
+        });
+    }
 }

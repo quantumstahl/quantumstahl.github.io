@@ -30,6 +30,7 @@
     <script src="gif.js"></script> 
     <script src="gif.worker.js"></script> 
     <script src="PrimSelectTool.js"></script> 
+    <script src="FacePaintTool.js"></script> 
     
     <style> 
 html, body {
@@ -66,7 +67,15 @@ html, body {
     /* viktigt på iPhone */
     display: block;
 }
-
+#styleColorInput {
+    position: fixed;
+    left: 8px;
+    top: 8px;
+    width: 44px;
+    height: 44px;
+    opacity: 0.01;
+    z-index: 9999;
+}
     </style> 
 </head>
 <body>
@@ -75,6 +84,7 @@ html, body {
 
    
     <input id="loadFileInput" type="file" accept=".mp3d,application/json">
+    <input id="styleColorInput" type="color">
 
     <script>
         const isMobile = {

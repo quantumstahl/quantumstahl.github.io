@@ -21,19 +21,60 @@ class UI {
         this.selectedtool="[Select]";
         this.grouptoggle=false;
         this.animatetoggle=false;
+        this.styletoggle=false;
         
         this.colors = [
-            0x66aa55, // grön (du har)
-            0x99cc66, // ljusgrön
             0x8B5A2B, // brun (trä)
             0xC68642, // hudfärg (ljus)
-            0x7A5230, // hudfärg (mörkare)
             0xFF0000, // röd
             0x4D7CFE, // blå
-            0xF4D35E, // gul
             0xFFFFFF, // vit
             0x222222  // mörk/grå istället för svart (ser bättre ut)
         ];
+        this.colors2 = [
+                 // Greens / nature
+            0x66aa55, // green
+            0x99cc66, // light green
+            0x2f5d34, // dark forest green
+            0x8fbf3f, // yellow green
+
+            // Wood / brown / skin
+            0x8B5A2B, // brown / wood
+            0xC68642, // light skin / tan
+            0x7A5230, // darker skin / leather
+            0x4A2C18, // dark brown
+
+            // Warm colors
+            0xFF0000, // red
+            0xCC4422 // brick red
+        ];
+        this.colors3 = [
+       
+            0xF4D35E, // yellow
+            0xFFAA33, // orange
+
+            // Cool colors
+            0x4D7CFE, // blue
+            0x2E4A9E, // dark blue
+            0x55C7D8, // cyan
+            0x8E5AC8, // purple
+
+            // Neutrals
+            0xFFFFFF, // white
+            0xCCCCCC, // light gray
+            0x777777, // gray
+            0x222222  // dark gray / almost black
+        ];
+        this.activeColorArray = this.colors2;
+        this.activeColorIndex = 0;
+        this.activeColor = this.colors2[0];
+
+        this.colorInput = document.getElementById("styleColorInput");
+
+        this.colorInput.addEventListener("input", e => {
+            this.applyPickedColor(e.target.value);
+        });
+ 
         
     }
     update(){
@@ -65,8 +106,9 @@ class UI {
             ? Math.min(90, this.canvas.height * 0.18)
             : Math.min(150, this.canvas.width * 0.20);
         
+
         
-        if(!this.animatetoggle){
+        if(!this.animatetoggle&&!this.styletoggle){
 
             this.drawbutton("cube",0,this.canvas.height-btnSize,btnSize,btnSize);
             this.drawbutton("cone",btnSize,this.canvas.height-btnSize,btnSize,btnSize);
@@ -90,22 +132,40 @@ class UI {
 
             for(let i=0;i<this.colors.length;i++){
 
-                this.drawColorButton(this.colors[i], 0+(i*btnSize/3.6 + btnSize*3.75), 0 , btnSize/2.0);
+               this.drawColorButton(this.colors[i], 0+(i*btnSize/4 + btnSize*4.5), 0 , btnSize/4.0,i,this.colors);
 
             }
-            this.drawbuttonstools("Ungroup",btnSize*3,0,btnSize*0.75,btnSize/2);
+            this.drawbuttonstools("Ungroup",btnSize*3.75,0,btnSize*0.75,btnSize/2);
         }
-        else{
+        else if(this.animatetoggle){
             this.drawAnimationList(btnSize);
             this.handleAnimationListClick();
             this.drawAnimateUI(btnSize);
-            this.drawbuttonstools("recordGIF",btnSize*3,0,btnSize*0.75,btnSize/2);
-            this.drawbuttonstools("ShareGIF",btnSize*3.75,0,btnSize*0.75,btnSize/2);
+            this.drawbuttonstools("recordGIF",btnSize*3.75,0,btnSize*0.75,btnSize/2);
+            this.drawbuttonstools("ShareGIF",btnSize*4.50,0,btnSize*0.75,btnSize/2);
             
             
             
         }
+        else if(this.styletoggle){
+            
+            
+            this.drawbuttonstools("[PrimSelect]", 0, this.canvas.height - btnSize * 1.5, btnSize*0.75, btnSize / 2);
+            this.drawbuttonstools("[FacePaint]", btnSize * 0.75, this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
+            this.drawbuttonstools("[ColorPick]", btnSize *1.5, this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
+            this.drawbuttonstools("[FlatSmooth]", btnSize *2.25, this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
+            
+            
+            this.positionColorInputCanvasCoords(btnSize *1.5, this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
+            for(let i=0;i<this.colors2.length;i++){
+               this.drawColorButton(this.colors2[i], 0+(i*btnSize/4), this.canvas.height-btnSize/2 , btnSize/4.0,i,this.colors2);
+            }
+            for(let i=0;i<this.colors3.length;i++){
+               this.drawColorButton(this.colors3[i], 0+(i*btnSize/4), this.canvas.height-btnSize , btnSize/4.0,i,this.colors3);
+            }
+        }
         
+        this.drawbuttonstools("Style",btnSize*3,0,btnSize*0.75,btnSize/2);
         this.drawbuttonstools("Animate",btnSize*2.25,0,btnSize*0.75,btnSize/2);
         this.drawbuttonstools("EXPORT",btnSize*1.5,0,btnSize*0.75,btnSize/2);
         this.drawbuttonstools("LOAD",btnSize*0.75,0,btnSize*0.75,btnSize/2);
@@ -250,12 +310,15 @@ class UI {
             if(text==="LOAD"){this.app.loadProject();}
             if(text==="SAVE"){this.app.saveProject();}
             if(text==="EXPORT"){this.app.exportGLB();}
-            if(text==="Animate"){if(this.animatetoggle){this.animatetoggle=false;this.app.exitAnimateMode();this.app.tools.setTool("select");this.selectedtool="[Select]";}else {this.app.tools.setTool("select");this.selectedtool="[Select]";this.animatetoggle=true;this.app.enterAnimateMode();}}
+            if(text==="Animate"){if(this.animatetoggle){this.animatetoggle=false;this.app.exitAnimateMode();this.app.tools.setTool("select");this.selectedtool="[Select]";}else {this.app.tools.setTool("select");this.selectedtool="[Select]";this.animatetoggle=true;this.styletoggle=false;this.app.enterAnimateMode();}}
+            if(text==="Style"){if(this.styletoggle){this.styletoggle=false;this.app.exitAnimateMode();this.app.tools.setTool("select");this.selectedtool="[Select]";}else {this.app.tools.setTool("select");this.selectedtool="[Select]";this.styletoggle=true;this.animatetoggle=false;}}
             if(text==="recordGIF"){this.app.exportGifPreview();}
             if(text==="ShareGIF"){this.app.shareLastGif();}
             if(text==="Ungroup"){this.app.ungroupAllToPrimitives();}
-            
-            
+            if (text === "[ColorPick]") {this.openColorPickerForActiveColor();return;}
+            if (text === "[FacePaint]") {this.app.tools.setTool("facepaint");return;}
+            if (text === "[FlatSmooth]") {this.app.toggleFlatSmoothSelected(); return;}
+
             
             this.handleAnimateButton(text);
         }
@@ -356,18 +419,67 @@ class UI {
         }
         this.ctx.restore();
     }
-    drawColorButton(color, x, y, size) {
+    drawColorButton(color, x, y, size, index, colorArray) {
         this.ctx.fillStyle = "#" + color.toString(16).padStart(6, "0");
-        this.ctx.fillRect(x, y, size, size);
+        this.ctx.fillRect(x, y, size, size*2);
+        
+            // markera aktiv färg
+        if (this.activeColorArray === colorArray && this.activeColorIndex === index) {
+            this.ctx.strokeStyle = "white";
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeRect(x + 2, y + 2, size - 4, size*2 - 4);
 
+            this.ctx.strokeStyle = "black";
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(x + 5, y + 5, size - 10, size*2 - 10);
+        }
+        
+        
         if (this.input.mouse.justPressed &&
             this.input.mouse.x >= x &&
             this.input.mouse.x <= x + size &&
             this.input.mouse.y >= y &&
-            this.input.mouse.y <= y + size) {
-
+            this.input.mouse.y <= y + size*2) {
+            this.activeColorArray = colorArray;
+            this.activeColorIndex = index;
+            this.activeColor = color;
             this.app.setColor(color);
         }
+    }
+    hexStringToNumber(hex) {
+        return parseInt(hex.replace("#", ""), 16);
+    }
+
+    numberToHexString(color) {
+        return "#" + color.toString(16).padStart(6, "0");
+    }
+    positionColorInputCanvasCoords(x, y, w, h) {
+        const input = document.getElementById("styleColorInput");
+        const rect = this.canvas.getBoundingClientRect();
+
+        const sx = rect.width / this.canvas.width;
+        const sy = rect.height / this.canvas.height;
+
+        input.style.position = "fixed";
+        input.style.left = (rect.left + x * sx) + "px";
+        input.style.top = (rect.top + y * sy) + "px";
+        input.style.width = (w * sx) + "px";
+        input.style.height = (h * sy) + "px";
+        input.style.opacity = "0.01";
+        input.style.zIndex = "9999";
+        
+        const color = this.activeColorArray[this.activeColorIndex] ?? 0xffffff;
+            input.value = "#" + color.toString(16).padStart(6, "0");
+    }
+    applyPickedColor(hex) {
+        if (!this.activeColorArray) return;
+
+        const color = this.hexStringToNumber(hex);
+
+        this.activeColorArray[this.activeColorIndex] = color;
+        this.activeColor = color;
+
+        this.app.setColor(color);
     }
     drawAnimateUI(btnSize) {
         

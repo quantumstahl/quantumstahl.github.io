@@ -15,7 +15,8 @@ class ToolManager {
             selectsub:new SelectSubgroupTool(app),
             animove: new AniMoveTool(app),
             aniscale: new AniScaleTool(app),
-            primselect: new PrimSelectTool(app)
+            primselect: new PrimSelectTool(app),
+            facepaint:new FacePaintTool(app)
         };
 
         this.current = this.tools.select;
