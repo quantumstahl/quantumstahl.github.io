@@ -73,7 +73,8 @@ class UI {
             this.drawbutton("cylinder",btnSize*2,this.canvas.height-btnSize,btnSize,btnSize);
             this.drawbutton("sphere",btnSize*3,this.canvas.height-btnSize,btnSize,btnSize);
             this.drawbutton("plane",btnSize*4,this.canvas.height-btnSize,btnSize,btnSize);
-            this.drawbutton("trash",btnSize*5,this.canvas.height-btnSize*0.75,btnSize*0.75,btnSize*0.75);
+            this.drawbutton("resolution",btnSize*5,this.canvas.height-btnSize*1,btnSize*0.75,btnSize*0.5);
+            this.drawbutton("trash",btnSize*5,this.canvas.height-btnSize*0.5,btnSize*0.75,btnSize*0.5); 
             this.drawbutton("undo",btnSize*5.75,this.canvas.height-btnSize*1,btnSize*0.75,btnSize*0.50);
             this.drawbutton("redo",btnSize*5.75,this.canvas.height-btnSize*0.5,btnSize*0.75,btnSize*0.50);
 
@@ -254,6 +255,8 @@ class UI {
             if(text==="ShareGIF"){this.app.shareLastGif();}
             if(text==="Ungroup"){this.app.ungroupAllToPrimitives();}
             
+            
+            
             this.handleAnimateButton(text);
         }
         
@@ -306,7 +309,7 @@ class UI {
         if(text=="cylinder")this.ctx.drawImage(this.cylinder,x+20,y+2,dx-40,dy-40);
         if(text=="sphere")this.ctx.drawImage(this.sphere,x+20,y+2,dx-40,dy-40);
         if(text=="plane")this.ctx.drawImage(this.plane,x+20,y+2,dx-40,dy-40);
-        if(text=="trash")this.ctx.drawImage(this.trash,x+23,y+8,dx-50,dy-50);
+        if(text=="trash")this.ctx.drawImage(this.trash,x+15,y+3,dx-30,dy-30);
         this.ctx.textAlign = "center";
         this.ctx.textBaseline = "middle";
 
@@ -316,7 +319,16 @@ class UI {
         this.ctx.shadowBlur = 0;
         this.ctx.fillStyle = subColor;
         this.ctx.font = (dx/6)+"px Arial";
-        this.ctx.fillText(text, x + dx / 2, y + dy -30);
+        
+        
+        const resText =
+        this.app.primitiveResolution === "low" ? "Res:Low" :
+        this.app.primitiveResolution === "medium" ? "Res:Med" :
+        "Res:High";
+        
+        if(text=="trash") this.ctx.fillText(text, x + dx / 2, y + dy -20);
+        else if(text=="resolution")this.ctx.fillText(resText, x + dx / 2, y + dy -30);
+        else this.ctx.fillText(text, x + dx / 2, y + dy -30);
 
         if(this.input.mouse.justPressed&&
                 this.input.mouse.x >= x &&
@@ -327,6 +339,7 @@ class UI {
             if(text=="trash"){this.app.deleteSelected(); return;}
             if(text=="undo"){this.app.undo(); return;}
             if(text=="redo"){this.app.redo(); return;}
+            if(text=="resolution"){this.app.cyclePrimitiveResolution();return;}
             
             this.selected=text;
             this.app.UI.selectedtool="[Move]";

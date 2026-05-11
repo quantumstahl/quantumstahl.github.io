@@ -79,6 +79,7 @@ class MaxPaint3D {
         this.poseSegmentDurations = [];
         
         this.suppressSelectionBox=false;
+        this.primitiveResolution = "medium";
         
     }
 
@@ -528,6 +529,7 @@ class MaxPaint3D {
                 nodeType: "primitive",
                 id: this.ensureObjectId(obj),
                 primitiveType: obj.userData.type || "cube",
+                resolution: obj.userData.resolution || "medium",
                 name: obj.name || obj.userData.type || "primitive",
                 position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
                 rotation: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },
@@ -600,7 +602,8 @@ class MaxPaint3D {
 
         // Primitive
         if (saved.nodeType === "primitive") {
-            obj = this.createPrimitive(saved.primitiveType);
+            const resolution = saved.resolution || "medium";
+            obj = this.createPrimitive(saved.primitiveType,resolution);
             if (!obj) return null;
 
             obj.name = saved.name || saved.primitiveType;
@@ -638,40 +641,74 @@ class MaxPaint3D {
         console.warn("Unknown nodeType:", saved.nodeType);
         return null;
     }
-    createPrimitive(type) {
+    createPrimitive(type, resolution = this.primitiveResolution || "low") {
         let geo;
 
         if (type === "cube") {
             geo = new THREE.BoxGeometry(2, 2, 2);
         }
         else if (type === "cone") {
-            geo = new THREE.ConeGeometry(1, 2, 8);
+            const s = this.getPrimitiveSegments("cone", resolution);
+            geo = new THREE.ConeGeometry(1, 2, s.radial);
         }
         else if (type === "cylinder") {
-            geo = new THREE.CylinderGeometry(1, 1, 2, 8);
+            const s = this.getPrimitiveSegments("cylinder", resolution);
+            geo = new THREE.CylinderGeometry(1, 1, 2, s.radial);
         }
         else if (type === "sphere") {
-            geo = new THREE.SphereGeometry(1, 8, 6);
+            const s = this.getPrimitiveSegments("sphere", resolution);
+            geo = new THREE.SphereGeometry(1, s.width, s.height);
         }
         else if (type === "plane") {
             geo = new THREE.BoxGeometry(2, 0.1, 2);
         }
 
-        if (!geo) {
-            console.warn("Unknown primitive type:", type);
-            return null;
-        }
+        if (!geo) return null;
 
-        const mat = new THREE.MeshStandardMaterial({color: 0x66aa55,roughness: 0.7,metalness: 0.0});
+        const mat = new THREE.MeshStandardMaterial({
+            color: 0x66aa55,
+            roughness: 0.7,
+            metalness: 0.0
+        });
+
         const obj = new THREE.Mesh(geo, mat);
+
         obj.userData.type = type;
+        obj.userData.resolution = resolution;
+
         obj.name = type;
-            // viktigt för både add och load
         obj.castShadow = true;
         obj.receiveShadow = true;
+
         this.ensureObjectId(obj);
         return obj;
     }
+    getPrimitiveSegments(type, resolution = this.primitiveResolution || "low") {
+        const res = resolution;
+
+        if (type === "cylinder") {
+            if (res === "low") return { radial: 4 };
+            if (res === "medium") return { radial: 6 };
+            return { radial: 8 };
+        }
+
+        if (type === "cone") {
+            if (res === "low") return { radial: 4 };
+            if (res === "medium") return { radial: 6 };
+            return { radial: 8 };
+        }
+
+        if (type === "sphere") {
+            if (res === "low") return { width: 4, height: 2 };
+            if (res === "medium") return { width: 6, height: 4 };
+            return { width: 8, height: 6 };
+        }
+
+        return {};
+    }
+    
+    
+    
     clearSceneObjects() {
         for (const obj of this.objects) {
             this.scene.remove(obj);
@@ -2452,6 +2489,17 @@ class MaxPaint3D {
                 obj.parent.remove(obj);
             }
         }
+    }
+    cyclePrimitiveResolution() {
+        if (this.primitiveResolution === "low") {
+            this.primitiveResolution = "medium";
+        } else if (this.primitiveResolution === "medium") {
+            this.primitiveResolution = "high";
+        } else {
+            this.primitiveResolution = "low";
+        }
+
+        
     }
     
 }
