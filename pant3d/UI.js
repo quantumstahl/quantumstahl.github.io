@@ -105,7 +105,7 @@ class UI {
         const btnSize = isLandscape
             ? Math.min(90, this.canvas.height * 0.18)
             : Math.min(150, this.canvas.width * 0.20);
-        
+        this.positionColorInputCanvasCoords(-btnSize , this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
 
         
         if(!this.animatetoggle&&!this.styletoggle){
