@@ -548,6 +548,9 @@ class MaxPaint3D {
             else{
             
                 return {
+                    hasTexture: obj.userData.hasTexture || false,
+                    textureDataURL: obj.userData.textureDataURL || null,
+                    textureName: obj.userData.textureName || null,
                     nodeType: "primitive",
                     flatShading: obj.userData.flatShading ?? obj.material?.flatShading ?? true,
                     id: this.ensureObjectId(obj),
@@ -632,6 +635,14 @@ class MaxPaint3D {
             obj = this.createPrimitive(saved.primitiveType,resolution);
             if (!obj) return null;
             this.applyVertexColors(obj, saved);
+            
+            if (saved.hasTexture && saved.textureDataURL) {
+                this.applyTextureDataURLToObject(
+                    obj,
+                    saved.textureDataURL,
+                    saved.textureName
+                );
+            }
             obj.material.flatShading = saved.flatShading ?? false;
             obj.material.needsUpdate = true;
             obj.userData.flatShading = obj.material.flatShading;
@@ -724,7 +735,7 @@ class MaxPaint3D {
         if (type === "cone") {
             if (res === "low") return { radial: 4 };
             if (res === "medium") return { radial: 6 };
-            return { radial: 8 };
+            return { radial: 24 };
         }
 
         if (type === "sphere") {
@@ -2698,4 +2709,139 @@ class MaxPaint3D {
             obj.userData.flatShading = materials[0].flatShading;
         });
     }
+    applyTextureDataURLToObject(obj, dataURL, name = "texture") {
+        if (!obj || !dataURL) return;
+        
+        const img = new Image();
+
+        img.onload = () => {
+            const texture = new THREE.Texture(img);
+            texture.needsUpdate = true;
+
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+
+            if (THREE.SRGBColorSpace) {
+                texture.colorSpace = THREE.SRGBColorSpace;
+            }
+
+            obj.traverse(child => {
+                if (!child.isMesh) return;
+
+                const mat = new THREE.MeshStandardMaterial({
+                    map: texture,
+                    color: 0xffffff,
+                    roughness: 0.8,
+                    metalness: 0.0
+                });
+
+                if (child.geometry?.attributes?.color) {
+                    mat.vertexColors = true;
+                    mat.color.setHex(0xffffff);
+                }
+
+                child.material = mat;
+
+                child.userData.hasTexture = true;
+                child.userData.textureDataURL = dataURL;
+                child.userData.textureName = name;
+            });
+        };
+        
+        img.src = dataURL;
+    }
+    roughenObject(obj, maxDrop = 0.12) {
+    if (!obj || !obj.geometry) return;
+
+    const oldGeo = obj.geometry;
+    const geo = oldGeo.clone().toNonIndexed();
+    const pos = geo.attributes.position;
+
+    let minY = Infinity;
+    let maxY = -Infinity;
+    let baseRadius = 0;
+    let islong=true;
+    let counter=false;
+
+    // hitta apex, botten och base radius
+    for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        const y = pos.getY(i);
+        const z = pos.getZ(i);
+
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+
+        const r = Math.sqrt(x * x + z * z);
+        baseRadius = Math.max(baseRadius, r);
+    }
+
+    const apexY = maxY;
+    const baseY = minY;
+    const height = apexY - baseY;
+    const eps = 0.0001;
+
+    // gå igenom trianglar
+    for (let i = 0; i < pos.count; i += 3) {
+        const ids = [i, i + 1, i + 2];
+
+        const bottomIds = ids.filter(id => {
+            return Math.abs(pos.getY(id) - baseY) < eps;
+        });
+
+        // sidotriangel: två bottenpunkter + en topp
+        if (bottomIds.length === 2) {
+            
+
+
+
+            
+            
+            let drop = maxDrop;
+            
+            if(islong)islong=false;
+            else if(!islong){drop=0;islong=true;}
+
+            for (const id of bottomIds) {
+                const x = pos.getX(id);
+                const z = pos.getZ(id);
+                const oldY = pos.getY(id);
+
+                const oldRadius = Math.sqrt(x * x + z * z);
+                if (oldRadius < 0.0001) continue;
+
+                const dirX = x / oldRadius;
+                const dirZ = z / oldRadius;
+                
+                if(counter){counter=false;}else counter=true;
+                let newY = oldY - drop;
+                if(counter)newY=newY-maxDrop/3;
+                // Radien ökar när punkten flyttas längre från spetsen
+                const t = (apexY - newY) / height;
+                const newRadius = baseRadius * t;
+
+                pos.setXYZ(
+                    id,
+                    dirX * newRadius,
+                    newY,
+                    dirZ * newRadius
+                );
+            }
+        }
+    }
+
+    pos.needsUpdate = true;
+    geo.computeVertexNormals();
+    geo.computeBoundingBox();
+    geo.computeBoundingSphere();
+
+    obj.geometry.dispose();
+    obj.geometry = geo;
+
+    if (obj.material) {
+        obj.material = obj.material.clone();
+        obj.material.flatShading = true;
+        obj.material.needsUpdate = true;
+    }
+}
 }

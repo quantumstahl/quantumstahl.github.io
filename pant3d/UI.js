@@ -68,13 +68,17 @@ class UI {
         this.activeColorArray = this.colors2;
         this.activeColorIndex = 0;
         this.activeColor = this.colors2[0];
+        this.activeColorbuffer = this.colors2[0];
 
         this.colorInput = document.getElementById("styleColorInput");
 
         this.colorInput.addEventListener("input", e => {
             this.applyPickedColor(e.target.value);
         });
- 
+        this.setupTextureInput();
+        
+        this.textureSlots = [null, null, null, null];
+        this.activeTextureSlot = 0;
         
     }
     update(){
@@ -98,6 +102,38 @@ class UI {
         
         
     }
+    makeimagebutton(number,x,y,dx,dy){
+
+        if(this.textureSlots[number]){
+            this.ctx.drawImage(this.textureSlots[number].image,x,y,dx,dy);
+        }    
+        else{this.ctx.fillStyle="black"; this.ctx.fillRect(x,y,dx,dy);}
+        
+        if(this.activeTextureSlot===number){
+            this.ctx.strokeStyle = "white";
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeRect(x + 2, y + 2, dx - 4, dy - 4);
+
+            this.ctx.strokeStyle = "black";
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(x + 5, y + 5, dx - 10, dy - 10);
+            
+            
+        }
+        
+       
+        if(this.input.mouse.justPressed&&
+                this.input.mouse.x >= x &&
+                this.input.mouse.x <= x + dx &&
+                this.input.mouse.y >= y &&
+                this.input.mouse.y <= y + dy){
+            if(this.textureSlots[number])this.applyActiveTextureToSelected();
+            this.activeTextureSlot=number;
+        }
+    }
+    
+    
+    
     makeprimitives(){
         
         const isLandscape = this.canvas.width > this.canvas.height;
@@ -106,7 +142,7 @@ class UI {
             ? Math.min(90, this.canvas.height * 0.18)
             : Math.min(150, this.canvas.width * 0.20);
         this.positionColorInputCanvasCoords(-btnSize , this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
-
+        this.positionTextureInput(-btnSize , this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
         
         if(!this.animatetoggle&&!this.styletoggle){
 
@@ -154,6 +190,11 @@ class UI {
             this.drawbuttonstools("[FacePaint]", btnSize * 0.75, this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
             this.drawbuttonstools("[ColorPick]", btnSize *1.5, this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
             this.drawbuttonstools("[FlatSmooth]", btnSize *2.25, this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
+            this.drawbuttonstools("[loadTexture]", btnSize *3, this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
+            this.positionTextureInput(btnSize *3, this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
+            this.drawbuttonstools("[Light+]", btnSize *3.75, this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
+            this.drawbuttonstools("[Light-]", btnSize *4.5, this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
+            this.drawbuttonstools("[Roughen]", btnSize *5.25, this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2); 
             
             
             this.positionColorInputCanvasCoords(btnSize *1.5, this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
@@ -163,6 +204,12 @@ class UI {
             for(let i=0;i<this.colors3.length;i++){
                this.drawColorButton(this.colors3[i], 0+(i*btnSize/4), this.canvas.height-btnSize , btnSize/4.0,i,this.colors3);
             }
+            
+            this.makeimagebutton(0,(10*btnSize/4),this.canvas.height-btnSize,btnSize/2.0,btnSize/2.0);
+            this.makeimagebutton(1,(12*btnSize/4),this.canvas.height-btnSize,btnSize/2.0,btnSize/2.0);
+            this.makeimagebutton(2,(10*btnSize/4),this.canvas.height-btnSize/2.0,btnSize/2.0,btnSize/2.0);
+            this.makeimagebutton(3,(12*btnSize/4),this.canvas.height-btnSize/2.0,btnSize/2.0,btnSize/2.0);
+            
         }
         
         this.drawbuttonstools("Style",btnSize*3,0,btnSize*0.75,btnSize/2);
@@ -315,10 +362,13 @@ class UI {
             if(text==="recordGIF"){this.app.exportGifPreview();}
             if(text==="ShareGIF"){this.app.shareLastGif();}
             if(text==="Ungroup"){this.app.ungroupAllToPrimitives();}
-            if (text === "[ColorPick]") {this.openColorPickerForActiveColor();return;}
+            if (text === "[ColorPick]") {return;}
             if (text === "[FacePaint]") {this.app.tools.setTool("facepaint");return;}
             if (text === "[FlatSmooth]") {this.app.toggleFlatSmoothSelected(); return;}
-
+            if(text === "[loadTexture]"){ return;}
+            if (text === "[Light+]") {this.activeColor=this.adjustColorBrightness(this.activeColorbuffer, 0.25);return;}
+            if (text === "[Light-]") {this.activeColor=this.adjustColorBrightness(this.activeColorbuffer, -0.25);return;}
+            if (text === "[Roughen]"){this.app.roughenObject(this.app.selected);}
             
             this.handleAnimateButton(text);
         }
@@ -342,7 +392,19 @@ class UI {
         
         
     }
-    
+    adjustColorBrightness(color, amount) {
+        const c = new THREE.Color(color);
+
+        if (amount > 0) {
+            // ljusa upp mot vitt
+            c.lerp(new THREE.Color(0xffffff), amount);
+        } else {
+            // mörka ner mot svart
+            c.lerp(new THREE.Color(0x000000), -amount);
+        }
+
+        return c;
+    }
     
     drawbutton(text,x,y,dx,dy){
         
@@ -443,6 +505,7 @@ class UI {
             this.activeColorArray = colorArray;
             this.activeColorIndex = index;
             this.activeColor = color;
+            this.activeColorbuffer=color;
             this.app.setColor(color);
         }
     }
@@ -773,6 +836,101 @@ this.ctx.fillText(anim.name + " " + speedText, x + 6, y + btnSize * 0.21);
 
         return false;
     }
+    setupTextureInput() {
+        
+       
+        
+        this.textureInput = document.getElementById("textureFileInput");
 
+        this.textureInput.addEventListener("change", e => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            this.loadTextureIntoSlot(file, this.activeTextureSlot);
+
+            // gör så man kan välja samma fil igen senare
+            e.target.value = "";
+        });
+    }
+    positionTextureInput(x, y, w, h) {
+        
+        
+        const input = document.getElementById("textureFileInput");
+        const rect = this.canvas.getBoundingClientRect();
+
+        const sx = rect.width / this.canvas.width;
+        const sy = rect.height / this.canvas.height;
+
+        input.style.position = "fixed";
+        input.style.left = (rect.left + x * sx) + "px";
+        input.style.top = (rect.top + y * sy) + "px";
+        input.style.width = (w * sx) + "px";
+        input.style.height = (h * sy) + "px";
+        input.style.opacity = "0.01";
+        input.style.zIndex = "9999";
+        
+    }
+    
+    loadTextureIntoSlot(file, slotIndex) {
+        const reader = new FileReader();
+
+        reader.onload = () => {
+            const dataURL = reader.result;
+
+            const img = new Image();
+            img.onload = () => {
+                const texture = new THREE.Texture(img);
+                texture.needsUpdate = true;
+
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                texture.colorSpace = THREE.SRGBColorSpace;
+
+                this.textureSlots[slotIndex] = {
+                    name: file.name,
+                    image:img,
+                    dataURL: dataURL,
+                    texture
+                };
+
+                console.log("Loaded texture slot", slotIndex, file.name);
+            };
+
+            img.src = dataURL;
+        };
+
+        reader.readAsDataURL(file);
+    }
+    applyActiveTextureToSelected() {
+        const slot = this.textureSlots[this.activeTextureSlot];
+        if (!slot || !slot.texture) {
+            alert("No texture loaded in this slot.");
+            return;
+        }
+
+        if (!this.app.selected) {
+            alert("Select an object first.");
+            return;
+        }
+
+        this.app.selected.traverse(obj => {
+            if (!obj.isMesh) return;
+
+            const mat = new THREE.MeshStandardMaterial({
+                map: slot.texture,
+                color: 0xffffff,
+                roughness: 0.8,
+                metalness: 0.0
+            });
+
+            obj.material = mat;
+
+            obj.userData.hasTexture = true;
+            obj.userData.textureDataURL = slot.dataURL;
+            obj.userData.textureName = slot.name || "texture";
+        });
+
+        this.pushUndoState?.();
+    }
 
 }
