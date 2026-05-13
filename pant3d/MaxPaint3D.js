@@ -2845,15 +2845,12 @@ class MaxPaint3D {
 		}
 	}
 	applyRadialVertexGradient(mesh, darkBrightness = 0, edgeBrightness = 1.15) {
-		const startAt = this.askRadialGradientStart();
-		if(!startAt)return;
-		
+		const startAt = this.askRadialGradientStart(0.5);
+		if (startAt === null) return;
+
 		const geo = mesh.geometry;
 		const pos = geo.attributes.position;
 		if (!pos) return;
-
-		const baseColor = mesh.material.color.clone();
-		const color = new THREE.Color();
 
 		let maxDist = 0;
 
@@ -2864,37 +2861,60 @@ class MaxPaint3D {
 			if (d > maxDist) maxDist = d;
 		}
 
-		const colors = [];
+		if (maxDist <= 0) return;
 
-		for (let i = 0; i < pos.count; i++) {
-			const x = pos.getX(i);
-			const z = pos.getZ(i);
-			const d = Math.sqrt(x * x + z * z);
+		const mat = mesh.material.clone();
 
-			const r = maxDist > 0 ? d / maxDist : 0;
+		mat.onBeforeCompile = (shader) => {
+			shader.uniforms.uStartAt = { value: startAt };
+			shader.uniforms.uDarkBrightness = { value: darkBrightness };
+			shader.uniforms.uEdgeBrightness = { value: edgeBrightness };
+			shader.uniforms.uMaxRadialDist = { value: maxDist };
 
-			let brightness;
+			shader.vertexShader = `
+				varying vec3 vLocalPos;
+			` + shader.vertexShader;
 
-			if (r < startAt) {
-				brightness = darkBrightness;
-			} else {
-				const t = (r - startAt) / (1 - startAt);
-				brightness = darkBrightness + t * (edgeBrightness - darkBrightness);
-			}
+			shader.vertexShader = shader.vertexShader.replace(
+				"#include <begin_vertex>",
+				`
+				#include <begin_vertex>
+				vLocalPos = position;
+				`
+			);
 
-			color.copy(baseColor);
-			color.r *= brightness;
-			color.g *= brightness;
-			color.b *= brightness;
+			shader.fragmentShader = `
+				varying vec3 vLocalPos;
+				uniform float uStartAt;
+				uniform float uDarkBrightness;
+				uniform float uEdgeBrightness;
+				uniform float uMaxRadialDist;
+			` + shader.fragmentShader;
 
-			colors.push(color.r, color.g, color.b);
-		}
+			shader.fragmentShader = shader.fragmentShader.replace(
+				"#include <color_fragment>",
+				`
+				#include <color_fragment>
 
-		geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-		geo.attributes.color.needsUpdate = true;
+				float r = length(vLocalPos.xz) / uMaxRadialDist;
+				r = clamp(r, 0.0, 1.0);
 
-		mesh.material.vertexColors = true;
-		mesh.material.needsUpdate = true;
+				float brightness;
+
+				if (r < uStartAt) {
+					brightness = uDarkBrightness;
+				} else {
+					float t = (r - uStartAt) / max(0.0001, 1.0 - uStartAt);
+					brightness = mix(uDarkBrightness, uEdgeBrightness, t);
+				}
+
+				diffuseColor.rgb *= brightness;
+				`
+			);
+		};
+
+		mat.needsUpdate = true;
+		mesh.material = mat;
 	}
 	askRadialGradientStart(defaultValue = 0.5) {
 		let value = prompt(
