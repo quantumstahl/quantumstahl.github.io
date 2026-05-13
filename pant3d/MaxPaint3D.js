@@ -533,7 +533,7 @@ class MaxPaint3D {
                 return {
                 normals: obj.geometry.attributes.normal? Array.from(obj.geometry.attributes.normal.array): null,
                 positions: Array.from(obj.geometry.attributes.position.array),    
-                vertexColors : Array.from(obj.geometry.attributes.color.array),
+                vertexColors : obj.geometry.attributes.color? Array.from(obj.geometry.attributes.color.array):null,
                 hasVertexColors : true,
                 nodeType: "primitive",
                 id: this.ensureObjectId(obj),
