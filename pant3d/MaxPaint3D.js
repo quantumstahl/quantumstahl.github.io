@@ -529,8 +529,10 @@ class MaxPaint3D {
         // Primitive / mesh
         if (obj.isMesh) {
             
-            if (obj.geometry?.attributes?.color) {
+            if (obj.geometry?.attributes?.color||obj.userData.customGeometry) {
                 return {
+                normals: obj.geometry.attributes.normal? Array.from(obj.geometry.attributes.normal.array): null,
+                positions: Array.from(obj.geometry.attributes.position.array),    
                 vertexColors : Array.from(obj.geometry.attributes.color.array),
                 hasVertexColors : true,
                 nodeType: "primitive",
@@ -634,6 +636,7 @@ class MaxPaint3D {
             const resolution = saved.resolution || "medium";
             obj = this.createPrimitive(saved.primitiveType,resolution);
             if (!obj) return null;
+            this.applyCustomGeometry(obj, saved);
             this.applyVertexColors(obj, saved);
             
             if (saved.hasTexture && saved.textureDataURL) {
@@ -689,7 +692,7 @@ class MaxPaint3D {
         }
         else if (type === "cone") {
             const s = this.getPrimitiveSegments("cone", resolution);
-            geo = new THREE.ConeGeometry(1, 2, s.radial);
+            geo = new THREE.ConeGeometry(1, 2, s.radial, s.height);
         }
         else if (type === "cylinder") {
             const s = this.getPrimitiveSegments("cylinder", resolution);
@@ -733,9 +736,9 @@ class MaxPaint3D {
         }
 
         if (type === "cone") {
-            if (res === "low") return { radial: 4 };
-            if (res === "medium") return { radial: 6 };
-            return { radial: 24 };
+            if (res === "low") return { radial: 4,height: 2 };
+            if (res === "medium") return { radial: 6,height: 2 };
+            return { radial: 34,height: 2 };
         }
 
         if (type === "sphere") {
@@ -2751,189 +2754,275 @@ class MaxPaint3D {
         img.src = dataURL;
     }
     roughenObject(obj, maxDrop = 0.12) {
-		if (!obj || !obj.geometry) return;
+          if (!obj || !obj.geometry) return;
 
-		const oldGeo = obj.geometry;
-		const geo = oldGeo.clone().toNonIndexed();
-		const pos = geo.attributes.position;
+        const oldGeo = obj.geometry;
+        const geo = oldGeo.clone().toNonIndexed();
+        const pos = geo.attributes.position;
 
-		let minY = Infinity;
-		let maxY = -Infinity;
-		let baseRadius = 0;
-		let islong=true;
-		let counter=false;
+        let minY = Infinity;
+        let maxY = -Infinity;
+        let baseRadius = 0;
 
-		// hitta apex, botten och base radius
-		for (let i = 0; i < pos.count; i++) {
-			const x = pos.getX(i);
-			const y = pos.getY(i);
-			const z = pos.getZ(i);
+        // hitta höjd och max-radius
+        for (let i = 0; i < pos.count; i++) {
+            const x = pos.getX(i);
+            const y = pos.getY(i);
+            const z = pos.getZ(i);
 
-			minY = Math.min(minY, y);
-			maxY = Math.max(maxY, y);
+            minY = Math.min(minY, y);
+            maxY = Math.max(maxY, y);
 
-			const r = Math.sqrt(x * x + z * z);
-			baseRadius = Math.max(baseRadius, r);
-		}
+            const r = Math.sqrt(x * x + z * z);
+            baseRadius = Math.max(baseRadius, r);
+        }
 
-		const apexY = maxY;
-		const baseY = minY;
-		const height = apexY - baseY;
-		const eps = 0.0001;
+        const baseY = minY;
+        const apexY = maxY;
+        const height = apexY - baseY;
 
-		// gå igenom trianglar
-		for (let i = 0; i < pos.count; i += 3) {
-			const ids = [i, i + 1, i + 2];
+        if (height <= 0.0001 || baseRadius <= 0.0001) return;
 
-			const bottomIds = ids.filter(id => {
-				return Math.abs(pos.getY(id) - baseY) < eps;
-			});
+        const epsY = 0.0001;
 
-			// sidotriangel: två bottenpunkter + en topp
-			if (bottomIds.length === 2) {
-				
+        // Gruppera alla nederkants-vertices efter vinkel.
+        // Detta gör att dubletter från toNonIndexed/cap/sidor flyttas likadant.
+        const groups = new Map();
 
+        for (let i = 0; i < pos.count; i++) {
+            const y = pos.getY(i);
 
+            // bara nedersta kanten
+            if (Math.abs(y - baseY) > epsY) continue;
 
-				
-				
-				let drop = maxDrop;
-				
-				if(islong)islong=false;
-				else if(!islong){drop=0;islong=true;}
+            const x = pos.getX(i);
+            const z = pos.getZ(i);
+            const r = Math.sqrt(x * x + z * z);
 
-				for (const id of bottomIds) {
-					const x = pos.getX(id);
-					const z = pos.getZ(id);
-					const oldY = pos.getY(id);
+            // hoppa över centerpunkter i bottenlocket
+            if (r < baseRadius * 0.5) continue;
 
-					const oldRadius = Math.sqrt(x * x + z * z);
-					if (oldRadius < 0.0001) continue;
+            const angle = Math.atan2(z, x);
 
-					const dirX = x / oldRadius;
-					const dirZ = z / oldRadius;
-					
-					if(counter){counter=false;}else counter=true;
-					let newY = oldY - drop;
-					if(counter)newY=newY-maxDrop/3;
-					// Radien ökar när punkten flyttas längre från spetsen
-					const t = (apexY - newY) / height;
-					const newRadius = baseRadius * t;
+            // quantize angle så dubletter hamnar i samma grupp
+            const key = Math.round(angle * 10000);
 
-					pos.setXYZ(
-						id,
-						dirX * newRadius,
-						newY,
-						dirZ * newRadius
-					);
-				}
-			}
-		}
+            if (!groups.has(key)) {
+                groups.set(key, []);
+            }
 
-		pos.needsUpdate = true;
-		geo.computeVertexNormals();
-		geo.computeBoundingBox();
-		geo.computeBoundingSphere();
+            groups.get(key).push(i);
+        }
 
-		obj.geometry.dispose();
-		obj.geometry = geo;
+        const keys = [...groups.keys()].sort((a, b) => a - b);
 
-		if (obj.material) {
-			obj.material = obj.material.clone();
-			obj.material.flatShading = true;
-			obj.material.needsUpdate = true;
-		}
-	}
-	applyRadialVertexGradient(mesh, darkBrightness = 0, edgeBrightness = 1.15) {
-		const startAt = this.askRadialGradientStart(0.5);
-		if (startAt === null) return;
+        for (let k = 0; k < keys.length; k++) {
+            const ids = groups.get(keys[k]);
 
-		const geo = mesh.geometry;
-		const pos = geo.attributes.position;
-		if (!pos) return;
+            // Enkel kontrollerad variation.
+            // Byt gärna mot random/sin beroende på look.
+            let drop = maxDrop;
 
-		let maxDist = 0;
+            if (k % 2 === 1) {
+                drop = 0;
+            }
 
-		for (let i = 0; i < pos.count; i++) {
-			const x = pos.getX(i);
-			const z = pos.getZ(i);
-			const d = Math.sqrt(x * x + z * z);
-			if (d > maxDist) maxDist = d;
-		}
+            if (k % 3 === 0) {
+                drop += maxDrop / 3;
+            }
 
-		if (maxDist <= 0) return;
+            for (const id of ids) {
+                const x = pos.getX(id);
+                const z = pos.getZ(id);
 
-		const mat = mesh.material.clone();
+                const oldRadius = Math.sqrt(x * x + z * z);
+                if (oldRadius < 0.0001) continue;
 
-		mat.onBeforeCompile = (shader) => {
-			shader.uniforms.uStartAt = { value: startAt };
-			shader.uniforms.uDarkBrightness = { value: darkBrightness };
-			shader.uniforms.uEdgeBrightness = { value: edgeBrightness };
-			shader.uniforms.uMaxRadialDist = { value: maxDist };
+                const dirX = x / oldRadius;
+                const dirZ = z / oldRadius;
 
-			shader.vertexShader = `
-				varying vec3 vLocalPos;
-			` + shader.vertexShader;
+                const newY = baseY - drop;
 
-			shader.vertexShader = shader.vertexShader.replace(
-				"#include <begin_vertex>",
-				`
-				#include <begin_vertex>
-				vLocalPos = position;
-				`
-			);
+                // Radien ökar när kanten flyttas längre ner,
+                // så konens linje fortsätter ungefär naturligt.
+                const t = (apexY - newY) / height;
+                const newRadius = baseRadius * t;
 
-			shader.fragmentShader = `
-				varying vec3 vLocalPos;
-				uniform float uStartAt;
-				uniform float uDarkBrightness;
-				uniform float uEdgeBrightness;
-				uniform float uMaxRadialDist;
-			` + shader.fragmentShader;
+                pos.setXYZ(
+                    id,
+                    dirX * newRadius,
+                    newY,
+                    dirZ * newRadius
+                );
+            }
+        }
 
-			shader.fragmentShader = shader.fragmentShader.replace(
-				"#include <color_fragment>",
-				`
-				#include <color_fragment>
+        pos.needsUpdate = true;
+        geo.computeVertexNormals();
+        geo.computeBoundingBox();
+        geo.computeBoundingSphere();
 
-				float r = length(vLocalPos.xz) / uMaxRadialDist;
-				r = clamp(r, 0.0, 1.0);
+        obj.geometry.dispose();
+        obj.geometry = geo;
+        
+        if (obj.material) {
+            obj.material = obj.material.clone();
+            obj.material.flatShading = true;
+            obj.material.needsUpdate = true;
+        }
+        obj.userData.customGeometry = true;
+        obj.userData.roughened = true;
+    }
+    applyRadialVertexGradient(mesh, darkBrightness = 0.2, edgeBrightness = 1) {
+        
+        const startAtDark=this.askRadialGradientStart();
+        
+        for(let q=0;q<10;q++){
+        
+        const startAt = 0.5;
+        if (startAt === null) return;
 
-				float brightness;
+        if (!mesh || !mesh.isMesh || !mesh.geometry) return;
 
-				if (r < uStartAt) {
-					brightness = uDarkBrightness;
-				} else {
-					float t = (r - uStartAt) / max(0.0001, 1.0 - uStartAt);
-					brightness = mix(uDarkBrightness, uEdgeBrightness, t);
-				}
+        // För face/vertex colors är non-indexed oftast bäst i din editor
+        let geo = mesh.geometry;
+        if (geo.index) {
+            geo = geo.toNonIndexed();
+            mesh.geometry = geo;
+        }
 
-				diffuseColor.rgb *= brightness;
-				`
-			);
-		};
+        const pos = geo.attributes.position;
+        if (!pos) return;
 
-		mat.needsUpdate = true;
-		mesh.material = mat;
-	}
-	askRadialGradientStart(defaultValue = 0.5) {
-		let value = prompt(
-			"Where should the color begin to lighten? 0 = center, 1 = edge",
-			defaultValue
-		);
+        let maxDist = 0;
 
-		if (value === null) return null; // användaren tryckte cancel
+        for (let i = 0; i < pos.count; i++) {
+            const x = pos.getX(i);
+            const z = pos.getZ(i);
+            const d = Math.sqrt(x * x + z * z);
+            if (d > maxDist) maxDist = d;
+        }
 
-		value = parseFloat(value);
+        if (maxDist <= 0) return;
 
-		if (isNaN(value)) {
-			alert("Type a number between 0 and 1.");
-			return null;
-		}
+        // Om objektet redan har vertex colors, använd dem som bas.
+        // Annars använd materialfärgen som bas.
+        let colorAttr = geo.attributes.color;
 
-		value = Math.max(0, Math.min(1, value));
+        if (!colorAttr) {
+            const colors = new Float32Array(pos.count * 3);
 
-		return value;
-	}
-	
+            const base = new THREE.Color(
+                mesh.material?.color ? mesh.material.color.getHex() : 0xffffff
+            );
+
+            for (let i = 0; i < pos.count; i++) {
+                colors[i * 3 + 0] = base.r;
+                colors[i * 3 + 1] = base.g;
+                colors[i * 3 + 2] = base.b;
+            }
+
+            geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+            colorAttr = geo.attributes.color;
+        }
+
+        for (let i = 0; i < pos.count; i++) {
+            const x = pos.getX(i);
+            const z = pos.getZ(i);
+
+            let r = Math.sqrt(x * x + z * z) / maxDist;
+            r = Math.max(0, Math.min(1, r));
+
+            let brightness;
+
+            if (r < startAt) {
+                if(startAtDark===0)brightness=darkBrightness;
+                else brightness = edgeBrightness*0.95;
+                
+            } else {
+                const t = (r - startAt) / Math.max(0.0001, 1.0 - startAt);
+                brightness = THREE.MathUtils.lerp(darkBrightness, edgeBrightness, t);
+            }
+
+            const cr = colorAttr.getX(i);
+            const cg = colorAttr.getY(i);
+            const cb = colorAttr.getZ(i);
+
+            colorAttr.setXYZ(
+                i,
+                Math.min(1, cr * brightness),
+                Math.min(1, cg * brightness),
+                Math.min(1, cb * brightness)
+            );
+        }
+
+        colorAttr.needsUpdate = true;
+
+        if (mesh.material) {
+            const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+
+            for (const mat of mats) {
+                mat.vertexColors = true;
+
+                // Viktigt: annars multipliceras vertex colors med material.color
+                mat.color.setHex(0xffffff);
+
+                mat.needsUpdate = true;
+            }
+        }
+
+        mesh.userData.hasVertexColors = true;
+        mesh.userData.hasBakedRadialGradient = true;
+
+        this.pushUndoState?.();
+        }
+    }
+    askRadialGradientStart(defaultValue = 0.5) {
+        let value = prompt(
+                "Where should the color begin to lighten? 0.5 = light top, 0 = black top",
+                defaultValue
+        );
+
+        if (value === null) return null; // användaren tryckte cancel
+
+        value = parseFloat(value);
+
+        if (isNaN(value)) {
+                alert("Type a number between 0 and 1.");
+                return null;
+        }
+
+        value = Math.max(0, Math.min(1, value));
+
+        return value;
+    }
+    applyCustomGeometry(obj, data) {
+        if (!obj || !obj.isMesh || !data.normals) return;
+
+        const cg = data;
+
+        const geo = new THREE.BufferGeometry();
+
+        geo.setAttribute(
+            "position",
+            new THREE.Float32BufferAttribute(cg.positions, 3)
+        );
+
+        if (cg.normals) {
+            geo.setAttribute(
+                "normal",
+                new THREE.Float32BufferAttribute(cg.normals, 3)
+            );
+        } else {
+            geo.computeVertexNormals();
+        }
+
+        geo.computeBoundingBox();
+        geo.computeBoundingSphere();
+
+        obj.geometry.dispose();
+        obj.geometry = geo;
+
+        obj.userData.customGeometry = true;
+    }
 }
