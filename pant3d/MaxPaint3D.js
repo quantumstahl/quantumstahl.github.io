@@ -2844,7 +2844,10 @@ class MaxPaint3D {
 			obj.material.needsUpdate = true;
 		}
 	}
-	applyRadialVertexGradient(mesh, darkBrightness = 0, edgeBrightness = 1.15, startAt = 0.5) {
+	applyRadialVertexGradient(mesh, darkBrightness = 0, edgeBrightness = 1.15) {
+		const startAt = this.askRadialGradientStart();
+		if(!startAt)return;
+		
 		const geo = mesh.geometry;
 		const pos = geo.attributes.position;
 		if (!pos) return;
@@ -2893,4 +2896,24 @@ class MaxPaint3D {
 		mesh.material.vertexColors = true;
 		mesh.material.needsUpdate = true;
 	}
+	askRadialGradientStart(defaultValue = 0.5) {
+		let value = prompt(
+			"Where should the color begin to lighten?" 0 = center, 1 = edge",
+			defaultValue
+		);
+
+		if (value === null) return null; // användaren tryckte cancel
+
+		value = parseFloat(value);
+
+		if (isNaN(value)) {
+			alert("Type a number between 0 and 1.");
+			return null;
+		}
+
+		value = Math.max(0, Math.min(1, value));
+
+		return value;
+	}
+	
 }
