@@ -2898,7 +2898,7 @@ class MaxPaint3D {
 	}
 	askRadialGradientStart(defaultValue = 0.5) {
 		let value = prompt(
-			"Where should the color begin to lighten?" 0 = center, 1 = edge",
+			"Where should the color begin to lighten? 0 = center, 1 = edge",
 			defaultValue
 		);
 
