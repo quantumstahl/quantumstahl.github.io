@@ -195,6 +195,7 @@ class UI {
             this.drawbuttonstools("[Light+]", btnSize *3.75, this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
             this.drawbuttonstools("[Light-]", btnSize *4.5, this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
             this.drawbuttonstools("[Roughen]", btnSize *5.25, this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2); 
+			this.drawbuttonstools("[DarkenInner]", btnSize *6, this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
             
             
             this.positionColorInputCanvasCoords(btnSize *1.5, this.canvas.height - btnSize* 1.5, btnSize*0.75, btnSize / 2);
@@ -369,6 +370,8 @@ class UI {
             if (text === "[Light+]") {this.activeColor=this.adjustColorBrightness(this.activeColorbuffer, 0.25);return;}
             if (text === "[Light-]") {this.activeColor=this.adjustColorBrightness(this.activeColorbuffer, -0.25);return;}
             if (text === "[Roughen]"){this.app.roughenObject(this.app.selected);}
+			if (text === "[DarkenInner]"){this.app.applyRadialVertexGradient(this.app.selected);}
+			
             
             this.handleAnimateButton(text);
         }

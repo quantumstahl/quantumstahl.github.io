@@ -2751,97 +2751,146 @@ class MaxPaint3D {
         img.src = dataURL;
     }
     roughenObject(obj, maxDrop = 0.12) {
-    if (!obj || !obj.geometry) return;
+		if (!obj || !obj.geometry) return;
 
-    const oldGeo = obj.geometry;
-    const geo = oldGeo.clone().toNonIndexed();
-    const pos = geo.attributes.position;
+		const oldGeo = obj.geometry;
+		const geo = oldGeo.clone().toNonIndexed();
+		const pos = geo.attributes.position;
 
-    let minY = Infinity;
-    let maxY = -Infinity;
-    let baseRadius = 0;
-    let islong=true;
-    let counter=false;
+		let minY = Infinity;
+		let maxY = -Infinity;
+		let baseRadius = 0;
+		let islong=true;
+		let counter=false;
 
-    // hitta apex, botten och base radius
-    for (let i = 0; i < pos.count; i++) {
-        const x = pos.getX(i);
-        const y = pos.getY(i);
-        const z = pos.getZ(i);
+		// hitta apex, botten och base radius
+		for (let i = 0; i < pos.count; i++) {
+			const x = pos.getX(i);
+			const y = pos.getY(i);
+			const z = pos.getZ(i);
 
-        minY = Math.min(minY, y);
-        maxY = Math.max(maxY, y);
+			minY = Math.min(minY, y);
+			maxY = Math.max(maxY, y);
 
-        const r = Math.sqrt(x * x + z * z);
-        baseRadius = Math.max(baseRadius, r);
-    }
+			const r = Math.sqrt(x * x + z * z);
+			baseRadius = Math.max(baseRadius, r);
+		}
 
-    const apexY = maxY;
-    const baseY = minY;
-    const height = apexY - baseY;
-    const eps = 0.0001;
+		const apexY = maxY;
+		const baseY = minY;
+		const height = apexY - baseY;
+		const eps = 0.0001;
 
-    // gå igenom trianglar
-    for (let i = 0; i < pos.count; i += 3) {
-        const ids = [i, i + 1, i + 2];
+		// gå igenom trianglar
+		for (let i = 0; i < pos.count; i += 3) {
+			const ids = [i, i + 1, i + 2];
 
-        const bottomIds = ids.filter(id => {
-            return Math.abs(pos.getY(id) - baseY) < eps;
-        });
+			const bottomIds = ids.filter(id => {
+				return Math.abs(pos.getY(id) - baseY) < eps;
+			});
 
-        // sidotriangel: två bottenpunkter + en topp
-        if (bottomIds.length === 2) {
-            
+			// sidotriangel: två bottenpunkter + en topp
+			if (bottomIds.length === 2) {
+				
 
 
 
-            
-            
-            let drop = maxDrop;
-            
-            if(islong)islong=false;
-            else if(!islong){drop=0;islong=true;}
+				
+				
+				let drop = maxDrop;
+				
+				if(islong)islong=false;
+				else if(!islong){drop=0;islong=true;}
 
-            for (const id of bottomIds) {
-                const x = pos.getX(id);
-                const z = pos.getZ(id);
-                const oldY = pos.getY(id);
+				for (const id of bottomIds) {
+					const x = pos.getX(id);
+					const z = pos.getZ(id);
+					const oldY = pos.getY(id);
 
-                const oldRadius = Math.sqrt(x * x + z * z);
-                if (oldRadius < 0.0001) continue;
+					const oldRadius = Math.sqrt(x * x + z * z);
+					if (oldRadius < 0.0001) continue;
 
-                const dirX = x / oldRadius;
-                const dirZ = z / oldRadius;
-                
-                if(counter){counter=false;}else counter=true;
-                let newY = oldY - drop;
-                if(counter)newY=newY-maxDrop/3;
-                // Radien ökar när punkten flyttas längre från spetsen
-                const t = (apexY - newY) / height;
-                const newRadius = baseRadius * t;
+					const dirX = x / oldRadius;
+					const dirZ = z / oldRadius;
+					
+					if(counter){counter=false;}else counter=true;
+					let newY = oldY - drop;
+					if(counter)newY=newY-maxDrop/3;
+					// Radien ökar när punkten flyttas längre från spetsen
+					const t = (apexY - newY) / height;
+					const newRadius = baseRadius * t;
 
-                pos.setXYZ(
-                    id,
-                    dirX * newRadius,
-                    newY,
-                    dirZ * newRadius
-                );
-            }
-        }
-    }
+					pos.setXYZ(
+						id,
+						dirX * newRadius,
+						newY,
+						dirZ * newRadius
+					);
+				}
+			}
+		}
 
-    pos.needsUpdate = true;
-    geo.computeVertexNormals();
-    geo.computeBoundingBox();
-    geo.computeBoundingSphere();
+		pos.needsUpdate = true;
+		geo.computeVertexNormals();
+		geo.computeBoundingBox();
+		geo.computeBoundingSphere();
 
-    obj.geometry.dispose();
-    obj.geometry = geo;
+		obj.geometry.dispose();
+		obj.geometry = geo;
 
-    if (obj.material) {
-        obj.material = obj.material.clone();
-        obj.material.flatShading = true;
-        obj.material.needsUpdate = true;
-    }
-}
+		if (obj.material) {
+			obj.material = obj.material.clone();
+			obj.material.flatShading = true;
+			obj.material.needsUpdate = true;
+		}
+	}
+	applyRadialVertexGradient(mesh, darkBrightness = 0, edgeBrightness = 1.15, startAt = 0.5) {
+		const geo = mesh.geometry;
+		const pos = geo.attributes.position;
+		if (!pos) return;
+
+		const baseColor = mesh.material.color.clone();
+		const color = new THREE.Color();
+
+		let maxDist = 0;
+
+		for (let i = 0; i < pos.count; i++) {
+			const x = pos.getX(i);
+			const z = pos.getZ(i);
+			const d = Math.sqrt(x * x + z * z);
+			if (d > maxDist) maxDist = d;
+		}
+
+		const colors = [];
+
+		for (let i = 0; i < pos.count; i++) {
+			const x = pos.getX(i);
+			const z = pos.getZ(i);
+			const d = Math.sqrt(x * x + z * z);
+
+			const r = maxDist > 0 ? d / maxDist : 0;
+
+			let brightness;
+
+			if (r < startAt) {
+				brightness = darkBrightness;
+			} else {
+				const t = (r - startAt) / (1 - startAt);
+				brightness = darkBrightness + t * (edgeBrightness - darkBrightness);
+			}
+
+			color.copy(baseColor);
+			color.r *= brightness;
+			color.g *= brightness;
+			color.b *= brightness;
+
+			colors.push(color.r, color.g, color.b);
+		}
+
+		geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+		geo.attributes.color.needsUpdate = true;
+
+		mesh.material.vertexColors = true;
+		mesh.material.needsUpdate = true;
+	}
 }
