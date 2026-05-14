@@ -553,6 +553,7 @@ class MaxPaint3D {
                     hasTexture: obj.userData.hasTexture || false,
                     textureDataURL: obj.userData.textureDataURL || null,
                     textureName: obj.userData.textureName || null,
+                    alpha: obj.userData.alpha ?? obj.material?.opacity ?? 1,
                     nodeType: "primitive",
                     flatShading: obj.userData.flatShading ?? obj.material?.flatShading ?? true,
                     id: this.ensureObjectId(obj),
@@ -638,6 +639,18 @@ class MaxPaint3D {
             if (!obj) return null;
             this.applyCustomGeometry(obj, saved);
             this.applyVertexColors(obj, saved);
+            
+            const alpha = saved.alpha ?? 1;
+
+            if (obj.material) {
+                obj.material.opacity = alpha;
+                obj.material.transparent = alpha < 1;
+                obj.material.depthWrite = alpha >= 1;
+                obj.material.needsUpdate = true;
+            }
+
+            obj.userData.alpha = alpha;
+            
             
             if (saved.hasTexture && saved.textureDataURL) {
                 this.applyTextureDataURLToObject(
@@ -3022,6 +3035,127 @@ class MaxPaint3D {
 
         obj.geometry.dispose();
         obj.geometry = geo;
+
+        obj.userData.customGeometry = true;
+    }
+    cycleAlphaSelected() {
+        if (!this.selected) return;
+
+        const levels = [1.0, 0.75, 0.5, 0.25];
+
+        this.selected.traverse(obj => {
+            if (!obj.isMesh || !obj.material) return;
+
+            const materials = Array.isArray(obj.material)
+                ? obj.material
+                : [obj.material];
+
+            for (const mat of materials) {
+                let current = obj.userData.alpha ?? mat.opacity ?? 1.0;
+
+                let index = levels.findIndex(v => Math.abs(v - current) < 0.01);
+                index = (index + 1) % levels.length;
+
+                const next = levels[index];
+
+                mat.opacity = next;
+                mat.transparent = next < 1.0;
+                mat.depthWrite = next >= 1.0; // viktigt för transparenta objekt
+                mat.needsUpdate = true;
+
+                obj.userData.alpha = next;
+            }
+        });
+
+        this.pushUndoState?.();
+    }
+    roughenRock(obj, amount = 0.18) {
+        if (!obj || !obj.geometry) return;
+
+        const geo = obj.geometry.clone().toNonIndexed();
+        const pos = geo.attributes.position;
+
+        const box = new THREE.Box3().setFromBufferAttribute(pos);
+        const center = box.getCenter(new THREE.Vector3());
+
+        // Gruppera vertices efter position
+        const groups = new Map();
+        const precision = 10000;
+
+        for (let i = 0; i < pos.count; i++) {
+            const x = pos.getX(i);
+            const y = pos.getY(i);
+            const z = pos.getZ(i);
+
+            const key =
+                Math.round(x * precision) + "," +
+                Math.round(y * precision) + "," +
+                Math.round(z * precision);
+
+            if (!groups.has(key)) {
+                groups.set(key, []);
+            }
+
+            groups.get(key).push(i);
+        }
+
+        const keys = [...groups.keys()];
+
+        for (let g = 0; g < keys.length; g++) {
+            const ids = groups.get(keys[g]);
+
+            // använd första vertexen i gruppen som grund
+            const id0 = ids[0];
+
+            const x = pos.getX(id0);
+            const y = pos.getY(id0);
+            const z = pos.getZ(id0);
+
+            const v = new THREE.Vector3(x, y, z);
+            const dir = v.clone().sub(center);
+
+            if (dir.length() < 0.0001) continue;
+
+            dir.normalize();
+
+            // deterministisk pseudo-random per original-position
+            const n = Math.sin(
+                x * 12.9898 +
+                y * 78.233 +
+                z * 37.719
+            ) * 43758.5453;
+
+            const rand = n - Math.floor(n);
+
+            const offset = (rand - 0.5) * amount;
+
+            v.addScaledVector(dir, offset);
+
+            // platta botten lite
+            if (v.y < box.min.y + 0.12) {
+                v.y = box.min.y;
+            }
+
+            // flytta alla dubletter likadant
+            for (const id of ids) {
+                pos.setXYZ(id, v.x, v.y, v.z);
+            }
+        }
+
+        pos.needsUpdate = true;
+
+        geo.computeVertexNormals();
+        geo.computeBoundingBox();
+        geo.computeBoundingSphere();
+
+        obj.geometry.dispose();
+        obj.geometry = geo;
+
+        if (obj.material) {
+            obj.material = obj.material.clone();
+            obj.material.flatShading = true;
+            obj.material.needsUpdate = true;
+        }
 
         obj.userData.customGeometry = true;
     }

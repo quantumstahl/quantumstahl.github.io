@@ -211,6 +211,10 @@ class UI {
             this.makeimagebutton(2,(10*btnSize/4),this.canvas.height-btnSize/2.0,btnSize/2.0,btnSize/2.0);
             this.makeimagebutton(3,(12*btnSize/4),this.canvas.height-btnSize/2.0,btnSize/2.0,btnSize/2.0);
             
+            this.drawbuttonstools("[Alpha]", (14*btnSize/4), this.canvas.height - btnSize, btnSize*0.75, btnSize / 2);
+            this.drawbuttonstools("[roughRock]", (14*btnSize/4), this.canvas.height - btnSize/2, btnSize*0.75, btnSize / 2);
+            
+            
         }
         
         this.drawbuttonstools("Style",btnSize*3,0,btnSize*0.75,btnSize/2);
@@ -369,8 +373,11 @@ class UI {
             if(text === "[loadTexture]"){ return;}
             if (text === "[Light+]") {this.activeColor=this.adjustColorBrightness(this.activeColorbuffer, 0.25);return;}
             if (text === "[Light-]") {this.activeColor=this.adjustColorBrightness(this.activeColorbuffer, -0.25);return;}
-            if (text === "[Roughen]"){this.app.roughenObject(this.app.selected);}
-			if (text === "[DarkenInner]"){this.app.applyRadialVertexGradient(this.app.selected);}
+            if (text === "[Roughen]"){this.app.roughenObject(this.app.selected);return;}
+            if (text === "[DarkenInner]"){this.app.applyRadialVertexGradient(this.app.selected);return;}
+            if (text === "[Alpha]") {this.app.cycleAlphaSelected();return;}
+            if(text === "[roughRock]"){this.app.roughenRock(this.app.selected);return;}
+            
 			
             
             this.handleAnimateButton(text);
