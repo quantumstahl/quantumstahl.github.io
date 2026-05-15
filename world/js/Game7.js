@@ -190,7 +190,7 @@ class Game7 {
         obj.scale.set(s, s, s);
 
         this.selected = obj;
-        this.updateSelectionBox();
+        this.updateSelectionBox?.();
     }
     onPointerDown(e) {
         const rect = this.renderer.domElement.getBoundingClientRect();
@@ -278,6 +278,63 @@ class Game7 {
 
         this.selectionBox.visible = true;
         this.selectionBox.setFromObject(this.selected);
+    }
+    duplicateSelected() {
+        if (!this.selectedMapObject) return;
+
+        const source = this.selectedMapObject;
+        const type = this.selected?.userData?.assetType;
+        if (!type) return;
+
+        const copy = new MapObject({
+            name: source.name ? source.name + " copy" : "",
+            x: source.x + 1,
+            y: source.y,
+            z: source.z + 1,
+            rotX: source.rotX,
+            rotY: source.rotY,
+            rotZ: source.rotZ,
+            scale: source.scale
+        });
+
+        type.instances.push(copy);
+
+        this.markUnsaved?.();
+
+        this.mapLoader.loadCurrentMapToScene().then(() => {
+            this.selectMapObject(copy);
+            this.editorTree?.refresh();
+        });
+    }
+    getSpawnPointInFrontOfCamera(distance = 6) {
+        const point = new THREE.Vector3();
+
+        // 1. Försök hitta punkt mitt på skärmen mot ground
+        if (this.camera && this.ground) {
+            const raycaster = new THREE.Raycaster();
+            const center = new THREE.Vector2(0, 0); // mitten av skärmen
+
+            raycaster.setFromCamera(center, this.camera);
+
+            const hits = raycaster.intersectObject(this.ground, true);
+
+            if (hits.length > 0) {
+                point.copy(hits[0].point);
+                return point;
+            }
+        }
+
+        // 2. Fallback: framför kameran i kamerans riktning
+        const dir = new THREE.Vector3();
+
+        this.camera.getWorldDirection(dir);
+
+        point.copy(this.camera.position).addScaledVector(dir, distance);
+
+        // Om du vill att den ändå ska hamna på marknivå
+        point.y = 0;
+
+        return point;
     }
 
 }

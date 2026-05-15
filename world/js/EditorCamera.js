@@ -19,7 +19,11 @@ class EditorCamera {
     update(input, scale) {
         this.rotate(input);
         this.zoom(input);
-        this.moveTarget(input, scale);
+        const allowCameraMove =!this.game.tools ||this.game.tools.currentName === "select" ||this.game.tools.currentName === "move"||this.game.tools.currentName === "stack";
+
+        if (allowCameraMove) {
+            this.moveTarget(input, scale);
+        }
 
         this.updateCameraPosition(input);
     }

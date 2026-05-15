@@ -4,7 +4,10 @@ class ToolManager {
 
         this.tools = {
             select: new SelectTool(game),
-            move: new MoveTool(game)
+            move: new MoveTool(game),
+            rotate: new RotateTool(game),
+            scale: new ScaleTool(game),
+            stack: new StackTool(game)
         };
 
         this.currentName = "select";

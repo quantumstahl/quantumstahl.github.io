@@ -415,23 +415,30 @@ class JSTree7 {
         this.refresh();
     }
 
-    addInstanceToSelectedType() {
+    async addInstanceToSelectedType() {
         if (!this.selectedNode || this.selectedNode.kind !== "assetType") return;
 
         const type = this.selectedNode.data;
 
+        const p = this.game.getSpawnPointInFrontOfCamera?.() || new THREE.Vector3(0, 0, 0);
+
         const inst = new MapObject({
-            x: 0,
-            y: 0,
-            z: 0,
+            x: Number(p.x.toFixed(3)),
+            y: Number(p.y.toFixed(3)),
+            z: Number(p.z.toFixed(3)),
             rotY: 0,
             scale: 1
         });
 
         type.instances.push(inst);
-        this.game.markUnsaved();
 
-        this.game.mapLoader.loadCurrentMapToScene();
+        this.game.markUnsaved?.();
+
+        await this.game.mapLoader.loadCurrentMapToScene();
+
+        // Välj nya objektet direkt
+        this.game.selectMapObject?.(inst);
+
         this.refresh();
     }
 
@@ -448,6 +455,7 @@ class JSTree7 {
         }
 
         this.selectedNode = null;
+        this.game.setSelected(null);
         this.game.markUnsaved();
 
         this.game.mapLoader.loadCurrentMapToScene();
@@ -628,6 +636,7 @@ class JSTree7 {
         this.addToolButton("move", "Move");
         this.addToolButton("rotate", "Rotate");
         this.addToolButton("scale", "Scale");
+        this.addToolButton("stack", "Stack");
 
         this.addToolbarSeparator();
 
