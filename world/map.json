@@ -1,0 +1,210 @@
+{
+  "startMap": 0,
+  "maps": [
+    {
+      "name": "Map1",
+      "layers": [
+        {
+          "id": "1f85d8d8-8693-453c-b758-a3c4524ec87d",
+          "name": "nature",
+          "types": [
+            {
+              "id": "tree",
+              "name": "tree",
+              "glb": "assets/tree.glb",
+              "category": "default",
+              "collision": null,
+              "instanced": false,
+              "instances": [
+                {
+                  "id": "ba34789a-f495-407c-8abc-eea753b0352f",
+                  "name": "",
+                  "x": 2.747,
+                  "y": 0.139,
+                  "z": -1.024,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1
+                },
+                {
+                  "id": "baa08503-29ef-4cdb-89d7-c738529464a4",
+                  "name": "",
+                  "x": 4.546,
+                  "y": 0.139,
+                  "z": -1.87,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1
+                },
+                {
+                  "id": "21f9b7c3-2f40-4cd2-a3f8-1d3421e4a593",
+                  "name": "",
+                  "x": 6.929,
+                  "y": 0.139,
+                  "z": -2.529,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1
+                },
+                {
+                  "id": "e9a60746-0cce-4034-85a2-95865c0e09c1",
+                  "name": "",
+                  "x": 0,
+                  "y": 0,
+                  "z": 0,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1
+                }
+              ]
+            },
+            {
+              "id": "flower",
+              "name": "flower",
+              "glb": "assets/flower.glb",
+              "category": "default",
+              "collision": null,
+              "instanced": false,
+              "instances": [
+                {
+                  "id": "b23220bf-4cad-4d40-a979-48b1b1272fca",
+                  "name": "",
+                  "x": 3.643,
+                  "y": -0.1,
+                  "z": -1.646,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1
+                },
+                {
+                  "id": "d97f76bd-9441-4cdc-833a-811e535b7fad",
+                  "name": "",
+                  "x": 1.544,
+                  "y": -0.1,
+                  "z": -1.013,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1
+                },
+                {
+                  "id": "15b56a88-b138-4b95-9bdc-de07e423c511",
+                  "name": "",
+                  "x": -3.189,
+                  "y": -0.1,
+                  "z": 0.772,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1
+                },
+                {
+                  "id": "963f4a19-40bc-47ec-aaf3-2b8573153138",
+                  "name": "",
+                  "x": 0,
+                  "y": 0,
+                  "z": 0,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1
+                }
+              ]
+            },
+            {
+              "id": "rock",
+              "name": "rock",
+              "glb": "assets/rock.glb",
+              "category": "default",
+              "collision": null,
+              "instanced": false,
+              "instances": [
+                {
+                  "id": "e01721c3-86a5-4346-9672-6b5914f84254",
+                  "name": "",
+                  "x": 12.224,
+                  "y": -0.9,
+                  "z": 0.808,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "44e1dfdd-ccc9-441d-b0b3-24fa157ed9aa",
+          "name": "cat",
+          "types": [
+            {
+              "id": "cat",
+              "name": "cat",
+              "glb": "assets/cat.glb",
+              "category": "default",
+              "collision": null,
+              "instanced": false,
+              "instances": [
+                {
+                  "id": "2839295f-b896-42bb-9b87-ad9ebda3238f",
+                  "name": "",
+                  "x": 2.222,
+                  "y": 0.019,
+                  "z": 3.577,
+                  "rotX": 0,
+                  "rotY": -1.5,
+                  "rotZ": 0,
+                  "scale": 0.2
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "d3d0428c-d5f8-4833-a69b-62ab0412869c",
+          "name": "ground",
+          "types": [
+            {
+              "id": "ground",
+              "name": "ground",
+              "glb": "assets/ground.glb",
+              "category": "default",
+              "collision": null,
+              "instanced": false,
+              "instances": [
+                {
+                  "id": "0102d30d-5fca-4f7b-aa95-7ae3a86bf2d6",
+                  "name": "",
+                  "x": 13.703,
+                  "y": 0,
+                  "z": 0.006,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1
+                },
+                {
+                  "id": "da335c62-594f-45cb-8c8d-36da312c6465",
+                  "name": "",
+                  "x": 0,
+                  "y": 0,
+                  "z": 0,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
