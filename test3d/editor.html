@@ -1,0 +1,208 @@
+
+<html>
+    <head>
+        <title>Editor</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <script src="https://unpkg.com/three@0.140.0/build/three.min.js"></script>
+        <script src="https://unpkg.com/three@0.140.0/examples/js/exporters/GLTFExporter.js"></script>
+        <script src="https://unpkg.com/three@0.140.0/examples/js/loaders/GLTFLoader.js"></script>
+        <script src="js/Game7.js"></script>
+        <script src="js/AssetManager.js"></script>
+        <script src="js/MapFileManager.js"></script>
+        <script src="js/InputManager.js"></script>
+        <script src="js/EditorCamera.js"></script>
+        <script src="js/ToolManager.js"></script>
+        <script src="js/SelectTool.js"></script>
+        <script src="js/MoveTool.js"></script>
+        <script src="js/JSTree7.js"></script>
+        <script src="js/RotateTool.js"></script>
+        <script src="js/ScaleTool.js"></script>
+        <script src="js/StackTool.js"></script>
+
+        
+        <style>
+            body {
+                margin: 0;
+                overflow: hidden;
+                font-family: Arial, sans-serif;
+            }
+
+            #topbar {
+                position: absolute;
+                left: 0;
+                top: 0;
+                right: 0;
+                height: 32px;
+                background: #333;
+                color: white;
+                display: flex;
+                z-index: 10;
+            }
+
+            #leftPanel {
+                position: absolute;
+                left: 0;
+                top: 32px;
+                bottom: 48px;
+                width: 280px;
+                background: #ddd;
+                overflow: hidden;
+                z-index: 10;
+                display: flex;
+                flex-direction: column;
+            }
+
+            #treePanel {
+                flex: 1;
+                overflow-y: auto;
+                border-bottom: 1px solid #aaa;
+            }
+
+            #propertyPanel {
+                height: 260px;
+                overflow-y: auto;
+                background: #ccc;
+                padding: 6px;
+            }
+
+            #gameCanvas {
+                position: absolute;
+                left: 280px;
+                top: 32px;
+                width: calc(100vw - 280px);
+                height: calc(100vh - 80px);
+                display: block;
+            }
+
+            #bottomToolbar {
+                position: absolute;
+                left: 280px;
+                right: 0;
+                bottom: 0;
+                height: 48px;
+                background: #2f2f2f;
+                color: white;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 4px 8px;
+                box-sizing: border-box;
+                z-index: 10;
+            }
+
+            .toolBtn {
+                min-width: 70px;
+                height: 34px;
+                border: 0;
+                background: #555;
+                color: white;
+                cursor: pointer;
+                border-radius: 4px;
+            }
+
+            .toolBtn:hover {
+                background: #666;
+            }
+
+            .toolBtn.active {
+                background: #2b7cff;
+                font-weight: bold;
+            }
+            .mapTab {
+                min-width: 90px;
+                height: 32px;
+                border: 0;
+                background: #444;
+                color: white;
+            }
+
+            .mapTab.active {
+                background: #666;
+                font-weight: bold;
+            }
+
+            .treeTitle {
+                padding: 8px;
+                font-weight: bold;
+                background: #ccc;
+            }
+
+            .treeLayer {
+                padding: 4px 8px;
+                font-weight: bold;
+                cursor: pointer;
+            }
+
+            .treeAssetType {
+                padding: 3px 8px 3px 20px;
+                cursor: pointer;
+            }
+
+            .treeInstance {
+                padding: 2px 8px 2px 38px;
+                font-size: 13px;
+                cursor: pointer;
+            }
+
+            .treeLayer:hover,
+            .treeAssetType:hover,
+            .treeInstance:hover {
+                background: #bbb;
+            }
+
+            .propRow {
+                display: flex;
+                justify-content: space-between;
+                gap: 8px;
+                padding: 4px;
+            }
+
+            .propRow input {
+                width: 80px;
+            }
+            .treeSelected {
+                background: #999 !important;
+                color: white;
+            }
+            .dangerBtn {
+                background: #9b2c2c;
+                color: white;
+                border: 0;
+                padding: 5px 8px;
+                margin-top: 8px;
+                cursor: pointer;
+            }
+
+            .dangerBtn:hover {
+                background: #c53030;
+            }
+            
+            
+            
+        </style>
+    </head>
+    <body>
+        <div id="topbar"></div>
+
+        <div id="leftPanel">
+            <div id="treePanel"></div>
+            <div id="propertyPanel"></div>
+        </div>
+
+        <canvas id="gameCanvas"></canvas>
+        <div id="bottomToolbar"></div>
+        <script>
+            
+                const game = new Game7();
+                const tree = new JSTree7(game);
+                game.editorTree = tree;
+
+                game.start().then(() => {
+                    tree.refresh();
+                });
+
+        </script>
+    </body>
+</html>

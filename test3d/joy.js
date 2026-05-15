@@ -10,8 +10,17 @@
 let StickStatus = {
     xPosition: 0,
     yPosition: 0,
+
+    // gamla procentvärden
     x: 0,
     y: 0,
+
+    // nya 360-värden
+    xFloat: 0,
+    yFloat: 0,
+    power: 0,
+    angle: 0,
+
     cardinalDirection: "C"
 };
 
@@ -68,7 +77,10 @@ var JoyStick = (function (container, parameters, callback) {
 
     var activeTouchId = null;
     var showBase = !floating;
-
+    
+    
+    var directionMode = (typeof parameters.directionMode === "undefined" ? 8 : parameters.directionMode);
+    
     function getCanvasPos(clientX, clientY) {
         const rect = canvas.getBoundingClientRect();
         const scaleX = canvas.width / rect.width;
@@ -96,7 +108,7 @@ var JoyStick = (function (container, parameters, callback) {
 
         if (!isPortrait) {
             defaultCenterX = canvas.width * 0.12;
-            defaultCenterY = canvas.height * 0.78;
+            defaultCenterY = canvas.height * 0.60;
         } else {
             defaultCenterX = canvas.width * 0.18;
             defaultCenterY = canvas.height * 0.79;
@@ -121,12 +133,12 @@ var JoyStick = (function (container, parameters, callback) {
             movedY = posY;
         }
     }
-    
+    let counter=0;
     let savedisportrait=canvas.height > canvas.width;
     function changedir(){
         const isPortrait = canvas.height > canvas.width;
         
-        if(isPortrait!==savedisportrait){savedisportrait=isPortrait;return true;}
+        if(isPortrait!==savedisportrait||counter>0){if(counter==0)counter=10;savedisportrait=isPortrait;counter--;return true;}
         
         return false;
         
@@ -137,7 +149,7 @@ var JoyStick = (function (container, parameters, callback) {
         const dx = pos.x - centerX;
         const dy = pos.y - centerY;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        return dist <= externalRadius + internalRadius + 30;
+        return dist <= externalRadius + internalRadius ;
     }
 
     function isInsideLeftZone(pos) {
@@ -152,10 +164,10 @@ var JoyStick = (function (container, parameters, callback) {
 
         if (isPortrait) {
             centerX = clamp(pos.x, margin, canvas.width * 0.35);
-            centerY = clamp(pos.y, canvas.height * 0.62, canvas.height * 0.90);
+            centerY = clamp(pos.y, canvas.height * 0.52, canvas.height * 0.90);
         } else {
             centerX = clamp(pos.x, margin, canvas.width * 0.28);
-            centerY = clamp(pos.y, canvas.height * 0.60, canvas.height * 0.92);
+            centerY = clamp(pos.y, canvas.height * 0.50, canvas.height * 0.92);
         }
 
         movedX = centerX;
@@ -187,12 +199,12 @@ var JoyStick = (function (container, parameters, callback) {
     }
 
    function redraw() {
-    context.clearRect(0, 0, canvas.width, canvas.height);
-
+   // context.clearRect(centerX-externalRadius/2-internalRadius, centerY-externalRadius/2-internalRadius, externalRadius+internalRadius*2, externalRadius+internalRadius*2);
+    context.clearRect(0, 0,canvas.width, canvas.height);
     updateGeometry();
     updateDefaultCenter();
 
-    if (centerY < 300 || changedir()) {
+    if (centerY < 10 || changedir()) {
         centerX = defaultCenterX;
         centerY = defaultCenterY;
         movedX = centerX;
@@ -204,16 +216,34 @@ var JoyStick = (function (container, parameters, callback) {
 }
 
     function getCardinalDirection() {
+        const horizontal = movedX - centerX;
+        const vertical = movedY - centerY;
+
+        const deadZone = maxMoveStick * 0.25;
+
+        // Ingen riktning om man är nära mitten
+        if (Math.abs(horizontal) < deadZone && Math.abs(vertical) < deadZone) {
+            return "C";
+        }
+
+        // 4-vägs joystick
+        if (directionMode === 4) {
+            if (Math.abs(horizontal) > Math.abs(vertical)) {
+                return horizontal < 0 ? "W" : "E";
+            } else {
+                return vertical < 0 ? "N" : "S";
+            }
+        }
+
+        // 8-vägs joystick
         let result = "C";
-        let horizontal = movedX - centerX;
-        let vertical = movedY - centerY;
 
-        if (vertical < directionVerticalLimitNeg) result = "N";
-        else if (vertical > directionVerticalLimitPos) result = "S";
+        if (vertical < -deadZone) result = "N";
+        else if (vertical > deadZone) result = "S";
 
-        if (horizontal < directionHorizontalLimitNeg) {
+        if (horizontal < -deadZone) {
             result = (result === "C") ? "W" : result + "W";
-        } else if (horizontal > directionHorizontalLimitPos) {
+        } else if (horizontal > deadZone) {
             result = (result === "C") ? "E" : result + "E";
         }
 
@@ -223,16 +253,53 @@ var JoyStick = (function (container, parameters, callback) {
     function updateStatus() {
         let nx = 0;
         let ny = 0;
+        let fx = 0;
+        let fy = 0;
+        let power = 0;
+        let angle = 0;
 
         if (maxMoveStick > 0) {
-            nx = Math.round(((movedX - centerX) / maxMoveStick) * 100);
-            ny = Math.round((((movedY - centerY) / maxMoveStick) * -100));
+            const dx = movedX - centerX;
+            const dy = movedY - centerY;
+
+            fx = dx / maxMoveStick;
+            fy = -dy / maxMoveStick; // upp = positiv Y
+
+            // Clampa ifall något blir lite över p.g.a. float
+            fx = clamp(fx, -1, 1);
+            fy = clamp(fy, -1, 1);
+
+            power = Math.sqrt(fx * fx + fy * fy);
+            power = clamp(power, 0, 1);
+
+            // angle i radians.
+            // 0 = höger, PI/2 = upp, PI/-2 = ner
+            angle = Math.atan2(fy, fx);
+
+            nx = Math.round(fx * 100);
+            ny = Math.round(fy * 100);
+        }
+
+        const deadZone = 0.12;
+
+        if (power < deadZone) {
+            fx = 0;
+            fy = 0;
+            power = 0;
+            angle = 0;
         }
 
         StickStatus.xPosition = movedX;
         StickStatus.yPosition = movedY;
+
         StickStatus.x = isFinite(nx) ? nx : 0;
         StickStatus.y = isFinite(ny) ? ny : 0;
+
+        StickStatus.xFloat = isFinite(fx) ? fx : 0;
+        StickStatus.yFloat = isFinite(fy) ? fy : 0;
+        StickStatus.power = isFinite(power) ? power : 0;
+        StickStatus.angle = isFinite(angle) ? angle : 0;
+
         StickStatus.cardinalDirection = getCardinalDirection();
 
         callback(StickStatus);
@@ -322,6 +389,7 @@ var JoyStick = (function (container, parameters, callback) {
     }
 
     function onMouseDown(event) {
+        
         const pos = getCanvasPos(event.clientX, event.clientY);
 
         if (floating) {
@@ -356,7 +424,16 @@ var JoyStick = (function (container, parameters, callback) {
             resetStick();
         }
     }
+    this.SetDirectionMode = function (mode) {
+        if (mode !== 4 && mode !== 8) return;
 
+        directionMode = mode;
+        updateStatus();
+    };
+
+    this.GetDirectionMode = function () {
+        return directionMode;
+    };
     // Init
   //  updateGeometry();
     updateDefaultCenter();
@@ -371,9 +448,9 @@ var JoyStick = (function (container, parameters, callback) {
         document.addEventListener("touchend", onTouchEnd, { passive: true });
         document.addEventListener("touchcancel", onTouchEnd, { passive: true });
     } else {
-        canvas.addEventListener("mousedown", onMouseDown, false);
-        document.addEventListener("mousemove", onMouseMove, false);
-        document.addEventListener("mouseup", onMouseUp, false);
+       // document.addEventListener("mousedown", onMouseDown, false);
+       // document.addEventListener("mousemove", onMouseMove, false);
+       // document.addEventListener("mouseup", onMouseUp, false);
     }
 
     //redraw();
@@ -409,5 +486,64 @@ var JoyStick = (function (container, parameters, callback) {
 
     this.GetDir = function () {
         return getCardinalDirection();
+    };
+    this.GetXFloat = function () {
+        if (maxMoveStick <= 0) return 0;
+
+        const x = (movedX - centerX) / maxMoveStick;
+        const power = Math.sqrt(x * x + Math.pow((movedY - centerY) / maxMoveStick, 2));
+
+        if (power < 0.12) return 0;
+
+        return clamp(x, -1, 1);
+    };
+
+    this.GetYFloat = function () {
+        if (maxMoveStick <= 0) return 0;
+
+        const y = -((movedY - centerY) / maxMoveStick);
+        const power = Math.sqrt(
+            Math.pow((movedX - centerX) / maxMoveStick, 2) +
+            Math.pow((movedY - centerY) / maxMoveStick, 2)
+        );
+
+        if (power < 0.12) return 0;
+
+        return clamp(y, -1, 1);
+    };
+
+    this.GetPower = function () {
+        if (maxMoveStick <= 0) return 0;
+
+        const x = (movedX - centerX) / maxMoveStick;
+        const y = (movedY - centerY) / maxMoveStick;
+
+        const p = Math.sqrt(x * x + y * y);
+
+        if (p < 0.12) return 0;
+
+        return clamp(p, 0, 1);
+    };
+
+    this.GetAngle = function () {
+        const x = this.GetXFloat();
+        const y = this.GetYFloat();
+
+        if (x === 0 && y === 0) return 0;
+
+        return Math.atan2(y, x);
+    };
+
+    this.GetVector = function () {
+        const x = this.GetXFloat();
+        const y = this.GetYFloat();
+        const power = this.GetPower();
+
+        return {
+            x,
+            y,
+            power,
+            angle: Math.atan2(y, x)
+        };
     };
 });
