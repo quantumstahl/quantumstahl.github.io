@@ -286,7 +286,7 @@ class CatAdventure {
         target.y += 1.0;
 
         // Kameran följer kattens riktning långsamt
-        const camTurnSmooth = Math.min(1, 0.015 * scale);
+        const camTurnSmooth = Math.min(1, 0.011 * scale);
 
         this.cameraYaw = this.lerpAngle(
             this.cameraYaw,
