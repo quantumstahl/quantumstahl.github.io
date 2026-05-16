@@ -106,11 +106,11 @@ class CatAdventure {
 		ctx.fillStyle = "rgba(255,255,255,0.9)";
 		ctx.strokeStyle = "rgba(255,255,255,0.9)";
 		ctx.lineWidth = size * 0.06;
-		drawOval(ctx, -size * 0.28, -size * 0.25, size * 0.13, size * 0.18);
-		drawOval(ctx, -size * 0.09, -size * 0.38, size * 0.13, size * 0.18);
-		drawOval(ctx,  size * 0.09, -size * 0.38, size * 0.13, size * 0.18);
-		drawOval(ctx,  size * 0.28, -size * 0.25, size * 0.13, size * 0.18);
-		drawOval(ctx, 0, size * 0.12, size * 0.32, size * 0.24);
+		this.drawOval(ctx, -size * 0.28, -size * 0.25, size * 0.13, size * 0.18);
+		this.drawOval(ctx, -size * 0.09, -size * 0.38, size * 0.13, size * 0.18);
+		this.drawOval(ctx,  size * 0.09, -size * 0.38, size * 0.13, size * 0.18);
+		this.drawOval(ctx,  size * 0.28, -size * 0.25, size * 0.13, size * 0.18);
+		this.drawOval(ctx, 0, size * 0.12, size * 0.32, size * 0.24);
 		ctx.restore();
 	}
 	drawOval(ctx, x, y, rx, ry) {
