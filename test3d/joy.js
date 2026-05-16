@@ -31,7 +31,7 @@ var JoyStick = (function (container, parameters, callback) {
    // var width = (typeof parameters.width === "undefined" ? 300 : parameters.width);
    // var height = (typeof parameters.height === "undefined" ? 300 : parameters.height);
 
-    var internalFillColor = (typeof parameters.internalFillColor === "undefined" ? "#AA0000" : parameters.internalFillColor);
+    var internalFillColor = (typeof parameters.internalFillColor === "undefined" ? "#f01e2c" : parameters.internalFillColor);
     var internalLineWidth = (typeof parameters.internalLineWidth === "undefined" ? 2 : parameters.internalLineWidth);
     var internalStrokeColor = (typeof parameters.internalStrokeColor === "undefined" ? "#330000" : parameters.internalStrokeColor);
 
@@ -178,8 +178,9 @@ var JoyStick = (function (container, parameters, callback) {
     function drawExternal() {
         context.beginPath();
         context.arc(centerX, centerY, externalRadius, 0, circumference, false);
-        context.lineWidth = externalLineWidth;
-        context.strokeStyle = externalStrokeColor;
+        context.lineWidth = externalLineWidth-1;
+        //context.strokeStyle = externalStrokeColor;
+        context.strokeStyle="white";
         context.stroke();
     }
 
@@ -190,11 +191,14 @@ var JoyStick = (function (container, parameters, callback) {
         var grd = context.createRadialGradient(centerX, centerY, 5, centerX, centerY, externalRadius * 2);
         grd.addColorStop(0, internalFillColor);
         grd.addColorStop(1, internalStrokeColor);
-
+        
+        
         context.fillStyle = grd;
         context.fill();
-        context.lineWidth = internalLineWidth;
-        context.strokeStyle = internalStrokeColor;
+        context.lineWidth = internalLineWidth-1;
+        //context.strokeStyle = internalStrokeColor;
+        context.strokeStyle = "white";
+        
         context.stroke();
     }
 
