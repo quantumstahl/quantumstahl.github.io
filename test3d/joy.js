@@ -333,6 +333,7 @@ var JoyStick = (function (container, parameters, callback) {
     }
 
     function onTouchStart(event) {
+        event.preventDefault();
         for (let i = 0; i < event.changedTouches.length; i++) {
             const t = event.changedTouches[i];
             const pos = getCanvasPos(t.clientX, t.clientY);
@@ -360,6 +361,7 @@ var JoyStick = (function (container, parameters, callback) {
     }
 
     function onTouchMove(event) {
+        event.preventDefault();
         if (pressed !== 1 || activeTouchId === null) return;
 
         let activeTouch = null;
@@ -379,6 +381,7 @@ var JoyStick = (function (container, parameters, callback) {
     }
 
     function onTouchEnd(event) {
+        event.preventDefault();
         for (let i = 0; i < event.changedTouches.length; i++) {
             if (event.changedTouches[i].identifier === activeTouchId) {
                 pressed = 0;
@@ -447,10 +450,10 @@ var JoyStick = (function (container, parameters, callback) {
     movedY = centerY;
 
     if ("ontouchstart" in document.documentElement) {
-        canvas.addEventListener("touchstart", onTouchStart, { passive: true });
-        document.addEventListener("touchmove", onTouchMove, { passive: true });
-        document.addEventListener("touchend", onTouchEnd, { passive: true });
-        document.addEventListener("touchcancel", onTouchEnd, { passive: true });
+        canvas.addEventListener("touchstart", onTouchStart, { passive: false  });
+        document.addEventListener("touchmove", onTouchMove, { passive: false  });
+        document.addEventListener("touchend", onTouchEnd, { passive: false  });
+        document.addEventListener("touchcancel", onTouchEnd, { passive: false  });
     } else {
        // document.addEventListener("mousedown", onMouseDown, false);
        // document.addEventListener("mousemove", onMouseMove, false);

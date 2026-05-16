@@ -17,6 +17,8 @@ Click nbfs://nbhost/SystemFileSystem/Templates/ClientSide/html.html to edit this
         <script src="AdventureInput.js"></script>
         <script src="AdventureMapLoader.js"></script>
         <script src="joy.js"></script>
+        <script src="BasicGroundSolver.js"></script>
+        
         
         
         
@@ -28,11 +30,16 @@ Click nbfs://nbhost/SystemFileSystem/Templates/ClientSide/html.html to edit this
                 user-select:none;
                 pointer-events:none;
                 -webkit-user-select: none;
+                touch-action: none;
+                overscroll-behavior: none;
+                user-select: none;
+                position: fixed;
+                inset: 0;
             }
 
             #gameCanvas {
                 width: 100vw;
-                height: 100vh;
+                height: 100dvh;
                 display: block;
                 user-select:none;
                 pointer-events:none;
@@ -40,7 +47,7 @@ Click nbfs://nbhost/SystemFileSystem/Templates/ClientSide/html.html to edit this
             }
             #canvas2d {
                 width: 100vw;
-                height: 100vh;
+                height: 100dvh;
                 display: block;
                 position: fixed;
                 inset: 0;
@@ -63,6 +70,14 @@ Click nbfs://nbhost/SystemFileSystem/Templates/ClientSide/html.html to edit this
         <canvas id="canvas2d"></canvas>
 
         <script>
+            
+            document.addEventListener("touchmove", function(e) {
+                e.preventDefault();
+            }, { passive: false });
+            window.addEventListener("touchmove", e => {
+                e.preventDefault();
+            }, { passive: false });
+            
             const isMobile = {Android: function() { return navigator.userAgent.match(/Android/i); },BlackBerry: function() { return navigator.userAgent.match(/BlackBerry/i); },iOS: function() { return navigator.userAgent.match(/iPhone|iPod/i); },Opera: function() { return navigator.userAgent.match(/Opera Mini/i); },Windows: function() { return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i); },any: function() {return (isMobile.Android() ||isMobile.BlackBerry() ||isMobile.iOS() ||isMobile.Opera() ||isMobile.Windows() ||(navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints &&navigator.maxTouchPoints > 1));}};
             function mobileAndTabletCheck() { return isMobile.any(); }
             const game = new CatAdventure("gameCanvas","canvas2d");

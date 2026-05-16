@@ -15,7 +15,7 @@ class CatAdventure {
         this.player = null;
         this.playerData = null;
 
-        this.input = new AdventureInput();
+        this.input = new AdventureInput(this.canvas2d);
 
         this.lastTime = 0;
 
@@ -28,6 +28,15 @@ class CatAdventure {
         this.cameraDistance = 6;
         this.cameraHeight = 3;
         
+        this.playerVelY = 0;
+        this.onGround = false;
+
+        this.gravity = -0.010;
+        this.jumpPower = 0.22;
+        this.playerRadius = 0.35;
+        this.groundSnapDistance = 0.25;
+        this.groundSolver = new BasicGroundSolver(this);
+        this.playerBottomOffset = 0;
     }
 
     async start(mapUrl = "map.json") {
@@ -84,6 +93,8 @@ class CatAdventure {
     }
 
     update(scale,deltaSeconds) {
+        this.groundSolver.updatePlayer(this.player, scale);
+         this.groundSolver.resolveHorizontal(this.player);
         if(mobileAndTabletCheck())this.updatePlayerFromJoystick(scale);
         else this.updatePlayer(scale);
         
@@ -92,32 +103,95 @@ class CatAdventure {
         if (this.playerMixer) {
             this.playerMixer.update(deltaSeconds);
         }
-		this.drawPaw(this.ctx, 500, 500, 48);
-		
-		
+        
+        
+	
+	
+        if (this.input.isJumpJustPressed()) {
+
+            this.jump();
+    
+        }
+        
+	this.input.update();	
     }
 
     draw() {
         this.renderer.render(this.scene, this.camera);
+        this.drawUI();
     }
-	drawPaw(ctx, x, y, size) {
-		ctx.save();
-		ctx.translate(x, y);
-		ctx.fillStyle = "rgba(255,255,255,0.9)";
-		ctx.strokeStyle = "rgba(255,255,255,0.9)";
-		ctx.lineWidth = size * 0.06;
-		this.drawOval(ctx, -size * 0.28, -size * 0.25, size * 0.13, size * 0.18);
-		this.drawOval(ctx, -size * 0.09, -size * 0.38, size * 0.13, size * 0.18);
-		this.drawOval(ctx,  size * 0.09, -size * 0.38, size * 0.13, size * 0.18);
-		this.drawOval(ctx,  size * 0.28, -size * 0.25, size * 0.13, size * 0.18);
-		this.drawOval(ctx, 0, size * 0.12, size * 0.32, size * 0.24);
-		ctx.restore();
-	}
-	drawOval(ctx, x, y, rx, ry) {
-		ctx.beginPath();
-		ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-		ctx.fill();
-	}
+    drawUI() {
+        const w = this.canvas2d.width;
+        const h = this.canvas2d.height;
+
+        
+
+        const jumpX = w * 0.78;
+        const jumpY = h * 0.75;
+        const jumpR = 48;
+        if(mobileAndTabletCheck()){
+            this.input.setJumpButton(jumpX, jumpY, jumpR);
+            this.drawPaw(this.ctx, jumpX, jumpY, jumpR);
+        }
+    }
+    drawPaw(ctx, x, y, size) {
+        
+        
+        ctx.beginPath();
+        ctx.arc(x, y-5, size*0.7, 0, 2 * Math.PI, false);
+        
+        var grd = ctx.createRadialGradient(x, y-5, 5, x, y-5, size * 2);
+        grd.addColorStop(0, "#ff4a57");
+        grd.addColorStop(1, "#9e0f1c");
+        
+        
+        ctx.fillStyle = grd;
+        ctx.fill();
+        
+        
+        ctx.lineWidth = 1;
+        //context.strokeStyle = externalStrokeColor;
+        ctx.strokeStyle="white";
+        ctx.stroke();
+        
+        
+        
+        ctx.save();
+        ctx.translate(x, y);
+
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
+        
+        // Tår
+        this.drawOval(ctx, -size * 0.38, -size * 0.12, size * 0.13, size * 0.18);
+        this.drawOval(ctx, -size * 0.14, -size * 0.37, size * 0.13, size * 0.18);
+        this.drawOval(ctx,  size * 0.14, -size * 0.37, size * 0.13, size * 0.18);
+        this.drawOval(ctx,  size * 0.38, -size * 0.12, size * 0.13, size * 0.18);
+
+        // Stor trampdyna, byggd av 3 ovala delar
+        this.drawOval(ctx, -size * 0.13, size * 0.12, size * 0.21, size * 0.19, true);
+        this.drawOval(ctx,  size * 0.13, size * 0.12, size * 0.21, size * 0.19, true);
+        this.drawOval(ctx,  0,             size * 0.02, size * 0.26, size * 0.22, true);
+
+        ctx.restore();
+        
+        
+        
+        
+        
+        
+    }
+
+    drawOval(ctx, x, y, rx, ry, big = false) {
+        ctx.beginPath();
+
+        if (big) {
+            ctx.ellipse(x, y, rx * 0.95, ry * 0.9, 0, 0, Math.PI * 2);
+        } else {
+            ctx.ellipse(x, y - rx / 2, rx * 0.9, ry * 0.9, 0, 0, Math.PI * 2);
+        }
+
+        ctx.fill();
+    }
 
     resize() {
         
@@ -152,6 +226,7 @@ class CatAdventure {
             if (id.includes("cat") || name.includes("cat")) {
                 this.player = obj;
                 this.setupPlayerAnimations();
+                this.setupPlayerPhysicsBounds();
                 this.cameraYaw = this.player.rotation.y || 0;
                 this.playerData = obj.userData.mapObject;
                 break;
@@ -246,9 +321,7 @@ class CatAdventure {
             turnSmooth
         );
 
-        if (this.player.position.y < 0) {
-            this.player.position.y = 0;
-        }
+
     }
     updatePlayerFromJoystick(scale) {
 
@@ -375,5 +448,21 @@ class CatAdventure {
         next.play();
 
         this.currentPlayerAction = next;
+    }
+    jump() {
+        if (!this.onGround) return;
+
+        this.playerVelY = this.jumpPower;
+        this.onGround = false;
+    }
+    setupPlayerPhysicsBounds() {
+        if (!this.player) return;
+
+        const box = this.groundSolver.getRealBox(this.player);
+
+        this.playerBottomOffset = this.player.position.y - box.min.y;
+        this.playerHeight = box.max.y - box.min.y;
+
+   
     }
 }
