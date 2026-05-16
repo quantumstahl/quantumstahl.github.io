@@ -2,6 +2,7 @@ class CatAdventure {
     constructor(canvasId = "gameCanvas",canvas2d = "canvas2d") {
         this.canvas = document.getElementById(canvasId);
         this.canvas2d = document.getElementById(canvas2d);
+		this.ctx=this.canvas2d.getContext("2d");
         this.joy = new JoyStick('canvas2d');
         this.scene = null;
         this.camera = null;
@@ -91,11 +92,32 @@ class CatAdventure {
         if (this.playerMixer) {
             this.playerMixer.update(deltaSeconds);
         }
+		this.drawPaw(this.ctx, 500, 500, 48);
+		
+		
     }
 
     draw() {
         this.renderer.render(this.scene, this.camera);
     }
+	drawPaw(ctx, x, y, size) {
+		ctx.save();
+		ctx.translate(x, y);
+		ctx.fillStyle = "rgba(255,255,255,0.9)";
+		ctx.strokeStyle = "rgba(255,255,255,0.9)";
+		ctx.lineWidth = size * 0.06;
+		drawOval(ctx, -size * 0.28, -size * 0.25, size * 0.13, size * 0.18);
+		drawOval(ctx, -size * 0.09, -size * 0.38, size * 0.13, size * 0.18);
+		drawOval(ctx,  size * 0.09, -size * 0.38, size * 0.13, size * 0.18);
+		drawOval(ctx,  size * 0.28, -size * 0.25, size * 0.13, size * 0.18);
+		drawOval(ctx, 0, size * 0.12, size * 0.32, size * 0.24);
+		ctx.restore();
+	}
+	drawOval(ctx, x, y, rx, ry) {
+		ctx.beginPath();
+		ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+		ctx.fill();
+	}
 
     resize() {
         
