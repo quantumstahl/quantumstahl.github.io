@@ -36,12 +36,18 @@ class Game7 {
                         id: type.id,
                         name: type.name,
                         glb: type.glb,
-                        category: type.category,
+
+                        shape: type.shape,
                         collision: type.collision,
+                        visibleInEditor: type.visibleInEditor,
+                        visibleInGame: type.visibleInGame,
+
+                        category: type.category,
                         instanced: type.instanced,
+
                         instances: type.instances.map(inst => ({
                             id: inst.id,
-                            name: inst.name,
+                            name: type.name,
 
                             x: inst.x,
                             y: inst.y,
@@ -51,7 +57,13 @@ class Game7 {
                             rotY: inst.rotY,
                             rotZ: inst.rotZ,
 
-                            scale: inst.scale
+                            scale: inst.scale,
+                            scaleX: inst.scaleX,
+                            scaleY: inst.scaleY,
+                            scaleZ: inst.scaleZ,
+
+                            event: inst.event,
+                            kind: inst.kind
                         }))
                     }))
                 }))
@@ -185,10 +197,21 @@ class Game7 {
             inst.rotY || 0,
             inst.rotZ || 0
         );
+        
+        
+        const type = obj.userData.assetType;
 
-        const s = inst.scale || 1;
-        obj.scale.set(s, s, s);
-
+        if (type?.shape === "box") {
+            obj.scale.set(
+                inst.scaleX ?? inst.scale ?? 1,
+                inst.scaleY ?? inst.scale ?? 1,
+                inst.scaleZ ?? inst.scale ?? 1
+            );
+        }
+        else{
+            const s = inst.scale || 1;
+            obj.scale.set(s, s, s);
+        }
         this.selected = obj;
         this.updateSelectionBox?.();
     }
@@ -270,7 +293,7 @@ class Game7 {
 
     updateSelectionBox() {
         if (!this.selectionBox) return;
-
+  
         if (!this.selected) {
             this.selectionBox.visible = false;
             return;
@@ -409,21 +432,29 @@ class MapLoader {
 
         for (const layer of map.layers) {
             for (const type of layer.assetTypes) {
-                if (!type.glb) continue;
 
                 for (const inst of type.instances) {
-                    const obj = await this.game.assetManager.createInstance(type.glb);
-                    if (!obj) continue;
+                    let obj = null;
 
-                    obj.position.set(inst.x, inst.y, inst.z);
-                    obj.rotation.set(
-                        inst.rotX || 0,
-                        inst.rotY || 0,
-                        inst.rotZ || 0
-                    );
+                    if (type.shape === "box") {
+                        obj = this.createEditorBoxObject(inst, type, layer);
+                    } else {
+                        if (!type.glb) continue;
 
-                    const s = inst.scale || 1;
-                    obj.scale.set(s, s, s);
+                        obj = await this.game.assetManager.createInstance(type.glb);
+                        if (!obj) continue;
+
+                        obj.position.set(inst.x, inst.y, inst.z);
+
+                        obj.rotation.set(
+                            inst.rotX || 0,
+                            inst.rotY || 0,
+                            inst.rotZ || 0
+                        );
+
+                        const s = inst.scale || 1;
+                        obj.scale.set(s, s, s);
+                    }
 
                     obj.userData.mapObject = inst;
                     obj.userData.assetType = type;
@@ -435,7 +466,9 @@ class MapLoader {
             }
         }
     }
-
+    
+    
+    
     clearMapObjects() {
         if (!this.game.mapObjects) this.game.mapObjects = [];
 
@@ -451,6 +484,53 @@ class MapLoader {
 
         this.game.currentMap = index;
         await this.loadCurrentMapToScene();
+    }
+    createEditorBoxObject(inst, type, layer) {
+        const geo = new THREE.BoxGeometry(1, 1, 1);
+
+        const mat = new THREE.MeshBasicMaterial({
+            color: this.getCollisionColor(type.collision),
+            transparent: true,
+            opacity: 0.25,
+            wireframe: false,
+            depthWrite: false
+        });
+
+        const obj = new THREE.Mesh(geo, mat);
+
+        obj.position.set(
+            inst.x || 0,
+            inst.y || 0,
+            inst.z || 0
+        );
+
+        obj.rotation.set(
+            inst.rotX || 0,
+            inst.rotY || 0,
+            inst.rotZ || 0
+        );
+
+        obj.scale.set(
+            inst.scaleX ?? inst.scale ?? 1,
+            inst.scaleY ?? inst.scale ?? 1,
+            inst.scaleZ ?? inst.scale ?? 1
+        );
+
+        obj.userData.mapObject = inst;
+        obj.userData.assetType = type;
+        obj.userData.layer = layer;
+        obj.userData.isEditorInvisibleBox = true;
+
+        return obj;
+    }
+
+    getCollisionColor(collision) {
+        if (collision === "trigger") return 0x00ffff;
+        if (collision === "ghost") return 0xaa66ff;
+        if (collision === "death") return 0xff0000;
+        if (collision === "wall") return 0xffaa00;
+        if (collision === "solid") return 0x00ff00;
+        return 0xffffff;
     }
 }
 
@@ -474,15 +554,21 @@ class MapLayer {
 
 class AssetType {
     constructor(data = {}) {
-        this.id = data.id || crypto.randomUUID?.() || String(Math.random());
-        this.assetId = data.assetId || data.id || "";
-        this.name = data.name || this.assetId || "asset";
+        this.id = data.id || "";
+        this.name = data.name || this.id;
         this.glb = data.glb || null;
         this.category = data.category || "default";
-        this.collision = data.collision || null;
-        this.instanced = data.instanced || false;
+        
+        this.shape = data.shape || null;
+        this.visibleInEditor = data.visibleInEditor ?? true;
+        this.visibleInGame = data.visibleInGame ?? true;
+        
+        // none / solid / ghost / trigger / floor / wall
+        this.collision = data.collision || "solid";
 
+        this.instanced = data.instanced || false;
         this.instances = (data.instances || []).map(objData => new MapObject(objData));
+        
     }
 }
 
@@ -497,9 +583,81 @@ class MapObject {
         this.rotZ = data.rotZ || 0;
 
         this.scale = data.scale || 1;
+        
+        this.scaleX = data.scaleX ?? this.scale;
+        this.scaleY = data.scaleY ?? this.scale;
+        this.scaleZ = data.scaleZ ?? this.scale;
 
         this.name = data.name || "";
         this.id = data.id || crypto.randomUUID?.() || String(Math.random());
+        
+        // runtime only
+        this.contactsSolid = {
+            left: null,
+            right: null,
+            front: null,
+            back: null,
+            up: null,
+            down: null
+        };
+
+        this.contactsDyn = {
+            left: null,
+            right: null,
+            front: null,
+            back: null,
+            up: null,
+            down: null
+        };
+
+        this.contactsGhost = {
+            ghost1: null,
+            ghost2: null,
+            ghost3: null
+        };
+
+        this.contactsTrigger = {
+            trigger1: null,
+            trigger2: null,
+            trigger3: null
+        };
     }
+
+    resetContacts() {
+        this.contactsSolid.left = null;
+        this.contactsSolid.right = null;
+        this.contactsSolid.front = null;
+        this.contactsSolid.back = null;
+        this.contactsSolid.up = null;
+        this.contactsSolid.down = null;
+
+        this.contactsDyn.left = null;
+        this.contactsDyn.right = null;
+        this.contactsDyn.front = null;
+        this.contactsDyn.back = null;
+        this.contactsDyn.up = null;
+        this.contactsDyn.down = null;
+
+        this.contactsGhost.ghost1 = null;
+        this.contactsGhost.ghost2 = null;
+        this.contactsGhost.ghost3 = null;
+
+        this.contactsTrigger.trigger1 = null;
+        this.contactsTrigger.trigger2 = null;
+        this.contactsTrigger.trigger3 = null;
+    }
+
+    addGhostContact(obj) {
+        if (!this.contactsGhost.ghost1) this.contactsGhost.ghost1 = obj;
+        else if (!this.contactsGhost.ghost2) this.contactsGhost.ghost2 = obj;
+        else if (!this.contactsGhost.ghost3) this.contactsGhost.ghost3 = obj;
+    }
+
+    addTriggerContact(obj) {
+        if (!this.contactsTrigger.trigger1) this.contactsTrigger.trigger1 = obj;
+        else if (!this.contactsTrigger.trigger2) this.contactsTrigger.trigger2 = obj;
+        else if (!this.contactsTrigger.trigger3) this.contactsTrigger.trigger3 = obj;
+    }
+
 }
 window.Game7 = Game7;

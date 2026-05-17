@@ -130,8 +130,16 @@ class JSTree7 {
 
         const typeEl = document.createElement("div");
         typeEl.className = "treeAssetType";
-        typeEl.textContent = (open ? "  ▾ " : "  ▸ ") + (type.name || type.id);
-
+        const col = type.collision || "solid";
+        typeEl.textContent = (open ? "  ▾ " : "  ▸ ") + 
+            (type.name || type.id) + 
+            " [" + col + "]";
+        if (col === "solid") typeEl.style.color = "#222";
+        if (col === "none") typeEl.style.color = "#777";
+        if (col === "ghost") typeEl.style.color = "#8a2be2";
+        if (col === "trigger") typeEl.style.color = "#008b8b";
+        
+        
         typeEl.onclick = (e) => {
             e.stopPropagation();
 
@@ -235,31 +243,54 @@ class JSTree7 {
         this.propertyPanel.appendChild(delBtn);
     }
     renderInstanceProperties(inst) {
-        this.addNumberInput("x", inst.x, value => {
-            inst.x = value;
-            this.game.updateSelectedMeshFromData?.();
-        });
+        const type = this.selectedNode?.type;
+        if (type?.shape === "box") {
+            this.addNumberInput("scaleX", inst.scaleX ?? 1, value => {
+                inst.scaleX = value;
+                this.game.updateSelectedMeshFromData?.();
+            });
 
-        this.addNumberInput("y", inst.y, value => {
-            inst.y = value;
-            this.game.updateSelectedMeshFromData?.();
-        });
+            this.addNumberInput("scaleY", inst.scaleY ?? 1, value => {
+                inst.scaleY = value;
+                this.game.updateSelectedMeshFromData?.();
+            });
 
-        this.addNumberInput("z", inst.z, value => {
-            inst.z = value;
-            this.game.updateSelectedMeshFromData?.();
-        });
+            this.addNumberInput("scaleZ", inst.scaleZ ?? 1, value => {
+                inst.scaleZ = value;
+                this.game.updateSelectedMeshFromData?.();
+            });
 
-        this.addNumberInput("rotY", inst.rotY, value => {
-            inst.rotY = value;
-            this.game.updateSelectedMeshFromData?.();
-        });
+            this.addTextInput?.("event", inst.event || "", value => {
+                inst.event = value;
+                this.game.markUnsaved?.();
+            });
+        }
+        else{
+            this.addNumberInput("x", inst.x, value => {
+                inst.x = value;
+                this.game.updateSelectedMeshFromData?.();
+            });
 
-        this.addNumberInput("scale", inst.scale, value => {
-            inst.scale = value;
-            this.game.updateSelectedMeshFromData?.();
-        });
+            this.addNumberInput("y", inst.y, value => {
+                inst.y = value;
+                this.game.updateSelectedMeshFromData?.();
+            });
 
+            this.addNumberInput("z", inst.z, value => {
+                inst.z = value;
+                this.game.updateSelectedMeshFromData?.();
+            });
+
+            this.addNumberInput("rotY", inst.rotY, value => {
+                inst.rotY = value;
+                this.game.updateSelectedMeshFromData?.();
+            });
+
+            this.addNumberInput("scale", inst.scale, value => {
+                inst.scale = value;
+                this.game.updateSelectedMeshFromData?.();
+            });
+        }
         const delBtn = document.createElement("button");
         delBtn.textContent = "Delete Object";
         delBtn.onclick = () => this.deleteSelectedInstance();
@@ -282,7 +313,10 @@ class JSTree7 {
             this.refresh();
         };
         this.propertyPanel.appendChild(renameBtn);
-
+        
+        this.addTextLine("collision", type.collision || "solid");
+        this.addCollisionButtons(type);
+        
         const addBtn = document.createElement("button");
         addBtn.textContent = "+ Instance";
         addBtn.onclick = () => this.addInstanceToSelectedType();
@@ -294,7 +328,42 @@ class JSTree7 {
         delBtn.onclick = () => this.deleteSelectedAssetType();
         this.propertyPanel.appendChild(delBtn);
     }
+    addCollisionButtons(type) {
+        const wrap = document.createElement("div");
+        wrap.className = "collisionButtons";
 
+        const modes = [
+            "solid",
+            "none",
+            "ghost",
+            "trigger",
+            "wall"
+        ];
+
+        for (const mode of modes) {
+            const btn = document.createElement("button");
+            btn.textContent = mode;
+
+            btn.className = "collisionBtn";
+            if ((type.collision || "solid") === mode) {
+                btn.classList.add("active");
+            }
+
+            btn.onclick = () => {
+                type.collision = mode;
+                this.game.markUnsaved?.();
+                this.renderProperties();
+                this.renderTree();
+
+                // Om du vill att helpers/visibility uppdateras direkt:
+                // this.game.mapLoader.loadCurrentMapToScene();
+            };
+
+            wrap.appendChild(btn);
+        }
+
+        this.propertyPanel.appendChild(wrap);
+    }
     renderLayerProperties(layer) {
         this.addTextLine("name", layer.name);
         this.addTextLine("assetTypes", String(layer.assetTypes.length));
@@ -322,7 +391,12 @@ class JSTree7 {
         addBtn.textContent = "+ AssetType";
         addBtn.onclick = () => this.addAssetTypeToSelectedLayer();
         this.propertyPanel.appendChild(addBtn);
-
+        
+        const invisBtn = document.createElement("button");
+        invisBtn.textContent = "+ Invisible Box";
+        invisBtn.onclick = () => this.addInvisibleBoxTypeToSelectedLayer();
+        this.propertyPanel.appendChild(invisBtn);
+        
         const delBtn = document.createElement("button");
         delBtn.textContent = "Delete Layer";
         delBtn.className = "dangerBtn";
@@ -685,5 +759,42 @@ class JSTree7 {
         sep.style.margin = "0 4px";
         this.bottomToolbar.appendChild(sep);
     }
+    addInvisibleBoxTypeToSelectedLayer() {
+        if (!this.selectedNode || this.selectedNode.kind !== "layer") return;
+
+        const layer = this.selectedNode.data;
+
+        const name = prompt("Invisible box name?", "trigger");
+        if (!name) return;
+
+        const type = new AssetType({
+            id: name,
+            name,
+            glb: null,
+            shape: "box",
+            collision: "trigger",
+            visibleInEditor: true,
+            visibleInGame: false,
+            instances: [
+                {
+                    x: 0,
+                    y: 1,
+                    z: 0,
+                    scaleX: 2,
+                    scaleY: 2,
+                    scaleZ: 2
+                }
+            ]
+        });
+
+        layer.assetTypes.push(type);
+
+        this.game.markUnsaved?.();
+
+        this.game.mapLoader.loadCurrentMapToScene().then(() => {
+            this.refresh();
+        });
+    }
+    
 }
 window.JSTree7 = JSTree7;

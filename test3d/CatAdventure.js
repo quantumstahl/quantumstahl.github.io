@@ -21,9 +21,8 @@ class CatAdventure {
 
         this.moveSpeed = 0.08;
         this.turnSpeed = 0.05;
-        this.playerMixer = null;
-        this.playerActions = {};
-        this.currentPlayerAction = null;
+        this.mixers = [];
+        this.animatedObjects = [];
         this.cameraYaw = 0;
         this.cameraDistance = 6;
         this.cameraHeight = 3;
@@ -35,8 +34,11 @@ class CatAdventure {
         this.jumpPower = 0.22;
         this.playerRadius = 0.35;
         this.groundSnapDistance = 0.25;
-        this.groundSolver = new BasicGroundSolver(this);
+        this.worldSolver = new WorldSolver(this);
         this.playerBottomOffset = 0;
+        this.coins=0;
+        
+        this.gates=[];
     }
 
     async start(mapUrl = "map.json") {
@@ -45,7 +47,10 @@ class CatAdventure {
         await this.mapLoader.load(mapUrl);
 
         this.findPlayerCat();
-
+        this.setupAnimation();
+        
+        
+        
         window.addEventListener("resize", () => this.resize());
         this.resize();
 
@@ -93,15 +98,17 @@ class CatAdventure {
     }
 
     update(scale,deltaSeconds) {
-        this.groundSolver.updatePlayer(this.player, scale);
-         this.groundSolver.resolveHorizontal(this.player);
+        this.worldSolver.beginFrame();
+        this.worldSolver.updatePlayerY(this.player, scale);
+        this.worldSolver.resolveHorizontal(this.player);
+        this.worldSolver.checkGhostAndTriggerContacts(this.player);
         if(mobileAndTabletCheck())this.updatePlayerFromJoystick(scale);
         else this.updatePlayer(scale);
         
         
         this.updateCamera(scale);
-        if (this.playerMixer) {
-            this.playerMixer.update(deltaSeconds);
+        for (const mixer of this.mixers) {
+            mixer.update(deltaSeconds);
         }
         
         
@@ -112,10 +119,41 @@ class CatAdventure {
             this.jump();
     
         }
+        const c=this.touching(this.player, "coin", "ghost");
+        if(c){
+            this.removeMapObject(c);
+            this.coins++;
+            
+        }
+        if(this.coins>8)this.openGate(this.gates[0]);
+        
+        
         
 	this.input.update();	
     }
-
+    openGate(gate) {
+        if(gate.open===false){
+            const action = gate.userData.actions?.["Animation 1"];
+            if (!action) return;
+            gate.userData.collisionOverride = "none";
+            action.paused = false;
+            action.reset();
+            action.setLoop(THREE.LoopOnce);
+            action.clampWhenFinished = true;
+            action.play();
+            gate.open=true;
+            
+        }
+    }
+    
+    
+    removeMapObject(obj) {
+        if (!obj) return;
+        this.scene.remove(obj.mesh);
+        this.mapObjects = this.mapObjects.filter(o => o !== obj.mesh);
+    }
+    
+    
     draw() {
         this.renderer.render(this.scene, this.camera);
         this.drawUI();
@@ -133,6 +171,13 @@ class CatAdventure {
             this.input.setJumpButton(jumpX, jumpY, jumpR);
             this.drawPaw(this.ctx, jumpX, jumpY, jumpR);
         }
+        else this.ctx.clearRect(0, 0,this.canvas.width, this.canvas.height);
+        this.ctx.fillStyle="black";
+        this.ctx.font = "40px serif";
+        if(mobileAndTabletCheck())this.ctx.font = "20px serif";
+        this.ctx.fillText("Coins: " + this.coins, 10, 40);
+        
+        
     }
     drawPaw(ctx, x, y, size) {
         
@@ -215,7 +260,27 @@ class CatAdventure {
 
         return true;
     }
+    setupAnimation(){
+        
+        for (const obj of this.mapObjects) {
+            const type = obj.userData.assetType;
+            const id = (type?.id || "").toLowerCase();
+            const name = (type?.name || "").toLowerCase();
 
+            if(id.includes("coin") || name.includes("coin")){
+                this.setupObjectAnimation(obj, "Animation 1", true);
+            }
+            if(id.includes("gate") || name.includes("gate")){
+                this.setupObjectAnimation(obj, "Animation 1", false);
+                obj.open=false;
+                this.gates.push(obj);
+                
+            }
+            
+        }
+    }
+    
+    
     findPlayerCat() {
         // Försök hitta första objektet vars assetType id/name innehåller "cat"
         for (const obj of this.mapObjects) {
@@ -225,12 +290,13 @@ class CatAdventure {
 
             if (id.includes("cat") || name.includes("cat")) {
                 this.player = obj;
-                this.setupPlayerAnimations();
+                this.setupObjectAnimation(obj, "Animation 1", false);
                 this.setupPlayerPhysicsBounds();
                 this.cameraYaw = this.player.rotation.y || 0;
                 this.playerData = obj.userData.mapObject;
                 break;
             }
+            
         }
 
         if (!this.player) {
@@ -256,7 +322,6 @@ class CatAdventure {
 
     updatePlayer(scale) {
         if (!this.player) return;
-
         const input = this.input;
 
         let x = 0;
@@ -271,14 +336,12 @@ class CatAdventure {
         const isMoving = x !== 0 || y !== 0;
 
         if (isMoving) {
-            this.playPlayerAction("walk");
+            this.player.userData.actions["Animation 1"].play();
         } else {
-            if (this.playerActions.idle) {
-                this.playPlayerAction("idle");
-            } else if (this.currentPlayerAction) {
-                this.currentPlayerAction.fadeOut(0.15);
-                this.currentPlayerAction = null;
-            }
+       
+               this.player.userData.actions["Animation 1"].fadeOut(0.15);
+               this.player.userData.actions["Animation 1"].stop();
+            
             return;
         }
 
@@ -330,9 +393,9 @@ class CatAdventure {
         this.joy.redraw();
 
         const v = this.joy.GetVector();
-        
-        if (v.power <= 0.1){if (this.currentPlayerAction){this.currentPlayerAction.fadeOut(0.15);this.currentPlayerAction = null;} return;}
-        this.playPlayerAction("walk");
+       
+        if (v.power <= 0.1){if (this.player.userData.actions["Animation 1"])this.player.userData.actions["Animation 1"].fadeOut(0.15);this.player.userData.actions["Animation 1"].stop(); return;}
+        this.player.userData.actions["Animation 1"].play();
         const cameraForward = new THREE.Vector3();
         this.camera.getWorldDirection(cameraForward);
         cameraForward.y = 0;
@@ -402,37 +465,47 @@ class CatAdventure {
 
         this.camera.lookAt(target);
     }
-    setupPlayerAnimations() {
-        const animations = this.player.userData.animations || [];
+    setupObjectAnimation(obj, clipName = "Animation 1", autoPlay = true) {
+        const animations = obj.userData.animations || [];
 
-        if (!animations.length) {
-            console.warn("Player has no animations");
-            return;
-        }
+        if (!animations.length) return null;
 
-        this.playerMixer = new THREE.AnimationMixer(this.player);
+        const mixer = new THREE.AnimationMixer(obj);
 
-        const walkClip =
-            THREE.AnimationClip.findByName(animations, "Animation 1") ||
+        const clip =
+            THREE.AnimationClip.findByName(animations, clipName) ||
             animations[0];
 
-        if (walkClip) {
-            this.playerActions.walk = this.playerMixer.clipAction(walkClip);
-            this.playerActions.walk.loop = THREE.LoopRepeat;
+        if (!clip) return null;
+
+        const action = mixer.clipAction(clip);
+        action.loop = THREE.LoopRepeat;
+        action.clampWhenFinished = true;
+
+        if (autoPlay) {
+            action.play();
+        } else {
+            // Sätt objektet i animationens startpose, men spela inte vidare
+            action.play();
+            action.paused = true;
+            action.time = 0;
+            mixer.update(0);
         }
 
-        // Om du senare har idle-animation:
-        const idleClip = THREE.AnimationClip.findByName(animations, "Idle");
+        obj.userData.mixer = mixer;
+        obj.userData.actions = obj.userData.actions || {};
+        obj.userData.actions[clipName] = action;
 
-        if (idleClip) {
-            this.playerActions.idle = this.playerMixer.clipAction(idleClip);
-            this.playerActions.idle.loop = THREE.LoopRepeat;
-        }
+        this.mixers.push(mixer);
+        this.animatedObjects.push(obj);
 
-        if (this.playerActions.idle) {
-            this.playPlayerAction("idle");
-        }
+        return {
+            mixer,
+            action,
+            clip
+        };
     }
+    
     playPlayerAction(name) {
         const next = this.playerActions[name];
         if (!next) return;
@@ -458,11 +531,53 @@ class CatAdventure {
     setupPlayerPhysicsBounds() {
         if (!this.player) return;
 
-        const box = this.groundSolver.getRealBox(this.player);
+        const box = this.worldSolver.getRealBox(this.player);
 
         this.playerBottomOffset = this.player.position.y - box.min.y;
         this.playerHeight = box.max.y - box.min.y;
 
    
+    }
+    touching(obj, type = "any", mode = "ghost") {
+        const mapObj = obj.userData?.mapObject || obj;
+
+        if (mode === "ghost") {
+            return this.anyContact(mapObj.contactsGhost, type);
+        }
+
+        if (mode === "solid") {
+            return this.anyContact(mapObj.contactsSolid, type);
+        }
+
+        if (mode === "dyn") {
+            return this.anyContact(mapObj.contactsDyn, type);
+        }
+
+        if (mode === "any") {
+            return (
+                this.anyContact(mapObj.contactsGhost, type) ||
+                this.anyContact(mapObj.contactsSolid, type) ||
+                this.anyContact(mapObj.contactsDyn, type)
+            );
+        }
+
+        return null;
+    }
+
+    anyContact(group, type = "any") {
+        if (!group) return null;
+
+        for (const key in group) {
+            const hit = this.matchContact(group[key], type);
+            if (hit) return hit;
+        }
+
+        return null;
+    }
+
+    matchContact(ref, name = "any") {
+        if (!ref) return null;
+        if (name === "any") return ref;
+        return ref.name === name ? ref : null;
     }
 }

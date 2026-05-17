@@ -38,10 +38,18 @@ class AdventureMapLoader {
             const types = layer.types || layer.assetTypes || [];
 
             for (const type of types) {
-                if (!type.glb) continue;
+                for (const instData of type.instances || []) {
+                    const inst = new MapObject(instData);
 
-                for (const inst of type.instances || []) {
-                    const obj = await this.game.assetManager.createInstance(type.glb);
+                    let obj = null;
+
+                    if (type.shape === "box" && !type.glb) {
+                        obj = this.createInvisibleBoxObject(inst, type, layer);
+                    } else {
+                        if (!type.glb) continue;
+                        obj = await this.game.assetManager.createInstance(type.glb);
+                    }
+
                     if (!obj) continue;
 
                     obj.position.set(inst.x || 0, inst.y || 0, inst.z || 0);
@@ -52,13 +60,21 @@ class AdventureMapLoader {
                         inst.rotZ || 0
                     );
 
-                    const s = inst.scale || 1;
-                    obj.scale.set(s, s, s);
+                    if (type.shape === "box") {
+                        obj.scale.set(
+                            inst.scaleX ?? inst.scale ?? 1,
+                            inst.scaleY ?? inst.scale ?? 1,
+                            inst.scaleZ ?? inst.scale ?? 1
+                        );
+                    } else {
+                        const s = inst.scale || 1;
+                        obj.scale.set(s, s, s);
+                    }
 
                     obj.userData.mapObject = inst;
                     obj.userData.assetType = type;
                     obj.userData.layer = layer;
-
+                    inst.mesh=obj;
                     this.game.scene.add(obj);
                     this.game.mapObjects.push(obj);
                 }
@@ -84,5 +100,42 @@ class AdventureMapLoader {
                 }
             ]
         };
+    }
+    createInvisibleBoxObject(inst, type, layer) {
+        const geo = new THREE.BoxGeometry(1, 1, 1);
+
+        const mat = new THREE.MeshBasicMaterial({
+            transparent: true,
+            opacity: 0,
+            depthWrite: false
+        });
+
+        const obj = new THREE.Mesh(geo, mat);
+        obj.visible = false;
+
+        obj.position.set(
+            inst.x || 0,
+            inst.y || 0,
+            inst.z || 0
+        );
+
+        obj.rotation.set(
+            inst.rotX || 0,
+            inst.rotY || 0,
+            inst.rotZ || 0
+        );
+
+        obj.scale.set(
+            inst.scaleX ,
+            inst.scaleY ,
+            inst.scaleZ 
+        );
+
+        obj.userData.mapObject = inst;
+        obj.userData.assetType = type;
+        obj.userData.layer = layer;
+        obj.userData.isInvisibleBox = true;
+
+        return obj;
     }
 }
