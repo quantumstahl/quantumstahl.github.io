@@ -920,6 +920,39 @@
               ]
             }
           ]
+        },
+        {
+          "id": "2c73752c-1816-4600-8c39-d380237d1e0e",
+          "name": "enemy",
+          "types": [
+            {
+              "id": "bug",
+              "name": "bug",
+              "glb": "assets/bug.glb",
+              "shape": null,
+              "collision": "solid",
+              "visibleInEditor": true,
+              "visibleInGame": true,
+              "category": "default",
+              "instanced": false,
+              "instances": [
+                {
+                  "id": "aca9a122-39e7-4f81-b397-36d6159abe54",
+                  "name": "bug",
+                  "x": 22.623,
+                  "y": 0,
+                  "z": -5.51,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 0.175,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "scaleZ": 1
+                }
+              ]
+            }
+          ]
         }
       ]
     }
