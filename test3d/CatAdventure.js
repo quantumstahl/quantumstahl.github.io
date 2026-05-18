@@ -159,14 +159,16 @@ class CatAdventure {
         
         if(this.touching(this.player, "2song", "trigger")){
             if(song!=='sounds/FoxMeadow.mp3'){
-            song= 'sounds/FoxMeadow.mp3';
-            audio.src = song;
+                song= 'sounds/FoxMeadow.mp3';
+                audio.src = song;
+                audio.play();
             }
         }
         if(this.touching(this.player, "1song", "trigger")){
             if(song!=='sounds/PawprintMeadow.mp3'){
-            song= 'sounds/PawprintMeadow.mp3';
-            audio.src = song;
+                song= 'sounds/PawprintMeadow.mp3';
+                audio.src = song;
+                audio.play();
             }
         }
         
