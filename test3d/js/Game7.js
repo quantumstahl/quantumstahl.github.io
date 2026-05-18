@@ -21,6 +21,12 @@ class Game7 {
         this.selected = null;
         this.selectedMapObject = null;
         this.selectionBox = null;
+        
+        this.texture2 = new THREE.TextureLoader().load("grasyfield.png");
+        this.texture2.wrapS = THREE.RepeatWrapping;
+        this.texture2.wrapT = THREE.RepeatWrapping;
+        this.texture2.repeat.set(8, 8);
+        
     }
 
     serializeMapData() {
@@ -109,9 +115,9 @@ class Game7 {
 
         this.scene.add(new THREE.AmbientLight(0xffffff, 0.45));
 
-        const groundGeo = new THREE.PlaneGeometry(200, 200);
+        const groundGeo = new THREE.PlaneGeometry(400, 400);
         const groundMat = new THREE.MeshStandardMaterial({
-            color: 0x86cc7a
+           map: this.texture2
         });
 
         this.ground = new THREE.Mesh(groundGeo, groundMat);

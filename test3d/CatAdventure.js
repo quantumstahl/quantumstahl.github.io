@@ -19,8 +19,8 @@ class CatAdventure {
 
         this.lastTime = 0;
 
-        this.moveSpeed = 0.08;
-        this.turnSpeed = 0.05;
+        this.moveSpeed = 0.07;
+        this.turnSpeed = 0.04;
         this.mixers = [];
         this.animatedObjects = [];
         this.cameraYaw = 0;
@@ -39,13 +39,21 @@ class CatAdventure {
         this.coins=0;
         
         this.gates=[];
+        
+        this.insectObj=null;
+        
+        this.texture2 = new THREE.TextureLoader().load("grasyfield.png");
+        this.texture2.wrapS = THREE.RepeatWrapping;
+        this.texture2.wrapT = THREE.RepeatWrapping;
+        this.texture2.repeat.set(8, 8);
     }
 
     async start(mapUrl = "map.json") {
         this.initThree();
 
         await this.mapLoader.load(mapUrl);
-
+        
+        this.findsleepingbug();
         this.findPlayerCat();
         this.setupAnimation();
         
@@ -75,6 +83,15 @@ class CatAdventure {
         this.scene.add(sun);
 
         this.scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+        
+        const groundGeo = new THREE.PlaneGeometry(400, 400);
+        const groundMat = new THREE.MeshStandardMaterial({
+           map: this.texture2
+        });
+
+        this.ground = new THREE.Mesh(groundGeo, groundMat);
+        this.ground.rotation.x = -Math.PI / 2;
+        this.scene.add(this.ground);
     }
 
     gameLoop(time) {
@@ -110,7 +127,19 @@ class CatAdventure {
         for (const mixer of this.mixers) {
             mixer.update(deltaSeconds);
         }
+        if (this.insectObj.userData.sleepingEffect) {
+   
+            this.insectObj.userData.sleepingEffect.update(deltaSeconds);
+
+            
+        }
         
+        
+        const e=this.touching(this.player, "bug", "solid", "down");
+        if (e) {
+            this.squishInsect(e.mesh);
+             audio2("sounds/splash.mp3");
+        }
         
 	
 	
@@ -123,13 +152,46 @@ class CatAdventure {
         if(c){
             this.removeMapObject(c);
             this.coins++;
+            audio2("sounds/coin.mp3");
             
         }
         if(this.coins>8)this.openGate(this.gates[0]);
         
+        if(this.touching(this.player, "2song", "trigger")){
+            if(song!=='sounds/FoxMeadow.mp3'){
+            song= 'sounds/FoxMeadow.mp3';
+            audio.src = song;
+            }
+        }
+        if(this.touching(this.player, "1song", "trigger")){
+            if(song!=='sounds/PawprintMeadow.mp3'){
+            song= 'sounds/PawprintMeadow.mp3';
+            audio.src = song;
+            }
+        }
         
         
 	this.input.update();	
+    }
+    squishInsect(insectObj) {
+        if (!insectObj || insectObj.userData.squished) return;
+
+        insectObj.userData.squished = true;
+
+        // spara originalskala
+        insectObj.userData.originalScale = insectObj.scale.clone();
+
+        insectObj.scale.set(
+            insectObj.scale.x * 1.25,
+            insectObj.scale.y * 0.18,
+            insectObj.scale.z * 1.25
+        );
+
+        // valfritt: gör den inte solid längre
+
+            insectObj.userData.assetType.collision = "none";
+           
+        
     }
     openGate(gate) {
         if(gate.open===false){
@@ -142,6 +204,7 @@ class CatAdventure {
             action.clampWhenFinished = true;
             action.play();
             gate.open=true;
+            audio2("sounds/gate.mp3");
             
         }
     }
@@ -279,7 +342,27 @@ class CatAdventure {
             
         }
     }
-    
+    findsleepingbug(){
+         for (const obj of this.mapObjects) {
+            const type = obj.userData.assetType;
+            const id = (type?.id || "").toLowerCase();
+            const name = (type?.name || "").toLowerCase();
+
+            if (id.includes("bug") || name.includes("bug")) {
+                obj.userData.sleepingEffect = new SleepingZEffect(obj,this);
+                this.insectObj=obj;
+                
+                
+                break;
+            }
+            
+        }
+        
+        
+        
+        
+        
+    }
     
     findPlayerCat() {
         // Försök hitta första objektet vars assetType id/name innehåller "cat"
@@ -538,34 +621,45 @@ class CatAdventure {
 
    
     }
-    touching(obj, type = "any", mode = "ghost") {
+    touching(obj, type = "any", mode = "ghost", dir = "any") {
         const mapObj = obj.userData?.mapObject || obj;
 
         if (mode === "ghost") {
-            return this.anyContact(mapObj.contactsGhost, type);
+            return this.anyContact(mapObj.contactsGhost, type, dir);
         }
 
         if (mode === "solid") {
-            return this.anyContact(mapObj.contactsSolid, type);
+            return this.anyContact(mapObj.contactsSolid, type, dir);
         }
 
         if (mode === "dyn") {
-            return this.anyContact(mapObj.contactsDyn, type);
+            return this.anyContact(mapObj.contactsDyn, type, dir);
+        }
+
+        if (mode === "trigger") {
+            return this.anyContact(mapObj.contactsTrigger, type, dir);
         }
 
         if (mode === "any") {
             return (
-                this.anyContact(mapObj.contactsGhost, type) ||
-                this.anyContact(mapObj.contactsSolid, type) ||
-                this.anyContact(mapObj.contactsDyn, type)
+                this.anyContact(mapObj.contactsGhost, type, dir) ||
+                this.anyContact(mapObj.contactsTrigger, type, dir) ||
+                this.anyContact(mapObj.contactsSolid, type, dir) ||
+                this.anyContact(mapObj.contactsDyn, type, dir)
             );
         }
 
         return null;
     }
 
-    anyContact(group, type = "any") {
+    anyContact(group, type = "any", dir = "any") {
         if (!group) return null;
+
+        dir = this.normalizeDir(dir);
+
+        if (dir !== "any") {
+            return this.matchContact(group[dir], type);
+        }
 
         for (const key in group) {
             const hit = this.matchContact(group[key], type);
@@ -579,5 +673,12 @@ class CatAdventure {
         if (!ref) return null;
         if (name === "any") return ref;
         return ref.name === name ? ref : null;
+    }
+    normalizeDir(dir) {
+        if (dir === "top") return "up";
+        if (dir === "bottom") return "down";
+        if (dir === "forward") return "front";
+        if (dir === "backward") return "back";
+        return dir;
     }
 }

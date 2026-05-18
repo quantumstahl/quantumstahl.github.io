@@ -18,7 +18,7 @@ Click nbfs://nbhost/SystemFileSystem/Templates/ClientSide/html.html to edit this
         <script src="AdventureMapLoader.js"></script>
         <script src="joy.js"></script>
         <script src="WorldSolver.js"></script>
-        
+        <script src="SleepingZEffect.js"></script>
         
         
         
@@ -71,6 +71,44 @@ Click nbfs://nbhost/SystemFileSystem/Templates/ClientSide/html.html to edit this
 
         <script>
             
+            var song= 'sounds/PawprintMeadow.mp3';
+            
+            var audio = new Audio(song);
+            audio.loop = true;
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            const audio2 = async url => {   
+            const source = context.createBufferSource(); 
+            const audioBuffer = await fetch(url).then(res => res.arrayBuffer()).then(ArrayBuffer => context.decodeAudioData(ArrayBuffer)); 
+            source.buffer = audioBuffer;
+            source.connect(context.destination);
+            source.start();
+            };    
+            document.addEventListener('click', (event) => {
+                try{if(audio.paused){ audio.play();}}catch(error){};
+                if(context.state === 'suspended'){context.suspend();context.resume();} 
+
+            });
+            document.addEventListener("touchstart" , function(e) {
+                e.preventDefault();
+                try{if(audio.paused){ audio.play();}}catch(error){};
+                if(context.state === 'suspended'){context.suspend();context.resume();}           
+            });
+            document.addEventListener("visibilitychange", event => {
+                if (document.visibilityState === "visible") {
+                    audio.pause();
+                    audio.src = song;
+                    audio.play();
+                    context.resume();
+                }
+                else {audio.pause(); audio.src = "";context.suspend();}
+            });
+            window.addEventListener("keydown", e => {
+                    try{if(audio.paused){ audio.play();}}catch(error){};
+                    if(context.state === 'suspended'){context.suspend();context.resume();} 
+                
+            });
+            
+            
             document.addEventListener("touchmove", function(e) {
                 e.preventDefault();
             }, { passive: false });
@@ -82,6 +120,40 @@ Click nbfs://nbhost/SystemFileSystem/Templates/ClientSide/html.html to edit this
             function mobileAndTabletCheck() { return isMobile.any(); }
             const game = new CatAdventure("gameCanvas","canvas2d");
             game.start("map.json");
+            
+            function createZSprite() {
+                const canvas = document.createElement("canvas");
+                canvas.width = 128;
+                canvas.height = 128;
+
+                const ctx = canvas.getContext("2d");
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                ctx.font = "bold 80px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+
+                // svart outline
+                ctx.lineWidth = 8;
+                ctx.strokeStyle = "black";
+                ctx.strokeText("Z", 64, 64);
+
+                // vit text
+                ctx.fillStyle = "white";
+                ctx.fillText("Z", 64, 64);
+
+                const texture = new THREE.CanvasTexture(canvas);
+                const material = new THREE.SpriteMaterial({
+                    map: texture,
+                    transparent: true,
+                    depthWrite: false
+                });
+
+                const sprite = new THREE.Sprite(material);
+                sprite.scale.set(0.5, 0.5, 0.5);
+                return sprite;
+            }
+            
         </script>
     </body>
 </html>

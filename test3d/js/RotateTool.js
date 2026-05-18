@@ -44,7 +44,7 @@ class RotateTool {
         const input = this.game.input;
         if (!selected) return;
 
-        let speed = 0.025 * scale;
+        let speed = 0.008 * scale;
 
         if (input.keys["shift"]) {
             speed *= 4;
