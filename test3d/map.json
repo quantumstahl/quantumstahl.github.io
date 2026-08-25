@@ -312,6 +312,90 @@
                   "scaleX": 1,
                   "scaleY": 1,
                   "scaleZ": 1
+                },
+                {
+                  "id": "3fc0b755-a118-413d-bc1f-470bbf10d9ad",
+                  "name": "tree",
+                  "x": 33.335,
+                  "y": 0.139,
+                  "z": -26.048,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "scaleZ": 1
+                },
+                {
+                  "id": "143d3cee-935f-4b2e-a1c1-2253112b4bf2",
+                  "name": "tree",
+                  "x": 40.026,
+                  "y": 0.139,
+                  "z": -24.265,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "scaleZ": 1
+                },
+                {
+                  "id": "189e2c02-483d-4ae8-816e-becd45a983b9",
+                  "name": "tree",
+                  "x": 43.665,
+                  "y": 0.139,
+                  "z": -28.829,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "scaleZ": 1
+                },
+                {
+                  "id": "70ad923b-38e0-45b5-a37e-4254698b6407",
+                  "name": "tree",
+                  "x": 51.445,
+                  "y": 0.139,
+                  "z": -27.376,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "scaleZ": 1
+                },
+                {
+                  "id": "573ad30c-7445-46c6-8fd5-f7271c3d2328",
+                  "name": "tree",
+                  "x": 57.643,
+                  "y": 0.139,
+                  "z": -32.466,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "scaleZ": 1
+                },
+                {
+                  "id": "c3767454-389d-43e6-b7c8-46a105fcfb9c",
+                  "name": "tree",
+                  "x": 39.618,
+                  "y": 0.139,
+                  "z": -27.582,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "scaleZ": 1
                 }
               ]
             },
@@ -1111,7 +1195,7 @@
                   "id": "f0848584-c8e7-4a10-9c23-03714ef4b673",
                   "name": "gras",
                   "x": 52.354,
-                  "y": 0,
+                  "y": -1,
                   "z": -21.342,
                   "rotX": 0,
                   "rotY": 0,
@@ -1183,6 +1267,76 @@
                   "x": 80.598,
                   "y": 0,
                   "z": -19.03,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "scaleZ": 1
+                },
+                {
+                  "id": "5d03dcd7-d564-43f4-b955-991b4db088ef",
+                  "name": "gras",
+                  "x": 44.7,
+                  "y": 0,
+                  "z": -25.568,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "scaleZ": 1
+                },
+                {
+                  "id": "3afc4d01-bc23-4727-a83d-574c699fc5e8",
+                  "name": "gras",
+                  "x": 55.867,
+                  "y": 0,
+                  "z": -30.058,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "scaleZ": 1
+                },
+                {
+                  "id": "944fcdf5-d1cc-478f-ae49-f59d55813f49",
+                  "name": "gras",
+                  "x": 47.231,
+                  "y": 0,
+                  "z": -32.081,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "scaleZ": 1
+                },
+                {
+                  "id": "e57e484e-4507-4055-b0f7-8a8f531d26ca",
+                  "name": "gras",
+                  "x": 32.515,
+                  "y": 0,
+                  "z": -23.151,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "scaleZ": 1
+                },
+                {
+                  "id": "d95fd5c8-bad4-49fb-8d8c-7afc1920022b",
+                  "name": "gras",
+                  "x": 62.467,
+                  "y": 0,
+                  "z": -34.534,
                   "rotX": 0,
                   "rotY": 0,
                   "rotZ": 0,
@@ -1370,6 +1524,103 @@
                   "scaleX": 1,
                   "scaleY": 1,
                   "scaleZ": 1
+                }
+              ]
+            },
+            {
+              "id": "hill",
+              "name": "hill",
+              "glb": "assets/hill.glb",
+              "shape": null,
+              "collision": "solid",
+              "visibleInEditor": true,
+              "visibleInGame": true,
+              "category": "default",
+              "instanced": false,
+              "instances": [
+                {
+                  "id": "2f196624-bb90-47e2-a69a-8c1967fbce5b",
+                  "name": "hill",
+                  "x": 44.494,
+                  "y": 0,
+                  "z": -40.306,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "scaleZ": 1
+                },
+                {
+                  "id": "7a947402-8ac7-4a6d-80c7-7ed1ecaffb6d",
+                  "name": "hill",
+                  "x": 40.762,
+                  "y": 0,
+                  "z": -38.798,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 0.82,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "scaleZ": 1
+                },
+                {
+                  "id": "210205d1-9324-4b22-938c-bec444cee90c",
+                  "name": "hill",
+                  "x": 34.22,
+                  "y": 0,
+                  "z": -39.334,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1.2,
+                  "scaleX": 0.82,
+                  "scaleY": 0.82,
+                  "scaleZ": 0.82
+                },
+                {
+                  "id": "ff7e5c4c-3665-4850-aa71-3eee2087b243",
+                  "name": "hill",
+                  "x": 24.548,
+                  "y": 0,
+                  "z": -39.42,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1.739,
+                  "scaleX": 1.2,
+                  "scaleY": 1.2,
+                  "scaleZ": 1.2
+                },
+                {
+                  "id": "fcb1f2c3-7a8d-46ba-9704-c6aeef282a2f",
+                  "name": "hill",
+                  "x": 49.691,
+                  "y": 0,
+                  "z": -40.78,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 0.82,
+                  "scaleX": 0.82,
+                  "scaleY": 0.82,
+                  "scaleZ": 0.82
+                },
+                {
+                  "id": "42a94a03-7f00-4d75-8ff2-052e17f8311b",
+                  "name": "hill",
+                  "x": 53.173,
+                  "y": 0,
+                  "z": -43.92,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 1.2,
+                  "scaleX": 1.2,
+                  "scaleY": 1.2,
+                  "scaleZ": 1.2
                 }
               ]
             }
@@ -1674,6 +1925,39 @@
                   "scaleX": 8,
                   "scaleY": 8,
                   "scaleZ": 8
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "3a117a87-c65f-4f62-a146-99a1ff1a9221",
+          "name": "npc",
+          "types": [
+            {
+              "id": "fox",
+              "name": "fox",
+              "glb": "assets/fox.glb",
+              "shape": null,
+              "collision": "solid",
+              "visibleInEditor": true,
+              "visibleInGame": true,
+              "category": "default",
+              "instanced": false,
+              "instances": [
+                {
+                  "id": "2547b8f0-59ac-4692-9e93-bb04bf70f609",
+                  "name": "fox",
+                  "x": 78.63,
+                  "y": 0,
+                  "z": -36.149,
+                  "rotX": 0,
+                  "rotY": 3.584,
+                  "rotZ": 0,
+                  "scale": 0.515,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "scaleZ": 1
                 }
               ]
             }

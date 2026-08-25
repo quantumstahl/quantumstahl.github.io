@@ -189,9 +189,7 @@ class CatAdventure {
             insectObj.scale.z * 1.25
         );
 
-        // valfritt: gör den inte solid längre
-
-            insectObj.userData.assetType.collision = "none";
+        insectObj.userData.assetType.collision = "none";
            
         
     }
