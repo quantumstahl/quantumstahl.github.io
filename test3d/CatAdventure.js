@@ -881,7 +881,7 @@ class CatAdventureGrass {
 
         // A stable jittered grid gives natural scatter without popping as the
         // player moves.  OBB rejection happens once, after every GLB is loaded.
-        const spacing = 0.5;
+        const spacing = 0.9;
         for (let z = bounds.minZ; z <= bounds.maxZ; z += spacing) {
             for (let x = bounds.minX; x <= bounds.maxX; x += spacing) {
                 const hash = this.hash2(x, z);
