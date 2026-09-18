@@ -86,7 +86,6 @@ class AdventureMapLoader {
         // Proxies borrow the source meshes' geometry/material. Restore those
         // sources before a map swap removes them from the scene.
         this.game.clearRenderBatches?.();
-        this.game.clearDenseGrassCoverage?.();
         for (const obj of this.game.mapObjects) {
             this.game.scene.remove(obj);
         }
