@@ -863,6 +863,11 @@ class CatAdventureGrass {
         this.farDistance = 56000;
         this.maxVisible = 1800000;
         this.dummy = new THREE.Object3D();
+        this.frustum = new THREE.Frustum();
+        this.projectionMatrix = new THREE.Matrix4();
+       // this.cullPoint = new THREE.Vector3();
+        this.cullSphere = new THREE.Sphere();
+        this.instanceColor = new THREE.Color();
         this.texture = new THREE.TextureLoader().load("assets/grass-tuft.png");
         // Match the legacy terrain/GLB texture treatment in this project.
         this.texture.colorSpace = THREE.NoColorSpace;
@@ -871,13 +876,6 @@ class CatAdventureGrass {
     build() {
         const exclusions = this.getExclusionOBBs();
         const bounds = this.getMapBounds();
-        const geometry = this.createCrossedBladeGeometry();
-        const material = this.createMaterial();
-        this.mesh = new THREE.InstancedMesh(geometry, material, this.maxVisible);
-        this.mesh.name = "Distance faded crossed-billboard grass";
-        this.mesh.frustumCulled = false;
-        this.root.add(this.mesh);
-        this.game.scene.add(this.root);
 
         // A stable jittered grid gives natural scatter without popping as the
         // player moves.  OBB rejection happens once, after every GLB is loaded.
@@ -899,6 +897,19 @@ class CatAdventureGrass {
                 });
             }
         }
+
+        // Do not reserve GPU buffers for a theoretical maximum. This keeps
+        // the user's density/cap unchanged, but avoids the 1.8M-instance
+        // allocation when the map only generated a fraction of that amount.
+        this.capacity = Math.min(this.maxVisible, this.candidates.length);
+        const geometry = this.createCrossedBladeGeometry();
+        const material = this.createMaterial();
+        this.mesh = new THREE.InstancedMesh(geometry, material, this.capacity);
+        this.mesh.name = "Distance faded crossed-billboard grass";
+        this.mesh.frustumCulled = false;
+        this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.root.add(this.mesh);
+        this.game.scene.add(this.root);
         this.updateVisible(true);
     }
 
@@ -969,9 +980,9 @@ class CatAdventureGrass {
           //  color: 0x3d8a2f,
             roughness: 1,
             map: this.texture,
-            alphaTest: 0,
-            transparent: true,
-            depthWrite: false,
+            // Alpha-tested cutouts skip the transparent backdrop pixels and
+            // write depth, hugely reducing overlapping billboard overdraw.
+            alphaTest: 0.06,
             side: THREE.DoubleSide
         });
         material.onBeforeCompile = shader => {
@@ -1004,15 +1015,21 @@ class CatAdventureGrass {
         this.mesh.material.userData.grassShader?.uniforms.grassCameraXZ.value
             .set(this.game.camera.position.x, this.game.camera.position.z);
         this.refreshTimer += deltaSeconds;
-        if (this.refreshTimer < 0.20 && this.lastCamera.distanceToSquared(this.game.camera.position) < 9) return;
+       // if (this.refreshTimer < 0.20 && this.lastCamera.distanceToSquared(this.game.camera.position) < 9) return;
         this.refreshTimer = 0;
         this.updateVisible(false);
     }
 
     updateVisible(force) {
         const camera = this.game.camera.position;
-        if (!force && this.lastCamera.distanceToSquared(camera) < 9) return;
+      //  if (!force && this.lastCamera.distanceToSquared(camera) < 9) return;
         this.lastCamera.copy(camera);
+        this.game.camera.updateMatrixWorld();
+        this.projectionMatrix.multiplyMatrices(
+            this.game.camera.projectionMatrix,
+            this.game.camera.matrixWorldInverse
+        );
+        this.frustum.setFromProjectionMatrix(this.projectionMatrix);
         let count = 0;
         const farSq = this.farDistance * this.farDistance;
         for (const grass of this.candidates) {
@@ -1023,14 +1040,28 @@ class CatAdventureGrass {
             // Full density nearby, increasingly sparse farther out.  The
             // shader still fades the final surviving clumps smoothly.
             const density = 1 - Math.max(0, distance - this.nearDistance) / (this.farDistance - this.nearDistance);
-            if (grass.seed > density || count === this.maxVisible) continue;
+            if (grass.seed > density || count === this.capacity) continue;
+            // The old mesh bypassed frustum culling, so it sent every grass
+            // card on the map to the GPU. Reject off-screen cards here without
+            // changing any grass that can actually be seen.
+            this.cullSphere.center.set(
+                grass.x,
+                0.5 * grass.scale,
+                grass.z
+            );
+
+            // Lite större än själva tuvan för mjukare culling vid skärmkanten.
+            this.cullSphere.radius = grass.scale * 1.5;
+
+            if (!this.frustum.intersectsSphere(this.cullSphere)) continue;
             this.dummy.position.set(grass.x, 0.012, grass.z);
             this.dummy.rotation.set(0, grass.rotation, 0);
             this.dummy.scale.setScalar(grass.scale);
             this.dummy.updateMatrix();
             this.mesh.setMatrixAt(count, this.dummy.matrix);
             const shade = 0.78 + grass.seed * 0.22;
-            this.mesh.setColorAt(count, new THREE.Color(0.21 * shade, 0.52 * shade, 0.12 * shade));
+            this.instanceColor.setRGB(0.21 * shade, 0.52 * shade, 0.12 * shade);
+            this.mesh.setColorAt(count, this.instanceColor);
             count++;
         }
         this.mesh.count = count;
