@@ -5,21 +5,27 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         
-        <script src="https://unpkg.com/three@0.140.0/build/three.min.js"></script>
-        <script src="https://unpkg.com/three@0.140.0/examples/js/exporters/GLTFExporter.js"></script>
-        <script src="https://unpkg.com/three@0.140.0/examples/js/loaders/GLTFLoader.js"></script>
-        <script src="js/Game7.js"></script>
-        <script src="js/AssetManager.js"></script>
-        <script src="js/MapFileManager.js"></script>
-        <script src="js/InputManager.js"></script>
-        <script src="js/EditorCamera.js"></script>
-        <script src="js/ToolManager.js"></script>
-        <script src="js/SelectTool.js"></script>
-        <script src="js/MoveTool.js"></script>
-        <script src="js/JSTree7.js"></script>
-        <script src="js/RotateTool.js"></script>
-        <script src="js/ScaleTool.js"></script>
-        <script src="js/StackTool.js"></script>
+        <script type="importmap">
+            {
+                "imports": {
+                    "three": "https://unpkg.com/three@0.186.0/build/three.module.js",
+                    "three/addons/": "https://unpkg.com/three@0.186.0/examples/jsm/"
+                }
+            }
+        </script>
+        <script type="module" src="three-bootstrap.js"></script>
+        <script data-classic-src="js/Game7.js"></script>
+        <script data-classic-src="js/AssetManager.js"></script>
+        <script data-classic-src="js/MapFileManager.js"></script>
+        <script data-classic-src="js/InputManager.js"></script>
+        <script data-classic-src="js/EditorCamera.js"></script>
+        <script data-classic-src="js/ToolManager.js"></script>
+        <script data-classic-src="js/SelectTool.js"></script>
+        <script data-classic-src="js/MoveTool.js"></script>
+        <script data-classic-src="js/JSTree7.js"></script>
+        <script data-classic-src="js/RotateTool.js"></script>
+        <script data-classic-src="js/ScaleTool.js"></script>
+        <script data-classic-src="js/StackTool.js"></script>
 
         
         <style>
@@ -213,7 +219,7 @@
 
         <canvas id="gameCanvas"></canvas>
         <div id="bottomToolbar"></div>
-        <script>
+        <script type="text/plain" data-startup>
             
                 const game = new Game7();
                 const tree = new JSTree7(game);

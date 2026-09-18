@@ -2,6 +2,20 @@ class AssetManager {
     constructor() {
         this.gltfLoader = new THREE.GLTFLoader();
 
+        this.gltfLoader.register((parser) => {
+            for (const node of parser.json.nodes || []) {
+                // Older MaxPaint3D exports store pivot metadata as an object.
+                // Current GLTFLoader reserves `extras.pivot` for its array-based
+                // exporter container format and otherwise subtracts it as NaN.
+                // The node's standard glTF transforms already contain the pose.
+                if (node.extras?.pivot && !Array.isArray(node.extras.pivot)) {
+                    delete node.extras.pivot;
+                }
+            }
+
+            return { name: "CatAdventureLegacyPivotCompatibility" };
+        });
+
         // path -> Promise<THREE.Group>
         this.cache = new Map();
     }
@@ -29,14 +43,7 @@ class AssetManager {
                             obj.receiveShadow = true;
 
                             if (obj.material) {
-                                obj.material = obj.material.clone();
-
-                                if (obj.material.map) {
-                                    obj.material.map.encoding = THREE.LinearEncoding;
-                                    obj.material.map.needsUpdate = true;
-                                }
-
-                                obj.material.needsUpdate = true;
+                                obj.material = this.cloneMaterial(obj.material);
                             }
                         }
                     });
@@ -68,7 +75,7 @@ class AssetManager {
         // Viktigt om modellen har material som annars delas mellan instanser
         clone.traverse((obj) => {
             if (obj.isMesh && obj.material) {
-                obj.material = obj.material.clone();
+                obj.material = this.cloneMaterial(obj.material);
             }
         });
 
@@ -77,6 +84,20 @@ class AssetManager {
 
     clear() {
         this.cache.clear();
+    }
+
+    cloneMaterial(material) {
+        const clone = source => {
+            const result = source.clone();
+            // Preserve the r140 appearance. The old project explicitly used
+            // LinearEncoding for these color maps; NoColorSpace is its current
+            // API equivalent.
+            if (result.map) result.map.colorSpace = THREE.NoColorSpace;
+            result.needsUpdate = true;
+            return result;
+        };
+
+        return Array.isArray(material) ? material.map(clone) : clone(material);
     }
 }
 window.AssetManager = AssetManager;

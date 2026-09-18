@@ -26,6 +26,7 @@ class Game7 {
         this.texture2.wrapS = THREE.RepeatWrapping;
         this.texture2.wrapT = THREE.RepeatWrapping;
         this.texture2.repeat.set(8, 8);
+        this.texture2.colorSpace = THREE.NoColorSpace;
         
     }
 
@@ -103,6 +104,7 @@ class Game7 {
             canvas,
             antialias: true
         });
+        this.renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
 
         this.input = new InputManager(canvas);
 

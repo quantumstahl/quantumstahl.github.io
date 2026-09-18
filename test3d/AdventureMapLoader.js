@@ -83,6 +83,9 @@ class AdventureMapLoader {
     }
 
     clearMapObjects() {
+        // Proxies borrow the source meshes' geometry/material. Restore those
+        // sources before a map swap removes them from the scene.
+        this.game.clearRenderBatches?.();
         for (const obj of this.game.mapObjects) {
             this.game.scene.remove(obj);
         }

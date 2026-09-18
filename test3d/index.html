@@ -9,16 +9,23 @@ Click nbfs://nbhost/SystemFileSystem/Templates/ClientSide/html.html to edit this
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         
-        <script src="https://unpkg.com/three@0.140.0/build/three.min.js"></script>
-        <script src="https://unpkg.com/three@0.140.0/examples/js/loaders/GLTFLoader.js"></script>
-        <script src="js/Game7.js"></script>
-        <script src="js/AssetManager.js"></script>
-        <script src="CatAdventure.js"></script>
-        <script src="AdventureInput.js"></script>
-        <script src="AdventureMapLoader.js"></script>
-        <script src="joy.js"></script>
-        <script src="WorldSolver.js"></script>
-        <script src="SleepingZEffect.js"></script>
+        <script type="importmap">
+            {
+                "imports": {
+                    "three": "https://unpkg.com/three@0.186.0/build/three.module.js",
+                    "three/addons/": "https://unpkg.com/three@0.186.0/examples/jsm/"
+                }
+            }
+        </script>
+        <script type="module" src="three-bootstrap.js"></script>
+        <script data-classic-src="js/Game7.js"></script>
+        <script data-classic-src="js/AssetManager.js"></script>
+        <script data-classic-src="CatAdventure.js"></script>
+        <script data-classic-src="AdventureInput.js"></script>
+        <script data-classic-src="AdventureMapLoader.js"></script>
+        <script data-classic-src="joy.js"></script>
+        <script data-classic-src="WorldSolver.js"></script>
+        <script data-classic-src="SleepingZEffect.js"></script>
         
         
         
@@ -69,7 +76,7 @@ Click nbfs://nbhost/SystemFileSystem/Templates/ClientSide/html.html to edit this
         <canvas id="gameCanvas"></canvas>
         <canvas id="canvas2d"></canvas>
 
-        <script>
+        <script type="text/plain" data-startup>
             
             var song= 'sounds/PawprintMeadow.mp3';
             

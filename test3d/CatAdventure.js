@@ -46,6 +46,7 @@ class CatAdventure {
         this.texture2.wrapS = THREE.RepeatWrapping;
         this.texture2.wrapT = THREE.RepeatWrapping;
         this.texture2.repeat.set(8, 8);
+        this.texture2.colorSpace = THREE.NoColorSpace;
     }
 
     async start(mapUrl = "map.json") {
@@ -56,6 +57,7 @@ class CatAdventure {
         this.findsleepingbug();
         this.findPlayerCat();
         this.setupAnimation();
+        this.buildRenderBatches();
         
         
         
@@ -77,12 +79,13 @@ class CatAdventure {
         });
 
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        this.renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
 
-        const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+        const sun = new THREE.DirectionalLight(0xffffff, 4.2);
         sun.position.set(5, 10, 5);
         this.scene.add(sun);
 
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+        this.scene.add(new THREE.AmbientLight(0xffffff, 1.15));
         
         const groundGeo = new THREE.PlaneGeometry(400, 400);
         const groundMat = new THREE.MeshStandardMaterial({
@@ -92,6 +95,8 @@ class CatAdventure {
         this.ground = new THREE.Mesh(groundGeo, groundMat);
         this.ground.rotation.x = -Math.PI / 2;
         this.scene.add(this.ground);
+
+        this.renderBatcher = new CatAdventureRenderBatcher(this);
     }
 
     gameLoop(time) {
@@ -111,6 +116,9 @@ class CatAdventure {
         this.update(scale, deltaSeconds);
         this.draw();
 
+        
+
+
         requestAnimationFrame((t) => this.gameLoop(t));
     }
 
@@ -127,7 +135,7 @@ class CatAdventure {
         for (const mixer of this.mixers) {
             mixer.update(deltaSeconds);
         }
-        if (this.insectObj.userData.sleepingEffect) {
+        if (this.insectObj?.userData.sleepingEffect) {
    
             this.insectObj.userData.sleepingEffect.update(deltaSeconds);
 
@@ -198,11 +206,12 @@ class CatAdventure {
             const action = gate.userData.actions?.["Animation 1"];
             if (!action) return;
             gate.userData.collisionOverride = "none";
-            action.paused = false;
             action.reset();
-            action.setLoop(THREE.LoopOnce);
+            action.setLoop(THREE.LoopOnce, 1);
             action.clampWhenFinished = true;
-            action.play();
+            action.enabled = true;
+            action.paused = false;
+            action.setEffectiveWeight(1).play();
             gate.open=true;
             audio2("sounds/gate.mp3");
             
@@ -219,7 +228,40 @@ class CatAdventure {
     
     draw() {
         this.renderer.render(this.scene, this.camera);
+        this.lastRenderInfo = {
+            calls: this.renderer.info.render.calls,
+            triangles: this.renderer.info.render.triangles,
+            frame: this.renderer.info.render.frame
+        };
         this.drawUI();
+    }
+
+    buildRenderBatches() {
+        this.renderBatcher?.build();
+    }
+
+    clearRenderBatches() {
+        this.renderBatcher?.restore();
+    }
+
+    measureRenderBatching() {
+        // Run `game.measureRenderBatching()` in DevTools after a map loads.
+        this.clearRenderBatches();
+        this.renderer.render(this.scene, this.camera);
+        const before = this.renderer.info.render.calls;
+
+        this.buildRenderBatches();
+        this.renderer.render(this.scene, this.camera);
+        const after = this.renderer.info.render.calls;
+        const result = {
+            beforeCalls: before,
+            afterCalls: after,
+            savedCalls: before - after,
+            batches: this.renderBatcher.lastBatchCount,
+            instances: this.renderBatcher.lastInstanceCount
+        };
+        console.table([result]);
+        return result;
     }
     drawUI() {
         const w = this.canvas2d.width;
@@ -333,11 +375,15 @@ class CatAdventure {
             if(id.includes("coin") || name.includes("coin")){
                 this.setupObjectAnimation(obj, "Animation 1", true);
             }
-            if(id.includes("gate") || name.includes("gate")){
+            else if(id.includes("gate") || name.includes("gate")){
                 this.setupObjectAnimation(obj, "Animation 1", false);
                 obj.open=false;
                 this.gates.push(obj);
-                
+            }
+            else if (obj.userData.animations?.length && !obj.userData.mixer) {
+                // Some legacy exports depend on frame zero to establish a
+                // valid pose. Keep that pose active for static animated props.
+                this.setupObjectAnimation(obj, "Animation 1", false);
             }
             
         }
@@ -419,12 +465,10 @@ class CatAdventure {
         const isMoving = x !== 0 || y !== 0;
 
         if (isMoving) {
-            this.player.userData.actions["Animation 1"].play();
+            this.setPlayerAnimation(true);
         } else {
        
-               this.player.userData.actions["Animation 1"].fadeOut(0.15);
-               this.player.userData.actions["Animation 1"].stop();
-            
+            this.setPlayerAnimation(false);
             return;
         }
 
@@ -477,8 +521,11 @@ class CatAdventure {
 
         const v = this.joy.GetVector();
        
-        if (v.power <= 0.1){if (this.player.userData.actions["Animation 1"])this.player.userData.actions["Animation 1"].fadeOut(0.15);this.player.userData.actions["Animation 1"].stop(); return;}
-        this.player.userData.actions["Animation 1"].play();
+        if (v.power <= 0.1) {
+            this.setPlayerAnimation(false);
+            return;
+        }
+        this.setPlayerAnimation(true);
         const cameraForward = new THREE.Vector3();
         this.camera.getWorldDirection(cameraForward);
         cameraForward.y = 0;
@@ -548,6 +595,22 @@ class CatAdventure {
 
         this.camera.lookAt(target);
     }
+    setPlayerAnimation(isMoving) {
+        const action = this.player?.userData.actions?.["Animation 1"];
+        if (!action || this.playerAnimating === isMoving) return;
+
+        this.playerAnimating = isMoving;
+        if (isMoving) {
+            action.enabled = true;
+            action.paused = false;
+            action.setEffectiveWeight(1).play();
+        } else {
+            // The exported cat has invalid transforms in its unanimated rest
+            // pose. Keep its valid animation pose applied while idle instead
+            // of fading the only action to zero influence.
+            action.paused = true;
+        }
+    }
     setupObjectAnimation(obj, clipName = "Animation 1", autoPlay = true) {
         const animations = obj.userData.animations || [];
 
@@ -562,13 +625,15 @@ class CatAdventure {
         if (!clip) return null;
 
         const action = mixer.clipAction(clip);
-        action.loop = THREE.LoopRepeat;
-        action.clampWhenFinished = true;
+        action.setLoop(THREE.LoopRepeat, Infinity);
+        action.clampWhenFinished = false;
 
         if (autoPlay) {
-            action.play();
+            action.enabled = true;
+            action.setEffectiveWeight(1).play();
         } else {
             // Sätt objektet i animationens startpose, men spela inte vidare
+            action.reset();
             action.play();
             action.paused = true;
             action.time = 0;
@@ -680,5 +745,103 @@ class CatAdventure {
         if (dir === "forward") return "front";
         if (dir === "backward") return "back";
         return dir;
+    }
+}
+
+// Render-only batching for repeated static GLB map props. Physics continues to
+// traverse the original object trees, so collision/contact behaviour does not
+// change. Dynamic objects are excluded and remain conventional Meshes.
+class CatAdventureRenderBatcher {
+    constructor(game) {
+        this.game = game;
+        this.root = new THREE.Group();
+        this.root.name = "CatAdventure instanced render batches";
+        this.root.userData.isRenderBatch = true;
+        game.scene.add(this.root);
+        this.hiddenSources = [];
+        this.active = false;
+        this.lastBatchCount = 0;
+        this.lastInstanceCount = 0;
+    }
+
+    isStaticMapObject(root) {
+        const type = root.userData.assetType;
+        return root !== this.game.player &&
+            root !== this.game.insectObj &&
+            !root.userData.mixer &&
+            !root.userData.sleepingEffect &&
+            !root.userData.animations?.length &&
+            !root.userData.isInvisibleBox &&
+            !type?.disableInstancing;
+    }
+
+    meshKey(root, meshIndex, mesh) {
+        const material = mesh.material;
+        if (Array.isArray(material)) return null;
+        const type = root.userData.assetType;
+        if (!material || mesh.isSkinnedMesh || mesh.morphTargetInfluences) return null;
+        // meshIndex scopes the batch to the same mesh slot within an identical
+        // GLB. This avoids accidentally combining different parts of a model.
+        return [type?.glb || type?.id, meshIndex, mesh.geometry?.uuid,
+            material.type, material.map?.uuid || "", material.color?.getHex() || "",
+            material.opacity, material.transparent, material.side,
+            mesh.castShadow, mesh.receiveShadow].join("|");
+    }
+
+    build() {
+        if (this.active) return;
+        this.restore();
+        this.game.scene.updateMatrixWorld(true);
+        const groups = new Map();
+
+        for (const mapObject of this.game.mapObjects) {
+            if (!this.isStaticMapObject(mapObject)) continue;
+            let meshIndex = 0;
+            mapObject.traverse(mesh => {
+                if (!mesh.isMesh) return;
+                const key = mesh.visible
+                    ? this.meshKey(mapObject, meshIndex, mesh)
+                    : null;
+                meshIndex++;
+                if (!key) return;
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(mesh);
+            });
+        }
+
+        let batches = 0, instances = 0;
+        for (const meshes of groups.values()) {
+            if (meshes.length < 2) continue;
+            const first = meshes[0];
+            const proxy = new THREE.InstancedMesh(first.geometry, first.material, meshes.length);
+            proxy.name = "Instanced map prop";
+            proxy.castShadow = first.castShadow;
+            proxy.receiveShadow = first.receiveShadow;
+            proxy.userData.isRenderBatch = true;
+            meshes.forEach((mesh, index) => {
+                proxy.setMatrixAt(index, mesh.matrixWorld);
+                this.hiddenSources.push({ mesh, visible: mesh.visible });
+                mesh.visible = false;
+            });
+            proxy.instanceMatrix.needsUpdate = true;
+            proxy.computeBoundingBox();
+            proxy.computeBoundingSphere();
+            this.root.add(proxy);
+            batches++;
+            instances += meshes.length;
+        }
+        this.active = batches > 0;
+        this.lastBatchCount = batches;
+        this.lastInstanceCount = instances;
+    }
+
+    restore() {
+        for (const entry of this.hiddenSources) entry.mesh.visible = entry.visible;
+        this.hiddenSources = [];
+        for (const proxy of [...this.root.children]) {
+            this.root.remove(proxy);
+            proxy.dispose?.();
+        }
+        this.active = false;
     }
 }
