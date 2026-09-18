@@ -111,11 +111,11 @@ class Game7 {
         this.editorCamera = new EditorCamera(this);
         this.camera = this.editorCamera.camera;
 
-        const light = new THREE.DirectionalLight(0xffffff, 1.2);
+        const light = new THREE.DirectionalLight(0xffffff, 4.2);
         light.position.set(5, 10, 5);
         this.scene.add(light);
 
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+        this.scene.add(new THREE.AmbientLight(0xffffff, 1.15));
 
         const groundGeo = new THREE.PlaneGeometry(400, 400);
         const groundMat = new THREE.MeshStandardMaterial({

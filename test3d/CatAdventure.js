@@ -859,9 +859,9 @@ class CatAdventureGrass {
         this.candidates = [];
         this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity);
         this.refreshTimer = 0;
-        this.nearDistance = 20000;
-        this.farDistance = 56000;
-        this.maxVisible = 1800000;
+        this.nearDistance = 20;
+        this.farDistance = 500;
+        this.maxVisible = 150000;
         this.dummy = new THREE.Object3D();
         this.frustum = new THREE.Frustum();
         this.projectionMatrix = new THREE.Matrix4();
@@ -957,7 +957,7 @@ class CatAdventureGrass {
             const dx = Math.cos(angle) * 1.32, dz = Math.sin(angle) * 1.32;
             const verts = [
                 -dx, 0, -dz, dx, 0, dz,
-                dx, 1.0, dz, -dx, 1.0, -dz
+                dx, 0.9, dz, -dx, 0.9, -dz
             ];
             positions.push(...verts);
             uvs.push(0, 0, 1, 0, 1, 1, 0, 1);
@@ -1022,7 +1022,7 @@ class CatAdventureGrass {
 
     updateVisible(force) {
         const camera = this.game.camera.position;
-      //  if (!force && this.lastCamera.distanceToSquared(camera) < 9) return;
+        if (!force && this.lastCamera.distanceToSquared(camera) < 0.00001) return;
         this.lastCamera.copy(camera);
         this.game.camera.updateMatrixWorld();
         this.projectionMatrix.multiplyMatrices(
