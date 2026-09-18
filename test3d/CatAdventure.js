@@ -57,6 +57,7 @@ class CatAdventure {
         this.findsleepingbug();
         this.findPlayerCat();
         this.setupAnimation();
+        this.createDenseGrassCoverage();
         this.buildRenderBatches();
         
         
@@ -182,7 +183,8 @@ class CatAdventure {
         
         
 	this.input.update();	
-    }
+        this.grassCoverage?.update(deltaSeconds);
+        }
     squishInsect(insectObj) {
         if (!insectObj || insectObj.userData.squished) return;
 
@@ -238,6 +240,17 @@ class CatAdventure {
 
     buildRenderBatches() {
         this.renderBatcher?.build();
+    }
+
+    createDenseGrassCoverage() {
+        this.clearDenseGrassCoverage();
+        this.grassCoverage = new TerrainGrassCoverage(this);
+        this.grassCoverage.build();
+    }
+
+    clearDenseGrassCoverage() {
+        this.grassCoverage?.dispose();
+        this.grassCoverage = null;
     }
 
     clearRenderBatches() {
@@ -843,5 +856,199 @@ class CatAdventureRenderBatcher {
             proxy.dispose?.();
         }
         this.active = false;
+    }
+}
+
+// One InstancedMesh gives the terrain a dense grass field without turning the
+// map into thousands of GLB objects. Placement comes from the ground mesh's
+// actual bounds; path/water and explicitly non-grass map surfaces contribute
+// world-space exclusion boxes.
+class TerrainGrassCoverage {
+    constructor(game) {
+        this.game = game;
+        this.mesh = null;
+        this.geometry = null;
+        this.material = null;
+        this.terrain = null;
+        this.excluded = [];
+        // Dense enough to read as a field, but only maintained close to the
+        // player. This is roughly 3–4k blades / ~30k triangles at a time.
+        this.spacing = 0.05;
+        this.drawRadius = 16;
+        this.refreshDistance = 1;
+        this.lastCell = "";
+        this.windTime = { value: 0 };
+    }
+
+    build() {
+        this.terrain = new THREE.Box3().setFromObject(this.game.ground);
+        if (this.terrain.isEmpty()) return;
+        this.excluded = this.getExcludedSurfaceBounds(this.spacing * 0.8);
+        this.geometry = this.createCrossedBladeGeometry();
+        this.material = this.createWindMaterial();
+        this.rebuild(true);
+    }
+
+    update(deltaSeconds) {
+        this.windTime.value += deltaSeconds;
+        this.rebuild(false);
+    }
+
+    rebuild(force) {
+        const center = this.game.player?.position || this.game.camera?.position;
+        if (!center || !this.terrain) return;
+        const cell = `${Math.floor(center.x / this.refreshDistance)},${Math.floor(center.z / this.refreshDistance)}`;
+        if (!force && cell === this.lastCell) return;
+        this.lastCell = cell;
+
+        const positions = [];
+        const minX = Math.max(this.terrain.min.x, center.x - this.drawRadius);
+        const maxX = Math.min(this.terrain.max.x, center.x + this.drawRadius);
+        const minZ = Math.max(this.terrain.min.z, center.z - this.drawRadius);
+        const maxZ = Math.min(this.terrain.max.z, center.z + this.drawRadius);
+        const startX = Math.ceil(minX / this.spacing) * this.spacing;
+        const startZ = Math.ceil(minZ / this.spacing) * this.spacing;
+
+        for (let z = startZ; z <= maxZ; z += this.spacing) {
+            for (let x = startX; x <= maxX; x += this.spacing) {
+                const seed = Math.floor(x / this.spacing) * 92821 + Math.floor(z / this.spacing) * 68917;
+                const jitterX = (this.random(seed + 1) - 0.5) * this.spacing * 0.55;
+                const jitterZ = (this.random(seed + 2) - 0.5) * this.spacing * 0.55;
+                const distance = Math.hypot(x - center.x, z - center.z);
+                if (distance > this.drawRadius) continue;
+                const point = new THREE.Vector3(x + jitterX, this.terrain.max.y + 0.008, z + jitterZ);
+                if (!this.excluded.some(box =>
+                    point.x >= box.min.x && point.x <= box.max.x &&
+                    point.z >= box.min.z && point.z <= box.max.z
+                )) positions.push(point);
+            }
+        }
+
+        if (!positions.length) return;
+        this.removeMesh();
+        const grass = new THREE.InstancedMesh(this.geometry, this.material, positions.length);
+        grass.name = "Instanced terrain grass";
+        grass.userData.isTerrainGrass = true;
+        grass.frustumCulled = false;
+
+        const matrix = new THREE.Matrix4();
+        const rotation = new THREE.Quaternion();
+        const scale = new THREE.Vector3();
+        const color = new THREE.Color();
+        positions.forEach((position, index) => {
+            const seed = Math.floor(position.x / this.spacing) * 92821 + Math.floor(position.z / this.spacing) * 68917;
+            rotation.setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.random(seed + 3) * Math.PI);
+            // GrassField-style blades, deliberately much shorter for the cat.
+            const size = 0.24 + this.random(seed + 4) * 0.18;
+            scale.setScalar(size);
+            matrix.compose(position, rotation, scale);
+            grass.setMatrixAt(index, matrix);
+            const palette = [0x5f9b38, 0x83bd50, 0x9ad664, 0x4d7e31];
+            color.setHex(palette[Math.floor(this.random(seed + 6) * palette.length)]);
+            grass.setColorAt(index, color);
+        });
+        grass.instanceMatrix.needsUpdate = true;
+        if (grass.instanceColor) grass.instanceColor.needsUpdate = true;
+        grass.computeBoundingBox();
+        grass.computeBoundingSphere();
+        this.game.scene.add(grass);
+        this.mesh = grass;
+        console.info(`Terrain grass: ${positions.length} nearby instanced clumps, ${this.excluded.length} surface masks.`);
+    }
+
+    getExcludedSurfaceBounds(padding) {
+        const bounds = [];
+        for (const object of this.game.mapObjects) {
+            if (!this.blocksGrass(object.userData.assetType)) continue;
+            const box = new THREE.Box3().setFromObject(object);
+            if (!box.isEmpty()) bounds.push(box.expandByScalar(padding));
+        }
+        return bounds;
+    }
+
+    blocksGrass(type) {
+        if (!type) return false;
+        // Maps can override this semantic decision without changing code.
+        if (type.blocksGrass === true || type.surface === "non-grass") return true;
+        if (type.blocksGrass === false || type.surface === "grass") return false;
+        const label = `${type.id || ""} ${type.name || ""}`.toLowerCase();
+        // Existing map data identifies its non-grass walking/surface assets by
+        // type. No placement positions are hard-coded.
+        return /(path|water)/.test(label);
+    }
+
+    createCrossedBladeGeometry() {
+        // The same tapered, four-segment blade construction as GrassField.
+        // A random per-instance rotation makes this one-sided blade read as a
+        // dense tuft while using only eight triangles.
+        const segments = 4;
+        const vertices = [];
+        const indices = [];
+        for (let row = 0; row <= segments; row++) {
+            const y = row / segments;
+            const halfWidth = 0.052 * Math.pow(1 - y, 0.58);
+            vertices.push(-halfWidth, y, 0, halfWidth, y, 0);
+        }
+        for (let row = 0; row < segments; row++) {
+            const a = row * 2;
+            indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+        geometry.computeBoundingBox();
+        geometry.computeBoundingSphere();
+        return geometry;
+    }
+
+    createWindMaterial() {
+        const material = new THREE.MeshStandardMaterial({
+            // Instance colours supply the green. A white base prevents the
+            // colour multiplication that previously made blades look black.
+            color: 0xffffff,
+            roughness: 0.85,
+            emissive: 0x0c1c06,
+            emissiveIntensity: 0.22,
+            vertexColors: true,
+            side: THREE.DoubleSide
+        });
+        material.onBeforeCompile = shader => {
+            shader.uniforms.grassWindTime = this.windTime;
+            shader.vertexShader = `uniform float grassWindTime;\n${shader.vertexShader}`;
+            shader.vertexShader = shader.vertexShader.replace(
+                "#include <begin_vertex>",
+                `#include <begin_vertex>
+                 float bladeTip = clamp(position.y, 0.0, 1.0);
+                 vec2 root = instanceMatrix[3].xz;
+                 float phase = dot(root, vec2(0.19, 0.13)) + grassWindTime * 1.62;
+                 float ripple = sin(phase) * 0.050 + sin(phase * 2.17) * 0.018;
+                 float bend = bladeTip * bladeTip;
+                 transformed.x += (0.12 + ripple) * bend;
+                 transformed.z += (0.075 + ripple * 0.35) * bend;`
+            );
+        };
+        material.customProgramCacheKey = () => "cat-adventure-grass-wind-v2";
+        return material;
+    }
+
+    random(seed) {
+        const value = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+        return value - Math.floor(value);
+    }
+
+    dispose() {
+        this.removeMesh();
+        this.geometry?.dispose();
+        this.material?.dispose();
+        this.geometry = null;
+        this.material = null;
+    }
+
+    removeMesh() {
+        if (!this.mesh) return;
+        this.game.scene.remove(this.mesh);
+        this.mesh.dispose?.();
+        this.mesh = null;
     }
 }
