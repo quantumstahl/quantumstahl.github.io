@@ -36,6 +36,8 @@ class CatAdventure {
         this.groundSnapDistance = 0.25;
         this.worldSolver = new WorldSolver(this);
         this.playerBottomOffset = 0;
+        this.basePlayerBottomOffset = 0;
+        this.waterSink = 0;
         this.coins=0;
         
         this.gates=[];
@@ -59,6 +61,8 @@ class CatAdventure {
         this.setupAnimation();
         this.grass = new CatAdventureGrass(this);
         this.grass.build();
+        this.treeWind = new CatAdventureTreeWind(this);
+        this.treeWind.build();
         this.buildRenderBatches();
         
         
@@ -125,16 +129,20 @@ class CatAdventure {
     }
 
     update(scale,deltaSeconds) {
+        this.restoreWaterSinkOffset();
         this.worldSolver.beginFrame();
         this.worldSolver.updatePlayerY(this.player, scale);
         this.worldSolver.resolveHorizontal(this.player);
         this.worldSolver.checkGhostAndTriggerContacts(this.player);
+        this.updateWaterSink(deltaSeconds);
         if(mobileAndTabletCheck())this.updatePlayerFromJoystick(scale);
         else this.updatePlayer(scale);
+        this.applyWaterSinkOffset();
         
         
         this.updateCamera(scale);
         this.grass?.update(deltaSeconds);
+        this.treeWind?.update(deltaSeconds);
         for (const mixer of this.mixers) {
             mixer.update(deltaSeconds);
         }
@@ -685,9 +693,30 @@ class CatAdventure {
         const box = this.worldSolver.getRealBox(this.player);
 
         this.playerBottomOffset = this.player.position.y - box.min.y;
+        this.basePlayerBottomOffset = this.playerBottomOffset;
         this.playerHeight = box.max.y - box.min.y;
-
+        
    
+    }
+    updateWaterSink(deltaSeconds) {
+        if (!this.player) return;
+
+        // Water is a solid floor, so its down contact is the reliable signal
+        // for standing in it. The visual offset is applied after physics.
+        const inWater = !!this.touching(this.player, "water", "solid", "down");
+        const targetSink = inWater ? 0.75 : 0;
+        this.waterSink = THREE.MathUtils.damp(this.waterSink, targetSink, 14, deltaSeconds);
+    }
+    restoreWaterSinkOffset() {
+        if (!this.player || !this.waterSink) return;
+        this.player.position.y += this.waterSink;
+        this.playerBottomOffset = this.basePlayerBottomOffset;
+    }
+    applyWaterSinkOffset() {
+        if (!this.player || !this.waterSink) return;
+        // Restore it before WorldSolver next frame, so physics never sees the
+        // lowered visual root and therefore cannot feed back into the contact.
+        this.player.position.y -= this.waterSink;
     }
     touching(obj, type = "any", mode = "ghost", dir = "any") {
         const mapObj = obj.userData?.mapObject || obj;
@@ -775,6 +804,7 @@ class CatAdventureRenderBatcher {
             !root.userData.sleepingEffect &&
             !root.userData.animations?.length &&
             !root.userData.isInvisibleBox &&
+            !root.userData.treeWind &&
             !type?.disableInstancing;
     }
 
@@ -849,6 +879,66 @@ class CatAdventureRenderBatcher {
     }
 }
 
+// Subtle shader-based sway for tree.glb.  The map object's transform never
+// changes, so its collision shape stays fixed while the visible upper tree
+// moves in the breeze.
+class CatAdventureTreeWind {
+    constructor(game) {
+        this.game = game;
+        this.time = 0;
+        this.shaders = [];
+    }
+
+    build() {
+        for (const tree of this.game.mapObjects) {
+            const glb = tree.userData.assetType?.glb || "";
+            if (!/tree\.glb$/i.test(glb)) continue;
+
+            tree.userData.treeWind = true;
+            tree.updateWorldMatrix(true, true);
+            const bounds = new THREE.Box3().setFromObject(tree);
+            const baseY = bounds.min.y;
+            const height = Math.max(0.01, bounds.max.y - baseY);
+            tree.traverse(mesh => {
+                if (!mesh.isMesh) return;
+                const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+                for (const material of materials) this.addMaterialWind(material, baseY, height);
+            });
+        }
+    }
+
+    addMaterialWind(material, baseY, height) {
+        if (!material || material.userData.treeWindAdded) return;
+        material.userData.treeWindAdded = true;
+        material.onBeforeCompile = shader => {
+            shader.uniforms.treeWindTime = { value: 0 };
+            shader.uniforms.treeWindBaseY = { value: baseY };
+            shader.uniforms.treeWindHeight = { value: height };
+            shader.vertexShader = shader.vertexShader
+                .replace("#include <common>", `#include <common>
+                    uniform float treeWindTime;
+                    uniform float treeWindBaseY;
+                    uniform float treeWindHeight;`)
+                .replace("#include <begin_vertex>", `#include <begin_vertex>
+                    vec3 treeWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;
+                    float treeTip = pow(clamp((treeWorldPosition.y - treeWindBaseY) / treeWindHeight, 0.0, 1.0), 1.75);
+                    float treePhase = dot(treeWorldPosition.xz, vec2(0.31, 0.67));
+                    float treeWind = sin(treeWindTime * 2.7 + treePhase)
+                        + 0.35 * sin(treeWindTime * 4.9 - treePhase * 1.4);
+                    transformed.x += treeWind * treeTip * 0.145;
+                    transformed.z += treeWind * treeTip * 0.125;`);
+            material.userData.treeWindShader = shader;
+            this.shaders.push(shader);
+        };
+        material.needsUpdate = true;
+    }
+
+    update(deltaSeconds) {
+        this.time += deltaSeconds;
+        for (const shader of this.shaders) shader.uniforms.treeWindTime.value = this.time;
+    }
+}
+
 // Render-only meadow grass.  A single instanced mesh holds two crossed cards
 // per clump, keeping it cheap enough to populate the whole playable map.
 class CatAdventureGrass {
@@ -858,7 +948,8 @@ class CatAdventureGrass {
         this.root.name = "Meadow grass";
         this.candidates = [];
         this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity);
-        this.refreshTimer = 0;
+          this.refreshTimer = 0;
+          this.windTime = 0;
         this.nearDistance = 20;
         this.farDistance = 500;
         this.maxVisible = 150000;
@@ -886,7 +977,7 @@ class CatAdventureGrass {
                 if (hash > 0.70) continue;
                 const px = x + (this.hash2(x + 19.1, z) - 0.5) * spacing * 0.8;
                 const pz = z + (this.hash2(x, z + 47.3) - 0.5) * spacing * 0.8;
-                if (exclusions.some(zone => this.pointInOBB(px, pz, zone))) continue;
+                  if (exclusions.some(zone => this.pointInExclusion(px, pz, zone))) continue;
                 this.candidates.push({
                     x: px,
                     z: pz,
@@ -913,19 +1004,62 @@ class CatAdventureGrass {
         this.updateVisible(true);
     }
 
-    getExclusionOBBs() {
-        return this.game.mapObjects
-            .filter(obj => /^(path|water)$/i.test(obj.userData.assetType?.name || obj.userData.mapObject?.name || ""))
-            .map(obj => {
-                const box = this.game.worldSolver.getLocalBox(obj);
-                if (!box) return null;
-                obj.updateWorldMatrix(true, true);
-                return { inverse: obj.matrixWorld.clone().invert(), box };
-            })
-            .filter(Boolean);
-    }
+      getExclusionOBBs() {
+          return this.game.mapObjects
+              .map(obj => {
+                  const name = obj.userData.assetType?.name || obj.userData.mapObject?.name || "";
+                  if (/^water$/i.test(name)) return this.makeWaterExclusion(obj);
+                  if (!/^path$/i.test(name)) return null;
+                  const box = this.game.worldSolver.getLocalBox(obj);
+                  if (!box) return null;
+                  obj.updateWorldMatrix(true, true);
+                  return { inverse: obj.matrixWorld.clone().invert(), box, isWater: false };
+              })
+              .filter(Boolean);
+      }
 
-    pointInOBB(x, z, zone) {
+      makeWaterExclusion(water) {
+          water.updateWorldMatrix(true, true);
+          const triangles = [];
+          const bounds = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
+          water.traverse(mesh => {
+              if (!mesh.isMesh || !mesh.geometry?.attributes.position) return;
+              const positions = mesh.geometry.attributes.position;
+              const index = mesh.geometry.index;
+              const vertex = new THREE.Vector3();
+              const readVertex = i => vertex.fromBufferAttribute(positions, i)
+                  .applyMatrix4(mesh.matrixWorld).clone();
+              const triangleCount = index ? index.count / 3 : positions.count / 3;
+              for (let i = 0; i < triangleCount; i++) {
+                  const a = readVertex(index ? index.getX(i * 3) : i * 3);
+                  const b = readVertex(index ? index.getX(i * 3 + 1) : i * 3 + 1);
+                  const c = readVertex(index ? index.getX(i * 3 + 2) : i * 3 + 2);
+                  // Vertical faces project to a line and naturally fail the
+                  // point-in-triangle test; horizontal water faces remain.
+                  triangles.push({ a, b, c });
+                  for (const point of [a, b, c]) {
+                      bounds.minX = Math.min(bounds.minX, point.x);
+                      bounds.maxX = Math.max(bounds.maxX, point.x);
+                      bounds.minZ = Math.min(bounds.minZ, point.z);
+                      bounds.maxZ = Math.max(bounds.maxZ, point.z);
+                  }
+              }
+          });
+          return { isWater: true, triangles, bounds };
+      }
+
+      pointInExclusion(x, z, zone) {
+          if (!zone.isWater) return this.pointInOBB(x, z, zone);
+          if (x < zone.bounds.minX || x > zone.bounds.maxX ||
+              z < zone.bounds.minZ || z > zone.bounds.maxZ) return false;
+          return zone.triangles.some(({ a, b, c }) => {
+              const cross = (u, v, px, pz) => (v.x - u.x) * (pz - u.z) - (v.z - u.z) * (px - u.x);
+              const ab = cross(a, b, x, z), bc = cross(b, c, x, z), ca = cross(c, a, x, z);
+              return (ab >= 0 && bc >= 0 && ca >= 0) || (ab <= 0 && bc <= 0 && ca <= 0);
+          });
+      }
+
+      pointInOBB(x, z, zone) {
         // Transforming the sample into object-local space is an OBB point test.
         const point = new THREE.Vector3(x, 0, z).applyMatrix4(zone.inverse);
         const pad = 0.32;
@@ -986,19 +1120,31 @@ class CatAdventureGrass {
             side: THREE.DoubleSide
         });
         material.onBeforeCompile = shader => {
-            shader.uniforms.grassCameraXZ = { value: new THREE.Vector2() };
-            shader.uniforms.grassFadeNear = { value: this.nearDistance };
-            shader.uniforms.grassFadeFar = { value: this.farDistance };
-            shader.vertexShader = shader.vertexShader
-                .replace("#include <common>", `#include <common>
-                    uniform vec2 grassCameraXZ;
-                    uniform float grassFadeNear;
-                    uniform float grassFadeFar;
-                    varying float grassFade;`)
-                .replace("#include <begin_vertex>", `#include <begin_vertex>
-                    vec3 grassWorldPosition = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
-                    grassFade = 1.0 - smoothstep(grassFadeNear, grassFadeFar,
-                        distance(grassWorldPosition.xz, grassCameraXZ));`);
+              shader.uniforms.grassCameraXZ = { value: new THREE.Vector2() };
+              shader.uniforms.grassFadeNear = { value: this.nearDistance };
+              shader.uniforms.grassFadeFar = { value: this.farDistance };
+              shader.uniforms.grassWindTime = { value: 0 };
+              shader.vertexShader = shader.vertexShader
+                  .replace("#include <common>", `#include <common>
+                      uniform vec2 grassCameraXZ;
+                      uniform float grassFadeNear;
+                      uniform float grassFadeFar;
+                      uniform float grassWindTime;
+                      varying float grassFade;`)
+                  .replace("#include <begin_vertex>", `#include <begin_vertex>
+                      // Keep the base planted, while the tips catch two quick,
+                      // slightly out-of-sync gusts. The instance translation gives
+                      // every tuft a stable, unique phase at no CPU cost.
+                      float bladeTip = pow(clamp(transformed.y / 0.9, 0.0, 1.0), 1.65);
+                      vec2 tuftPosition = instanceMatrix[3].xz;
+                      float windPhase = dot(tuftPosition, vec2(0.73, 1.19));
+                      float wind = sin(grassWindTime * 4.4 + windPhase)
+                          + 0.38 * sin(grassWindTime * 7.1 - windPhase * 1.7);
+                      transformed.x += wind * bladeTip * 0.115;
+                      transformed.z += wind * bladeTip * 0.065;
+                      vec3 grassWorldPosition = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+                      grassFade = 1.0 - smoothstep(grassFadeNear, grassFadeFar,
+                          distance(grassWorldPosition.xz, grassCameraXZ));`);
             shader.fragmentShader = shader.fragmentShader
                 .replace("#include <common>", `#include <common>
                     varying float grassFade;`)
@@ -1010,9 +1156,12 @@ class CatAdventureGrass {
         return material;
     }
 
-    update(deltaSeconds) {
-        if (!this.mesh || !this.game.camera) return;
-        this.mesh.material.userData.grassShader?.uniforms.grassCameraXZ.value
+      update(deltaSeconds) {
+          if (!this.mesh || !this.game.camera) return;
+          this.windTime += deltaSeconds;
+          const grassShader = this.mesh.material.userData.grassShader;
+          if (grassShader) grassShader.uniforms.grassWindTime.value = this.windTime;
+          this.mesh.material.userData.grassShader?.uniforms.grassCameraXZ.value
             .set(this.game.camera.position.x, this.game.camera.position.z);
         this.refreshTimer += deltaSeconds;
        // if (this.refreshTimer < 0.20 && this.lastCamera.distanceToSquared(this.game.camera.position) < 9) return;

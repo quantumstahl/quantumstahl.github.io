@@ -7,6 +7,8 @@ class WorldSolver {
         this.snapDistance = 0.25;
 
         this.lastGroundObject = null;
+        this.groundRaycaster = new THREE.Raycaster();
+        this.down = new THREE.Vector3(0, -1, 0);
     }
 
     beginFrame() {
@@ -51,8 +53,10 @@ class WorldSolver {
     }
     findGroundYUnderPlayer(player) {
         const px = player.position.x;
-        const py = player.position.y;
         const pz = player.position.z;
+        // The player's visual root can be offset (for example, when wading).
+        // Ground snapping must use the collision bottom, not that visual root.
+        const playerBottomY = player.position.y - (this.game.playerBottomOffset || 0);
 
         let bestY = this.groundY;
         let bestObj = null;
@@ -62,20 +66,32 @@ class WorldSolver {
             if (!this.isGround(obj)) continue;
 
             const box = this.getRealBox(obj);
+            const isWater = this.isWater(obj);
+
+            // Avoid raycasting every lake each frame; the exact ray test below
+            // handles the irregular shoreline once the player is in its bounds.
+            if (isWater && (px < box.min.x || px > box.max.x || pz < box.min.z || pz > box.max.z)) continue;
+
+            // A water GLB can be an irregular shoreline. Its bounding box
+            // reaches over dry ground, so use the rendered surface itself for
+            // its footprint and height instead of treating that box as water.
+            const waterY = isWater ? this.getWaterSurfaceY(player, obj, box) : null;
+            if (isWater && waterY === null) continue;
 
             const insideX =
-                px + this.playerRadius > box.min.x &&
-                px - this.playerRadius < box.max.x;
+                isWater
+                    ? true
+                    : px + this.playerRadius > box.min.x && px - this.playerRadius < box.max.x;
 
             const insideZ =
                 pz + this.playerRadius > box.min.z &&
                 pz - this.playerRadius < box.max.z;
 
-            if (!insideX || !insideZ) continue;
+            if (!insideX || (!isWater && !insideZ)) continue;
 
-            const topY = box.max.y;
+            const topY = waterY ?? box.max.y;
 
-            if (topY > bestY && topY <= py + this.snapDistance) {
+            if (topY > bestY && topY <= playerBottomY + this.snapDistance) {
                 bestY = topY;
                 bestObj = obj;
             }
@@ -83,6 +99,23 @@ class WorldSolver {
 
         this.lastGroundObject = bestObj;
         return bestY;
+    }
+    getWaterSurfaceY(player, water, box) {
+        const startY = Math.max(
+            player.position.y + this.getPlayerHeight(player) + 1,
+            box.max.y + 1
+        );
+        this.groundRaycaster.set(
+            new THREE.Vector3(player.position.x, startY, player.position.z),
+            this.down
+        );
+        this.groundRaycaster.near = 0;
+        this.groundRaycaster.far = startY - box.min.y + 0.1;
+
+        for (const hit of this.groundRaycaster.intersectObject(water, true)) {
+            if (hit.point.y <= player.position.y + this.snapDistance) return hit.point.y;
+        }
+        return null;
     }
     getCollisionType(obj) {
         return obj.userData.collisionOverride ||
@@ -96,9 +129,17 @@ class WorldSolver {
         if (c === "none") return false;
         if (c === "ghost") return false;
         if (c === "trigger") return false;
-        if (c === "wall") return false;
+        // Water uses an OBB wall so its shoreline has the right shape, but it
+        // still needs to act as a floor to produce the solid/down contact used
+        // by the cat's wading effect.
+        if (c === "wall") return this.isWater(obj);
 
         return c === "solid" || c === "floor" || c === "ground";
+    }
+
+    isWater(obj) {
+        const type = obj.userData.assetType || {};
+        return /water/i.test(type.id || "") || /water/i.test(type.name || "");
     }
 
     isSolid(obj) {
