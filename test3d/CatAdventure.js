@@ -61,6 +61,8 @@ class CatAdventure {
         this.setupAnimation();
         this.grass = new CatAdventureGrass(this);
         this.grass.build();
+        this.water = new CatAdventureWater(this);
+        this.water.build();
         this.treeWind = new CatAdventureTreeWind(this);
         this.treeWind.build();
         this.buildRenderBatches();
@@ -142,6 +144,7 @@ class CatAdventure {
         
         this.updateCamera(scale);
         this.grass?.update(deltaSeconds);
+        this.water?.update(deltaSeconds);
         this.treeWind?.update(deltaSeconds);
         for (const mixer of this.mixers) {
             mixer.update(deltaSeconds);
@@ -936,6 +939,84 @@ class CatAdventureTreeWind {
     update(deltaSeconds) {
         this.time += deltaSeconds;
         for (const shader of this.shaders) shader.uniforms.treeWindTime.value = this.time;
+    }
+}
+
+// A small material patch rather than a separate mesh: it keeps water.glb's
+// existing outline/collision intact and also works on render-batched pieces.
+class CatAdventureWater {
+    constructor(game) {
+        this.game = game;
+        this.time = 0;
+        this.shaders = [];
+    }
+
+    build() {
+        for (const water of this.game.mapObjects) {
+            const type = water.userData.assetType || {};
+            if (!/water/i.test(type.id || "") && !/water/i.test(type.name || "")) continue;
+            water.traverse(mesh => {
+                if (!mesh.isMesh) return;
+                const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+                for (const material of materials) this.addWaterMaterial(material);
+            });
+        }
+    }
+
+    addWaterMaterial(material) {
+        if (!material || material.userData.waterShaderAdded) return;
+        material.userData.waterShaderAdded = true;
+        // Water pieces overlap along the irregular shoreline. Keeping them
+        // opaque lets the depth buffer hide those joins instead of blending
+        // them into visible rectangular patches.
+        material.transparent = false;
+        material.opacity = 1;
+        material.depthWrite = true;
+        material.roughness = 0.2;
+        material.metalness = 0.12;
+        material.onBeforeCompile = shader => {
+            shader.uniforms.waterTime = { value: 0 };
+            shader.vertexShader = shader.vertexShader
+                .replace("#include <common>", `#include <common>
+                    uniform float waterTime;
+                    varying vec2 waterWorldXZ;
+                    varying float waterRipple;`)
+                .replace("#include <begin_vertex>", `#include <begin_vertex>
+                    vec3 waterPosition = transformed;
+                    #ifdef USE_INSTANCING
+                        vec3 waterWorldPosition = (modelMatrix * instanceMatrix * vec4(waterPosition, 1.0)).xyz;
+                    #else
+                        vec3 waterWorldPosition = (modelMatrix * vec4(waterPosition, 1.0)).xyz;
+                    #endif
+                    float waveA = sin(waterWorldPosition.x * 0.78 + waterTime * 2.2);
+                    float waveB = sin(waterWorldPosition.z * 1.08 - waterTime * 1.7);
+                    waterRipple = waveA * 0.5 + waveB * 0.5;
+                    // Colour ripples keep adjacent water pieces perfectly
+                    // joined, unlike moving their separate mesh edges.
+                    waterWorldXZ = waterWorldPosition.xz;`);
+            shader.fragmentShader = shader.fragmentShader
+                .replace("#include <common>", `#include <common>
+                    uniform float waterTime;
+                    varying vec2 waterWorldXZ;
+                    varying float waterRipple;`)
+                .replace("#include <color_fragment>", `#include <color_fragment>
+                    float crossWave = sin(dot(waterWorldXZ, vec2(1.35, -0.92)) + waterTime * 1.15);
+                    float ripples = waterRipple * 0.65 + crossWave * 0.35;
+                    vec3 deepWater = vec3(0.018, 0.105, 0.31);
+                    vec3 clearWater = vec3(0.045, 0.32, 0.72);
+                    diffuseColor.rgb = mix(deepWater, clearWater, 0.56 + ripples * 0.14);
+                    // Fine, restrained glints rather than bright bands.
+                    float glint = pow(max(0.0, sin(dot(waterWorldXZ, vec2(3.1, 2.2)) - waterTime * 2.1)), 18.0);
+                    diffuseColor.rgb += glint * vec3(0.035, 0.075, 0.10);`);
+            material.userData.waterShader = shader;
+            this.shaders.push(shader);
+        };
+        material.needsUpdate = true;
+    }
+
+    update(deltaSeconds) {
+        this.time += deltaSeconds;
+        for (const shader of this.shaders) shader.uniforms.waterTime.value = this.time;
     }
 }
 
