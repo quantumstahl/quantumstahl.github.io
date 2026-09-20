@@ -47,20 +47,31 @@ class CatAdventure {
         this.texture2 = new THREE.TextureLoader().load("grasyfield.png");
         this.texture2.wrapS = THREE.RepeatWrapping;
         this.texture2.wrapT = THREE.RepeatWrapping;
-        this.texture2.repeat.set(8, 8);
+        this.texture2.repeat.set(64,64);
         this.texture2.colorSpace = THREE.NoColorSpace;
+
+        
+
+
+        this.wallNormalMap = null;
     }
 
     async start(mapUrl = "map.json") {
         this.initThree();
 
         await this.mapLoader.load(mapUrl);
+        this.configureMapShadows();
+        this.configureWallNormalMaps();
         
         this.findsleepingbug();
         this.findPlayerCat();
+        this.fur = new CatAdventureFur(this);
+        this.fur.build(this.player);
         this.setupAnimation();
         this.grass = new CatAdventureGrass(this);
         this.grass.build();
+        this.pathEdgeFlowers = new CatAdventurePathEdgeFlowers(this);
+        this.pathEdgeFlowers.build();
         this.water = new CatAdventureWater(this);
         this.water.build();
         this.treeWind = new CatAdventureTreeWind(this);
@@ -87,24 +98,191 @@ class CatAdventure {
         });
 
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
         this.renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
 
-        const sun = new THREE.DirectionalLight(0xffffff, 4.2);
-        sun.position.set(5, 10, 5);
-        this.scene.add(sun);
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFShadowMap;
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.0;
 
-        this.scene.add(new THREE.AmbientLight(0xffffff, 1.15));
-        
+
+        // ============================
+        // SUN
+        // ============================
+
+        this.sun = new THREE.DirectionalLight(0xffffff, 1);
+
+        this.sun.castShadow = true;
+
+        // 2048 räcker bra om shadow-området är mindre
+        this.sun.shadow.mapSize.set(2048, 2048);
+
+        // Mycket mindre än tidigare ±100.
+        // Detta ger betydligt högre faktisk shadow-resolution.
+        this.shadowExtent = 40;
+
+        this.sun.shadow.camera.left   = -this.shadowExtent;
+        this.sun.shadow.camera.right  =  this.shadowExtent;
+        this.sun.shadow.camera.top    =  this.shadowExtent;
+        this.sun.shadow.camera.bottom = -this.shadowExtent;
+
+        this.sun.shadow.camera.near = 1;
+        this.sun.shadow.camera.far = 250;
+
+        // Hjälper mot acne / fula polygonkanter
+        this.sun.shadow.bias = -0.0001;
+        this.sun.shadow.normalBias = 0.02;
+
+        // Behåll samma ungefärliga solriktning som tidigare
+        this.sunOffset = new THREE.Vector3(
+            50,
+            120,
+            70
+        );
+
+        this.sun.target.position.set(0, 0, 0);
+        this.sun.position.copy(this.sunOffset);
+
+        this.scene.add(this.sun);
+        this.scene.add(this.sun.target);
+
+
+        // ============================
+        // AMBIENT
+        // ============================
+
+        this.scene.add(
+            new THREE.AmbientLight(0xffffff,1.6)
+        );
+
+
+        // ============================
+        // GROUND
+        // ============================
+
         const groundGeo = new THREE.PlaneGeometry(400, 400);
-        const groundMat = new THREE.MeshStandardMaterial({
-           map: this.texture2
-        });
 
-        this.ground = new THREE.Mesh(groundGeo, groundMat);
+        const groundMat = new THREE.MeshStandardMaterial({
+            map: this.texture2,
+            color: new THREE.Color(0xefffff),
+        });
+        groundMat.roughness = 5;
+        groundMat.metalness = 0.0;
+        this.ground = new THREE.Mesh(
+            groundGeo,
+            groundMat
+        );
+
         this.ground.rotation.x = -Math.PI / 2;
+        this.ground.receiveShadow = true;
+       // this.ground.material.map.colorSpace = THREE.SRGBColorSpace;
+        
+
         this.scene.add(this.ground);
 
+
         this.renderBatcher = new CatAdventureRenderBatcher(this);
+    }
+    updateSunShadow(position) {
+
+        const mapSize = this.sun.shadow.mapSize.x;
+
+        // Storleken på en enda shadow-map-pixel i världen
+        const texelSize =
+            (this.shadowExtent * 2) / mapSize;
+
+
+        // Snap till shadow-mapens texel-grid.
+        // Hindrar shadow-map från att glida lite varje frame.
+        const x =
+            Math.round(position.x / texelSize) * texelSize;
+
+        const z =
+            Math.round(position.z / texelSize) * texelSize;
+
+
+        this.sun.target.position.set(
+            x,
+            0,
+            z
+        );
+
+        this.sun.position.set(
+            x + this.sunOffset.x,
+            this.sunOffset.y,
+            z + this.sunOffset.z
+        );
+
+
+        this.sun.target.updateMatrixWorld();
+    }
+
+
+
+    configureMapShadows() {
+        for (const object of this.mapObjects) {
+            const type = object.userData.assetType || {};
+            const name = type.name || type.id || "";
+            const usesShadows = !/^(path|water)$/i.test(name);
+            const usesShadows2 = !/^(water)$/i.test(name);
+            object.traverse(mesh => {
+                if (!mesh.isMesh) return;
+                // Paths and water should neither darken nearby scenery nor
+                // have other objects' shadows projected onto their surfaces.
+                mesh.castShadow = usesShadows;
+                mesh.receiveShadow = usesShadows2;
+            });
+        }
+    }
+
+    configureWallNormalMaps() {
+        // One small texture is shared by every wall material. It adds a single
+        // normal-map sample per wall fragment, without multiplying texture
+        // memory by the number of wall instances.
+        if (!this.wallNormalMap) {
+            this.wallNormalMap = new THREE.TextureLoader().load("assets/wall-normal.png");
+            this.wallNormalMap.colorSpace = THREE.NoColorSpace;
+            this.wallNormalMap.anisotropy = 1;
+        }
+
+        for (const object of this.mapObjects) {
+            const type = object.userData.assetType || {};
+            const isWall = /wall\.glb$/i.test(type.glb || "") ||
+                /^wall$/i.test(type.id || "") || /^wall$/i.test(type.name || "");
+            const isHill = /hill\.glb$/i.test(type.glb || "") ||
+                /^hill$/i.test(type.id || "") || /^hill$/i.test(type.name || "");
+            const isrock = /rock\.glb$/i.test(type.glb || "") ||
+                /^rock$/i.test(type.id || "") || /^rock$/i.test(type.name || "");    
+            if (!isWall && !isHill && !isrock) continue;
+
+            object.traverse(mesh => {
+                if (!mesh.isMesh) return;
+
+    
+
+                const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+                for (const material of materials) {
+                    // Keep authored normal maps if a later wall asset ships one.
+                    if (!material || material.normalMap) continue;
+                    material.normalMap = this.wallNormalMap;
+                    material.normalScale.set(100, 100);
+                    material.needsUpdate = true;
+                    
+                }
+
+                
+
+            });
+
+
+
+        }
+
+
+
+
+
     }
 
     gameLoop(time) {
@@ -131,6 +309,9 @@ class CatAdventure {
     }
 
     update(scale,deltaSeconds) {
+        this.updateSunShadow(this.player.position);
+        
+
         this.restoreWaterSinkOffset();
         this.worldSolver.beginFrame();
         this.worldSolver.updatePlayerY(this.player, scale);
@@ -456,6 +637,8 @@ class CatAdventure {
         const box = new THREE.Mesh(geo, mat);
 
         box.position.set(0, 0.5, 0);
+        box.castShadow = true;
+        box.receiveShadow = true;
 
         this.scene.add(box);
 
@@ -942,6 +1125,110 @@ class CatAdventureTreeWind {
     }
 }
 
+// A deliberately small fur treatment for the player: it preserves the cat's
+// vertex colours and silhouette, without shell geometry or an extra texture.
+class CatAdventureFur {
+    constructor(game) {
+        this.game = game;
+        this.shellCount = mobileAndTabletCheck() ? 3 : 3;
+    }
+
+    build(cat) {
+        if (!cat) return;
+        const coatMeshes = [];
+        cat.traverse(mesh => {
+            if (!mesh.isMesh || mesh.userData.furShell) return;
+            const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            for (const material of materials) this.addFurMaterial(material);
+            if (materials.length === 1 && materials[0]?.map) coatMeshes.push(mesh);
+        });
+        for (const mesh of coatMeshes) this.addShells(mesh);
+    }
+
+    addFurMaterial(material) {
+        // The updated cat GLB marks the coat with its colour texture. Leaving
+        // untextured details alone keeps eyes, claws, and facial accents crisp.
+        if (!material || !material.map || material.userData.furShaderAdded) return;
+        material.userData.furShaderAdded = true;
+        // Fur reads as soft rather than glossy under the directional sun.
+        material.roughness = Math.max(material.roughness ?? 0, 0.9);
+        material.onBeforeCompile = shader => {
+            shader.vertexShader = shader.vertexShader
+                .replace("#include <common>", `#include <common>
+                    varying vec3 furLocalPosition;`)
+                .replace("#include <begin_vertex>", `#include <begin_vertex>
+                    furLocalPosition = position;`);
+            shader.fragmentShader = shader.fragmentShader
+                .replace("#include <common>", `#include <common>
+                    varying vec3 furLocalPosition;`)
+                .replace("#include <normal_fragment_begin>", `#include <normal_fragment_begin>
+                    // The coat map supplies the broad colour pattern; this
+                    // tiny procedural variation breaks up its otherwise flat
+                    // lighting without another texture sample.
+                    float furCoat = dot(diffuseColor.rgb,
+                        vec3(0.299, 0.587, 0.114));
+                    float furFibre = 0.5 + 0.5 * sin(dot(furLocalPosition,
+                        vec3(27.1, 41.7, 19.3)));
+                    diffuseColor.rgb *= mix(0.96, 1.035,
+                        furFibre * (0.55 + furCoat * 0.45));
+                    float furRim = pow(1.0 - clamp(dot(normal,
+                        normalize(vViewPosition)), 0.0, 1.0), 3.2);
+                    // Brighter coat areas catch a slightly fuller fuzzy edge,
+                    // while dark markings keep their definition.
+                    diffuseColor.rgb += diffuseColor.rgb * furRim *
+                        (0.07 + furCoat * 1.11);`);
+            material.userData.furShader = shader;
+        };
+        material.needsUpdate = true;
+    }
+
+    addShells(mesh) {
+        if (mesh.userData.furShellsAdded || mesh.isSkinnedMesh) return;
+        mesh.userData.furShellsAdded = true;
+        for (let layer = 1; layer <= this.shellCount; layer++) {
+            const shellMaterial = mesh.material.clone();
+            shellMaterial.userData.furShell = true;
+            shellMaterial.side = THREE.DoubleSide;
+            shellMaterial.transparent = false;
+            shellMaterial.depthWrite = true;
+            shellMaterial.onBeforeCompile = shader => {
+                const shellFraction = layer / this.shellCount;
+                shader.uniforms.furShellFraction = { value: shellFraction };
+                shader.vertexShader = shader.vertexShader
+                    .replace("#include <common>", `#include <common>
+                        uniform float furShellFraction;
+                        varying vec3 furShellPosition;`)
+                    .replace("#include <begin_vertex>", `#include <begin_vertex>
+                        furShellPosition = position;
+                        // 0.1 local units becomes a short, soft coat at the
+                        // cat's 0.2 map scale, rather than long spikes.
+                        transformed += normal * (furShellFraction * 0.05);`);
+                shader.fragmentShader = shader.fragmentShader
+                    .replace("#include <common>", `#include <common>
+                        uniform float furShellFraction;
+                        varying vec3 furShellPosition;`)
+                    .replace("#include <alphatest_fragment>", `// Sparse outer layers create a fuzzy silhouette. The noise is
+                        // stable in local space, so it does not crawl while animated.
+                        float furNoise = fract(sin(dot(furShellPosition,
+                            vec3(37.7, 57.3, 23.9)) + furShellFraction * 91.7) * 43758.5453);
+                        float furCoverage = mix(0.91, 0.38, furShellFraction);
+                        if (furNoise > furCoverage) discard;
+                        diffuseColor.rgb *= 1.0 - furShellFraction * 0.10;
+                        #include <alphatest_fragment>`);
+            };
+            shellMaterial.needsUpdate = true;
+
+            const shell = new THREE.Mesh(mesh.geometry, shellMaterial);
+            shell.name = `Fur shell ${layer}/${this.shellCount}`;
+            shell.userData.furShell = true;
+            shell.castShadow = false;
+            shell.receiveShadow = false;
+            shell.frustumCulled = mesh.frustumCulled;
+            mesh.add(shell);
+        }
+    }
+}
+
 // A small material patch rather than a separate mesh: it keeps water.glb's
 // existing outline/collision intact and also works on render-batched pieces.
 class CatAdventureWater {
@@ -1034,12 +1321,20 @@ class CatAdventureGrass {
         this.nearDistance = 20;
         this.farDistance = 500;
         this.maxVisible = 150000;
+        this.treeGrassRadius = 3;
         this.dummy = new THREE.Object3D();
         this.frustum = new THREE.Frustum();
         this.projectionMatrix = new THREE.Matrix4();
        // this.cullPoint = new THREE.Vector3();
         this.cullSphere = new THREE.Sphere();
         this.instanceColor = new THREE.Color();
+        // Wall probes are only used for grid points inside a wall's world
+        // bounds, so they retain the cheap terrain scatter while giving each
+        // wall its own actual top height.
+        this.wallRaycaster = new THREE.Raycaster();
+        this.wallRayOrigin = new THREE.Vector3();
+        this.wallRayDirection = new THREE.Vector3(0, -1, 0);
+        this.wallNormal = new THREE.Vector3();
         this.texture = new THREE.TextureLoader().load("assets/grass-tuft.png");
         // Match the legacy terrain/GLB texture treatment in this project.
         this.texture.colorSpace = THREE.NoColorSpace;
@@ -1048,19 +1343,29 @@ class CatAdventureGrass {
     build() {
         const exclusions = this.getExclusionOBBs();
         const bounds = this.getMapBounds();
-
+        const treeCenters = this.getTreeCenters();
+        const wallSurfaces = this.getWallSurfaces();
         // A stable jittered grid gives natural scatter without popping as the
         // player moves.  OBB rejection happens once, after every GLB is loaded.
-        const spacing = 0.9;
+        const spacing = 1;
         for (let z = bounds.minZ; z <= bounds.maxZ; z += spacing) {
             for (let x = bounds.minX; x <= bounds.maxX; x += spacing) {
                 const hash = this.hash2(x, z);
                 if (hash > 0.70) continue;
                 const px = x + (this.hash2(x + 19.1, z) - 0.5) * spacing * 0.8;
                 const pz = z + (this.hash2(x, z + 47.3) - 0.5) * spacing * 0.8;
-                  if (exclusions.some(zone => this.pointInExclusion(px, pz, zone))) continue;
+                // A wall replaces the ground as this tuft's planting surface.
+                // `getWallTopY` returns null outside a wall or on a vertical
+                // face, leaving normal terrain grass at its original height.
+                const wallTopY = this.getWallTopY(px, pz, wallSurfaces);
+                // Preserve the existing grass-around-trees behavior on the
+                // terrain, but let every valid wall top receive grass.
+                if ((wallTopY === null && !this.isNearTree(px, pz, treeCenters)) ||
+                    exclusions.some(zone => this.pointInExclusion(px, pz, zone))) continue;
+
                 this.candidates.push({
                     x: px,
+                    y: wallTopY === null ? 0.012 : wallTopY + 0.012,
                     z: pz,
                     // Used both for natural variation and distance thinning.
                     seed: this.hash2(x + 83.7, z + 11.4),
@@ -1079,10 +1384,52 @@ class CatAdventureGrass {
         this.mesh = new THREE.InstancedMesh(geometry, material, this.capacity);
         this.mesh.name = "Distance faded crossed-billboard grass";
         this.mesh.frustumCulled = false;
+        this.mesh.castShadow = false;
+        this.mesh.receiveShadow = false;
         this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.root.add(this.mesh);
         this.game.scene.add(this.root);
         this.updateVisible(true);
+    }
+
+    getWallSurfaces() {
+        return this.game.mapObjects
+            .filter(obj => {
+                const type = obj.userData.assetType || {};
+                return /wall\.glb$/i.test(type.glb || "") ||
+                    /^wall$/i.test(type.id || "") || /^wall$/i.test(type.name || "");
+            })
+            .map(wall => {
+                wall.updateWorldMatrix(true, true);
+                return { wall, bounds: new THREE.Box3().setFromObject(wall) };
+            })
+            .filter(({ bounds }) => !bounds.isEmpty());
+    }
+
+    getWallTopY(x, z, wallSurfaces) {
+        let highestY = null;
+        for (const { wall, bounds } of wallSurfaces) {
+            // Avoid raycasting every map object for every terrain grid point.
+            if (x < bounds.min.x || x > bounds.max.x ||
+                z < bounds.min.z || z > bounds.max.z) continue;
+
+            this.wallRayOrigin.set(x, bounds.max.y + 0.1, z);
+            this.wallRaycaster.set(this.wallRayOrigin, this.wallRayDirection);
+            const hits = this.wallRaycaster.intersectObject(wall, true);
+            for (const hit of hits) {
+                if (!hit.face) continue;
+                // Raycasts can also meet the underside or a side edge. Only
+                // accept faces that genuinely point upward in world space.
+                this.wallNormal.copy(hit.face.normal)
+                    .transformDirection(hit.object.matrixWorld);
+                if (this.wallNormal.y < 0.5) continue;
+                if (highestY === null || hit.point.y > highestY) {
+                    highestY = hit.point.y;
+                }
+                break; // Raycaster returns this wall's hits nearest first.
+            }
+        }
+        return highestY;
     }
 
       getExclusionOBBs() {
@@ -1098,6 +1445,23 @@ class CatAdventureGrass {
               })
               .filter(Boolean);
       }
+      getTreeCenters() {
+        return this.game.mapObjects
+            .filter(obj => /tree\.glb$/i.test(obj.userData.assetType?.glb || ""))
+            .map(tree => {
+                tree.updateWorldMatrix(true, false);
+                return { x: tree.matrixWorld.elements[12], z: tree.matrixWorld.elements[14] };
+            });
+    }
+
+    isNearTree(x, z, treeCenters) {
+        const radiusSq = this.treeGrassRadius * this.treeGrassRadius;
+        return treeCenters.some(tree => {
+            const dx = x - tree.x, dz = z - tree.z;
+            return dx * dx + dz * dz <= radiusSq;
+        });
+    }
+
 
       makeWaterExclusion(water) {
           water.updateWorldMatrix(true, true);
@@ -1169,10 +1533,10 @@ class CatAdventureGrass {
         const indices = [];
         const addCard = (angle) => {
             const start = positions.length / 3;
-            const dx = Math.cos(angle) * 1.32, dz = Math.sin(angle) * 1.32;
+            const dx = Math.cos(angle) * 0.45, dz = Math.sin(angle) * 0.45;
             const verts = [
                 -dx, 0, -dz, dx, 0, dz,
-                dx, 0.9, dz, -dx, 0.9, -dz
+                dx, 0.45, dz, -dx, 0.45, -dz
             ];
             positions.push(...verts);
             uvs.push(0, 0, 1, 0, 1, 1, 0, 1);
@@ -1192,13 +1556,15 @@ class CatAdventureGrass {
         // instance colours use its tested shader chunks.  We only add the
         // distance fade, avoiding a fragile fully custom instancing shader.
         const material = new THREE.MeshStandardMaterial({
-          //  color: 0x3d8a2f,
             roughness: 1,
             map: this.texture,
             // Alpha-tested cutouts skip the transparent backdrop pixels and
             // write depth, hugely reducing overlapping billboard overdraw.
             alphaTest: 0.06,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide//,
+           // emissive: new THREE.Color(0.10, 0.22, 0.055),
+           // emissiveIntensity: 0.35
+
         });
         material.onBeforeCompile = shader => {
               shader.uniforms.grassCameraXZ = { value: new THREE.Vector2() };
@@ -1276,7 +1642,7 @@ class CatAdventureGrass {
             // changing any grass that can actually be seen.
             this.cullSphere.center.set(
                 grass.x,
-                0.5 * grass.scale,
+                grass.y + 0.5 * grass.scale,
                 grass.z
             );
 
@@ -1284,13 +1650,13 @@ class CatAdventureGrass {
             this.cullSphere.radius = grass.scale * 1.5;
 
             if (!this.frustum.intersectsSphere(this.cullSphere)) continue;
-            this.dummy.position.set(grass.x, 0.012, grass.z);
+            this.dummy.position.set(grass.x, grass.y, grass.z);
             this.dummy.rotation.set(0, grass.rotation, 0);
             this.dummy.scale.setScalar(grass.scale);
             this.dummy.updateMatrix();
             this.mesh.setMatrixAt(count, this.dummy.matrix);
-            const shade = 0.78 + grass.seed * 0.22;
-            this.instanceColor.setRGB(0.21 * shade, 0.52 * shade, 0.12 * shade);
+            const shade = 0.82 + grass.seed * 0.18;
+            this.instanceColor.setRGB(0.32 * shade, 0.70 * shade, 0.18 * shade);
             this.mesh.setColorAt(count, this.instanceColor);
             count++;
         }
@@ -1301,6 +1667,119 @@ class CatAdventureGrass {
 
     hash2(x, z) {
         const value = Math.sin(x * 127.1 + z * 311.7) * 43758.5453123;
+        return value - Math.floor(value);
+    }
+}
+
+// Decorative clumps placed beside, rather than on, the long sides of paths.
+// They deliberately use the path's local axes, so rotated path instances do
+// not accidentally receive flowers across their short end caps.
+class CatAdventurePathEdgeFlowers {
+    constructor(game) {
+        this.game = game;
+        this.root = new THREE.Group();
+        this.root.name = "Path-edge grass and flowers";
+        this.dummy = new THREE.Object3D();
+        this.texture = new THREE.TextureLoader().load("assets/path-edge-flowers.png");
+        this.texture.colorSpace = THREE.NoColorSpace;
+    }
+
+    build() {
+        const candidates = [];
+        for (const path of this.game.mapObjects) {
+            const type = path.userData.assetType || {};
+            if (!/path\.glb$/i.test(type.glb || "") &&
+                !/^path$/i.test(type.id || "") && !/^path$/i.test(type.name || "")) continue;
+            const box = this.game.worldSolver.getLocalBox(path);
+            if (!box) continue;
+            path.updateWorldMatrix(true, true);
+            this.addPathCandidates(path, box, candidates);
+        }
+        if (!candidates.length) return;
+
+        const mesh = new THREE.InstancedMesh(
+            this.createCrossedCardGeometry(), this.createMaterial(), candidates.length
+        );
+        mesh.name = "Path-edge flower clumps";
+        mesh.castShadow = false;
+        mesh.receiveShadow = false;
+        mesh.frustumCulled = false;
+        candidates.forEach((candidate, index) => {
+            this.dummy.position.copy(candidate.position);
+            this.dummy.rotation.set(0, candidate.rotation, 0);
+            this.dummy.scale.setScalar(candidate.scale);
+            this.dummy.updateMatrix();
+            // The local path transform includes its map rotation and scale.
+            this.dummy.matrix.premultiply(candidate.path.matrixWorld);
+            mesh.setMatrixAt(index, this.dummy.matrix);
+        });
+        mesh.instanceMatrix.needsUpdate = true;
+        this.root.add(mesh);
+        this.game.scene.add(this.root);
+    }
+
+    addPathCandidates(path, box, candidates) {
+        const sizeX = box.max.x - box.min.x;
+        const sizeZ = box.max.z - box.min.z;
+        const longIsX = sizeX >= sizeZ;
+        const longMin = longIsX ? box.min.x : box.min.z;
+        const longMax = longIsX ? box.max.x : box.max.z;
+        const shortMin = longIsX ? box.min.z-0.3 : box.min.x+0.3;
+        const shortMax = longIsX ? box.max.z+0.3 : box.max.x-0.3;
+        const length = longMax - longMin;
+        // Keep a clear gap at both ends: no flowers on the path brim/end cap.
+        const endInset = Math.min(0.7, length * 0.18);
+        const spacing = 3;
+        for (let t = longMin + endInset; t <= longMax - endInset; t += spacing) {
+            for (const side of [-1, 1]) {
+                const seed = this.hash(t + side * 29.4, path.position.x + path.position.z);
+                if (seed > 0.78) continue;
+                const shortPosition = (side < 0 ? shortMin : shortMax) + side * 0.14;
+                const position = longIsX
+                    ? new THREE.Vector3(t, box.max.y - 0.018, shortPosition)
+                    : new THREE.Vector3(shortPosition, box.max.y - 0.018, t);
+                candidates.push({
+                    path,
+                    position,
+                    rotation: this.hash(t + 8.1, side * 13.7) * Math.PI,
+                    scale: 0.5 + this.hash(t + 51.2, side * 7.4) * 0.18
+                });
+            }
+        }
+    }
+
+    createCrossedCardGeometry() {
+        const positions = [];
+        const uvs = [];
+        const indices = [];
+        const addCard = angle => {
+            const start = positions.length / 3;
+            const dx = Math.cos(angle) * 0.52, dz = Math.sin(angle) * 0.52;
+            positions.push(-dx, 0, -dz, dx, 0, dz, dx, 1, dz, -dx, 1, -dz);
+            uvs.push(0, 0, 1, 0, 1, 1, 0, 1);
+            indices.push(start, start + 1, start + 2, start, start + 2, start + 3);
+        };
+        addCard(0); addCard(Math.PI * 0.5);
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+        return geometry;
+    }
+
+    createMaterial() {
+        return new THREE.MeshStandardMaterial({
+            map: this.texture,
+            alphaTest: 0.6,
+            side: THREE.DoubleSide,
+            roughness: 1,
+            depthWrite: true
+        });
+    }
+
+    hash(x, y) {
+        const value = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
         return value - Math.floor(value);
     }
 }
