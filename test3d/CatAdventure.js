@@ -65,8 +65,6 @@ class CatAdventure {
         
         this.findsleepingbug();
         this.findPlayerCat();
-        this.fur = new CatAdventureFur(this);
-        this.fur.build(this.player);
         this.setupAnimation();
         this.grass = new CatAdventureGrass(this);
         this.grass.build();
@@ -105,7 +103,7 @@ class CatAdventure {
         this.renderer.shadowMap.type = THREE.PCFShadowMap;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.0;
-
+        this.renderer.setPixelRatio(0.75);
 
         // ============================
         // SUN
@@ -183,6 +181,9 @@ class CatAdventure {
 
 
         this.renderBatcher = new CatAdventureRenderBatcher(this);
+
+
+
     }
     updateSunShadow(position) {
 
@@ -461,23 +462,99 @@ class CatAdventure {
     drawUI() {
         const w = this.canvas2d.width;
         const h = this.canvas2d.height;
-
-        
+        const mobile = mobileAndTabletCheck();
+        // On mobile joy.redraw() already clears this shared canvas just before
+        // drawUI(). Clearing again here would erase the joystick.
+        if (!mobile) this.ctx.clearRect(0, 0, w, h);
 
         const jumpX = w * 0.78;
         const jumpY = h * 0.75;
         const jumpR = 48;
-        if(mobileAndTabletCheck()){
+        if(mobile){
             this.input.setJumpButton(jumpX, jumpY, jumpR);
             this.drawPaw(this.ctx, jumpX, jumpY, jumpR);
         }
-        else this.ctx.clearRect(0, 0,this.canvas.width, this.canvas.height);
-        this.ctx.fillStyle="black";
-        this.ctx.font = "40px serif";
-        if(mobileAndTabletCheck())this.ctx.font = "20px serif";
-        this.ctx.fillText("Coins: " + this.coins, 10, 40);
-        
-        
+        this.drawCoinCounter(this.ctx);
+    }
+
+    drawCoinCounter(ctx) {
+        const mobile = mobileAndTabletCheck();
+        const inset = mobile ? 12 : 18;
+        const height = mobile ? 44 : 56;
+        const coinRadius = height * 0.36;
+        const valueFont = mobile ? 21 : 28;
+        const value = `× ${this.coins}`;
+
+        ctx.save();
+        ctx.font = `800 ${valueFont}px system-ui, sans-serif`;
+        const width = Math.max(height + 70, height + ctx.measureText(value).width + 32);
+        const x = inset, y = inset;
+        const radius = height * 0.42;
+
+        // A quiet, readable glass panel that lets the meadow remain visible.
+        ctx.shadowColor = "rgba(18, 35, 17, 0.38)";
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetY = 4;
+        const panel = ctx.createLinearGradient(x, y, x, y + height);
+        panel.addColorStop(0, "rgba(37, 62, 39, 0.88)");
+        panel.addColorStop(1, "rgba(15, 30, 20, 0.88)");
+        this.roundRect(ctx, x, y, width, height, radius);
+        ctx.fillStyle = panel;
+        ctx.fill();
+        ctx.shadowColor = "transparent";
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "rgba(255, 226, 134, 0.72)";
+        ctx.stroke();
+
+        this.drawCoinPaw(ctx, x + height * 0.5, y + height * 0.5, coinRadius);
+        ctx.fillStyle = "#fff4ca";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(value, x + height + 4, y + height * 0.52);
+        ctx.restore();
+    }
+
+    drawCoinPaw(ctx, x, y, radius) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        const coin = ctx.createRadialGradient(x - radius * 0.3, y - radius * 0.35,
+            radius * 0.1, x, y, radius);
+        coin.addColorStop(0, "#ffe28a");
+        coin.addColorStop(0.58, "#e9ad39");
+        coin.addColorStop(1, "#a96416");
+        ctx.fillStyle = coin;
+        ctx.fill();
+        ctx.lineWidth = Math.max(1, radius * 0.12);
+        ctx.strokeStyle = "#fff0a8";
+        ctx.stroke();
+
+        ctx.fillStyle = "#ad6a1a";
+        // Toes and pad are intentionally simplified so the icon stays clear
+        // at the mobile HUD size.
+        const toe = (dx, dy, rx, ry) => {
+            ctx.beginPath();
+            ctx.ellipse(x + dx, y + dy, rx, ry, 0, 0, Math.PI * 2);
+            ctx.fill();
+        };
+        toe(-radius * 0.43, -radius * 0.17, radius * 0.16, radius * 0.22);
+        toe(-radius * 0.14, -radius * 0.43, radius * 0.16, radius * 0.22);
+        toe( radius * 0.14, -radius * 0.43, radius * 0.16, radius * 0.22);
+        toe( radius * 0.43, -radius * 0.17, radius * 0.16, radius * 0.22);
+        ctx.beginPath();
+        ctx.ellipse(x, y + radius * 0.23, radius * 0.43, radius * 0.31, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    roundRect(ctx, x, y, width, height, radius) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.arcTo(x + width, y, x + width, y + height, radius);
+        ctx.arcTo(x + width, y + height, x, y + height, radius);
+        ctx.arcTo(x, y + height, x, y, radius);
+        ctx.arcTo(x, y, x + width, y, radius);
+        ctx.closePath();
     }
     drawPaw(ctx, x, y, size) {
         
@@ -1125,109 +1202,6 @@ class CatAdventureTreeWind {
     }
 }
 
-// A deliberately small fur treatment for the player: it preserves the cat's
-// vertex colours and silhouette, without shell geometry or an extra texture.
-class CatAdventureFur {
-    constructor(game) {
-        this.game = game;
-        this.shellCount = mobileAndTabletCheck() ? 3 : 3;
-    }
-
-    build(cat) {
-        if (!cat) return;
-        const coatMeshes = [];
-        cat.traverse(mesh => {
-            if (!mesh.isMesh || mesh.userData.furShell) return;
-            const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-            for (const material of materials) this.addFurMaterial(material);
-            if (materials.length === 1 && materials[0]?.map) coatMeshes.push(mesh);
-        });
-        for (const mesh of coatMeshes) this.addShells(mesh);
-    }
-
-    addFurMaterial(material) {
-        // The updated cat GLB marks the coat with its colour texture. Leaving
-        // untextured details alone keeps eyes, claws, and facial accents crisp.
-        if (!material || !material.map || material.userData.furShaderAdded) return;
-        material.userData.furShaderAdded = true;
-        // Fur reads as soft rather than glossy under the directional sun.
-        material.roughness = Math.max(material.roughness ?? 0, 0.9);
-        material.onBeforeCompile = shader => {
-            shader.vertexShader = shader.vertexShader
-                .replace("#include <common>", `#include <common>
-                    varying vec3 furLocalPosition;`)
-                .replace("#include <begin_vertex>", `#include <begin_vertex>
-                    furLocalPosition = position;`);
-            shader.fragmentShader = shader.fragmentShader
-                .replace("#include <common>", `#include <common>
-                    varying vec3 furLocalPosition;`)
-                .replace("#include <normal_fragment_begin>", `#include <normal_fragment_begin>
-                    // The coat map supplies the broad colour pattern; this
-                    // tiny procedural variation breaks up its otherwise flat
-                    // lighting without another texture sample.
-                    float furCoat = dot(diffuseColor.rgb,
-                        vec3(0.299, 0.587, 0.114));
-                    float furFibre = 0.5 + 0.5 * sin(dot(furLocalPosition,
-                        vec3(27.1, 41.7, 19.3)));
-                    diffuseColor.rgb *= mix(0.96, 1.035,
-                        furFibre * (0.55 + furCoat * 0.45));
-                    float furRim = pow(1.0 - clamp(dot(normal,
-                        normalize(vViewPosition)), 0.0, 1.0), 3.2);
-                    // Brighter coat areas catch a slightly fuller fuzzy edge,
-                    // while dark markings keep their definition.
-                    diffuseColor.rgb += diffuseColor.rgb * furRim *
-                        (0.07 + furCoat * 1.11);`);
-            material.userData.furShader = shader;
-        };
-        material.needsUpdate = true;
-    }
-
-    addShells(mesh) {
-        if (mesh.userData.furShellsAdded || mesh.isSkinnedMesh) return;
-        mesh.userData.furShellsAdded = true;
-        for (let layer = 1; layer <= this.shellCount; layer++) {
-            const shellMaterial = mesh.material.clone();
-            shellMaterial.userData.furShell = true;
-            shellMaterial.side = THREE.DoubleSide;
-            shellMaterial.transparent = false;
-            shellMaterial.depthWrite = true;
-            shellMaterial.onBeforeCompile = shader => {
-                const shellFraction = layer / this.shellCount;
-                shader.uniforms.furShellFraction = { value: shellFraction };
-                shader.vertexShader = shader.vertexShader
-                    .replace("#include <common>", `#include <common>
-                        uniform float furShellFraction;
-                        varying vec3 furShellPosition;`)
-                    .replace("#include <begin_vertex>", `#include <begin_vertex>
-                        furShellPosition = position;
-                        // 0.1 local units becomes a short, soft coat at the
-                        // cat's 0.2 map scale, rather than long spikes.
-                        transformed += normal * (furShellFraction * 0.05);`);
-                shader.fragmentShader = shader.fragmentShader
-                    .replace("#include <common>", `#include <common>
-                        uniform float furShellFraction;
-                        varying vec3 furShellPosition;`)
-                    .replace("#include <alphatest_fragment>", `// Sparse outer layers create a fuzzy silhouette. The noise is
-                        // stable in local space, so it does not crawl while animated.
-                        float furNoise = fract(sin(dot(furShellPosition,
-                            vec3(37.7, 57.3, 23.9)) + furShellFraction * 91.7) * 43758.5453);
-                        float furCoverage = mix(0.91, 0.38, furShellFraction);
-                        if (furNoise > furCoverage) discard;
-                        diffuseColor.rgb *= 1.0 - furShellFraction * 0.10;
-                        #include <alphatest_fragment>`);
-            };
-            shellMaterial.needsUpdate = true;
-
-            const shell = new THREE.Mesh(mesh.geometry, shellMaterial);
-            shell.name = `Fur shell ${layer}/${this.shellCount}`;
-            shell.userData.furShell = true;
-            shell.castShadow = false;
-            shell.receiveShadow = false;
-            shell.frustumCulled = mesh.frustumCulled;
-            mesh.add(shell);
-        }
-    }
-}
 
 // A small material patch rather than a separate mesh: it keeps water.glb's
 // existing outline/collision intact and also works on render-batched pieces.
@@ -1724,8 +1698,8 @@ class CatAdventurePathEdgeFlowers {
         const longIsX = sizeX >= sizeZ;
         const longMin = longIsX ? box.min.x : box.min.z;
         const longMax = longIsX ? box.max.x : box.max.z;
-        const shortMin = longIsX ? box.min.z-0.3 : box.min.x+0.3;
-        const shortMax = longIsX ? box.max.z+0.3 : box.max.x-0.3;
+        const shortMin = longIsX ? box.min.z-0.5 : box.min.x+0.5;
+        const shortMax = longIsX ? box.max.z+0.5 : box.max.x-0.5;
         const length = longMax - longMin;
         // Keep a clear gap at both ends: no flowers on the path brim/end cap.
         const endInset = Math.min(0.7, length * 0.18);
@@ -1742,7 +1716,7 @@ class CatAdventurePathEdgeFlowers {
                     path,
                     position,
                     rotation: this.hash(t + 8.1, side * 13.7) * Math.PI,
-                    scale: 0.5 + this.hash(t + 51.2, side * 7.4) * 0.18
+                    scale: 0.6 + this.hash(t + 51.2, side * 7.4) * 0.18
                 });
             }
         }
