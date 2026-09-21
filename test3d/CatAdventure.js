@@ -57,9 +57,11 @@ class CatAdventure {
     }
 
     async start(mapUrl = "map.json") {
+        this.setLoadingMessage("Loading the meadow…");
         this.initThree();
 
         await this.mapLoader.load(mapUrl);
+        this.setLoadingMessage("Setting out the adventure…");
         this.configureMapShadows();
         this.configureWallNormalMaps();
         
@@ -84,9 +86,24 @@ class CatAdventure {
         requestAnimationFrame((t) => this.gameLoop(t));
     }
 
+    setLoadingMessage(message) {
+        const label = document.getElementById("loadingMessage");
+        if (label) label.textContent = message;
+    }
+
+    hideLoadingScreen() {
+        if (this.loadingScreenHidden) return;
+        this.loadingScreenHidden = true;
+        document.getElementById("loadingScreen")?.classList.add("is-ready");
+    }
+
     initThree() {
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x8fb3d9);
+        const skyColor = new THREE.Color(0x8fb3d9);
+        this.scene.background = skyColor;
+        // Match the horizon to the sky rather than fading distant props to
+        // grey. Nearby gameplay stays unaffected; scenery eases into haze.
+        this.scene.fog = new THREE.Fog(skyColor, 42, 155);
 
         this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
 
@@ -302,6 +319,8 @@ class CatAdventure {
         
         this.update(scale, deltaSeconds);
         this.draw();
+        // Keep the overlay up until a completed frame exists on the canvas.
+        this.hideLoadingScreen();
 
         
 
@@ -967,7 +986,7 @@ class CatAdventure {
         // Water is a solid floor, so its down contact is the reliable signal
         // for standing in it. The visual offset is applied after physics.
         const inWater = !!this.touching(this.player, "water", "solid", "down");
-        const targetSink = inWater ? 0.75 : 0;
+        const targetSink = inWater ? 0.5 : 0;
         this.waterSink = THREE.MathUtils.damp(this.waterSink, targetSink, 14, deltaSeconds);
     }
     restoreWaterSinkOffset() {

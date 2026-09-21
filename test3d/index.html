@@ -65,6 +65,57 @@ Click nbfs://nbhost/SystemFileSystem/Templates/ClientSide/html.html to edit this
             pointer-events:auto;
             -webkit-user-select: none;
             }
+
+            #loadingScreen {
+                position: fixed;
+                inset: 0;
+                z-index: 10000;
+                display: grid;
+                place-items: center;
+                overflow: hidden;
+                color: #fff7d6;
+                background:
+                    radial-gradient(circle at 50% 32%, rgba(255, 240, 162, 0.30), transparent 26%),
+                    linear-gradient(180deg, #8fb3d9 0%, #7fa6c9 48%, #527d48 49%, #315a35 100%);
+                font-family: ui-rounded, "Trebuchet MS", system-ui, sans-serif;
+                pointer-events: none;
+                transition: opacity 420ms ease, visibility 420ms ease;
+            }
+            #loadingScreen.is-ready {
+                opacity: 0;
+                visibility: hidden;
+            }
+            .loadingCard {
+                display: grid;
+                justify-items: center;
+                gap: 12px;
+                padding: 26px 38px;
+                border: 1px solid rgba(255, 247, 205, 0.72);
+                border-radius: 24px;
+                background: rgba(22, 55, 42, 0.48);
+                box-shadow: 0 16px 42px rgba(14, 35, 35, 0.28);
+                backdrop-filter: blur(5px);
+            }
+            .loadingPaw {
+                width: 48px;
+                height: 48px;
+                border: 4px solid rgba(255, 237, 151, 0.92);
+                border-top-color: #d69a35;
+                border-radius: 50%;
+                animation: loadingSpin 1s linear infinite;
+            }
+            .loadingTitle {
+                font-size: clamp(25px, 5vw, 38px);
+                font-weight: 850;
+                letter-spacing: 0.02em;
+                text-shadow: 0 2px 0 rgba(42, 71, 43, 0.5);
+            }
+            #loadingMessage {
+                font-size: 14px;
+                font-weight: 700;
+                color: #ffeaa2;
+            }
+            @keyframes loadingSpin { to { transform: rotate(360deg); } }
             
             
             
@@ -75,6 +126,13 @@ Click nbfs://nbhost/SystemFileSystem/Templates/ClientSide/html.html to edit this
     <body>
         <canvas id="gameCanvas"></canvas>
         <canvas id="canvas2d"></canvas>
+        <div id="loadingScreen" role="status" aria-live="polite">
+            <div class="loadingCard">
+                <div class="loadingPaw" aria-hidden="true"></div>
+                <div class="loadingTitle">Cat Adventure</div>
+                <div id="loadingMessage">Loading the meadow…</div>
+            </div>
+        </div>
 
         <script type="text/plain" data-startup>
             
