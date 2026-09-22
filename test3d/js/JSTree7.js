@@ -245,17 +245,33 @@ class JSTree7 {
     renderInstanceProperties(inst) {
         const type = this.selectedNode?.type;
         if (type?.shape === "box") {
-            this.addNumberInput("scaleX", inst.scaleX ?? 1, value => {
+            this.addNumberInput("x", inst.x, value => {
+                inst.x = value;
+                this.game.updateSelectedMeshFromData?.();
+            });
+
+            this.addNumberInput("y", inst.y, value => {
+                inst.y = value;
+                this.game.updateSelectedMeshFromData?.();
+            });
+
+            this.addNumberInput("z", inst.z, value => {
+                inst.z = value;
+                this.game.updateSelectedMeshFromData?.();
+            });
+
+            this.addNumberInput("rotY", inst.rotY, value => {
+                inst.rotY = value;
+                this.game.updateSelectedMeshFromData?.();
+            });
+
+            // Invisible boxes are now edited as uniformly scaled helpers.
+            // Keep the legacy axis fields in sync so older maps/runtime code
+            // continue to load them exactly as before.
+            this.addNumberInput("scale", inst.scaleX ?? inst.scale ?? 1, value => {
+                inst.scale = value;
                 inst.scaleX = value;
-                this.game.updateSelectedMeshFromData?.();
-            });
-
-            this.addNumberInput("scaleY", inst.scaleY ?? 1, value => {
                 inst.scaleY = value;
-                this.game.updateSelectedMeshFromData?.();
-            });
-
-            this.addNumberInput("scaleZ", inst.scaleZ ?? 1, value => {
                 inst.scaleZ = value;
                 this.game.updateSelectedMeshFromData?.();
             });
@@ -780,9 +796,8 @@ class JSTree7 {
                     x: 0,
                     y: 1,
                     z: 0,
-                    scaleX: 2,
-                    scaleY: 2,
-                    scaleZ: 2
+                    rotY: 0,
+                    scale: 2
                 }
             ]
         });

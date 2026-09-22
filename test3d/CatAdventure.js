@@ -39,6 +39,8 @@ class CatAdventure {
         this.basePlayerBottomOffset = 0;
         this.waterSink = 0;
         this.coins=0;
+        this.foxMeadowCinematicPlayed = false;
+        this.cinematic = null;
         
         this.gates=[];
         
@@ -330,6 +332,7 @@ class CatAdventure {
 
     update(scale,deltaSeconds) {
         this.updateSunShadow(this.player.position);
+        const controlsLocked = this.isCinematicActive();
         
 
         this.restoreWaterSinkOffset();
@@ -338,12 +341,17 @@ class CatAdventure {
         this.worldSolver.resolveHorizontal(this.player);
         this.worldSolver.checkGhostAndTriggerContacts(this.player);
         this.updateWaterSink(deltaSeconds);
-        if(mobileAndTabletCheck())this.updatePlayerFromJoystick(scale);
-        else this.updatePlayer(scale);
+        if (!controlsLocked) {
+            if(mobileAndTabletCheck())this.updatePlayerFromJoystick(scale);
+            else this.updatePlayer(scale);
+        } else {
+            this.setPlayerAnimation(false);
+        }
         this.applyWaterSinkOffset();
         
         
-        this.updateCamera(scale);
+        if (controlsLocked) this.updateCinematic(deltaSeconds);
+        else this.updateCamera(scale);
         this.grass?.update(deltaSeconds);
         this.water?.update(deltaSeconds);
         this.treeWind?.update(deltaSeconds);
@@ -366,7 +374,7 @@ class CatAdventure {
         
 	
 	
-        if (this.input.isJumpJustPressed()) {
+        if (!controlsLocked && this.input.isJumpJustPressed()) {
 
             this.jump();
     
@@ -380,11 +388,16 @@ class CatAdventure {
         }
         if(this.coins>8)this.openGate(this.gates[0]);
         
-        if(this.touching(this.player, "2song", "trigger")){
+        const song2Trigger = this.touching(this.player, "2song", "trigger") ||
+            this.getOverlappingNamedTrigger("2song");
+        if(song2Trigger){
             if(song!=='sounds/FoxMeadow.mp3'){
                 song= 'sounds/FoxMeadow.mp3';
                 audio.src = song;
                 audio.play();
+            }
+            if (!this.foxMeadowCinematicPlayed) {
+                this.startFoxMeadowCinematic(song2Trigger);
             }
         }
         if(this.touching(this.player, "1song", "trigger")){
@@ -482,18 +495,44 @@ class CatAdventure {
         const w = this.canvas2d.width;
         const h = this.canvas2d.height;
         const mobile = mobileAndTabletCheck();
+        const cinematicActive = this.isCinematicActive();
         // On mobile joy.redraw() already clears this shared canvas just before
         // drawUI(). Clearing again here would erase the joystick.
-        if (!mobile) this.ctx.clearRect(0, 0, w, h);
+        if (!mobile || cinematicActive) this.ctx.clearRect(0, 0, w, h);
 
         const jumpX = w * 0.78;
         const jumpY = h * 0.75;
         const jumpR = 48;
-        if(mobile){
+        if(mobile && !cinematicActive){
             this.input.setJumpButton(jumpX, jumpY, jumpR);
             this.drawPaw(this.ctx, jumpX, jumpY, jumpR);
         }
         this.drawCoinCounter(this.ctx);
+        this.drawCinematicTitle(this.ctx, w, h);
+    }
+
+    drawCinematicTitle(ctx, width, height) {
+        const cinematic = this.cinematic;
+        if (!cinematic) return;
+        const fadeIn = Math.min(1, cinematic.elapsed / 0.65);
+        const fadeOut = Math.min(1, (cinematic.duration - cinematic.elapsed) / 1.0);
+        const alpha = Math.max(0, Math.min(fadeIn, fadeOut));
+        const mobile = mobileAndTabletCheck();
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.shadowColor = "rgba(15, 31, 18, 0.85)";
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetY = 3;
+        ctx.fillStyle = "#fff1b9";
+        ctx.font = `800 ${mobile ? 30 : 52}px Georgia, serif`;
+        ctx.fillText("Fox Meadow", width * 0.5, height * 0.33);
+        ctx.shadowColor = "transparent";
+        ctx.fillStyle = "rgba(255, 248, 218, 0.92)";
+        ctx.font = `700 ${mobile ? 11 : 14}px system-ui, sans-serif`;
+        ctx.fillText("A new meadow awaits", width * 0.5, height * 0.33 + (mobile ? 27 : 39));
+        ctx.restore();
     }
 
     drawCoinCounter(ctx) {
@@ -887,6 +926,99 @@ class CatAdventure {
         this.camera.position.lerp(desiredPos, followSmooth);
 
         this.camera.lookAt(target);
+    }
+
+    isCinematicActive() {
+        return this.cinematic !== null;
+    }
+
+    getMapObjectByName(name) {
+        const needle = name.toLowerCase();
+        return this.mapObjects.find(object => {
+            const type = object.userData.assetType || {};
+            const instance = object.userData.mapObject || {};
+            return [type.id, type.name, instance.name]
+                .some(value => String(value || "").toLowerCase() === needle);
+        }) || null;
+    }
+
+    getOverlappingNamedTrigger(name) {
+        const object = this.getMapObjectByName(name);
+        if (!object || !this.player) return null;
+        // The normal contact cache remains the fast path. This fallback makes
+        // authored cutscene triggers reliable even if another system clears a
+        // contact entry later in the same frame.
+        return this.worldSolver.playerOverlapsObject(this.player, object)
+            ? object
+            : null;
+    }
+
+    startFoxMeadowCinematic(trigger) {
+        const flyby = this.getMapObjectByName("flyby");
+        const targetObject = trigger?.isObject3D
+            ? trigger
+            : trigger?.mesh || this.getMapObjectByName("2song");
+        if (!flyby || !targetObject) {
+            console.warn("Fox Meadow cinematic needs both a flyby and 2song object.");
+            return;
+        }
+
+        this.foxMeadowCinematicPlayed = true;
+        flyby.updateWorldMatrix(true, false);
+        targetObject.updateWorldMatrix(true, false);
+        const start = flyby.getWorldPosition(new THREE.Vector3());
+        const target = targetObject.getWorldPosition(new THREE.Vector3());
+        const direction = target.clone().sub(start).normalize();
+        // Stop just before the trigger, still looking into Fox Meadow rather
+        // than placing the camera inside its invisible box.
+        const end = target.clone().addScaledVector(direction, -8);
+        end.y = target.y + 4.2;
+        const lookAt = target.clone();
+        lookAt.y += 1.1;
+
+        this.cinematic = {
+            elapsed: 0,
+            duration: 9.2,
+            start,
+            end,
+            lookAt,
+            fogNear: this.scene.fog?.near,
+            fogFar: this.scene.fog?.far
+        };
+        // The flyby begins much farther from the meadow than the regular
+        // player camera, so move the haze back for this establishing view.
+        if (this.scene.fog) {
+            this.scene.fog.near = 115;
+            this.scene.fog.far = 420;
+        }
+        // Teleport immediately to the authored flyby marker on the trigger
+        // frame, then animate from there on following frames.
+        this.camera.position.copy(start);
+        this.camera.lookAt(lookAt);
+    }
+
+    updateCinematic(deltaSeconds) {
+        const cinematic = this.cinematic;
+        if (!cinematic) return;
+        cinematic.elapsed += deltaSeconds;
+        const progress = Math.min(1, cinematic.elapsed / cinematic.duration);
+        // Smooth acceleration/deceleration gives the travel a calmer flyby.
+        const eased = progress * progress * (3 - 2 * progress);
+        this.camera.position.lerpVectors(cinematic.start, cinematic.end, eased);
+        this.camera.lookAt(cinematic.lookAt);
+
+        if (progress < 1) return;
+        // Preserve the final view direction so the normal follow camera takes
+        // over smoothly when player controls return.
+        const playerTarget = this.player.position.clone();
+        playerTarget.y += 1;
+        const offset = this.camera.position.clone().sub(playerTarget);
+        this.cameraYaw = Math.atan2(offset.x, offset.z);
+        if (this.scene.fog) {
+            this.scene.fog.near = cinematic.fogNear;
+            this.scene.fog.far = cinematic.fogFar;
+        }
+        this.cinematic = null;
     }
     setPlayerAnimation(isMoving) {
         const action = this.player?.userData.actions?.["Animation 1"];

@@ -2277,6 +2277,33 @@
                   "scaleZ": 8
                 }
               ]
+            },
+            {
+              "id": "flyby",
+              "name": "flyby",
+              "glb": null,
+              "shape": "box",
+              "collision": "trigger",
+              "visibleInEditor": true,
+              "visibleInGame": false,
+              "category": "default",
+              "instanced": false,
+              "instances": [
+                {
+                  "id": "a7967e92-083c-4eb4-a199-19248b1f6014",
+                  "name": "flyby",
+                  "x": 193.198,
+                  "y": 30,
+                  "z": -161.965,
+                  "rotX": 0,
+                  "rotY": 0,
+                  "rotZ": 0,
+                  "scale": 2,
+                  "scaleX": 2,
+                  "scaleY": 2,
+                  "scaleZ": 2
+                }
+              ]
             }
           ]
         },
