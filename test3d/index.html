@@ -146,7 +146,9 @@ Click nbfs://nbhost/SystemFileSystem/Templates/ClientSide/html.html to edit this
             const audioBuffer = await fetch(url).then(res => res.arrayBuffer()).then(ArrayBuffer => context.decodeAudioData(ArrayBuffer)); 
             source.buffer = audioBuffer;
             source.connect(context.destination);
+            const finished = new Promise(resolve => { source.onended = resolve; });
             source.start();
+            return finished;
             };    
             document.addEventListener('click', (event) => {
                 try{if(audio.paused){ audio.play();}}catch(error){};

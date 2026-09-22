@@ -45,6 +45,16 @@ class CatAdventure {
         this.gates=[];
         
         this.insectObj=null;
+        this.foxPatrol = null;
+        this.foxQuest = {
+            state: "unseen", // unseen, speaking, choice, deferred, active
+            tracksFound: 0,
+            requiredTracks: 3,
+            dialog: null,
+            optionBounds: [],
+            token: 0,
+            announcement: 0
+        };
         
         this.texture2 = new THREE.TextureLoader().load("grasyfield.png");
         this.texture2.wrapS = THREE.RepeatWrapping;
@@ -70,6 +80,7 @@ class CatAdventure {
         this.findsleepingbug();
         this.findPlayerCat();
         this.setupAnimation();
+        this.setupFoxPatrol();
         this.grass = new CatAdventureGrass(this);
         this.grass.build();
         this.pathEdgeFlowers = new CatAdventurePathEdgeFlowers(this);
@@ -332,7 +343,7 @@ class CatAdventure {
 
     update(scale,deltaSeconds) {
         this.updateSunShadow(this.player.position);
-        const controlsLocked = this.isCinematicActive();
+        const controlsLocked = this.isCinematicActive() || this.isFoxDialogActive();
         
 
         this.restoreWaterSinkOffset();
@@ -352,6 +363,8 @@ class CatAdventure {
         
         if (controlsLocked) this.updateCinematic(deltaSeconds);
         else this.updateCamera(scale);
+        this.updateFoxPatrol(deltaSeconds);
+        this.updateFoxQuest(deltaSeconds);
         this.grass?.update(deltaSeconds);
         this.water?.update(deltaSeconds);
         this.treeWind?.update(deltaSeconds);
@@ -407,6 +420,7 @@ class CatAdventure {
                 audio.play();
             }
         }
+        this.handleFoxDialogInput();
         
         
 	this.input.update();	
@@ -496,19 +510,22 @@ class CatAdventure {
         const h = this.canvas2d.height;
         const mobile = mobileAndTabletCheck();
         const cinematicActive = this.isCinematicActive();
+        const dialogActive = this.isFoxDialogActive();
+        const uiLocked = cinematicActive || dialogActive;
         // On mobile joy.redraw() already clears this shared canvas just before
         // drawUI(). Clearing again here would erase the joystick.
-        if (!mobile || cinematicActive) this.ctx.clearRect(0, 0, w, h);
+        if (!mobile || uiLocked) this.ctx.clearRect(0, 0, w, h);
 
         const jumpX = w * 0.78;
         const jumpY = h * 0.75;
         const jumpR = 48;
-        if(mobile && !cinematicActive){
+        if(mobile && !uiLocked){
             this.input.setJumpButton(jumpX, jumpY, jumpR);
             this.drawPaw(this.ctx, jumpX, jumpY, jumpR);
         }
         this.drawCoinCounter(this.ctx);
         this.drawCinematicTitle(this.ctx, w, h);
+        this.drawFoxQuestUI(this.ctx, w, h);
     }
 
     drawCinematicTitle(ctx, width, height) {
@@ -532,6 +549,69 @@ class CatAdventure {
         ctx.fillStyle = "rgba(255, 248, 218, 0.92)";
         ctx.font = `700 ${mobile ? 11 : 14}px system-ui, sans-serif`;
         ctx.fillText("A new meadow awaits", width * 0.5, height * 0.33 + (mobile ? 27 : 39));
+        ctx.restore();
+    }
+
+    drawFoxQuestUI(ctx, width, height) {
+        const quest = this.foxQuest;
+        const mobile = mobileAndTabletCheck();
+        if (quest.dialog?.options) {
+            const panelWidth = Math.min(width - 28, mobile ? 330 : 440);
+            const panelHeight = mobile ? 176 : 164;
+            const x = (width - panelWidth) * 0.5;
+            const y = height - panelHeight - (mobile ? 24 : 42);
+            ctx.save();
+            this.roundRect(ctx, x, y, panelWidth, panelHeight, 18);
+            ctx.fillStyle = "rgba(20, 43, 31, 0.94)";
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = "rgba(255, 224, 126, 0.8)";
+            ctx.stroke();
+            ctx.textAlign = "center";
+            ctx.fillStyle = "#fff2bd";
+            ctx.font = `800 ${mobile ? 20 : 24}px Georgia, serif`;
+            ctx.fillText("The fox is waiting", width * 0.5, y + 34);
+            ctx.fillStyle = "#dcebcf";
+            ctx.font = `600 ${mobile ? 12 : 14}px system-ui, sans-serif`;
+            ctx.fillText("Will you help investigate Fox Meadow?", width * 0.5, y + 58);
+
+            const gap = 12, buttonY = y + panelHeight - 64;
+            const buttonWidth = (panelWidth - gap * 3) * 0.5;
+            quest.optionBounds = quest.dialog.options.map((option, index) => {
+                const bx = x + gap + index * (buttonWidth + gap);
+                this.roundRect(ctx, bx, buttonY, buttonWidth, 46, 12);
+                ctx.fillStyle = index === 0 ? "#d99a37" : "#55775a";
+                ctx.fill();
+                ctx.fillStyle = "#fff8d8";
+                ctx.font = `800 ${mobile ? 14 : 16}px system-ui, sans-serif`;
+                ctx.fillText(option.label, bx + buttonWidth * 0.5, buttonY + 28);
+                return { x: bx, y: buttonY, width: buttonWidth, height: 46, value: option.value };
+            });
+            ctx.restore();
+        } else {
+            quest.optionBounds = [];
+        }
+
+        if (quest.state !== "active") return;
+        const panelWidth = mobile ? 210 : 270;
+        const x = width - panelWidth - (mobile ? 12 : 18);
+        const y = mobile ? 12 : 18;
+        ctx.save();
+        this.roundRect(ctx, x, y, panelWidth, mobile ? 92 : 104, 14);
+        ctx.fillStyle = "rgba(20, 43, 31, 0.88)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255, 224, 126, 0.72)";
+        ctx.stroke();
+        ctx.fillStyle = "#ffd66d";
+        ctx.font = `800 ${mobile ? 11 : 12}px system-ui, sans-serif`;
+        ctx.fillText("QUEST STARTED", x + 14, y + 22);
+        ctx.fillStyle = "#fff4c8";
+        ctx.font = `800 ${mobile ? 17 : 20}px Georgia, serif`;
+        ctx.fillText("Strange Tracks", x + 14, y + 46);
+        ctx.fillStyle = "#dcebcf";
+        ctx.font = `italic ${mobile ? 10 : 11}px system-ui, sans-serif`;
+        ctx.fillText("Investigate the strange tracks", x + 14, y + 66);
+        ctx.fillText(`in Fox Meadow.  ${quest.tracksFound} / ${quest.requiredTracks}`, x + 14, y + 81);
         ctx.restore();
     }
 
@@ -716,6 +796,242 @@ class CatAdventure {
                 this.setupObjectAnimation(obj, "Animation 1", false);
             }
             
+        }
+    }
+
+    setupFoxPatrol() {
+        const fox = this.mapObjects.find(obj => {
+            const type = obj.userData.assetType || {};
+            return /fox/i.test(type.id || "") || /fox/i.test(type.name || "");
+        });
+        const paths = this.mapObjects.filter(obj => {
+            const type = obj.userData.assetType || {};
+            return /path\.glb$/i.test(type.glb || "") ||
+                /^path$/i.test(type.id || "") || /^path$/i.test(type.name || "");
+        }).slice(0, 3);
+        if (!fox || paths.length < 3) return;
+
+        const route = this.buildPathRoute(paths, fox.position.y);
+        if (route.length < 2) return;
+
+        const action = fox.userData.actions?.["Animation 1"];
+        if (action) {
+            action.reset();
+            action.enabled = true;
+            action.paused = false;
+            action.setEffectiveWeight(1).setEffectiveTimeScale(1.05).play();
+        }
+
+        // The fox starts on path three in this map. Find the closest authored
+        // route endpoint so its first step is natural rather than a teleport.
+        let targetIndex = 0;
+        let closestDistance = Infinity;
+        route.forEach((point, index) => {
+            const distance = fox.position.distanceToSquared(point);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                targetIndex = index;
+            }
+        });
+        this.foxPatrol = {
+            fox,
+            route,
+            targetIndex,
+            direction: targetIndex === 0 ? 1 : -1,
+            speed: 1.65,
+            noticeDistance: 4.5,
+            action
+        };
+    }
+
+    buildPathRoute(paths, y) {
+        const segments = paths.map(path => {
+            const box = this.worldSolver.getLocalBox(path);
+            if (!box) return null;
+            path.updateWorldMatrix(true, true);
+            const longIsX = (box.max.x - box.min.x) >= (box.max.z - box.min.z);
+            const a = new THREE.Vector3(
+                longIsX ? box.min.x : (box.min.x + box.max.x) * 0.5,
+                box.max.y,
+                longIsX ? (box.min.z + box.max.z) * 0.5 : box.min.z
+            ).applyMatrix4(path.matrixWorld);
+            const b = new THREE.Vector3(
+                longIsX ? box.max.x : (box.min.x + box.max.x) * 0.5,
+                box.max.y,
+                longIsX ? (box.min.z + box.max.z) * 0.5 : box.max.z
+            ).applyMatrix4(path.matrixWorld);
+            a.y = y;
+            b.y = y;
+            return { a, b };
+        }).filter(Boolean);
+        if (!segments.length) return [];
+
+        // Orient each segment toward the following one, producing one
+        // continuous route through the first three path instances.
+        const route = [];
+        let previous = null;
+        for (let index = 0; index < segments.length; index++) {
+            const segment = segments[index];
+            let start = segment.a, end = segment.b;
+            if (previous) {
+                if (previous.distanceToSquared(segment.b) < previous.distanceToSquared(segment.a)) {
+                    start = segment.b;
+                    end = segment.a;
+                }
+            } else if (segments[index + 1]) {
+                const next = segments[index + 1];
+                const aToNext = Math.min(segment.a.distanceToSquared(next.a), segment.a.distanceToSquared(next.b));
+                const bToNext = Math.min(segment.b.distanceToSquared(next.a), segment.b.distanceToSquared(next.b));
+                if (aToNext < bToNext) {
+                    start = segment.b;
+                    end = segment.a;
+                }
+            }
+            if (!route.length || route[route.length - 1].distanceToSquared(start) > 0.01) {
+                route.push(start);
+            }
+            route.push(end);
+            previous = end;
+        }
+        return route;
+    }
+
+    updateFoxPatrol(deltaSeconds) {
+        const patrol = this.foxPatrol;
+        if (!patrol) return;
+        const toPlayer = this.player.position.clone().sub(patrol.fox.position);
+        toPlayer.y = 0;
+        const playerIsNear = toPlayer.lengthSq() <= patrol.noticeDistance * patrol.noticeDistance;
+        if (playerIsNear && !patrol.playerWasNear && !this.isCinematicActive()&&this.foxMeadowCinematicPlayed) {
+            if (this.foxQuest.state === "unseen") this.beginFoxDialogue("first");
+            else if (this.foxQuest.state === "deferred") this.beginFoxDialogue("return");
+        }
+        patrol.playerWasNear = playerIsNear;
+
+        const foxShouldPause = playerIsNear && this.foxQuest.state !== "deferred" && !this.isCinematicActive()&&this.foxMeadowCinematicPlayed;
+        if (foxShouldPause) {
+            // Pause at the current route point and give the cat the fox's
+            // attention. The stored waypoint/direction remain untouched.
+            if (patrol.action) patrol.action.paused = true;
+            if (toPlayer.lengthSq() > 0.0001) {
+                const lookYaw = Math.atan2(-toPlayer.x, -toPlayer.z);
+                patrol.fox.rotation.y = this.lerpAngle(
+                    patrol.fox.rotation.y, lookYaw, Math.min(1, deltaSeconds * 8)
+                );
+            }
+            return;
+        }
+        if (patrol.action) patrol.action.paused = false;
+        const target = patrol.route[patrol.targetIndex];
+        const toTarget = target.clone().sub(patrol.fox.position);
+        toTarget.y = 0;
+        const distance = toTarget.length();
+        const step = patrol.speed * deltaSeconds;
+        if (distance <= step) {
+            patrol.fox.position.copy(target);
+            let next = patrol.targetIndex + patrol.direction;
+            if (next < 0 || next >= patrol.route.length) {
+                patrol.direction *= -1;
+                next = patrol.targetIndex + patrol.direction;
+            }
+            patrol.targetIndex = next;
+            return;
+        }
+        toTarget.multiplyScalar(1 / distance);
+        patrol.fox.position.addScaledVector(toTarget, step);
+        const targetYaw = Math.atan2(-toTarget.x, -toTarget.z);
+        patrol.fox.rotation.y = this.lerpAngle(
+            patrol.fox.rotation.y, targetYaw, Math.min(1, deltaSeconds * 8)
+        );
+    }
+
+    isFoxDialogActive() {
+        return this.foxQuest.state === "speaking" || this.foxQuest.state === "choice";
+    }
+
+    async beginFoxDialogue(kind) {
+        const quest = this.foxQuest;
+        if (this.isCinematicActive() || this.isFoxDialogActive()) return;
+        const token = ++quest.token;
+        quest.state = "speaking";
+        quest.dialog = { message: "The fox is speaking…" };
+        const clip = kind === "first" ? "sounds/Fox1.mp3" : "sounds/Fox4.mp3";
+        try {
+            await audio2(clip);
+        } catch (error) {
+            console.warn("Could not play fox dialogue:", error);
+        }
+        if (quest.token !== token || quest.state !== "speaking") return;
+        quest.state = "choice";
+        quest.dialog = {
+            options: kind === "first"
+                ? [{ label: "Yes", value: "yes" }, { label: "Maybe later", value: "later" }]
+                : [{ label: "Yes", value: "yes" }, { label: "No", value: "no" }]
+        };
+    }
+
+    async chooseFoxQuest(option) {
+        const quest = this.foxQuest;
+        if (quest.state !== "choice") return;
+        const token = ++quest.token;
+        quest.state = "speaking";
+        quest.dialog = { message: "The fox listens…" };
+        if (option === "yes") {
+            try {
+                await audio2("sounds/Fox2.mp3");
+            } catch (error) {
+                console.warn("Could not play fox quest audio:", error);
+            }
+            if (quest.token !== token) return;
+            quest.state = "active";
+            quest.dialog = null;
+            quest.announcement = 3.5;
+        } else if (option === "later") {
+            try {
+                await audio2("sounds/Fox3.mp3");
+            } catch (error) {
+                console.warn("Could not play fox dialogue:", error);
+            }
+            if (quest.token !== token) return;
+            quest.state = "deferred";
+            quest.dialog = null;
+        } else {
+            // "No" leaves the quest available for another conversation.
+            quest.state = "deferred";
+            quest.dialog = null;
+        }
+    }
+
+    handleFoxDialogInput() {
+        const options = this.foxQuest.optionBounds;
+        if (!this.input.pointer.justPressed || !options.length) return;
+        const { x, y } = this.input.pointer;
+        const selected = options.find(option =>
+            x >= option.x && x <= option.x + option.width &&
+            y >= option.y && y <= option.y + option.height
+        );
+        if (selected) this.chooseFoxQuest(selected.value);
+    }
+
+    updateFoxQuest(deltaSeconds) {
+        const quest = this.foxQuest;
+        if (quest.announcement > 0) quest.announcement = Math.max(0, quest.announcement - deltaSeconds);
+        if (quest.state !== "active") return;
+        for (const track of [...this.mapObjects]) {
+            const type = track.userData.assetType || {};
+            const instance = track.userData.mapObject || {};
+            const isTrack = /track/i.test(type.id || "") || /track/i.test(type.name || "") ||
+                /track/i.test(instance.name || "");
+            if (!isTrack || track.userData.foxQuestTrackFound) continue;
+            const position = track.getWorldPosition(new THREE.Vector3());
+            const dx = position.x - this.player.position.x;
+            const dz = position.z - this.player.position.z;
+            if (dx * dx + dz * dz > 1.7 * 1.7) continue;
+            track.userData.foxQuestTrackFound = true;
+            this.removeMapObject(track);
+            quest.tracksFound = Math.min(quest.requiredTracks, quest.tracksFound + 1);
+            audio2("sounds/coin.mp3");
+            if (quest.tracksFound === quest.requiredTracks) quest.announcement = 4;
         }
     }
     findsleepingbug(){
