@@ -76,7 +76,7 @@ Click nbfs://nbhost/SystemFileSystem/Templates/ClientSide/html.html to edit this
                 color: #fff7d6;
                 background:
                     radial-gradient(circle at 50% 32%, rgba(255, 240, 162, 0.30), transparent 26%),
-                    linear-gradient(180deg, #8fb3d9 0%, #7fa6c9 48%, #527d48 49%, #315a35 100%);
+                    linear-gradient(180deg, #8fb3d9 0%, #7fa6c9 48%, #527d48 49%, #315a35 100%); 
                 font-family: ui-rounded, "Trebuchet MS", system-ui, sans-serif;
                 pointer-events: none;
                 transition: opacity 420ms ease, visibility 420ms ease;
@@ -84,6 +84,32 @@ Click nbfs://nbhost/SystemFileSystem/Templates/ClientSide/html.html to edit this
             #loadingScreen.is-ready {
                 opacity: 0;
                 visibility: hidden;
+            }
+            #titleScreen {
+                position: fixed;
+                inset: 0;
+                z-index: 10001;
+                display: grid;
+                place-items: end center;
+                padding: clamp(28px, 7vh, 74px) 24px;
+                box-sizing: border-box;
+                overflow: hidden;
+                color: #fff8dc;
+                background: #101914 url("titlescreen.png") center / cover no-repeat;
+                cursor: pointer;
+                pointer-events: auto;
+                font-family: ui-rounded, "Trebuchet MS", system-ui, sans-serif;
+                transition: opacity 380ms ease, visibility 380ms ease;
+            }
+            #titleScreen.is-starting {
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+            }
+            @media (orientation: portrait) {
+                #titleScreen {
+                    background-image: url("titlescreenPortrait.png");
+                }
             }
             .loadingCard {
                 display: grid;
@@ -126,6 +152,9 @@ Click nbfs://nbhost/SystemFileSystem/Templates/ClientSide/html.html to edit this
     <body>
         <canvas id="gameCanvas"></canvas>
         <canvas id="canvas2d"></canvas>
+        <div id="titleScreen" role="button" tabindex="0" aria-label="Start Cat Adventure">
+
+        </div>
         <div id="loadingScreen" role="status" aria-live="polite">
             <div class="loadingCard">
                 <div class="loadingPaw" aria-hidden="true"></div>
@@ -221,6 +250,25 @@ Click nbfs://nbhost/SystemFileSystem/Templates/ClientSide/html.html to edit this
                 return sprite;
             }
             
+        </script>
+        <script>
+            (() => {
+                const titleScreen = document.getElementById("titleScreen");
+                let started = false;
+                const beginGame = () => {
+                    if (started) return;
+                    started = true;
+                    window.__catAdventureStarted = true;
+                    titleScreen.classList.add("is-starting");
+                    titleScreen.removeEventListener("pointerdown", beginGame);
+                    titleScreen.removeEventListener("click", beginGame);
+                    window.removeEventListener("keydown", beginGame);
+                    window.dispatchEvent(new Event("catadventure:start"));
+                };
+                titleScreen.addEventListener("pointerdown", beginGame, { passive: true });
+                titleScreen.addEventListener("click", beginGame);
+                window.addEventListener("keydown", beginGame);
+            })();
         </script>
     </body>
 </html>
