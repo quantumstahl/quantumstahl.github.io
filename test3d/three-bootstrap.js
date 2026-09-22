@@ -1,17 +1,19 @@
 // Three.js addons are ES modules in current releases. The game/editor remain
 // classic scripts, so expose the modern module APIs before loading them.
-const waitForGameStart = new Promise(resolve => {
-    if (window.__catAdventureStarted) {
-        resolve();
-        return;
-    }
-    window.addEventListener("catadventure:start", () => {
-        window.__catAdventureStarted = true;
-        resolve();
-    }, { once: true });
-});
-
-await waitForGameStart;
+// Only the game page has a title screen. The editor must boot immediately.
+if (document.getElementById("titleScreen")) {
+    const waitForGameStart = new Promise(resolve => {
+        if (window.__catAdventureStarted) {
+            resolve();
+            return;
+        }
+        window.addEventListener("catadventure:start", () => {
+            window.__catAdventureStarted = true;
+            resolve();
+        }, { once: true });
+    });
+    await waitForGameStart;
+}
 
 const THREE_VERSION = "0.186.0";
 const threeUrl = `https://unpkg.com/three@${THREE_VERSION}/build/three.module.js`;

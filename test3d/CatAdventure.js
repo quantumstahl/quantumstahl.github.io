@@ -47,13 +47,16 @@ class CatAdventure {
         this.insectObj=null;
         this.foxPatrol = null;
         this.foxQuest = {
-            state: "unseen", // unseen, speaking, choice, deferred, active
+            state: "unseen", // unseen, speaking, choice, deferred, active, readyToComplete, completing, completed
             tracksFound: 0,
             requiredTracks: 3,
             dialog: null,
             optionBounds: [],
             token: 0,
-            announcement: 0
+            announcement: 0,
+            completionTimer: 0,
+            sparkleTexture: null,
+            sparkles: []
         };
         
         this.texture2 = new THREE.TextureLoader().load("grasyfield.png");
@@ -189,7 +192,7 @@ class CatAdventure {
         // GROUND
         // ============================
 
-        const groundGeo = new THREE.PlaneGeometry(400, 400);
+        const groundGeo = new THREE.PlaneGeometry(400, 400,1,1);
 
         const groundMat = new THREE.MeshStandardMaterial({
             map: this.texture2,
@@ -463,8 +466,12 @@ class CatAdventure {
     
     removeMapObject(obj) {
         if (!obj) return;
-        this.scene.remove(obj.mesh);
-        this.mapObjects = this.mapObjects.filter(o => o !== obj.mesh);
+        const mesh = obj.mesh || obj;
+        const rebuildBatches = this.renderBatcher?.active;
+        if (rebuildBatches) this.clearRenderBatches();
+        this.scene.remove(mesh);
+        this.mapObjects = this.mapObjects.filter(mapObject => mapObject !== mesh);
+        if (rebuildBatches) this.buildRenderBatches();
     }
     
     
@@ -526,6 +533,7 @@ class CatAdventure {
         this.drawCoinCounter(this.ctx);
         this.drawCinematicTitle(this.ctx, w, h);
         this.drawFoxQuestUI(this.ctx, w, h);
+        this.drawFoxQuestCompletion(this.ctx, w, h);
     }
 
     drawCinematicTitle(ctx, width, height) {
@@ -592,7 +600,7 @@ class CatAdventure {
             quest.optionBounds = [];
         }
 
-        if (quest.state !== "active") return;
+        if (quest.state !== "active" && quest.state !== "readyToComplete") return;
         const panelWidth = mobile ? 210 : 270;
         const x = width - panelWidth - (mobile ? 12 : 18);
         const y = mobile ? 12 : 18;
@@ -602,16 +610,51 @@ class CatAdventure {
         ctx.fill();
         ctx.strokeStyle = "rgba(255, 224, 126, 0.72)";
         ctx.stroke();
+        const tracksComplete = quest.state === "readyToComplete";
         ctx.fillStyle = "#ffd66d";
         ctx.font = `800 ${mobile ? 11 : 12}px system-ui, sans-serif`;
-        ctx.fillText("QUEST STARTED", x + 14, y + 22);
+        ctx.fillText(tracksComplete ? "TRACKS FOUND" : "QUEST STARTED", x + 14, y + 22);
         ctx.fillStyle = "#fff4c8";
         ctx.font = `800 ${mobile ? 17 : 20}px Georgia, serif`;
         ctx.fillText("Strange Tracks", x + 14, y + 46);
         ctx.fillStyle = "#dcebcf";
         ctx.font = `italic ${mobile ? 10 : 11}px system-ui, sans-serif`;
-        ctx.fillText("Investigate the strange tracks", x + 14, y + 66);
-        ctx.fillText(`in Fox Meadow.  ${quest.tracksFound} / ${quest.requiredTracks}`, x + 14, y + 81);
+        ctx.fillText(tracksComplete ? "Return to the fox in Fox Meadow." : "Investigate the strange tracks", x + 14, y + 66);
+        ctx.fillText(tracksComplete ? "The fox is waiting.  3 / 3" :
+            `in Fox Meadow.  ${quest.tracksFound} / ${quest.requiredTracks}`, x + 14, y + 81);
+        ctx.restore();
+    }
+
+    drawFoxQuestCompletion(ctx, width, height) {
+        const timer = this.foxQuest.completionTimer;
+        if (timer <= 0) return;
+        const mobile = mobileAndTabletCheck();
+        const fade = Math.min(1, timer / 0.45, (4.5 - timer) / 0.45);
+        const panelWidth = Math.min(width - 36, mobile ? 310 : 430);
+        const panelHeight = mobile ? 122 : 142;
+        const x = (width - panelWidth) * 0.5;
+        const y = height * (mobile ? 0.25 : 0.28);
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, fade);
+        ctx.shadowColor = "rgba(27, 18, 5, 0.72)";
+        ctx.shadowBlur = 22;
+        this.roundRect(ctx, x, y, panelWidth, panelHeight, 20);
+        ctx.fillStyle = "rgba(31, 64, 37, 0.94)";
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "rgba(255, 220, 109, 0.92)";
+        ctx.stroke();
+        ctx.shadowColor = "transparent";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#ffe27f";
+        ctx.font = `900 ${mobile ? 13 : 15}px system-ui, sans-serif`;
+        ctx.fillText("QUEST COMPLETED", width * 0.5, y + (mobile ? 29 : 34));
+        ctx.fillStyle = "#fff5ce";
+        ctx.font = `800 ${mobile ? 27 : 35}px Georgia, serif`;
+        ctx.fillText("Strange Tracks", width * 0.5, y + (mobile ? 63 : 76));
+        ctx.fillStyle = "#dff0d4";
+        ctx.font = `700 ${mobile ? 12 : 14}px system-ui, sans-serif`;
+        ctx.fillText("The fox thanks you.  +10 coins", width * 0.5, y + (mobile ? 91 : 108));
         ctx.restore();
     }
 
@@ -905,6 +948,7 @@ class CatAdventure {
         if (playerIsNear && !patrol.playerWasNear && !this.isCinematicActive()&&this.foxMeadowCinematicPlayed) {
             if (this.foxQuest.state === "unseen") this.beginFoxDialogue("first");
             else if (this.foxQuest.state === "deferred") this.beginFoxDialogue("return");
+            else if (this.foxQuest.state === "readyToComplete") this.completeFoxQuest();
         }
         patrol.playerWasNear = playerIsNear;
 
@@ -946,7 +990,8 @@ class CatAdventure {
     }
 
     isFoxDialogActive() {
-        return this.foxQuest.state === "speaking" || this.foxQuest.state === "choice";
+        return this.foxQuest.state === "speaking" || this.foxQuest.state === "choice" ||
+            this.foxQuest.state === "completing";
     }
 
     async beginFoxDialogue(kind) {
@@ -986,6 +1031,7 @@ class CatAdventure {
             quest.state = "active";
             quest.dialog = null;
             quest.announcement = 3.5;
+            this.showFoxTrackSparkles();
         } else if (option === "later") {
             try {
                 await audio2("sounds/Fox3.mp3");
@@ -1002,6 +1048,32 @@ class CatAdventure {
         }
     }
 
+    async completeFoxQuest() {
+        const quest = this.foxQuest;
+        if (quest.state !== "readyToComplete") return;
+        const token = ++quest.token;
+        quest.state = "completing";
+        quest.dialog = { message: "The fox is speakingâ€¦" };
+        try {
+            await audio2("sounds/Fox5.mp3");
+        } catch (error) {
+            console.warn("Could not play fox quest completion audio:", error);
+        }
+        if (quest.token !== token) return;
+
+        quest.dialog = null;
+        quest.completionTimer = 4.5;
+        // A quick, satisfying run of pickups makes the reward feel earned
+        // without holding the player in the completion moment for long.
+        for (let coin = 0; coin < 10; coin++) {
+            if (quest.token !== token) return;
+            this.coins++;
+            audio2("sounds/coin.mp3");
+            await new Promise(resolve => setTimeout(resolve, 105));
+        }
+        if (quest.token === token) quest.state = "completed";
+    }
+
     handleFoxDialogInput() {
         const options = this.foxQuest.optionBounds;
         if (!this.input.pointer.justPressed || !options.length) return;
@@ -1016,23 +1088,113 @@ class CatAdventure {
     updateFoxQuest(deltaSeconds) {
         const quest = this.foxQuest;
         if (quest.announcement > 0) quest.announcement = Math.max(0, quest.announcement - deltaSeconds);
+        if (quest.completionTimer > 0) quest.completionTimer = Math.max(0, quest.completionTimer - deltaSeconds);
+        this.updateFoxTrackSparkles(deltaSeconds);
         if (quest.state !== "active") return;
         for (const track of [...this.mapObjects]) {
-            const type = track.userData.assetType || {};
-            const instance = track.userData.mapObject || {};
-            const isTrack = /track/i.test(type.id || "") || /track/i.test(type.name || "") ||
-                /track/i.test(instance.name || "");
-            if (!isTrack || track.userData.foxQuestTrackFound) continue;
+            if (!this.isFoxQuestTrack(track) || track.userData.foxQuestTrackFound) continue;
             const position = track.getWorldPosition(new THREE.Vector3());
             const dx = position.x - this.player.position.x;
             const dz = position.z - this.player.position.z;
             if (dx * dx + dz * dz > 1.7 * 1.7) continue;
             track.userData.foxQuestTrackFound = true;
+            this.removeFoxTrackSparkles(track);
             this.removeMapObject(track);
             quest.tracksFound = Math.min(quest.requiredTracks, quest.tracksFound + 1);
-            audio2("sounds/coin.mp3");
-            if (quest.tracksFound === quest.requiredTracks) quest.announcement = 4;
+            audio2("sounds/questfind.mp3");
+            if (quest.tracksFound === quest.requiredTracks) {
+                quest.state = "readyToComplete";
+                quest.announcement = 4;
+            }
         }
+    }
+
+    isFoxQuestTrack(object) {
+        const type = object.userData.assetType || {};
+        const instance = object.userData.mapObject || {};
+        return /track/i.test(type.id || "") || /track/i.test(type.name || "") ||
+            /track/i.test(instance.name || "");
+    }
+
+    showFoxTrackSparkles() {
+        for (const track of this.mapObjects) {
+            if (!this.isFoxQuestTrack(track) || track.userData.foxQuestTrackFound ||
+                track.userData.foxQuestSparkles) continue;
+            const group = this.createFoxTrackSparkles(track);
+            track.userData.foxQuestSparkles = group;
+            this.foxQuest.sparkles.push(group);
+            this.scene.add(group);
+        }
+    }
+
+    createFoxTrackSparkles(track) {
+        const group = new THREE.Group();
+        const position = track.getWorldPosition(new THREE.Vector3());
+        group.position.copy(position).add(new THREE.Vector3(0, 0.55, 0));
+        const texture = this.getFoxSparkleTexture();
+        for (let index = 0; index < 4; index++) {
+            const phase = index * Math.PI * 0.5 + Math.random() * 0.35;
+            const material = new THREE.SpriteMaterial({
+                map: texture,
+                color: index % 2 ? 0xffe58c : 0xffffff,
+                transparent: true,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending,
+                opacity: 0.82
+            });
+            const sparkle = new THREE.Sprite(material);
+            sparkle.position.set(
+                Math.cos(phase) * 0.24,
+                Math.sin(phase * 1.7) * 0.07,
+                Math.sin(phase) * 0.24
+            );
+            sparkle.scale.setScalar(0.16 + index * 0.025);
+            sparkle.renderOrder = 2;
+            sparkle.userData.sparklePhase = phase;
+            group.add(sparkle);
+        }
+        return group;
+    }
+
+    getFoxSparkleTexture() {
+        const quest = this.foxQuest;
+        if (quest.sparkleTexture) return quest.sparkleTexture;
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 64;
+        const ctx = canvas.getContext("2d");
+        const gradient = ctx.createRadialGradient(32, 32, 1, 32, 32, 30);
+        gradient.addColorStop(0, "rgba(255,255,255,1)");
+        gradient.addColorStop(0.22, "rgba(255,243,164,1)");
+        gradient.addColorStop(0.55, "rgba(255,213,82,0.55)");
+        gradient.addColorStop(1, "rgba(255,213,82,0)");
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(32, 32, 30, 0, Math.PI * 2);
+        ctx.fill();
+        quest.sparkleTexture = new THREE.CanvasTexture(canvas);
+        quest.sparkleTexture.colorSpace = THREE.SRGBColorSpace;
+        return quest.sparkleTexture;
+    }
+
+    updateFoxTrackSparkles(deltaSeconds) {
+        for (const group of this.foxQuest.sparkles) {
+            for (const sparkle of group.children) {
+                const phase = sparkle.userData.sparklePhase + performance.now() * 0.004;
+                const pulse = 0.72 + Math.sin(phase) * 0.28;
+                sparkle.material.opacity = pulse;
+                sparkle.scale.setScalar((0.15 + Math.sin(phase * 1.6) * 0.035));
+                sparkle.position.y = Math.sin(phase * 1.3) * 0.1 + deltaSeconds * 0;
+            }
+        }
+    }
+
+    removeFoxTrackSparkles(track) {
+        const group = track.userData.foxQuestSparkles;
+        if (!group) return;
+        this.scene.remove(group);
+        group.traverse(child => child.material?.dispose?.());
+        this.foxQuest.sparkles = this.foxQuest.sparkles.filter(entry => entry !== group);
+        delete track.userData.foxQuestSparkles;
     }
     findsleepingbug(){
          for (const obj of this.mapObjects) {
@@ -1434,7 +1596,7 @@ class CatAdventure {
         // Water is a solid floor, so its down contact is the reliable signal
         // for standing in it. The visual offset is applied after physics.
         const inWater = !!this.touching(this.player, "water", "solid", "down");
-        const targetSink = inWater ? 0.5 : 0;
+        const targetSink = inWater ? 0.75 : 0;
         this.waterSink = THREE.MathUtils.damp(this.waterSink, targetSink, 14, deltaSeconds);
     }
     restoreWaterSinkOffset() {
@@ -1530,6 +1692,7 @@ class CatAdventureRenderBatcher {
         const type = root.userData.assetType;
         return root !== this.game.player &&
             root !== this.game.insectObj &&
+            !root.userData.skipRenderBatch &&
             !root.userData.mixer &&
             !root.userData.sleepingEffect &&
             !root.userData.animations?.length &&
@@ -1670,6 +1833,25 @@ class CatAdventureTreeWind {
 }
 
 
+// Shoreline foam tuning. These are world-space units and intentionally live
+// together so the look can be adjusted without touching the mesh builder.
+const CAT_ADVENTURE_FOAM = {
+    width: 1,
+    opacity: 0.42,
+    color: 0xd9efff,
+    animationSpeed: 0.36,
+    irregularity: 0.075,
+    verticalOffset: 0.018
+};
+
+const CAT_ADVENTURE_LAKE = {
+    waterLevel: -0.22,
+    groundThickness: 0.60,
+    bankWidth: 1.15,
+    bankWidthVariation: 0.80,
+    bankColor: 0x806344
+};
+
 // A small material patch rather than a separate mesh: it keeps water.glb's
 // existing outline/collision intact and also works on render-batched pieces.
 class CatAdventureWater {
@@ -1677,18 +1859,435 @@ class CatAdventureWater {
         this.game = game;
         this.time = 0;
         this.shaders = [];
+        this.foamShaders = [];
+        this.foamRoot = null;
+        this.foam = CAT_ADVENTURE_FOAM;
     }
 
     build() {
+        const brushes = [];
         for (const water of this.game.mapObjects) {
             const type = water.userData.assetType || {};
             if (!/water/i.test(type.id || "") && !/water/i.test(type.name || "")) continue;
+            water.updateWorldMatrix(true, true);
+            const boundaryEdges = new Map();
             water.traverse(mesh => {
                 if (!mesh.isMesh) return;
-                const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-                for (const material of materials) this.addWaterMaterial(material);
+                this.collectBoundaryEdges(mesh, boundaryEdges);
+            });
+            for (const loop of this.getBoundaryLoops(boundaryEdges)) {
+                if (loop.length < 3) continue;
+                const ring = loop.map(point => [point.x, point.z]);
+                ring.push([...ring[0]]);
+                brushes.push([ring]);
+            }
+            // The original GLB remains in mapObjects for the existing water
+            // collision/wading queries, but is no longer rendered or batched.
+            water.visible = false;
+            water.userData.skipRenderBatch = true;
+        }
+        if (!brushes.length) return;
+        if (!window.polygonClipping?.union) {
+            console.error("Lake generation needs js/polygon-clipping.umd.min.js.");
+            return;
+        }
+        const union = window.polygonClipping.union(...brushes);
+        this.buildLakeFromUnion(union);
+    }
+
+    getBoundaryLoops(edges) {
+        const boundaryEdges = [...edges.values()].filter(edge => edge.count === 1);
+        const byVertex = new Map();
+        for (const edge of boundaryEdges) {
+            for (const key of [edge.aKey, edge.bKey]) {
+                if (!byVertex.has(key)) byVertex.set(key, []);
+                byVertex.get(key).push(edge);
+            }
+        }
+        const used = new Set();
+        const loops = [];
+        for (const first of boundaryEdges) {
+            if (used.has(first)) continue;
+            const loop = [first.a.clone()];
+            let current = first;
+            let currentKey = first.bKey;
+            const startKey = first.aKey;
+            used.add(first);
+            loop.push(first.b.clone());
+            while (currentKey !== startKey) {
+                const next = (byVertex.get(currentKey) || []).find(edge => !used.has(edge));
+                if (!next) break;
+                used.add(next);
+                const advancesFromA = next.aKey === currentKey;
+                currentKey = advancesFromA ? next.bKey : next.aKey;
+                loop.push((advancesFromA ? next.b : next.a).clone());
+                current = next;
+            }
+            if (currentKey === startKey) loop.pop();
+            if (loop.length >= 3) loops.push(loop);
+        }
+        return loops;
+    }
+
+    buildLakeFromUnion(union) {
+        this.rebuildGroundWithLakeHoles(union);
+        this.buildLoweredWater(union);
+        this.buildLakeBank(union);
+        this.buildUnionFoam(union);
+    }
+
+    toLakePath(ring) {
+        const path = new THREE.Path();
+        ring.slice(0, -1).forEach(([x, z], index) => {
+            if (index === 0) path.moveTo(x, -z);
+            else path.lineTo(x, -z);
+        });
+        path.closePath();
+        return path;
+    }
+
+    toLakeShape(ring) {
+        const shape = new THREE.Shape();
+        ring.slice(0, -1).forEach(([x, z], index) => {
+            if (index === 0) shape.moveTo(x, -z);
+            else shape.lineTo(x, -z);
+        });
+        shape.closePath();
+        return shape;
+    }
+
+    rebuildGroundWithLakeHoles(union) {
+        const shape = new THREE.Shape();
+        shape.moveTo(-200, 200);
+        shape.lineTo(200, 200);
+        shape.lineTo(200, -200);
+        shape.lineTo(-200, -200);
+        shape.closePath();
+        for (const polygon of union) shape.holes.push(this.toLakePath(polygon[0]));
+        // Keep the grass surface at y = 0, but give the terrain a real
+        // underside. ExtrudeGeometry also creates the hole's inner walls,
+        // making the lake feel cut into a solid piece of ground.
+        const geometry = new THREE.ExtrudeGeometry(shape, {
+            depth: CAT_ADVENTURE_LAKE.groundThickness,
+            steps: 1,
+            bevelEnabled: false
+        });
+        geometry.translate(0, 0, -CAT_ADVENTURE_LAKE.groundThickness);
+        const position = geometry.getAttribute("position");
+        const uv = new Float32Array(position.count * 2);
+        for (let index = 0; index < position.count; index++) {
+            uv[index * 2] = (position.getX(index) + 200) / 400;
+            uv[index * 2 + 1] = (-position.getY(index) + 200) / 400;
+        }
+        geometry.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+        geometry.computeVertexNormals();
+        this.game.ground.geometry.dispose();
+        this.game.ground.geometry = geometry;
+    }
+
+    buildLoweredWater(union) {
+        this.lakeRoot?.removeFromParent();
+        this.lakeRoot = new THREE.Group();
+        this.lakeRoot.name = "Generated lake water";
+        const material = new THREE.MeshStandardMaterial({ color: 0x1550aa, roughness: 0.26, metalness: 0.06 });
+        this.addWaterMaterial(material);
+        for (const polygon of union) {
+            const shape = this.toLakeShape(polygon[0]);
+            for (let index = 1; index < polygon.length; index++) shape.holes.push(this.toLakePath(polygon[index]));
+            const geometry = new THREE.ShapeGeometry(shape);
+            geometry.rotateX(-Math.PI / 2);
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.y = CAT_ADVENTURE_LAKE.waterLevel;
+            mesh.receiveShadow = true;
+            this.lakeRoot.add(mesh);
+        }
+        this.game.scene.add(this.lakeRoot);
+    }
+
+    buildLakeBank(union) {
+        this.bankRoot?.removeFromParent();
+        const positions = [];
+        const colors = [];
+        for (const polygon of union) this.appendBankRing(positions, colors, polygon[0]);
+        if (!positions.length) return;
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+        geometry.computeVertexNormals();
+        const material = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            roughness: 1,
+            flatShading: true,
+            vertexColors: true,
+            side: THREE.DoubleSide
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.name = "Generated lake bank";
+        mesh.receiveShadow = true;
+        this.bankRoot = new THREE.Group();
+        this.bankRoot.add(mesh);
+        this.game.scene.add(this.bankRoot);
+    }
+
+    appendBankRing(positions, colors, ring) {
+        const points = ring.slice(0, -1);
+        const inset = this.getInsetRing(ring);
+        for (let index = 0; index < points.length; index++) {
+            const a = points[index], b = points[(index + 1) % points.length];
+            // The bank begins at the actual grass/hole edge, then slopes
+            // inward over the water. This conceals the ground slab's inner
+            // wall instead of leaving a dark vertical trench visible.
+            const outerA = [a[0], 0, a[1]];
+            const outerB = [b[0], 0, b[1]];
+            const innerA = [inset[index][0], CAT_ADVENTURE_LAKE.waterLevel, inset[index][1]];
+            const nextIndex = (index + 1) % points.length;
+            const innerB = [inset[nextIndex][0], CAT_ADVENTURE_LAKE.waterLevel, inset[nextIndex][1]];
+            this.pushBankTriangle(positions, colors, outerA, outerB, innerB,
+                inset[index].bankShade, inset[nextIndex].bankShade, inset[nextIndex].bankShade * 0.88);
+            this.pushBankTriangle(positions, colors, outerA, innerB, innerA,
+                inset[index].bankShade, inset[nextIndex].bankShade * 0.88, inset[index].bankShade * 0.88);
+        }
+    }
+
+    pushBankTriangle(positions, colors, a, b, c, shadeA, shadeB, shadeC) {
+        const base = new THREE.Color(CAT_ADVENTURE_LAKE.bankColor);
+        for (const [point, shade] of [[a, shadeA], [b, shadeB], [c, shadeC]]) {
+            positions.push(...point);
+            colors.push(base.r * shade, base.g * shade, base.b * shade);
+        }
+    }
+
+    getInsetRing(ring) {
+        const points = ring.slice(0, -1);
+        const area = points.reduce((sum, point, index) => {
+            const next = points[(index + 1) % points.length];
+            return sum + point[0] * next[1] - next[0] * point[1];
+        }, 0);
+        const inwardNormal = (from, to) => {
+            const dx = to[0] - from[0], dz = to[1] - from[1];
+            const length = Math.hypot(dx, dz) || 1;
+            return area >= 0 ? [-dz / length, dx / length] : [dz / length, -dx / length];
+        };
+        const segmentLengths = points.map((point, index) => {
+            const next = points[(index + 1) % points.length];
+            return Math.hypot(next[0] - point[0], next[1] - point[1]);
+        });
+        const perimeter = segmentLengths.reduce((sum, length) => sum + length, 0) || 1;
+        const phase = this.foamJitter(`${points[0][0]},${points[0][1]}`) * Math.PI;
+        let distanceAlongShore = 0;
+        return points.map((point, index) => {
+            const previous = points[(index - 1 + points.length) % points.length];
+            const next = points[(index + 1) % points.length];
+            const before = inwardNormal(previous, point);
+            const after = inwardNormal(point, next);
+            let mx = before[0] + after[0], mz = before[1] + after[1];
+            const miterLength = Math.hypot(mx, mz);
+            if (miterLength < 0.0001) {
+                mx = after[0];
+                mz = after[1];
+            } else {
+                mx /= miterLength;
+                mz /= miterLength;
+            }
+            // Clamp sharp miters so a very acute editor-made corner cannot
+            // throw a long spike across a narrow lake channel.
+            const denominator = Math.max(0.45, mx * after[0] + mz * after[1]);
+            const shoreT = distanceAlongShore / perimeter;
+            // Two broad cycles around the whole ring make the width drift
+            // naturally, rather than giving each editor vertex its own jitter.
+            const broadWave = 0.68 * Math.sin(shoreT * Math.PI * 4 + phase) +
+                0.32 * Math.sin(shoreT * Math.PI * 2 - phase * 0.7);
+            const widthScale = 1 + broadWave * CAT_ADVENTURE_LAKE.bankWidthVariation;
+            const distance = Math.min(CAT_ADVENTURE_LAKE.bankWidth * widthScale / denominator,
+                CAT_ADVENTURE_LAKE.bankWidth * 1.8);
+            const insetPoint = [point[0] + mx * distance, point[1] + mz * distance];
+            insetPoint.bankShade = 1 + broadWave * 0.10 +
+                Math.sin(shoreT * Math.PI * 2 + phase * 1.9) * 0.035;
+            distanceAlongShore += segmentLengths[index];
+            return insetPoint;
+        });
+    }
+
+    buildUnionFoam(union) {
+        const edges = new Map();
+        for (const polygon of union) {
+            const ring = polygon[0];
+            const inset = this.getInsetRing(ring);
+            for (let index = 0; index < ring.length - 1; index++) {
+                const nextIndex = (index + 1) % inset.length;
+                const a = new THREE.Vector3(inset[index][0], CAT_ADVENTURE_LAKE.waterLevel, inset[index][1]);
+                const b = new THREE.Vector3(inset[nextIndex][0], CAT_ADVENTURE_LAKE.waterLevel, inset[nextIndex][1]);
+                const lakeCenter = new THREE.Vector3(ring[index][0], 0, ring[index][1])
+                    .add(new THREE.Vector3(ring[index + 1][0], 0, ring[index + 1][1]))
+                    .multiplyScalar(0.5);
+                const foamMidpoint = a.clone().add(b).multiplyScalar(0.5);
+                const foamInward = foamMidpoint.clone().sub(lakeCenter).normalize();
+                this.addBoundaryEdge(edges, a, b, foamMidpoint.addScaledVector(foamInward, 0.25));
+            }
+        }
+        this.buildShorelineFoam(edges, CAT_ADVENTURE_LAKE.waterLevel);
+    }
+
+    collectBoundaryEdges(mesh, edges) {
+        const position = mesh.geometry?.getAttribute("position");
+        if (!position) return;
+        const index = mesh.geometry.index;
+        const vertexCount = index ? index.count : position.count;
+        const a = new THREE.Vector3();
+        const b = new THREE.Vector3();
+        const c = new THREE.Vector3();
+        const edgeAB = new THREE.Vector3();
+        const edgeAC = new THREE.Vector3();
+        const normal = new THREE.Vector3();
+
+        const readVertex = (vertexIndex, target) => {
+            const resolvedIndex = index ? index.getX(vertexIndex) : vertexIndex;
+            return target.fromBufferAttribute(position, resolvedIndex).applyMatrix4(mesh.matrixWorld);
+        };
+        for (let triangle = 0; triangle + 2 < vertexCount; triangle += 3) {
+            readVertex(triangle, a);
+            readVertex(triangle + 1, b);
+            readVertex(triangle + 2, c);
+            normal.crossVectors(edgeAB.subVectors(b, a), edgeAC.subVectors(c, a)).normalize();
+            // The foam belongs only to upward-facing lake surface triangles;
+            // side walls or undersides in a GLB must not create ribbons.
+            if (normal.y < 0.35) continue;
+            this.addBoundaryEdge(edges, a, b, c);
+            this.addBoundaryEdge(edges, b, c, a);
+            this.addBoundaryEdge(edges, c, a, b);
+        }
+    }
+
+    addBoundaryEdge(edges, a, b, insidePoint) {
+        const aKey = this.boundaryVertexKey(a);
+        const bKey = this.boundaryVertexKey(b);
+        const key = aKey < bKey ? `${aKey}|${bKey}` : `${bKey}|${aKey}`;
+        const existing = edges.get(key);
+        if (existing) {
+            existing.count++;
+            return;
+        }
+        edges.set(key, {
+            count: 1,
+            a: a.clone(),
+            b: b.clone(),
+            inside: insidePoint.clone(),
+            aKey,
+            bKey
+        });
+    }
+
+    boundaryVertexKey(position) {
+        // Millimetre precision is plenty for this stylized world, while also
+        // matching duplicated GLB vertices and adjacent water pieces.
+        return `${Math.round(position.x * 1000)},${Math.round(position.y * 1000)},${Math.round(position.z * 1000)}`;
+    }
+
+    buildShorelineFoam(edges, surfaceY = null) {
+        if (this.foamRoot) {
+            this.game.scene.remove(this.foamRoot);
+            this.foamRoot.traverse(object => {
+                object.geometry?.dispose?.();
+                object.material?.dispose?.();
             });
         }
+        this.foamShaders.length = 0;
+        const positions = [];
+        const foamEdge = [];
+        const inward = new THREE.Vector3();
+        const midpoint = new THREE.Vector3();
+
+        for (const edge of edges.values()) {
+            if (edge.count !== 1) continue;
+            midpoint.addVectors(edge.a, edge.b).multiplyScalar(0.5);
+            inward.subVectors(edge.inside, midpoint);
+            inward.y = 0;
+            if (inward.lengthSq() < 0.000001) continue;
+            inward.normalize();
+
+            const jitterA = this.foamJitter(edge.aKey);
+            const jitterB = this.foamJitter(edge.bKey);
+            const outerA = edge.a.clone().addScaledVector(inward, jitterA * this.foam.irregularity);
+            const outerB = edge.b.clone().addScaledVector(inward, jitterB * this.foam.irregularity);
+            const innerA = outerA.clone().addScaledVector(inward,
+                this.foam.width * (1 + jitterA * 0.45));
+            const innerB = outerB.clone().addScaledVector(inward,
+                this.foam.width * (1 + jitterB * 0.45));
+            const height = (surfaceY ?? Math.max(edge.a.y, edge.b.y)) + this.foam.verticalOffset;
+            outerA.y = outerB.y = innerA.y = innerB.y = height;
+
+            // Two triangles per boundary edge: opaque-ish at the shore edge,
+            // fading gently into the water at the inner edge.
+            this.pushFoamTriangle(positions, foamEdge, outerA, outerB, innerB, 0, 0, 1);
+            this.pushFoamTriangle(positions, foamEdge, outerA, innerB, innerA, 0, 1, 1);
+        }
+
+        if (!positions.length) return;
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute("foamEdge", new THREE.Float32BufferAttribute(foamEdge, 1));
+        geometry.computeBoundingSphere();
+
+        const material = this.createFoamMaterial();
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.name = "Water shoreline foam";
+        mesh.renderOrder = 1;
+        this.foamRoot = new THREE.Group();
+        this.foamRoot.name = "CatAdventure shoreline foam";
+        this.foamRoot.add(mesh);
+        this.game.scene.add(this.foamRoot);
+    }
+
+    pushFoamTriangle(positions, foamEdge, a, b, c, edgeA, edgeB, edgeC) {
+        for (const [point, edge] of [[a, edgeA], [b, edgeB], [c, edgeC]]) {
+            positions.push(point.x, point.y, point.z);
+            foamEdge.push(edge);
+        }
+    }
+
+    foamJitter(key) {
+        let hash = 2166136261;
+        for (let index = 0; index < key.length; index++) {
+            hash ^= key.charCodeAt(index);
+            hash = Math.imul(hash, 16777619);
+        }
+        return ((hash >>> 0) / 4294967295) * 2 - 1;
+    }
+
+    createFoamMaterial() {
+        const material = new THREE.MeshBasicMaterial({
+            color: this.foam.color,
+            transparent: true,
+            opacity: this.foam.opacity,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+        material.onBeforeCompile = shader => {
+            shader.uniforms.foamTime = { value: 0 };
+            shader.uniforms.foamSpeed = { value: this.foam.animationSpeed };
+            shader.vertexShader = shader.vertexShader
+                .replace("#include <common>", `#include <common>
+                    attribute float foamEdge;
+                    uniform float foamTime;
+                    uniform float foamSpeed;
+                    varying float vFoamEdge;
+                    varying float vFoamPulse;`)
+                .replace("#include <begin_vertex>", `#include <begin_vertex>
+                    float foamPhase = dot(position.xz, vec2(2.13, 1.27)) + foamTime * foamSpeed;
+                    transformed.y += sin(foamPhase) * 0.006;
+                    vFoamEdge = foamEdge;
+                    vFoamPulse = 0.88 + sin(foamPhase * 1.7) * 0.12;`);
+            shader.fragmentShader = shader.fragmentShader
+                .replace("#include <common>", `#include <common>
+                    varying float vFoamEdge;
+                    varying float vFoamPulse;`)
+                .replace("#include <color_fragment>", `#include <color_fragment>
+                    diffuseColor.a *= mix(1.0, 0.12, vFoamEdge) * vFoamPulse;`);
+            material.userData.foamShader = shader;
+            this.foamShaders.push(shader);
+        };
+        material.needsUpdate = true;
+        return material;
     }
 
     addWaterMaterial(material) {
@@ -1700,42 +2299,113 @@ class CatAdventureWater {
         material.transparent = false;
         material.opacity = 1;
         material.depthWrite = true;
-        material.roughness = 0.2;
-        material.metalness = 0.12;
+        material.roughness = 0.26;
+        material.metalness = 0.06;
         material.onBeforeCompile = shader => {
             shader.uniforms.waterTime = { value: 0 };
             shader.vertexShader = shader.vertexShader
                 .replace("#include <common>", `#include <common>
                     uniform float waterTime;
                     varying vec2 waterWorldXZ;
-                    varying float waterRipple;`)
+                    varying vec3 waterWorldPosition;
+
+                    // A small real displacement makes the generated lake read
+                    // as low-poly water. It is vertex-only and deliberately
+                    // shallow, so it remains inexpensive on mobile GPUs.
+                    float getWaterVertexHeight(vec2 position, float time) {
+                        vec2 warped = position + vec2(
+                            sin(dot(position, vec2(0.17, 0.23)) + time * 0.19),
+                            cos(dot(position, vec2(-0.21, 0.14)) - time * 0.16)
+                        ) * 0.38;
+                        float height = sin(dot(warped, normalize(vec2(0.82, 0.57))) * 0.54 + time * 0.66) * 0.052;
+                        height += sin(dot(warped, normalize(vec2(-0.34, 0.94))) * 0.91 - time * 0.48) * 0.033;
+                        height += sin(dot(warped, normalize(vec2(0.97, -0.24))) * 1.43 + time * 0.91) * 0.019;
+                        height += sin(dot(warped, normalize(vec2(-0.69, -0.72))) * 2.08 - time * 1.12) * 0.011;
+                        return height;
+                    }`)
                 .replace("#include <begin_vertex>", `#include <begin_vertex>
                     vec3 waterPosition = transformed;
                     #ifdef USE_INSTANCING
-                        vec3 waterWorldPosition = (modelMatrix * instanceMatrix * vec4(waterPosition, 1.0)).xyz;
+                        vec3 waterWorldPos = (modelMatrix * instanceMatrix * vec4(waterPosition, 1.0)).xyz;
                     #else
-                        vec3 waterWorldPosition = (modelMatrix * vec4(waterPosition, 1.0)).xyz;
+                        vec3 waterWorldPos = (modelMatrix * vec4(waterPosition, 1.0)).xyz;
                     #endif
-                    float waveA = sin(waterWorldPosition.x * 0.78 + waterTime * 2.2);
-                    float waveB = sin(waterWorldPosition.z * 1.08 - waterTime * 1.7);
-                    waterRipple = waveA * 0.5 + waveB * 0.5;
                     // Colour ripples keep adjacent water pieces perfectly
                     // joined, unlike moving their separate mesh edges.
-                    waterWorldXZ = waterWorldPosition.xz;`);
+                    waterWorldXZ = waterWorldPos.xz;
+                    waterWorldPosition = waterWorldPos;
+                    transformed.y += getWaterVertexHeight(waterWorldPos.xz, waterTime) * 0.24;`);
             shader.fragmentShader = shader.fragmentShader
                 .replace("#include <common>", `#include <common>
                     uniform float waterTime;
                     varying vec2 waterWorldXZ;
-                    varying float waterRipple;`)
+                    varying vec3 waterWorldPosition;
+
+                    // Calm, layered swell. The low-frequency warp prevents
+                    // the waves from reading as a fixed square/diagonal grid.
+                    void getWaterWaves(vec2 position, float time, out float height, out vec2 gradient) {
+                        vec2 warped = position;
+                        warped += vec2(
+                            sin(dot(position, vec2(0.17, 0.23)) + time * 0.19),
+                            cos(dot(position, vec2(-0.21, 0.14)) - time * 0.16)
+                        ) * 0.38;
+                        height = 0.0;
+                        gradient = vec2(0.0);
+
+                        vec2 directionA = normalize(vec2(0.82, 0.57));
+                        float phaseA = dot(warped, directionA) * 0.54 + time * 0.66;
+                        height += sin(phaseA) * 0.052;
+                        gradient += cos(phaseA) * directionA * 0.052 * 0.54;
+
+                        vec2 directionB = normalize(vec2(-0.34, 0.94));
+                        float phaseB = dot(warped, directionB) * 0.91 - time * 0.48;
+                        height += sin(phaseB) * 0.033;
+                        gradient += cos(phaseB) * directionB * 0.033 * 0.91;
+
+                        vec2 directionC = normalize(vec2(0.97, -0.24));
+                        float phaseC = dot(warped, directionC) * 1.43 + time * 0.91;
+                        height += sin(phaseC) * 0.019;
+                        gradient += cos(phaseC) * directionC * 0.019 * 1.43;
+
+                        vec2 directionD = normalize(vec2(-0.69, -0.72));
+                        float phaseD = dot(warped, directionD) * 2.08 - time * 1.12;
+                        height += sin(phaseD) * 0.011;
+                        gradient += cos(phaseD) * directionD * 0.011 * 2.08;
+                    }`)
                 .replace("#include <color_fragment>", `#include <color_fragment>
-                    float crossWave = sin(dot(waterWorldXZ, vec2(1.35, -0.92)) + waterTime * 1.15);
-                    float ripples = waterRipple * 0.65 + crossWave * 0.35;
+                    float waterHeight;
+                    vec2 waterGradient;
+                    getWaterWaves(waterWorldXZ, waterTime, waterHeight, waterGradient);
                     vec3 deepWater = vec3(0.018, 0.105, 0.31);
                     vec3 clearWater = vec3(0.045, 0.32, 0.72);
-                    diffuseColor.rgb = mix(deepWater, clearWater, 0.56 + ripples * 0.14);
-                    // Fine, restrained glints rather than bright bands.
-                    float glint = pow(max(0.0, sin(dot(waterWorldXZ, vec2(3.1, 2.2)) - waterTime * 2.1)), 18.0);
-                    diffuseColor.rgb += glint * vec3(0.035, 0.075, 0.10);`);
+                    // Two very broad, slowly drifting fields keep large pools
+                    // from reading as one perfectly even blue plane. Their
+                    // amplitude is intentionally tiny so this stays painterly,
+                    // not noisy or visibly procedural.
+                    float broadTintA = sin(dot(waterWorldXZ, vec2(0.083, -0.047)) + waterTime * 0.055);
+                    float broadTintB = sin(dot(waterWorldXZ, vec2(-0.031, 0.096)) - waterTime * 0.038 + 1.7);
+                    float broadTint = broadTintA * 0.58 + broadTintB * 0.42;
+                    float waterTone = clamp(0.57 + waterHeight * 1.45 + broadTint * 0.024, 0.0, 1.0);
+                    vec3 waterNormalWorld = normalize(vec3(-waterGradient.x * 1.45, 1.0, -waterGradient.y * 1.45));
+                    vec3 waterViewDirection = normalize(cameraPosition - waterWorldPosition);
+                    float fresnel = pow(1.0 - clamp(dot(waterNormalWorld, waterViewDirection), 0.0, 1.0), 3.2);
+                    vec3 baseWater = mix(deepWater, clearWater, waterTone);
+                    // A gentle sky lift at grazing angles, kept painterly rather
+                    // than mirror-like for the meadow's calm water.
+                    diffuseColor.rgb = mix(baseWater, vec3(0.30, 0.56, 0.82), 0.08 + fresnel * 0.27);`)
+                .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>
+                    float waterNormalHeight;
+                    vec2 waterNormalGradient;
+                    getWaterWaves(waterWorldXZ, waterTime, waterNormalHeight, waterNormalGradient);
+                    vec3 animatedWaterNormalWorld = normalize(vec3(
+                        -waterNormalGradient.x * 1.45,
+                        1.0,
+                        -waterNormalGradient.y * 1.45
+                    ));
+                    vec3 animatedWaterNormalView = normalize(mat3(viewMatrix) * animatedWaterNormalWorld);
+                    // This is deliberately restrained: enough normal motion for
+                    // travelling highlights, without turning calm water choppy.
+                    normal = normalize(mix(normal, animatedWaterNormalView, 0.72));`);
             material.userData.waterShader = shader;
             this.shaders.push(shader);
         };
@@ -1745,6 +2415,7 @@ class CatAdventureWater {
     update(deltaSeconds) {
         this.time += deltaSeconds;
         for (const shader of this.shaders) shader.uniforms.waterTime.value = this.time;
+        for (const shader of this.foamShaders) shader.uniforms.foamTime.value = this.time;
     }
 }
 
