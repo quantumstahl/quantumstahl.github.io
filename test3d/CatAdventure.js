@@ -117,11 +117,11 @@ class CatAdventure {
 
     initThree() {
         this.scene = new THREE.Scene();
-        const skyColor = new THREE.Color(0x8fb3d9);
-        this.scene.background = skyColor;
-        // Match the horizon to the sky rather than fading distant props to
-        // grey. Nearby gameplay stays unaffected; scenery eases into haze.
-        this.scene.fog = new THREE.Fog(skyColor, 42, 155);
+        // The painted sunset is a lightweight procedural texture on a dome,
+        // while the low-poly clouds stay as separate world objects.
+        const horizonColor = new THREE.Color(0xe7b56f);
+        this.scene.background = horizonColor;
+        this.scene.fog = new THREE.Fog(new THREE.Color(0xd6af78), 52, 175);
 
         this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
 
@@ -137,14 +137,16 @@ class CatAdventure {
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFShadowMap;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.0;
+        this.renderer.toneMappingExposure = 1.08;
         this.renderer.setPixelRatio(0.75);
+
+        this.createSunsetSky();
 
         // ============================
         // SUN
         // ============================
 
-        this.sun = new THREE.DirectionalLight(0xffffff, 1);
+        this.sun = new THREE.DirectionalLight(0xffd5a5, 5.65);
 
         this.sun.castShadow = true;
 
@@ -170,8 +172,8 @@ class CatAdventure {
         // Behåll samma ungefärliga solriktning som tidigare
         this.sunOffset = new THREE.Vector3(
             50,
-            120,
-            70
+            40,
+            -140
         );
 
         this.sun.target.position.set(0, 0, 0);
@@ -185,9 +187,8 @@ class CatAdventure {
         // AMBIENT
         // ============================
 
-        this.scene.add(
-            new THREE.AmbientLight(0xffffff,1.6)
-        );
+        this.scene.add(new THREE.HemisphereLight(0xdcc8ee, 0x71834a, 0.65));
+        this.scene.add(new THREE.AmbientLight(0xffead5, 1.15));
 
 
         // ============================
@@ -219,6 +220,109 @@ class CatAdventure {
 
 
 
+    }
+
+    createSunsetSky() {
+        // A canvas texture is more dependable than a custom shader on mobile
+        // GPUs. It gives the same painted gradient, without relying on shader
+        // compilation during the title-to-game transition.
+        const skyCanvas = document.createElement("canvas");
+        skyCanvas.width = 32;
+        skyCanvas.height = 512;
+        const skyContext = skyCanvas.getContext("2d");
+        const gradient = skyContext.createLinearGradient(0, 0, 0, skyCanvas.height);
+        gradient.addColorStop(1, "#9ec9fa");
+        gradient.addColorStop(0.60, "#a7a7f7");
+        gradient.addColorStop(0.55, "#d7a68b");
+        gradient.addColorStop(0.50, "#e7b56f");
+        gradient.addColorStop(0.45, "#d7a68b");
+        gradient.addColorStop(0.40, "#a7a7f7");
+        gradient.addColorStop(0, "#d6af78");
+        
+       
+        
+        
+        
+        
+        
+        
+        skyContext.fillStyle = gradient;
+        skyContext.fillRect(0, 0, skyCanvas.width, skyCanvas.height);
+        const skyTexture = new THREE.CanvasTexture(skyCanvas);
+        skyTexture.colorSpace = THREE.SRGBColorSpace;
+        skyTexture.needsUpdate = true;
+        const skyMaterial = new THREE.MeshBasicMaterial({
+            map: skyTexture,
+            side: THREE.BackSide,
+            depthWrite: false,
+            depthTest: false,
+            fog: false
+        });
+
+        this.skyRoot = new THREE.Group();
+        this.skyRoot.renderOrder = -1000;
+        const sky = new THREE.Mesh(new THREE.SphereGeometry(420, 24, 16), skyMaterial);
+        sky.renderOrder = -1000;
+        this.skyRoot.add(sky);
+
+        // Clouds live in world space, separate from the camera-following dome.
+        // They therefore stay above the meadow while the player/camera moves.
+        this.cloudRoot = new THREE.Group();
+        this.scene.add(this.cloudRoot);
+
+        // Each cloud is a few low-detail icosahedrons.  This is deliberately
+        // geometry, not a cloud.glb: it is easy to reposition, recolour and
+        // costs only a handful of meshes.
+        const cloudMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffefcf,
+            emissive: 0x412214,
+            emissiveIntensity: 0.22,
+            roughness: 1,
+            flatShading: true,
+            fog: false
+        });
+        const cloudShape = new THREE.IcosahedronGeometry(1, 1);
+        const makeCloud = (position, scale, seed) => {
+            const cloud = new THREE.Group();
+            const puffs = [
+                [-1.7, 0.0, 0.0, 1.15], [-0.7, 0.24, 0.08, 1.45],
+                [0.35, 0.32, -0.04, 1.55], [1.42, 0.08, 0.06, 1.12],
+                [0.0, -0.22, 0.0, 1.35]
+            ];
+            puffs.forEach(([x, y, z, size], index) => {
+                const puff = new THREE.Mesh(cloudShape, cloudMaterial);
+                const variation = 0.82 + ((seed + index * 13) % 5) * 0.055;
+                puff.position.set(x, y, z);
+                // Broad, shallow slabs produce the layered cloud silhouettes
+                // from the reference instead of round floating rocks.
+                puff.scale.set(size * 2.1, size * variation * 0.34, size * 0.82);
+                puff.rotation.set(index * 0.22, (seed + index) * 0.31, index * -0.16);
+                cloud.add(puff);
+            });
+            cloud.position.fromArray(position);
+            cloud.scale.setScalar(scale);
+            cloud.rotation.y = seed * 0.37;
+            this.cloudRoot.add(cloud);
+        };
+
+        // Fixed meadow coordinates. The first three sit on the authored
+        // flyby route (193, 30, -162 -> 36, 4, -16), so they remain visible
+        // during the Fox Meadow establishing shot without following it.
+        makeCloud([118, 62, -92], 3.2, 1);
+        makeCloud([78, 54, -48], 2.8, 4);
+        makeCloud([42, 45, -9], 2.4, 7);
+        makeCloud([-34, 38, 24], 2.2, 10);
+        makeCloud([12, 58, -74], 2.5, 13);
+        this.scene.add(this.skyRoot);
+    }
+
+    updateSky() {
+        // Only the sky dome follows the camera, so its horizon has no edge.
+        // cloudRoot deliberately remains in fixed world coordinates.
+        if (this.skyRoot && this.camera) {
+            this.skyRoot.position.copy(this.camera.position);
+            this.skyRoot.quaternion.copy(this.camera.quaternion);
+        }
     }
     updateSunShadow(position) {
 
@@ -369,6 +473,7 @@ class CatAdventure {
         
         if (controlsLocked) this.updateCinematic(deltaSeconds);
         else this.updateCamera(scale);
+        this.updateSky();
         this.updateFoxPatrol(deltaSeconds);
         this.updateFoxQuest(deltaSeconds);
         this.grass?.update(deltaSeconds);
@@ -1471,7 +1576,7 @@ class CatAdventure {
         // player camera, so move the haze back for this establishing view.
         if (this.scene.fog) {
             this.scene.fog.near = 115;
-            this.scene.fog.far = 420;
+            this.scene.fog.far = 320;
         }
         // Teleport immediately to the authored flyby marker on the trigger
         // frame, then animate from there on following frames.
