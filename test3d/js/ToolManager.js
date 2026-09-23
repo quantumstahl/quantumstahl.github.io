@@ -7,7 +7,8 @@ class ToolManager {
             move: new MoveTool(game),
             rotate: new RotateTool(game),
             scale: new ScaleTool(game),
-            stack: new StackTool(game)
+            stack: new StackTool(game),
+            brush: new ObjectBrushTool(game)
         };
 
         this.currentName = "select";

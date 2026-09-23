@@ -92,6 +92,8 @@ class CatAdventure {
         this.water.build();
         this.treeWind = new CatAdventureTreeWind(this);
         this.treeWind.build();
+        this.dryGrassWind = new CatAdventureDryGrassWind(this);
+        this.dryGrassWind.build();
         this.buildRenderBatches();
         
         
@@ -258,7 +260,7 @@ class CatAdventure {
         for (const object of this.mapObjects) {
             const type = object.userData.assetType || {};
             const name = type.name || type.id || "";
-            const usesShadows = !/^(path|water)$/i.test(name);
+            const usesShadows = type.castShadow !== false && !/^(path|water)$/i.test(name);
             const usesShadows2 = !/^(water)$/i.test(name);
             object.traverse(mesh => {
                 if (!mesh.isMesh) return;
@@ -287,7 +289,8 @@ class CatAdventure {
             const isHill = /hill\.glb$/i.test(type.glb || "") ||
                 /^hill$/i.test(type.id || "") || /^hill$/i.test(type.name || "");
             const isrock = /rock\.glb$/i.test(type.glb || "") ||
-                /^rock$/i.test(type.id || "") || /^rock$/i.test(type.name || "");    
+                /^rock$/i.test(type.id || "") || /^rock$/i.test(type.name || "");
+
             if (!isWall && !isHill && !isrock) continue;
 
             object.traverse(mesh => {
@@ -371,6 +374,7 @@ class CatAdventure {
         this.grass?.update(deltaSeconds);
         this.water?.update(deltaSeconds);
         this.treeWind?.update(deltaSeconds);
+        this.dryGrassWind?.update(deltaSeconds);
         for (const mixer of this.mixers) {
             mixer.update(deltaSeconds);
         }
@@ -1099,7 +1103,7 @@ class CatAdventure {
             if (dx * dx + dz * dz > 1.7 * 1.7) continue;
             track.userData.foxQuestTrackFound = true;
             this.removeFoxTrackSparkles(track);
-            this.removeMapObject(track);
+           // this.removeMapObject(track);
             quest.tracksFound = Math.min(quest.requiredTracks, quest.tracksFound + 1);
             audio2("sounds/questfind.mp3");
             if (quest.tracksFound === quest.requiredTracks) {
@@ -1769,6 +1773,80 @@ class CatAdventureRenderBatcher {
             proxy.dispose?.();
         }
         this.active = false;
+    }
+}
+
+// Lightweight vertex wind for the dry grass tufts.  It deliberately uses the
+// local blade height for the bend amount, so it also works when the props are
+// rendered through CatAdventureRenderBatcher as InstancedMesh objects.
+class CatAdventureDryGrassWind {
+    constructor(game) {
+        this.game = game;
+        this.time = 0;
+        this.shaders = [];
+    }
+
+    build() {
+        for (const tuft of this.game.mapObjects) {
+            const type = tuft.userData.assetType || {};
+            const id = `${type.id || ""} ${type.name || ""} ${type.glb || ""}`;
+            if (!/gras-tuftdry(?:\.glb)?/i.test(id)) continue;
+
+            tuft.traverse(mesh => {
+                if (!mesh.isMesh || !mesh.geometry) return;
+                mesh.geometry.computeBoundingBox();
+                const bounds = mesh.geometry.boundingBox;
+                if (!bounds) return;
+
+                const localBaseY = bounds.min.y;
+                const localHeight = Math.max(0.05, bounds.max.y - bounds.min.y);
+                const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+                for (const material of materials) {
+                    this.addMaterialWind(material, localBaseY, localHeight);
+                }
+            });
+        }
+    }
+
+    addMaterialWind(material, localBaseY, localHeight) {
+        if (!material || material.userData.dryGrassWindAdded) return;
+        material.userData.dryGrassWindAdded = true;
+
+        material.onBeforeCompile = shader => {
+            shader.uniforms.dryGrassWindTime = { value: 0 };
+            shader.uniforms.dryGrassWindBaseY = { value: localBaseY };
+            shader.uniforms.dryGrassWindHeight = { value: localHeight };
+            shader.vertexShader = shader.vertexShader
+                .replace("#include <common>", `#include <common>
+                    uniform float dryGrassWindTime;
+                    uniform float dryGrassWindBaseY;
+                    uniform float dryGrassWindHeight;`)
+                .replace("#include <begin_vertex>", `#include <begin_vertex>
+                    // Instance-aware world position gives every tuft its own
+                    // stable phase without adding per-instance attributes.
+                    #ifdef USE_INSTANCING
+                        vec3 dryGrassWorldPosition = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+                    #else
+                        vec3 dryGrassWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;
+                    #endif
+                    float dryGrassTip = pow(clamp((transformed.y - dryGrassWindBaseY) / dryGrassWindHeight, 0.0, 1.0), 1.55);
+                    float dryGrassPhase = dot(dryGrassWorldPosition.xz, vec2(0.61, 0.79));
+                    float dryGrassSway = sin(dryGrassWindTime * 2.1 + dryGrassPhase)
+                        + 0.42 * sin(dryGrassWindTime * 3.8 - dryGrassPhase * 1.37);
+                    transformed.x += dryGrassSway * dryGrassTip * 0.048;
+                    transformed.z += dryGrassSway * dryGrassTip * 0.026;`);
+            material.userData.dryGrassWindShader = shader;
+            this.shaders.push(shader);
+        };
+        material.transparent = true;
+        material.alphaTest = 0.1;
+        material.depthWrite = true;
+        material.needsUpdate = true;
+    }
+
+    update(deltaSeconds) {
+        this.time += deltaSeconds;
+        for (const shader of this.shaders) shader.uniforms.dryGrassWindTime.value = this.time;
     }
 }
 

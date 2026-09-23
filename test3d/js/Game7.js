@@ -46,6 +46,7 @@ class Game7 {
 
                         shape: type.shape,
                         collision: type.collision,
+                        castShadow: type.castShadow,
                         visibleInEditor: type.visibleInEditor,
                         visibleInGame: type.visibleInGame,
 
@@ -337,6 +338,56 @@ class Game7 {
             this.editorTree?.refresh();
         });
     }
+    async addBrushInstance(type, point) {
+        if (!type || !point) return null;
+        const layer = this.maps[this.currentMap]?.layers.find(candidate =>
+            candidate.assetTypes?.includes(type)
+        );
+        if (!layer) return null;
+
+        const inst = new MapObject({
+            name: type.name || type.id || "brush object",
+            x: Number(point.x.toFixed(3)),
+            y: Number(point.y.toFixed(3)),
+            z: Number(point.z.toFixed(3)),
+            rotY: 0,
+            scale: 1
+        });
+        let obj = null;
+        if (type.shape === "box" && !type.glb) {
+            obj = this.mapLoader.createEditorBoxObject(inst, type, layer);
+        } else if (type.glb) {
+            obj = await this.assetManager.createInstance(type.glb);
+        }
+        if (!obj) return null;
+
+        obj.position.set(inst.x, inst.y, inst.z);
+        obj.rotation.set(inst.rotX || 0, inst.rotY || 0, inst.rotZ || 0);
+        const scale = inst.scale || 1;
+        obj.scale.set(scale, scale, scale);
+        obj.userData.mapObject = inst;
+        obj.userData.assetType = type;
+        obj.userData.layer = layer;
+        obj.traverse(mesh => {
+            if (mesh.isMesh) mesh.castShadow = type.castShadow !== false;
+        });
+        inst.mesh = obj;
+        this.scene.add(obj);
+        this.mapObjects.push(obj);
+
+        // GLB origins vary. Shift each new prop so its visual bottom rests on
+        // the clicked ground point, just like the Move tool does.
+        const box = new THREE.Box3().setFromObject(obj);
+        obj.position.y += point.y - box.min.y;
+        inst.y = Number(obj.position.y.toFixed(3));
+
+        type.instances.push(inst);
+        this.markUnsaved();
+        this.setSelected(obj);
+        this.editorTree?.renderTree();
+        this.editorTree?.renderProperties();
+        return obj;
+    }
     getSpawnPointInFrontOfCamera(distance = 6) {
         const point = new THREE.Vector3();
 
@@ -467,6 +518,9 @@ class MapLoader {
                     obj.userData.mapObject = inst;
                     obj.userData.assetType = type;
                     obj.userData.layer = layer;
+                    obj.traverse(mesh => {
+                        if (mesh.isMesh) mesh.castShadow = type.castShadow !== false;
+                    });
 
                     this.game.scene.add(obj);
                     this.game.mapObjects.push(obj);
@@ -573,6 +627,8 @@ class AssetType {
         
         // none / solid / ghost / trigger / floor / wall
         this.collision = data.collision || "solid";
+        // Keep existing maps unchanged unless the author explicitly disables it.
+        this.castShadow = data.castShadow ?? true;
 
         this.instanced = data.instanced || false;
         this.instances = (data.instances || []).map(objData => new MapObject(objData));

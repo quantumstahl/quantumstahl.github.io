@@ -315,7 +315,6 @@ class JSTree7 {
 
     renderAssetTypeProperties(type) {
         this.addTextLine("id", type.id);
-        this.addTextLine("glb", type.glb || "");
         this.addTextLine("instances", String(type.instances.length));
 
         const renameBtn = document.createElement("button");
@@ -332,6 +331,7 @@ class JSTree7 {
         
         this.addTextLine("collision", type.collision || "solid");
         this.addCollisionButtons(type);
+        this.addCastShadowToggle(type);
         
         const addBtn = document.createElement("button");
         addBtn.textContent = "+ Instance";
@@ -379,6 +379,26 @@ class JSTree7 {
         }
 
         this.propertyPanel.appendChild(wrap);
+    }
+    addCastShadowToggle(type) {
+        const row = document.createElement("label");
+        row.className = "propRow";
+        row.textContent = "cast shadows";
+        const toggle = document.createElement("input");
+        toggle.type = "checkbox";
+        toggle.checked = type.castShadow !== false;
+        toggle.onchange = () => {
+            type.castShadow = toggle.checked;
+            for (const object of this.game.mapObjects) {
+                if (object.userData.assetType !== type) continue;
+                object.traverse(mesh => {
+                    if (mesh.isMesh) mesh.castShadow = type.castShadow;
+                });
+            }
+            this.game.markUnsaved?.();
+        };
+        row.appendChild(toggle);
+        this.propertyPanel.appendChild(row);
     }
     renderLayerProperties(layer) {
         this.addTextLine("name", layer.name);
@@ -727,6 +747,7 @@ class JSTree7 {
         this.addToolButton("rotate", "Rotate");
         this.addToolButton("scale", "Scale");
         this.addToolButton("stack", "Stack");
+        this.addToolButton("brush", "Brush");
 
         this.addToolbarSeparator();
 
