@@ -18,8 +18,8 @@ class SleepingZEffect {
         
         z.position.set(
             insectPos.x,  // lite sidled
-           insectPos.y+1,  // ovanför kroppen
-            insectPos.z+1
+           insectPos.y+0.7,  // ovanför kroppen
+            insectPos.z-0.6
         );
 
         z.userData.vy = 0.35 + Math.random() * 0.15; // stiger uppåt

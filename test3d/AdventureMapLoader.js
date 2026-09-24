@@ -70,7 +70,7 @@ class AdventureMapLoader {
                         const s = inst.scale || 1;
                         obj.scale.set(s, s, s);
                     }
-
+                    this.game.configureEditorMaterial(obj, type);
                     obj.userData.mapObject = inst;
                     obj.userData.assetType = type;
                     obj.userData.layer = layer;

@@ -21,6 +21,7 @@ class Game7 {
         this.selected = null;
         this.selectedMapObject = null;
         this.selectionBox = null;
+        this.editorBatcher = null;
         
         this.texture2 = new THREE.TextureLoader().load("grasyfield.png");
         this.texture2.wrapS = THREE.RepeatWrapping;
@@ -106,6 +107,7 @@ class Game7 {
             antialias: true
         });
         this.renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
 
         this.input = new InputManager(canvas);
 
@@ -131,6 +133,41 @@ class Game7 {
         this.resize();
         this.tools = new ToolManager(this);
         this.createSelectionBox();
+        this.editorBatcher = new EditorRenderBatcher(this);
+    }
+
+    configureEditorMaterial(obj, type) {
+        // Alpha-blended crossed planes cannot be depth-sorted per instance.
+        // A cutout gives the batch a stable depth order.  The small emissive
+        // fill keeps the reverse side of each crossed blade from turning much
+        // darker than its sun-facing side in the editor preview.
+        if (!/^(gras-tuftdry)$/i.test(type?.id || type?.name || "")) return;
+
+        obj.traverse(mesh => {
+            if (!mesh.isMesh) return;
+
+            const oldMaterials = Array.isArray(mesh.material)
+                ? mesh.material
+                : [mesh.material];
+
+            mesh.material = oldMaterials.map(old => {
+                const mat = new THREE.MeshBasicMaterial({
+                    map: old.map,
+                    color: old.color,
+                    alphaMap: old.alphaMap,
+                    alphaTest: 0.5,
+                    transparent: false,
+                    side: THREE.DoubleSide,
+                    depthWrite: true
+                });
+
+                return mat;
+            });
+
+            if (mesh.material.length === 1) {
+                mesh.material = mesh.material[0];
+            }
+        });
     }
 
     resize() {
@@ -185,6 +222,7 @@ class Game7 {
     selectMapObject(mapObject) {
         this.selectedMapObject = mapObject;
         this.selected = this.getMeshFromMapObject(mapObject);
+        this.editorBatcher?.setSelected(this.selected);
         this.updateSelectionBox();
     }
 
@@ -264,6 +302,7 @@ class Game7 {
     }
 
     setSelected(obj) {
+        this.editorBatcher?.setSelected(obj || null);
         this.selected = obj || null;
         this.selectedMapObject = obj?.userData?.mapObject || null;
 
@@ -368,6 +407,7 @@ class Game7 {
         obj.userData.mapObject = inst;
         obj.userData.assetType = type;
         obj.userData.layer = layer;
+        this.configureEditorMaterial(obj, type);
         obj.traverse(mesh => {
             if (mesh.isMesh) mesh.castShadow = type.castShadow !== false;
         });
@@ -383,6 +423,7 @@ class Game7 {
 
         type.instances.push(inst);
         this.markUnsaved();
+        this.editorBatcher?.build();
         this.setSelected(obj);
         this.editorTree?.renderTree();
         this.editorTree?.renderProperties();
@@ -420,6 +461,124 @@ class Game7 {
     }
 
 }
+
+// Editor-only draw-call reduction.  Source objects stay in the scene for the
+// existing picker and tools, but repeated static GLBs render through a small
+// set of InstancedMesh batches.  The selected source is temporarily shown on
+// its own, so transforms and the selection outline continue to work normally.
+class EditorRenderBatcher {
+    constructor(game) {
+        this.game = game;
+        this.root = new THREE.Group();
+        this.root.name = "Editor instanced render batches";
+        this.root.userData.isEditorRenderBatch = true;
+        this.entries = new Map();
+        this.selected = null;
+        this.hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
+        this.tempMatrix = new THREE.Matrix4();
+    }
+
+    shouldBatch(source) {
+        const type = source.userData.assetType;
+        return !!(
+            type?.glb &&
+            !type.shape &&
+            type.instances?.length >= 8 &&
+            type.visibleInEditor !== false
+        );
+    }
+
+    getMeshes(source) {
+        const meshes = [];
+        source.traverse(child => {
+            if (child.isMesh && child.geometry && child.material) meshes.push(child);
+        });
+        return meshes;
+    }
+
+    build() {
+        this.clear();
+        const groups = new Map();
+
+        for (const source of this.game.mapObjects) {
+            if (!this.shouldBatch(source)) continue;
+            const type = source.userData.assetType;
+            if (!groups.has(type)) groups.set(type, []);
+            groups.get(type).push(source);
+        }
+
+        for (const sources of groups.values()) this.buildTypeBatch(sources);
+        if (this.root.children.length) this.game.scene.add(this.root);
+        this.setSelected(this.game.selected);
+    }
+
+    buildTypeBatch(sources) {
+        const templateMeshes = this.getMeshes(sources[0]);
+        if (!templateMeshes.length) return;
+
+        const batches = templateMeshes.map(template => {
+            const batch = new THREE.InstancedMesh(
+                template.geometry,
+                template.material,
+                sources.length
+            );
+            batch.name = `Editor batch: ${sources[0].userData.assetType.name || "asset"}`;
+            batch.frustumCulled = false;
+            batch.castShadow = template.castShadow;
+            batch.receiveShadow = template.receiveShadow;
+            this.root.add(batch);
+            return batch;
+        });
+
+        sources.forEach((source, index) => {
+            const meshes = this.getMeshes(source);
+            // A malformed instance should remain visible rather than silently
+            // disappearing from the editor.
+            if (meshes.length !== batches.length) return;
+            const slots = [];
+            source.updateWorldMatrix(true, true);
+            meshes.forEach((mesh, meshIndex) => {
+                batches[meshIndex].setMatrixAt(index, mesh.matrixWorld);
+                slots.push({ batch: batches[meshIndex], index, mesh });
+            });
+            source.visible = false;
+            this.entries.set(source, slots);
+        });
+        for (const batch of batches) batch.instanceMatrix.needsUpdate = true;
+    }
+
+    setSelected(source) {
+        if (this.selected && this.selected !== source) {
+            this.setSourceBatched(this.selected, true);
+        }
+        this.selected = source || null;
+        if (this.selected) this.setSourceBatched(this.selected, false);
+    }
+
+    setSourceBatched(source, showInBatch) {
+        const slots = this.entries.get(source);
+        if (!slots) return;
+
+        source.visible = !showInBatch;
+        source.updateWorldMatrix(true, true);
+        for (const slot of slots) {
+            slot.batch.setMatrixAt(
+                slot.index,
+                showInBatch ? slot.mesh.matrixWorld : this.hiddenMatrix
+            );
+            slot.batch.instanceMatrix.needsUpdate = true;
+        }
+    }
+
+    clear() {
+        for (const source of this.entries.keys()) source.visible = true;
+        this.entries.clear();
+        this.selected = null;
+        this.root.removeFromParent();
+        this.root.clear();
+    }
+}
+
 class MapLoader {
     constructor(game) {
         this.game = game;
@@ -518,6 +677,7 @@ class MapLoader {
                     obj.userData.mapObject = inst;
                     obj.userData.assetType = type;
                     obj.userData.layer = layer;
+                    this.game.configureEditorMaterial(obj, type);
                     obj.traverse(mesh => {
                         if (mesh.isMesh) mesh.castShadow = type.castShadow !== false;
                     });
@@ -527,12 +687,16 @@ class MapLoader {
                 }
             }
         }
+
+        this.game.editorBatcher?.build();
     }
     
     
     
     clearMapObjects() {
         if (!this.game.mapObjects) this.game.mapObjects = [];
+
+        this.game.editorBatcher?.clear();
 
         for (const obj of this.game.mapObjects) {
             this.game.scene.remove(obj);

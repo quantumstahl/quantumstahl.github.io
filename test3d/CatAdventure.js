@@ -29,6 +29,8 @@ class CatAdventure {
         this.cameraHeight = 3;
         
         this.playerVelY = 0;
+        this.playerVelX = 0;
+        this.playerVelZ = 0;
         this.onGround = false;
 
         this.gravity = -0.010;
@@ -40,6 +42,13 @@ class CatAdventure {
         this.basePlayerBottomOffset = 0;
         this.waterSink = 0;
         this.coins=0;
+        this.maxHealth = 3;
+        this.health = this.maxHealth;
+        this.healthInvulnerability = 0;
+        this.healthFlash = 0;
+        this.deathSequence = null;
+        this.playerSpawn = null;
+        this.heartDrops = [];
         this.foxMeadowCinematicPlayed = false;
         this.cinematic = null;
         
@@ -47,6 +56,7 @@ class CatAdventure {
         this.clouds = [];
         
         this.insectObj=null;
+        this.bugAI = [];
         this.foxPatrol = null;
         this.foxQuest = {
             state: "unseen", // unseen, speaking, choice, deferred, active, readyToComplete, completing, completed
@@ -106,6 +116,7 @@ class CatAdventure {
         this.findsleepingbug();
         this.findPlayerCat();
         this.setupAnimation();
+        this.setupBugAI();
         this.setupFoxPatrol();
         this.grass = new CatAdventureGrass(this);
         this.grass.build();
@@ -271,6 +282,40 @@ class CatAdventure {
 
 
     }
+    configureEditorMaterial(obj, type) {
+        // Alpha-blended crossed planes cannot be depth-sorted per instance.
+        // A cutout gives the batch a stable depth order.  The small emissive
+        // fill keeps the reverse side of each crossed blade from turning much
+        // darker than its sun-facing side in the editor preview.
+        if (!/^(gras-tuftdry)$/i.test(type?.id || type?.name || "")) return;
+
+        obj.traverse(mesh => {
+            if (!mesh.isMesh) return;
+
+            const oldMaterials = Array.isArray(mesh.material)
+                ? mesh.material
+                : [mesh.material];
+
+            mesh.material = oldMaterials.map(old => {
+                const mat = new THREE.MeshStandardMaterial({
+                    map: old.map,
+                    color: old.color,
+                    alphaMap: old.alphaMap,
+                    alphaTest: 0.5,
+                    transparent: false,
+                    side: THREE.DoubleSide,
+                    depthWrite: true
+                });
+
+                return mat;
+            });
+
+            if (mesh.material.length === 1) {
+                mesh.material = mesh.material[0];
+            }
+            mesh.material.needsUpdate = true;
+        });
+    }
     addBackgroundFadeGLB(){
 
 
@@ -294,12 +339,22 @@ class CatAdventure {
 
 
     addBackgroundFadeToMaterial(material,backgroundTexture) {
+        if (!material) return null;
+        if (material.userData.backgroundFadeAdded) {
+            return material.userData.backgroundFadeUniforms;
+        }
 
         const uniforms = {
         uBackgroundTexture: { value: backgroundTexture },
         };
+        const previousOnBeforeCompile = material.onBeforeCompile;
+        // Capture this before replacing the hook. Three's default cache key is
+        // based on onBeforeCompile, so retaining the old key prevents a tree,
+        // dry-grass, or billboard-grass shader from sharing the wrong program.
+        const previousProgramKey = material.customProgramCacheKey?.() || "";
 
-        material.onBeforeCompile = (shader) => {
+        material.onBeforeCompile = (shader, renderer) => {
+        previousOnBeforeCompile?.call(material, shader, renderer);
         shader.uniforms.uBackgroundTexture = uniforms.uBackgroundTexture;
 
         shader.vertexShader = shader.vertexShader.replace(
@@ -341,6 +396,11 @@ class CatAdventure {
         `
         );
         };
+
+        material.customProgramCacheKey = () => `${previousProgramKey}|background-fade-v1`;
+        material.userData.backgroundFadeAdded = true;
+        material.userData.backgroundFadeUniforms = uniforms;
+        material.needsUpdate = true;
 
     return uniforms;
     }
@@ -565,6 +625,12 @@ class CatAdventure {
     }
 
     update(scale,deltaSeconds) {
+        if (this.deathSequence) {
+            this.updateDeathSequence(deltaSeconds);
+            this.input.update();
+            return;
+        }
+        this.updatePlayerHealth(deltaSeconds);
         this.updateSunShadow(this.player.position);
         const controlsLocked = this.isCinematicActive() || this.isFoxDialogActive();
         
@@ -572,6 +638,7 @@ class CatAdventure {
         this.restoreWaterSinkOffset();
         this.worldSolver.beginFrame();
         this.worldSolver.updatePlayerY(this.player, scale);
+        this.updatePlayerKnockback(scale);
         this.worldSolver.resolveHorizontal(this.player);
         this.worldSolver.checkGhostAndTriggerContacts(this.player);
         this.updateWaterSink(deltaSeconds);
@@ -589,6 +656,8 @@ class CatAdventure {
         this.updateSky();
         this.updateFoxPatrol(deltaSeconds);
         this.updateFoxQuest(deltaSeconds);
+        this.updateBugAI(deltaSeconds);
+        this.updateHeartDrops(deltaSeconds);
         this.grass?.update(deltaSeconds);
         this.water?.update(deltaSeconds);
         this.treeWind?.update(deltaSeconds);
@@ -654,7 +723,11 @@ class CatAdventure {
         if (!insectObj || insectObj.userData.squished) return;
 
         insectObj.userData.squished = true;
-
+        insectObj.userData.hadCollisionOverride = Object.hasOwn(insectObj.userData, "collisionOverride");
+        insectObj.userData.preSquishCollisionOverride = insectObj.userData.collisionOverride;
+  
+        insectObj.userData.actions?.["Animation 1"].stop();
+        insectObj.userData.bugAI?.attackAction?.stop();
         // spara originalskala
         insectObj.userData.originalScale = insectObj.scale.clone();
 
@@ -664,9 +737,88 @@ class CatAdventure {
             insectObj.scale.z * 1.25
         );
 
-        insectObj.userData.assetType.collision = "none";
+        insectObj.userData.collisionOverride = "none";
+        this.tryDropHeart(insectObj);
            
         
+    }
+
+    tryDropHeart(insectObj) {
+        const id = insectObj.userData.mapObject?.id || insectObj.uuid;
+        let hash = 2166136261;
+        for (let index = 0; index < id.length; index++) {
+            hash = Math.imul(hash ^ id.charCodeAt(index), 16777619);
+        }
+
+        if(Math.floor(Math.random() * 10) > 3)return;
+
+        const shape = new THREE.Shape();
+        shape.moveTo(0, -0.62);
+        shape.bezierCurveTo(-0.98, -0.08, -0.88, 0.62, -0.38, 0.66);
+        shape.bezierCurveTo(-0.12, 0.68, -0.02, 0.48, 0, 0.31);
+        shape.bezierCurveTo(0.02, 0.48, 0.12, 0.68, 0.38, 0.66);
+        shape.bezierCurveTo(0.88, 0.62, 0.98, -0.08, 0, -0.62);
+
+        const geometry = new THREE.ExtrudeGeometry(shape, {
+            depth: 0.16,
+            bevelEnabled: true,
+            bevelSegments: 1,
+            bevelSize: 0.035,
+            bevelThickness: 0.035,
+            curveSegments: 5
+        });
+        geometry.center();
+        const material = new THREE.MeshStandardMaterial({
+            color: 0xf05c68,
+            emissive: 0x6b1725,
+            emissiveIntensity: 0.65,
+            roughness: 0.45,
+            metalness: 0.05
+        });
+        const heart = new THREE.Mesh(geometry, material);
+        insectObj.getWorldPosition(heart.position);
+        heart.position.y += 0.48;
+        heart.scale.setScalar(0.34);
+        heart.castShadow = true;
+        heart.receiveShadow = true;
+        heart.name = "Bug health heart";
+        this.scene.add(heart);
+        this.heartDrops.push({
+            heart,
+            baseY: heart.position.y,
+            phase: (hash >>> 8) * 0.01,
+            age: 0,
+            pickupDelay: 0.7
+        });
+    }
+
+    updateHeartDrops(deltaSeconds) {
+        if (!this.player || !this.heartDrops.length) return;
+        for (const drop of [...this.heartDrops]) {
+            const heart = drop.heart;
+            drop.age += deltaSeconds;
+            const time = performance.now() * 0.001 + drop.phase;
+            heart.position.y = drop.baseY + Math.sin(time * 2.2) * 0.065;
+            heart.rotation.y += deltaSeconds * 1.8;
+            const popIn = Math.min(1, drop.age / 0.22);
+            heart.scale.setScalar(0.34 * (0.72 + (1 - Math.pow(1 - popIn, 3)) * 0.28));
+
+            const dx = heart.position.x - this.player.position.x;
+            const dz = heart.position.z - this.player.position.z;
+            if (drop.age < drop.pickupDelay ||
+                dx * dx + dz * dz > 0.8 * 0.8 || this.health >= this.maxHealth) continue;
+
+            this.health = Math.min(this.maxHealth, this.health + 1);
+            this.healthFlash = 0.35;
+            this.removeHeartDrop(drop);
+        }
+    }
+
+    removeHeartDrop(drop) {
+        this.scene.remove(drop.heart);
+        drop.heart.geometry.dispose();
+        drop.heart.material.dispose();
+        this.heartDrops = this.heartDrops.filter(entry => entry !== drop);
     }
     openGate(gate) {
         if(gate.open===false){
@@ -740,7 +892,7 @@ class CatAdventure {
         const mobile = mobileAndTabletCheck();
         const cinematicActive = this.isCinematicActive();
         const dialogActive = this.isFoxDialogActive();
-        const uiLocked = cinematicActive || dialogActive;
+        const uiLocked = cinematicActive || dialogActive || !!this.deathSequence;
         // On mobile joy.redraw() already clears this shared canvas just before
         // drawUI(). Clearing again here would erase the joystick.
         if (!mobile || uiLocked) this.ctx.clearRect(0, 0, w, h);
@@ -753,9 +905,11 @@ class CatAdventure {
             this.drawPaw(this.ctx, jumpX, jumpY, jumpR);
         }
         this.drawCoinCounter(this.ctx);
+        this.drawHealthUI(this.ctx);
         this.drawCinematicTitle(this.ctx, w, h);
         this.drawFoxQuestUI(this.ctx, w, h);
         this.drawFoxQuestCompletion(this.ctx, w, h);
+        this.drawDeathOverlay(this.ctx, w, h);
     }
 
     drawCinematicTitle(ctx, width, height) {
@@ -825,7 +979,7 @@ class CatAdventure {
         if (quest.state !== "active" && quest.state !== "readyToComplete") return;
         const panelWidth = mobile ? 210 : 270;
         const x = width - panelWidth - (mobile ? 12 : 18);
-        const y = mobile ? 12 : 18;
+        const y = mobile ? 50+20 : 80+50;
         ctx.save();
         this.roundRect(ctx, x, y, panelWidth, mobile ? 92 : 104, 14);
         ctx.fillStyle = "rgba(20, 43, 31, 0.88)";
@@ -877,6 +1031,188 @@ class CatAdventure {
         ctx.fillStyle = "#dff0d4";
         ctx.font = `700 ${mobile ? 12 : 14}px system-ui, sans-serif`;
         ctx.fillText("The fox thanks you.  +10 coins", width * 0.5, y + (mobile ? 91 : 108));
+        ctx.restore();
+    }
+
+    drawHealthUI(ctx) {
+        const mobile = mobileAndTabletCheck();
+        const inset = mobile ? 12 : 18;
+        const heartSize = mobile ? 23 : 29;
+        const gap = mobile ? 5 : 7;
+        const padding = mobile ? 10 : 13;
+        const width = padding * 2 + heartSize * this.maxHealth + gap * (this.maxHealth - 1);
+        const height = heartSize + padding * 2;
+        const x = this.canvas2d.width - inset - width;
+        const y = inset;
+        const hitShake = this.healthFlash > 0
+            ? Math.sin(performance.now() * 0.045) * this.healthFlash * 3
+            : 0;
+
+        ctx.save();
+        ctx.translate(hitShake, 0);
+        ctx.shadowColor = "rgba(5, 13, 9, 0.5)";
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetY = 3;
+        ctx.fillStyle = "rgba(22, 51, 39, 0.94)";
+        this.roundRect(ctx, x, y, width, height, height * 0.44);
+        ctx.fill();
+        ctx.shadowColor = "transparent";
+        ctx.strokeStyle = "rgba(245, 223, 154, 0.55)";
+        ctx.lineWidth = mobile ? 1.5 : 2;
+        ctx.stroke();
+
+        for (let index = 0; index < this.maxHealth; index++) {
+            const heartX = x + padding + heartSize * 0.5 + index * (heartSize + gap);
+            const heartY = y + height * 0.5;
+            const filled = index < this.health;
+            this.drawHealthHeart(ctx, heartX, heartY, heartSize, filled);
+        }
+        ctx.restore();
+    }
+
+    drawHealthHeart(ctx, x, y, size, filled) {
+        const scale = size / 32;
+        ctx.save();
+        ctx.translate(x, y - size * 0.04);
+        ctx.scale(scale, scale);
+        ctx.beginPath();
+        ctx.moveTo(0, 12);
+        ctx.bezierCurveTo(-19, 1, -15, -13, -7, -12);
+        ctx.bezierCurveTo(-3, -12, -1, -9, 0, -6);
+        ctx.bezierCurveTo(1, -9, 3, -12, 7, -12);
+        ctx.bezierCurveTo(15, -13, 19, 1, 0, 12);
+        if (filled) {
+            ctx.shadowColor = "rgba(255, 75, 92, 0.62)";
+            ctx.shadowBlur = 6;
+            ctx.fillStyle = "#f05c68";
+            ctx.fill();
+            ctx.shadowColor = "transparent";
+            ctx.strokeStyle = "#ffd1bb";
+        } else {
+            ctx.fillStyle = "#39463f";
+            ctx.strokeStyle = "#718278";
+        }
+        ctx.lineWidth = 2.3;
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    updatePlayerHealth(deltaSeconds) {
+        this.healthInvulnerability = Math.max(0, this.healthInvulnerability - deltaSeconds);
+        this.healthFlash = Math.max(0, this.healthFlash - deltaSeconds * 2.8);
+    }
+
+    damagePlayer() {
+        if (this.health <= 0 || this.healthInvulnerability > 0) return false;
+        this.health--;
+        this.healthInvulnerability = 1.15;
+        this.healthFlash = 1;
+        if (this.health === 0) this.startDeathSequence();
+        return true;
+    }
+
+    startDeathSequence() {
+        if (this.deathSequence || !this.player) return;
+        this.restoreWaterSinkOffset();
+        this.waterSink = 0;
+        this.playerVelX = 0;
+        this.playerVelY = 0;
+        this.playerVelZ = 0;
+        this.setPlayerAnimation(false);
+        this.deathSequence = {
+            elapsed: 0,
+            respawned: false,
+            fade: 0,
+            fallBaseY: this.player.position.y
+        };
+    }
+
+    updateDeathSequence(deltaSeconds) {
+        const death = this.deathSequence;
+        if (!death || !this.player) return;
+        death.elapsed += deltaSeconds;
+
+        // Let the cat visibly topple over before the screen starts fading.
+        // Once respawned, do not keep applying this pose during fade-out.
+        if (!death.respawned) {
+            const fallProgress = Math.min(1, death.elapsed / 1.1);
+            this.player.rotation.z = THREE.MathUtils.lerp(
+                this.player.rotation.z, Math.PI * 0.5, Math.min(1, deltaSeconds * 9)
+            );
+            // The cat asset pivot is low, so raise the root for the side pose.
+            this.player.position.y = death.fallBaseY + fallProgress * 0.24;
+        }
+
+        // 1.1 s fall, 1.0 s fade in, 0.6 s fully black, 1.1 s fade out.
+        if (death.elapsed < 1.1) death.fade = 0;
+        else if (death.elapsed < 2.1) death.fade = (death.elapsed - 1.1) / 1.0;
+        else if (death.elapsed < 2.7) death.fade = 1;
+        else death.fade = Math.max(0, 1 - (death.elapsed - 2.7) / 1.1);
+
+        // Move the cat while the screen is completely black, not when the
+        // return fade has already started.
+        if (!death.respawned && death.elapsed >= 2.35) {
+            this.respawnPlayer();
+            death.respawned = true;
+        }
+
+        if (death.elapsed >= 3.8) this.deathSequence = null;
+    }
+
+    respawnPlayer() {
+        if (!this.player || !this.playerSpawn) return;
+        this.player.position.copy(this.playerSpawn.position);
+        this.player.rotation.copy(this.playerSpawn.rotation);
+        this.player.quaternion.setFromEuler(this.player.rotation);
+        this.playerVelX = 0;
+        this.playerVelY = 0;
+        this.playerVelZ = 0;
+        this.waterSink = 0;
+        this.onGround = false;
+        this.health = this.maxHealth;
+        this.healthInvulnerability = 1.25;
+        this.healthFlash = 0;
+        this.restoreDeadBugs();
+        this.snapCameraToPlayer();
+        // The grass instance list is camera-local. Refresh it now, while the
+        // black screen still hides the respawn, rather than waiting for normal
+        // movement to resume after the death sequence.
+        this.grass?.update(0);
+    }
+
+    restoreDeadBugs() {
+        for (const bug of this.mapObjects) {
+            const type = bug.userData.assetType || {};
+            const label = `${type.id || ""} ${type.name || ""}`.toLowerCase();
+            if (!label.includes("bug") || !bug.userData.squished) continue;
+
+            bug.userData.squished = false;
+            if (bug.userData.originalScale) bug.scale.copy(bug.userData.originalScale);
+            if (bug.userData.hadCollisionOverride) {
+                bug.userData.collisionOverride = bug.userData.preSquishCollisionOverride;
+            } else {
+                delete bug.userData.collisionOverride;
+            }
+            bug.userData.actions?.["Animation 1"]?.reset().play();
+            bug.userData.actions?.["Animation 1"] && (bug.userData.actions["Animation 1"].paused = !!bug.userData.sleepingEffect);
+            bug.userData.attackAction?.stop?.();
+
+            const ai = bug.userData.bugAI;
+            if (ai) {
+                ai.state = "idle";
+                ai.stateTime = 0.65;
+                ai.attackCooldown = 0;
+                bug.userData.bugState = ai.state;
+            }
+        }
+    }
+
+    drawDeathOverlay(ctx, width, height) {
+        const alpha = this.deathSequence?.fade || 0;
+        if (alpha <= 0) return;
+        ctx.save();
+        ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+        ctx.fillRect(0, 0, width, height);
         ctx.restore();
     }
 
@@ -1439,6 +1775,218 @@ class CatAdventure {
         
         
     }
+
+    setupBugAI() {
+        this.bugAI = [];
+        for (const bug of this.mapObjects) {
+            const type = bug.userData.assetType || {};
+            const id = `${type.id || ""} ${type.name || ""}`.toLowerCase();
+            // The first authored bug remains the sleeping tutorial bug.
+            if (!id.includes("bug") || bug === this.insectObj) continue;
+
+            const seed = this.getBugSeed(bug);
+            const ai = {
+                bug,
+                home: bug.position.clone(),
+                state: "idle",
+                stateTime: 0.8 + seed * 1.2,
+                wanderTarget: bug.position.clone(),
+                wanderRadius: 2.2,
+                aggroDistance: 5.25,
+                returnDistance: 7.0,
+                attackDistance: 1.4,
+                wanderSpeed: 0.62,
+                chaseSpeed: 1.45,
+                returnSpeed: 0.98,
+                seed,
+                wanderCount: 0,
+                attackCooldown: 0,
+                action: bug.userData.actions?.["Animation 1"] || null,
+                attackAction: this.createBugAttackAction(bug)
+            };
+            bug.userData.bugAI = ai;
+            bug.userData.bugState = ai.state;
+            this.bugAI.push(ai);
+        }
+    }
+
+    getBugSeed(bug) {
+        const id = bug.userData.mapObject?.id || "bug";
+        let value = 0;
+        for (let index = 0; index < id.length; index++) {
+            value = (value * 31 + id.charCodeAt(index)) >>> 0;
+        }
+        return (value % 10000) / 10000;
+    }
+
+    setBugState(ai, state, duration = 0) {
+        if (ai.state === state) return;
+        const previousState = ai.state;
+        ai.state = state;
+        ai.stateTime = duration;
+        ai.bug.userData.bugState = state;
+      //  if (previousState === "attack" && state !== "attack") ai.attackAction?.stop();
+        if (state === "wander") this.chooseBugWanderTarget(ai);
+        if (state === "attack") this.triggerBugAttack(ai);
+    }
+
+    createBugAttackAction(bug) {
+        const mixer = bug.userData.mixer;
+        const clip = THREE.AnimationClip.findByName(bug.userData.animations || [], "Animation 2");
+        if (!mixer || !clip) return null;
+
+        const action = mixer.clipAction(clip);
+        action.setLoop(THREE.LoopRepeat, 5);
+        action.clampWhenFinished = false;
+        action.enabled = true;
+        action.stop();
+        return action;
+    }
+
+    triggerBugAttack(ai) {
+        this.setBugMoving(ai, false);
+        if (ai.attackAction) {
+            ai.attackAction.reset();
+            ai.attackAction.enabled = true;
+            ai.attackAction.setEffectiveWeight(1).setEffectiveTimeScale(1).play();
+        }
+
+        if (!this.damagePlayer() || this.deathSequence) return;
+
+        // A small impulse makes the hit readable without turning it into a
+        // full combat/health system. WorldSolver handles the landing normally.
+        const awayFromBug = this.player.position.clone().sub(ai.bug.position);
+        awayFromBug.y = 0;
+        if (awayFromBug.lengthSq() > 0.0001) {
+            awayFromBug.normalize();
+            // Horizontal impact is a velocity, not an instant position jump.
+            // It is applied and eased out by updatePlayerKnockback each frame.
+            this.playerVelX = awayFromBug.x * 0.26;
+            this.playerVelZ = awayFromBug.z * 0.26;
+        }
+        this.playerVelY = Math.max(this.playerVelY, 0.18);
+        this.onGround = false;
+        ai.attackCooldown = 1.2;
+    }
+
+    chooseBugWanderTarget(ai) {
+        ai.wanderCount++;
+        // Smooth deterministic angles keep the bug near its home without a
+        // random, jittery-looking route or a changing route on reload.
+        const angle = (ai.seed * 19.7 + ai.wanderCount * 2.399) * Math.PI * 2;
+        const distance = ai.wanderRadius * (0.35 + ((ai.seed * 7.1 + ai.wanderCount * 0.37) % 1) * 0.65);
+        ai.wanderTarget.set(
+            ai.home.x + Math.cos(angle) * distance,
+            ai.home.y,
+            ai.home.z + Math.sin(angle) * distance
+        );
+    }
+
+    updateBugAI(deltaSeconds) {
+        if (!this.player) return;
+        for (const ai of this.bugAI) {
+            const bug = ai.bug;
+            if (bug.userData.squished) continue;
+
+            const toPlayer = this.player.position.clone().sub(bug.position);
+            toPlayer.y = 0;
+            const playerDistance = toPlayer.length();
+            ai.stateTime -= deltaSeconds;
+            ai.attackCooldown = Math.max(0, ai.attackCooldown - deltaSeconds);
+
+            // A cat that has escaped the bug's small home area breaks pursuit.
+            if ((ai.state === "aggro" || ai.state === "chase" || ai.state === "attack") &&
+                playerDistance > ai.returnDistance) {
+                this.setBugState(ai, "return");
+            }
+
+            switch (ai.state) {
+                case "idle":
+                    this.setBugMoving(ai, false);
+                    if (playerDistance <= ai.aggroDistance) this.setBugState(ai, "aggro", 0.45);
+                    else if (ai.stateTime <= 0) this.setBugState(ai, "wander");
+                    break;
+
+                case "wander":
+                    if (playerDistance <= ai.aggroDistance) {
+                        this.setBugState(ai, "aggro", 0.45);
+                        break;
+                    }
+                    if (this.moveBugTowards(ai, ai.wanderTarget, ai.wanderSpeed, deltaSeconds)) {
+                        this.setBugState(ai, "idle", 0.8 + ai.seed * 1.3);
+                    }
+                    break;
+
+                case "aggro":
+                    this.setBugMoving(ai, false);
+                    this.faceBugTowards(ai, toPlayer, deltaSeconds);
+                    if (playerDistance > ai.returnDistance) this.setBugState(ai, "return");
+                    else if (ai.stateTime <= 0) this.setBugState(ai, "chase");
+                    break;
+
+                case "chase":
+                    if (this.touching(this.player, "bug", "solid") && !this.touching(this.player, "bug", "solid","down")) { 
+                        if (ai.attackCooldown <= 0) this.setBugState(ai, "attack", 0.65);
+                        else {
+                            this.setBugMoving(ai, false);
+                            this.faceBugTowards(ai, toPlayer, deltaSeconds);
+                        }
+                    } else {
+                        this.moveBugTowards(ai, this.player.position, ai.chaseSpeed, deltaSeconds);
+                    }
+                    break;
+
+                case "attack":
+                    this.setBugMoving(ai, false);
+                    this.faceBugTowards(ai, toPlayer, deltaSeconds);
+                    if (playerDistance > ai.attackDistance * 1.35) this.setBugState(ai, "chase");
+                    else if (ai.stateTime <= 0) this.setBugState(ai, "chase");
+                    break;
+
+                case "return":
+                    if (playerDistance <= ai.aggroDistance) {
+                        this.setBugState(ai, "aggro", 0.3);
+                        break;
+                    }
+                    if (this.moveBugTowards(ai, ai.home, ai.returnSpeed, deltaSeconds)) {
+                        this.setBugState(ai, "idle", 1.0 + ai.seed);
+                    }
+                    break;
+            }
+        }
+    }
+
+    moveBugTowards(ai, target, speed, deltaSeconds) {
+        const direction = target.clone().sub(ai.bug.position);
+        direction.y = 0;
+        const distance = direction.length();
+        const step = speed * deltaSeconds;
+        if (distance <= Math.max(step, 0.04)) {
+            ai.bug.position.x = target.x;
+            ai.bug.position.z = target.z;
+            this.setBugMoving(ai, false);
+            return true;
+        }
+        direction.multiplyScalar(1 / distance);
+        ai.bug.position.addScaledVector(direction, step);
+        this.faceBugTowards(ai, direction, deltaSeconds);
+        this.setBugMoving(ai, true);
+        return false;
+    }
+
+    faceBugTowards(ai, direction, deltaSeconds) {
+        if (direction.lengthSq() < 0.0001) return;
+        const targetYaw = Math.atan2(-direction.x, -direction.z);
+        ai.bug.rotation.y = this.lerpAngle(
+            ai.bug.rotation.y, targetYaw, Math.min(1, deltaSeconds * 10)
+        );
+    }
+
+    setBugMoving(ai, moving) {
+        if (!ai.action) return;
+        ai.action.paused = !moving;
+        ai.action.setEffectiveTimeScale(moving ? 1.15 : 0.65);
+    }
     
     findPlayerCat() {
         // Försök hitta första objektet vars assetType id/name innehåller "cat"
@@ -1462,6 +2010,11 @@ class CatAdventure {
             console.warn("No cat found in map.json. Creating fallback player.");
             this.createFallbackPlayer();
         }
+
+        this.playerSpawn = {
+            position: this.player.position.clone(),
+            rotation: this.player.rotation.clone()
+        };
 
         console.log("Player cat:", this.player);
     }
@@ -1545,6 +2098,22 @@ class CatAdventure {
 
 
     }
+    updatePlayerKnockback(scale) {
+        if (!this.player) return;
+        if (Math.abs(this.playerVelX) < 0.00001 && Math.abs(this.playerVelZ) < 0.00001) {
+            this.playerVelX = 0;
+            this.playerVelZ = 0;
+            return;
+        }
+
+        this.player.position.x += this.playerVelX * scale;
+        this.player.position.z += this.playerVelZ * scale;
+
+        // 0.72/frame produces a short, soft push of roughly 0.18 world units.
+        const friction = Math.pow(0.92, scale);
+        this.playerVelX *= friction;
+        this.playerVelZ *= friction;
+    }
     updatePlayerFromJoystick(scale) {
 
         if (!this.player || !this.joy) return;
@@ -1626,6 +2195,20 @@ class CatAdventure {
         this.camera.position.lerp(desiredPos, followSmooth);
 
         this.camera.lookAt(target);
+    }
+
+    snapCameraToPlayer() {
+        if (!this.player || !this.camera) return;
+        this.cameraYaw = this.player.rotation.y;
+        const target = this.player.position.clone();
+        target.y += 1.0;
+        this.camera.position.set(
+            target.x + Math.sin(this.cameraYaw) * this.cameraDistance,
+            target.y + this.cameraHeight,
+            target.z + Math.cos(this.cameraYaw) * this.cameraDistance
+        );
+        this.camera.lookAt(target);
+        this.updateSky();
     }
 
     isCinematicActive() {
@@ -2056,10 +2639,6 @@ class CatAdventureDryGrassWind {
             material.userData.dryGrassWindShader = shader;
             this.shaders.push(shader);
         };
-        material.transparent = true;
-        material.alphaTest = 0.1;
-        material.depthWrite = true;
-        material.needsUpdate = true;
     }
 
     update(deltaSeconds) {
