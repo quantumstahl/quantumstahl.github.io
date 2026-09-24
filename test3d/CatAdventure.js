@@ -190,7 +190,7 @@ class CatAdventure {
         // SUN
         // ============================
 
-        this.sun = new THREE.DirectionalLight(0xffd5a5, 4.0);
+        this.sun = new THREE.DirectionalLight(0xF1CD6C, 4.0);
 
         this.sun.castShadow = true;
 
@@ -230,7 +230,7 @@ class CatAdventure {
         // ============================
         // AMBIENT
         // ============================
-        this.scene.add(new THREE.HemisphereLight(0xdcc8ee, 0x71834a, 2.5));
+        this.scene.add(new THREE.HemisphereLight(0xdcc8ee, 0xF1CD6C, 2.5));
       //  this.scene.add(new THREE.AmbientLight(0xffead5, 2.15));
 
 
@@ -2789,6 +2789,7 @@ class CatAdventureGrass {
         this.capacity = Math.min(this.maxVisible, this.candidates.length);
         const geometry = this.createCrossedBladeGeometry();
         const material = this.createMaterial();
+        this.game.addBackgroundFadeToMaterial(material, this.game.skyTexture);
         this.mesh = new THREE.InstancedMesh(geometry, material, this.capacity);
         this.mesh.name = "Distance faded crossed-billboard grass";
         this.mesh.frustumCulled = false;
