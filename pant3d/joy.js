@@ -10,8 +10,17 @@
 let StickStatus = {
     xPosition: 0,
     yPosition: 0,
+
+    // gamla procentvärden
     x: 0,
     y: 0,
+
+    // nya 360-värden
+    xFloat: 0,
+    yFloat: 0,
+    power: 0,
+    angle: 0,
+
     cardinalDirection: "C"
 };
 
@@ -243,16 +252,53 @@ var JoyStick = (function (container, parameters, callback) {
     function updateStatus() {
         let nx = 0;
         let ny = 0;
+        let fx = 0;
+        let fy = 0;
+        let power = 0;
+        let angle = 0;
 
         if (maxMoveStick > 0) {
-            nx = Math.round(((movedX - centerX) / maxMoveStick) * 100);
-            ny = Math.round((((movedY - centerY) / maxMoveStick) * -100));
+            const dx = movedX - centerX;
+            const dy = movedY - centerY;
+
+            fx = dx / maxMoveStick;
+            fy = -dy / maxMoveStick; // upp = positiv Y
+
+            // Clampa ifall något blir lite över p.g.a. float
+            fx = clamp(fx, -1, 1);
+            fy = clamp(fy, -1, 1);
+
+            power = Math.sqrt(fx * fx + fy * fy);
+            power = clamp(power, 0, 1);
+
+            // angle i radians.
+            // 0 = höger, PI/2 = upp, PI/-2 = ner
+            angle = Math.atan2(fy, fx);
+
+            nx = Math.round(fx * 100);
+            ny = Math.round(fy * 100);
+        }
+
+        const deadZone = 0.12;
+
+        if (power < deadZone) {
+            fx = 0;
+            fy = 0;
+            power = 0;
+            angle = 0;
         }
 
         StickStatus.xPosition = movedX;
         StickStatus.yPosition = movedY;
+
         StickStatus.x = isFinite(nx) ? nx : 0;
         StickStatus.y = isFinite(ny) ? ny : 0;
+
+        StickStatus.xFloat = isFinite(fx) ? fx : 0;
+        StickStatus.yFloat = isFinite(fy) ? fy : 0;
+        StickStatus.power = isFinite(power) ? power : 0;
+        StickStatus.angle = isFinite(angle) ? angle : 0;
+
         StickStatus.cardinalDirection = getCardinalDirection();
 
         callback(StickStatus);
@@ -400,8 +446,8 @@ var JoyStick = (function (container, parameters, callback) {
         document.addEventListener("touchend", onTouchEnd, { passive: true });
         document.addEventListener("touchcancel", onTouchEnd, { passive: true });
     } else {
-        //canvas.addEventListener("mousedown", onMouseDown, false);
-        //document.addEventListener("mousemove", onMouseMove, false);
+       // canvas.addEventListener("mousedown", onMouseDown, false);
+       // document.addEventListener("mousemove", onMouseMove, false);
        // document.addEventListener("mouseup", onMouseUp, false);
     }
 
@@ -438,5 +484,64 @@ var JoyStick = (function (container, parameters, callback) {
 
     this.GetDir = function () {
         return getCardinalDirection();
+    };
+    this.GetXFloat = function () {
+        if (maxMoveStick <= 0) return 0;
+
+        const x = (movedX - centerX) / maxMoveStick;
+        const power = Math.sqrt(x * x + Math.pow((movedY - centerY) / maxMoveStick, 2));
+
+        if (power < 0.12) return 0;
+
+        return clamp(x, -1, 1);
+    };
+
+    this.GetYFloat = function () {
+        if (maxMoveStick <= 0) return 0;
+
+        const y = -((movedY - centerY) / maxMoveStick);
+        const power = Math.sqrt(
+            Math.pow((movedX - centerX) / maxMoveStick, 2) +
+            Math.pow((movedY - centerY) / maxMoveStick, 2)
+        );
+
+        if (power < 0.12) return 0;
+
+        return clamp(y, -1, 1);
+    };
+
+    this.GetPower = function () {
+        if (maxMoveStick <= 0) return 0;
+
+        const x = (movedX - centerX) / maxMoveStick;
+        const y = (movedY - centerY) / maxMoveStick;
+
+        const p = Math.sqrt(x * x + y * y);
+
+        if (p < 0.12) return 0;
+
+        return clamp(p, 0, 1);
+    };
+
+    this.GetAngle = function () {
+        const x = this.GetXFloat();
+        const y = this.GetYFloat();
+
+        if (x === 0 && y === 0) return 0;
+
+        return Math.atan2(y, x);
+    };
+
+    this.GetVector = function () {
+        const x = this.GetXFloat();
+        const y = this.GetYFloat();
+        const power = this.GetPower();
+
+        return {
+            x,
+            y,
+            power,
+            angle: Math.atan2(y, x)
+        };
     };
 });

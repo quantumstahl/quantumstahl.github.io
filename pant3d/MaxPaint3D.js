@@ -12,10 +12,14 @@ class MaxPaint3D {
          this.objects = [];
         this.camera = new EditorCamera(this);
         this.renderer = new EditorRenderer(canvas,canvas2, this.scene, this.camera.camera);
+        // This is a render-only proxy. The original Mesh objects remain the
+        // editor's source of truth, so saving, undo and mesh editing retain
+        // their existing behaviour.
+        this.renderBatcher = new EditorRenderBatcher(this);
         
-        const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+        const ambient = new THREE.AmbientLight(0xffffff, 1.4);
         this.scene.add(ambient);
-        const light = new THREE.DirectionalLight(0xffffff, 1.2);
+        const light = new THREE.DirectionalLight(0xffffff, 4.2);
         light.position.set(60, 120, 60);
         light.castShadow = true;
 
@@ -32,7 +36,7 @@ class MaxPaint3D {
         
         
         this.scene.add(light);
-        const light2 = new THREE.DirectionalLight(0xffffff, 0.4);
+        const light2 = new THREE.DirectionalLight(0xffffff, 4.4);
         light2.position.set(-5, 5, -5);
         this.scene.add(light2);
         
@@ -103,8 +107,12 @@ class MaxPaint3D {
         
         
         
+         this.prepareRenderBatch();
          this.renderer.render();
         
+         this.ctx.fillStyle="white";
+        this.ctx.fillText(this.renderer.renderer.info.render.calls,10,200);
+        this.ctx.fillText(this.renderer.renderer.info.render.triangles,10,220);
         
         requestAnimationFrame(t => this.loop(t));
     }
@@ -137,7 +145,7 @@ class MaxPaint3D {
 
         const geo = new THREE.PlaneGeometry(size, size);
         const mat = new THREE.MeshStandardMaterial({
-            color: 0x333333,
+            color: 0x888888,
             roughness: 1
         });
 
@@ -157,6 +165,7 @@ class MaxPaint3D {
         pos.z = this.snapToGrid(pos.z, gridSize);
     }
     addPrimitive(type) {
+         this.disableRenderBatching();
          const mesh = this.createPrimitive(type);
          if (!mesh) return;
          mesh.geometry = mesh.geometry.toNonIndexed();
@@ -220,6 +229,9 @@ class MaxPaint3D {
         obj.position.y += delta;
     }
     setSelected(obj) {
+        // An InstancedMesh cannot expose its individual source mesh to the
+        // existing transform/paint tools. Restore sources before selection.
+        if (obj) this.disableRenderBatching();
         if (this.selected && this.selected.material) {
             this.selected.material.emissive?.setHex(0x000000);
         }
@@ -247,6 +259,8 @@ class MaxPaint3D {
     deleteSelected() {
         if (!this.selected) return;
 
+        this.disableRenderBatching();
+
         const obj = this.selected;
 
         this.setSelected(null);
@@ -264,6 +278,8 @@ class MaxPaint3D {
     }
     duplicateSelected() {
         if (!this.selected) return;
+
+        this.disableRenderBatching();
 
         this.selected.updateMatrixWorld(true);
 
@@ -497,6 +513,9 @@ class MaxPaint3D {
         }
     }
     serializeScene() {
+        // Saves and undo snapshots must always see the original Mesh objects,
+        // never their temporary hidden state while an instanced proxy is live.
+        this.disableRenderBatching();
         return {
             version: 2,
             objects: (this.objects || [])
@@ -716,28 +735,69 @@ class MaxPaint3D {
             geo = new THREE.SphereGeometry(1, s.width, s.height);
         }
         else if (type === "plane") {
-            geo = new THREE.BoxGeometry(2, 0.1, 2);
+            if(resolution==="low"){ geo = new THREE.PlaneGeometry(1,1);}
+            else geo = new THREE.BoxGeometry(2, 0.1, 2);
         }
 
         if (!geo) return null;
 
         const mat = new THREE.MeshStandardMaterial({
+            
             color: 0x66aa55,
             roughness: 0.7,
             metalness: 0.0
         });
-
+        if(resolution==="low"&& type === "plane"){}
         const obj = new THREE.Mesh(geo, mat);
-
+         if(resolution==="low"&& type === "plane")obj.rotation.x = - Math.PI / 2;
         obj.userData.type = type;
         obj.userData.resolution = resolution;
 
         obj.name = type;
         obj.castShadow = true;
         obj.receiveShadow = true;
-
+        obj.material.needsUpdate = true;
         this.ensureObjectId(obj);
         return obj;
+    }
+
+    prepareRenderBatch() {
+        // Keep editing exact: batch only while the Select tool is idle and no
+        // object is selected. A click restores the source meshes in the same
+        // frame through setSelected().
+        if (this.selected || this.tools?.current !== this.tools?.tools.select) {
+            this.disableRenderBatching();
+            return;
+        }
+        this.renderBatcher.build();
+    }
+
+    disableRenderBatching() {
+        this.renderBatcher?.restore();
+    }
+
+    measureRenderBatching() {
+        // Run from DevTools: app.measureRenderBatching(). This deliberately
+        // measures renderer.info.render.calls, not an estimated mesh count.
+        this.disableRenderBatching();
+        const before = this.renderer.renderCallMeasurement("unbatched");
+
+        const previousSelection = this.selected;
+        this.selected = null;
+        this.renderBatcher.build(true);
+        const after = this.renderer.renderCallMeasurement("instanced proxy");
+
+        this.renderBatcher.restore();
+        this.selected = previousSelection;
+        const result = {
+            beforeCalls: before.calls,
+            afterCalls: after.calls,
+            savedCalls: before.calls - after.calls,
+            batches: this.renderBatcher.lastBatchCount,
+            instances: this.renderBatcher.lastInstanceCount
+        };
+        console.table([result]);
+        return result;
     }
     getPrimitiveSegments(type, resolution = this.primitiveResolution || "low") {
         const res = resolution;
@@ -757,7 +817,7 @@ class MaxPaint3D {
         if (type === "sphere") {
             if (res === "low") return { width: 4, height: 2 };
             if (res === "medium") return { width: 6, height: 4 };
-            return { width: 8, height: 6 };
+            return { width: 16, height: 12 };
         }
 
         return {};
@@ -766,6 +826,7 @@ class MaxPaint3D {
     
     
     clearSceneObjects() {
+        this.disableRenderBatching();
         for (const obj of this.objects) {
             this.scene.remove(obj);
             this.disposeNode(obj);
@@ -919,6 +980,11 @@ class MaxPaint3D {
     prepareMeshForGLBExport(mesh) {
         if (!mesh.isMesh || !mesh.geometry) return;
 
+
+        
+
+
+
         const wantsFlat =
             mesh.userData?.flatShading === true ||
             mesh.material?.flatShading === true;
@@ -946,15 +1012,22 @@ class MaxPaint3D {
                 mat.flatShading = wantsFlat;
                 mat.needsUpdate = true;
 
-                // Om mesh har vertex colors
+                if (mat.map) {
+                    mat.color.set(0xffffff);
+                    mat.map.colorSpace = THREE.NoColorSpace;
+                    mat.map.needsUpdate = true;
+                }
+
                 if (mesh.geometry.attributes.color) {
                     mat.vertexColors = true;
                     mat.color.setHex(0xffffff);
                 }
             }
+
         }
     }
-    exportGLB() {
+    async exportGLB() {
+        this.disableRenderBatching();
         this.ensureUniqueObjectNames();
 
         const clips = this.createAnimationClipsForExport();
@@ -967,7 +1040,7 @@ class MaxPaint3D {
         exportRoot.name = "MaxPaint3D_Model";
         
         for (const obj of this.objects) {
-            const clone = obj.clone(true);
+            const clone = this.cloneForGLBExport(obj);
             this.removeEditorObjectsFromClone(clone);
             clone.traverse(child => {
             if (child.userData?.isPivotMarker) {
@@ -993,35 +1066,180 @@ class MaxPaint3D {
             exportRoot.add(clone);
         }
 
+        const optimization = this.optimizeExportStaticMeshes(exportRoot, clips);
+        const animatedOptimization = this.optimizeExportAnimatedChildren(exportRoot, clips);
+        console.log(
+            `GLB export optimization: merged ${optimization.sourceMeshes} static meshes into ` +
+            `${optimization.mergedMeshes} meshes; merged ${animatedOptimization.sourceMeshes} child meshes inside ` +
+            `${animatedOptimization.animatedParents} animated nodes; preserved ${optimization.animatedMeshes} animated meshes.`
+        );
 
 
 
-        exporter.parse(
-            exportRoot,
-            async (result) => {
-                const blob = new Blob([result], {
-                    type: "model/gltf-binary"
-                });
-
-                await this.saveBlob(
-                    blob,
-                    "maxpaint3d_model.glb",
-                    "model/gltf-binary",
-                    ".glb",
-                    "GLB 3D Model"
-                );
-            },
-            (error) => {
-                console.error("GLB export failed:", error);
-                alert("Export failed");
-            },
-            {
+        try {
+            const result = await exporter.parseAsync(exportRoot, {
                 binary: true,
                 onlyVisible: false,
                 trs: true,
                 animations: clips
+            });
+
+            const blob = new Blob([result], { type: "model/gltf-binary" });
+            await this.saveBlob(
+                blob,
+                "maxpaint3d_model.glb",
+                "model/gltf-binary",
+                ".glb",
+                "GLB 3D Model"
+            );
+        } catch (error) {
+            console.error("GLB export failed:", error);
+            alert("Export failed");
+        }
+    }
+
+    optimizeExportStaticMeshes(exportRoot, clips) {
+        if (!THREE.mergeGeometries) {
+            console.warn("GLB export optimization skipped: mergeGeometries is unavailable.");
+            return { sourceMeshes: 0, mergedMeshes: 0, animatedMeshes: 0 };
+        }
+
+        const animatedNames = new Set();
+        for (const clip of clips || []) {
+            for (const track of clip.tracks || []) {
+                // MaxPaint tracks use unique node names such as
+                // "Subgroup_1.position". Those nodes, and every descendant,
+                // must stay in the exported hierarchy for animation to work.
+                const match = track.name.match(/^(.*)\.(position|quaternion|scale)$/);
+                if (match) animatedNames.add(match[1]);
             }
-        );
+        }
+
+        exportRoot.updateMatrixWorld(true);
+        const groups = new Map();
+        let animatedMeshes = 0;
+        exportRoot.traverse(mesh => {
+            if (!mesh.isMesh || Array.isArray(mesh.material) || !mesh.geometry) return;
+            if (this.isExportMeshAnimated(mesh, exportRoot, animatedNames)) {
+                animatedMeshes++;
+                return;
+            }
+            // Mirrored transforms need their triangle winding flipped after
+            // baking; leave them intact instead of risking inside-out faces.
+            if (mesh.matrixWorld.determinant() < 0) return;
+            const key = this.getExportMaterialKey(mesh.material);
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(mesh);
+        });
+
+        let sourceMeshes = 0;
+        let mergedMeshes = 0;
+        for (const meshes of groups.values()) {
+            if (meshes.length < 2) continue;
+            const geometries = meshes.map(mesh => mesh.geometry.clone().applyMatrix4(mesh.matrixWorld));
+            const mergedGeometry = THREE.mergeGeometries(geometries, false);
+            if (!mergedGeometry) {
+                geometries.forEach(geometry => geometry.dispose());
+                continue;
+            }
+
+            const merged = new THREE.Mesh(mergedGeometry, meshes[0].material);
+            merged.name = `Merged_static_${mergedMeshes + 1}`;
+            merged.castShadow = false;
+            merged.receiveShadow = false;
+            exportRoot.add(merged);
+            for (const mesh of meshes) mesh.parent?.remove(mesh);
+            sourceMeshes += meshes.length;
+            mergedMeshes++;
+        }
+
+        return { sourceMeshes, mergedMeshes, animatedMeshes };
+    }
+
+    isExportMeshAnimated(mesh, exportRoot, animatedNames) {
+        let current = mesh;
+        while (current && current !== exportRoot) {
+            if (animatedNames.has(current.name)) return true;
+            current = current.parent;
+        }
+        return false;
+    }
+
+    // Animation tracks target transform nodes, not the mesh data below them.
+    // When several ordinary mesh children live under one animated node, bake
+    // their static local transforms together and leave that parent untouched.
+    // The animation path and every animated transform therefore remain valid.
+    optimizeExportAnimatedChildren(exportRoot, clips) {
+        if (!THREE.mergeGeometries) {
+            return { sourceMeshes: 0, mergedMeshes: 0, animatedParents: 0 };
+        }
+
+        const animatedNames = new Set();
+        for (const clip of clips || []) {
+            for (const track of clip.tracks || []) {
+                const match = track.name.match(/^(.*)\.(position|quaternion|scale)$/);
+                if (match) animatedNames.add(match[1]);
+            }
+        }
+        if (!animatedNames.size) return { sourceMeshes: 0, mergedMeshes: 0, animatedParents: 0 };
+
+        exportRoot.updateMatrixWorld(true);
+        const groups = new Map();
+        exportRoot.traverse(mesh => {
+            if (!mesh.isMesh || Array.isArray(mesh.material) || !mesh.geometry ||
+                mesh.isSkinnedMesh || mesh.morphTargetInfluences || animatedNames.has(mesh.name)) return;
+
+            let parent = mesh.parent;
+            while (parent && parent !== exportRoot && !animatedNames.has(parent.name)) parent = parent.parent;
+            if (!parent || parent === exportRoot || !animatedNames.has(parent.name)) return;
+
+            // A negative local determinant would need winding reversal after
+            // baking. Keep that unusual case intact rather than risking a
+            // broken model export.
+            const relativeMatrix = parent.matrixWorld.clone().invert().multiply(mesh.matrixWorld);
+            if (relativeMatrix.determinant() < 0) return;
+            const key = `${parent.uuid}|${this.getExportMaterialKey(mesh.material)}`;
+            if (!groups.has(key)) groups.set(key, { parent, meshes: [] });
+            groups.get(key).meshes.push({ mesh, relativeMatrix });
+        });
+
+        let sourceMeshes = 0;
+        let mergedMeshes = 0;
+        const mergedParents = new Set();
+        for (const { parent, meshes } of groups.values()) {
+            if (meshes.length < 2) continue;
+            const geometries = meshes.map(({ mesh, relativeMatrix }) =>
+                mesh.geometry.clone().applyMatrix4(relativeMatrix)
+            );
+            const mergedGeometry = THREE.mergeGeometries(geometries, false);
+            if (!mergedGeometry) {
+                geometries.forEach(geometry => geometry.dispose());
+                continue;
+            }
+
+            const merged = new THREE.Mesh(mergedGeometry, meshes[0].mesh.material);
+            merged.name = `Merged_animated_child_${mergedMeshes + 1}`;
+            merged.castShadow = false;
+            merged.receiveShadow = false;
+            parent.add(merged);
+            for (const { mesh } of meshes) mesh.parent?.remove(mesh);
+            sourceMeshes += meshes.length;
+            mergedMeshes++;
+            mergedParents.add(parent);
+        }
+
+        return { sourceMeshes, mergedMeshes, animatedParents: mergedParents.size };
+    }
+
+    getExportMaterialKey(material) {
+        const color = material.color?.getHexString?.() || "";
+        const emissive = material.emissive?.getHexString?.() || "";
+        return [
+            material.type, material.map?.uuid || "", material.normalMap?.uuid || "",
+            material.alphaMap?.uuid || "", color, emissive, material.opacity,
+            material.transparent, material.alphaTest, material.side,
+            material.metalness, material.roughness, material.vertexColors
+        ].join("|");
     }
     async saveBlob(blob, filename, mimeType, extension, description) {
         try {
@@ -1741,15 +1959,13 @@ class MaxPaint3D {
         }
     }
     getPoseSubgroupsToSave() {
-        if (this.poseChangedSubgroups && this.poseChangedSubgroups.size > 0) {
-            return [...this.poseChangedSubgroups];
-        }
-
-        if (this.selectedSubgroup) {
-            return [this.selectedSubgroup];
-        }
-
-        return [];
+        // A pose is a complete character state, not a delta. Saving only the
+        // last changed/selected subgroup made a missed change notification
+        // look like a missing leg in the exported animation. Capture every
+        // registered subgroup so each pose always has all limbs.
+        return (this.subgroups || []).filter(subgroup =>
+            subgroup?.userData?.isSubgroup && subgroup.parent
+        );
     }
     markSubgroupChanged(sg) {
         if (!sg) return;
@@ -2585,6 +2801,70 @@ class MaxPaint3D {
             }
         }
     }
+    cloneForGLBExport(root) {
+        const helperCandidates = [];
+
+        root.traverse(obj => {
+            if (this.isEditorOnlyExportNode(obj)) {
+                helperCandidates.push(obj);
+            }
+        });
+
+        // Keep only top-level helpers: removing a parent already removes all
+        // of its descendants from the export hierarchy.
+        const helpers = helperCandidates.filter(obj => !helperCandidates.some(candidate => {
+            if (candidate === obj) return false;
+
+            let parent = obj.parent;
+            while (parent) {
+                if (parent === candidate) return true;
+                parent = parent.parent;
+            }
+            return false;
+        }));
+        const originalParents = helpers.map(obj => [obj, obj.parent]);
+
+        for (const [obj, parent] of originalParents) {
+            parent?.remove(obj);
+        }
+
+        const originalUserData = new Map();
+
+        // Runtime editor metadata contains Object3D references and animation
+        // state. Omit it from the clone after helpers have been excluded.
+        root.traverse(obj => {
+            originalUserData.set(obj, obj.userData);
+            obj.userData = {};
+        });
+
+        try {
+            return root.clone(true);
+        } finally {
+            for (const [obj, userData] of originalUserData) {
+                obj.userData = userData;
+            }
+            for (const [obj, parent] of originalParents) {
+                parent?.add(obj);
+            }
+        }
+    }
+    isEditorOnlyExportNode(obj) {
+        if (
+            obj.userData?.isPivotMarker ||
+            obj.userData?.isEditorHelper ||
+            obj.userData?.ignoreSave ||
+            obj.userData?.ignoreExport
+        ) {
+            return true;
+        }
+
+        if ((this.groupHelpers || []).includes(obj)) return true;
+
+        return (this.subgroups || []).some(subgroup =>
+            subgroup.userData?.pivotMarker === obj ||
+            subgroup.userData?.pivotAxes === obj
+        );
+    }
     cyclePrimitiveResolution() {
         if (this.primitiveResolution === "low") {
             this.primitiveResolution = "medium";
@@ -3061,6 +3341,9 @@ class MaxPaint3D {
                 mat.opacity = next;
                 mat.transparent = next < 1.0;
                 mat.depthWrite = next >= 1.0; // viktigt för transparenta objekt
+              
+                if(obj.userData.type==="plane"&& obj.userData.resolution==="low")mat.side = THREE.DoubleSide;
+
                 mat.needsUpdate = true;
 
                 obj.userData.alpha = next;
@@ -3158,5 +3441,95 @@ class MaxPaint3D {
         }
 
         obj.userData.customGeometry = true;
+    }
+}
+
+// Batches only untouched, plain primitives. The original Mesh objects remain
+// the editable source of truth and are restored before any edit can begin.
+class EditorRenderBatcher {
+    constructor(app) {
+        this.app = app;
+        this.proxyRoot = new THREE.Group();
+        this.proxyRoot.name = "Editor render batches";
+        this.proxyRoot.userData.isEditorHelper = true;
+        this.app.scene.add(this.proxyRoot);
+        this.active = false;
+        this.hiddenSources = [];
+        this.lastBatchCount = 0;
+        this.lastInstanceCount = 0;
+    }
+
+    isEligible(mesh) {
+        const material = mesh.material;
+        return mesh.isMesh && mesh.visible &&
+            !mesh.userData?.isPivotMarker && !mesh.userData?.isEditorHelper &&
+            !mesh.userData?.customGeometry && !mesh.userData?.hasVertexColors &&
+            !mesh.geometry?.attributes?.color && !Array.isArray(material) &&
+            material?.isMeshStandardMaterial && !material.map &&
+            !material.alphaMap && !material.vertexColors &&
+            mesh.userData?.type && mesh.userData?.resolution;
+    }
+
+    keyFor(mesh) {
+        const m = mesh.material;
+        // Geometry UUID is deliberately not used: each editable primitive has
+        // its own geometry, but identical primitive recipes render identically.
+        return [mesh.userData.type, mesh.userData.resolution,
+            m.color?.getHex() ?? 0xffffff, m.roughness, m.metalness,
+            m.opacity, m.transparent, m.depthWrite, m.flatShading,
+            m.side, mesh.castShadow, mesh.receiveShadow].join("|");
+    }
+
+    build(force = false) {
+        if (this.active && !force) return;
+        this.restore();
+        this.app.scene.updateMatrixWorld(true);
+        const groups = new Map();
+        for (const root of this.app.objects || []) {
+            root.traverse(mesh => {
+                if (!this.isEligible(mesh)) return;
+                const key = this.keyFor(mesh);
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(mesh);
+            });
+        }
+
+        let batches = 0, instances = 0;
+        for (const meshes of groups.values()) {
+            if (meshes.length < 2) continue;
+            const first = meshes[0];
+            const proxy = new THREE.InstancedMesh(first.geometry, first.material, meshes.length);
+            proxy.name = "Instanced editor primitive";
+            proxy.castShadow = first.castShadow;
+            proxy.receiveShadow = first.receiveShadow;
+            proxy.userData.isEditorHelper = true;
+            meshes.forEach((mesh, index) => {
+                proxy.setMatrixAt(index, mesh.matrixWorld);
+                this.hiddenSources.push({ mesh, visible: mesh.visible });
+                mesh.visible = false;
+            });
+            proxy.instanceMatrix.needsUpdate = true;
+            // Instance transforms can spread far beyond the source geometry's
+            // local bounds; calculate the combined bounds for frustum/shadow
+            // culling rather than risking an entire batch disappearing.
+            proxy.computeBoundingBox();
+            proxy.computeBoundingSphere();
+            this.proxyRoot.add(proxy);
+            batches++;
+            instances += meshes.length;
+        }
+        this.active = batches > 0;
+        this.lastBatchCount = batches;
+        this.lastInstanceCount = instances;
+    }
+
+    restore() {
+        for (const entry of this.hiddenSources) entry.mesh.visible = entry.visible;
+        this.hiddenSources = [];
+        for (const child of [...this.proxyRoot.children]) {
+            this.proxyRoot.remove(child);
+            child.dispose?.();
+        }
+        this.active = false;
     }
 }

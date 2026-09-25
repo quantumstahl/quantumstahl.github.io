@@ -24,9 +24,9 @@ class ToolManager {
 
     setTool(name) {
         if (!this.tools[name]) return;
-        
-        
-        
+        // These tools mutate individual source meshes; remove render proxies
+        // before any of them can receive input.
+        if (name !== "select") this.app.disableRenderBatching?.();
         if (this.current?.exit) this.current.exit();
 
         this.current = this.tools[name];

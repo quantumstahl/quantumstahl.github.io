@@ -4,33 +4,38 @@
     <title>MaxPaint3D</title>
     <meta name="viewport" content="user-scalable=no, shrink-to-fit=no viewport-fit=cover">
     <meta charset="utf-8">
-    <script src="https://unpkg.com/three@0.140.0/build/three.min.js"></script>
-    <script src="https://unpkg.com/three@0.140.0/examples/js/loaders/OBJLoader.js"></script>
-    <script src="https://unpkg.com/three@0.140.0/examples/js/loaders/MTLLoader.js"></script>
-    <script src="https://unpkg.com/three@0.140.0/examples/js/exporters/GLTFExporter.js"></script>
-    <script src="MaxPaint3D.js"></script>
-    <script src="EditorCamera.js"></script>
-    <script src="EditorRenderer.js"></script>
-    <script src="InputManager.js"></script>
-    <script src="ToolManager.js"></script>
-    <script src="SelectTool.js"></script>
-    <script src="MoveTool.js"></script>
-    <script src="joy.js"></script>
-    <script src="UI.js"></script>
-    <script src="RotateTool.js"></script>
-    <script src="ScaleTool.js"></script>
-    <script src="UniformScale.js"></script>
-    <script src="GroupTool.js"></script>
-    <script src="SubgroupTool.js"></script>
-    <script src="PivotTool.js"></script>
-    <script src="AnimRotateTool.js"></script>
-    <script src="SelectSubgroupTool.js"></script>
-    <script src="AniMoveTool.js"></script>
-    <script src="AniScaleTool.js"></script>
-    <script src="gif.js"></script> 
-    <script src="gif.worker.js"></script> 
-    <script src="PrimSelectTool.js"></script> 
-    <script src="FacePaintTool.js"></script> 
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.186.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.186.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module" src="three-bootstrap.js"></script>
+    <script data-classic-src="MaxPaint3D.js"></script>
+    <script data-classic-src="EditorCamera.js"></script>
+    <script data-classic-src="EditorRenderer.js"></script>
+    <script data-classic-src="InputManager.js"></script>
+    <script data-classic-src="ToolManager.js"></script>
+    <script data-classic-src="SelectTool.js"></script>
+    <script data-classic-src="MoveTool.js"></script>
+    <script data-classic-src="joy.js"></script>
+    <script data-classic-src="UI.js"></script>
+    <script data-classic-src="RotateTool.js"></script>
+    <script data-classic-src="ScaleTool.js"></script>
+    <script data-classic-src="UniformScale.js"></script>
+    <script data-classic-src="GroupTool.js"></script>
+    <script data-classic-src="SubgroupTool.js"></script>
+    <script data-classic-src="PivotTool.js"></script>
+    <script data-classic-src="AnimRotateTool.js"></script>
+    <script data-classic-src="SelectSubgroupTool.js"></script>
+    <script data-classic-src="AniMoveTool.js"></script>
+    <script data-classic-src="AniScaleTool.js"></script>
+    <script data-classic-src="gif.js"></script>
+    <script data-classic-src="gif.worker.js"></script>
+    <script data-classic-src="PrimSelectTool.js"></script>
+    <script data-classic-src="FacePaintTool.js"></script>
     
     <style> 
 html, body {
@@ -87,29 +92,8 @@ html, body {
     <input id="styleColorInput" type="color">
     <input id="textureFileInput" type="file" accept="image/*" >
 
-    <script>
-        const isMobile = {
-            Android: function() { return navigator.userAgent.match(/Android/i); },
-            BlackBerry: function() { return navigator.userAgent.match(/BlackBerry/i); },
-            iOS: function() { return navigator.userAgent.match(/iPhone|iPod/i); },
-            Opera: function() { return navigator.userAgent.match(/Opera Mini/i); },
-            Windows: function() { return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i); },
-            any: function() {
-                return (
-                    isMobile.Android() ||
-                    isMobile.BlackBerry() ||
-                    isMobile.iOS() ||
-                    isMobile.Opera() ||
-                    isMobile.Windows() ||
-                    (
-                        navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&
-                        navigator.maxTouchPoints &&
-                        navigator.maxTouchPoints > 1
-                    )
-                );
-            }
-        };
-
+    <script type="text/plain" data-startup>
+        const isMobile = {Android: function() { return navigator.userAgent.match(/Android/i); },BlackBerry: function() { return navigator.userAgent.match(/BlackBerry/i); },iOS: function() { return navigator.userAgent.match(/iPhone|iPod/i); },Opera: function() { return navigator.userAgent.match(/Opera Mini/i); },Windows: function() { return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i); },any: function() {return (isMobile.Android() ||isMobile.BlackBerry() ||isMobile.iOS() ||isMobile.Opera() ||isMobile.Windows() ||(navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints &&navigator.maxTouchPoints > 1));}};
         function mobileAndTabletCheck() { return isMobile.any(); }
         
         if (!mobileAndTabletCheck()) {
