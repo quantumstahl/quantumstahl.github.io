@@ -13,6 +13,28 @@ class CatAdventure {
         this.mapLoader = new AdventureMapLoader(this);
 
         this.mapObjects = [];
+        // Small details use cheap painted-on contact shadows. They are drawn
+        // in only two instanced batches instead of rendering into the sun's
+        // shadow map once per mesh.
+        this.fakeShadowConfig = {
+            enabled: true,
+            opacity: 0.25,
+            verticalOffset: 0.018,
+            padding: 0.18,
+            minSize: 0.32,
+            staticTypes: new Set(["gras", "grass", "flower", "rock", "stump", "barrel", "crate", "logs", "sack"]),
+            dynamicTypes: new Set(["cat", "fox", "bug", "spider", "coin"]),
+            // Animated models often include tails, ears, or wide animation
+            // bounds. Their contact shadows should be intentionally smaller.
+            footprints: {
+                cat: { width: 0.62, depth: 0.95 },
+                fox: { width: 0.88, depth: 2.95 },
+                bug: { width: 0.52, depth: 1.36 },
+                spider: { width: 0.52, depth: 1.36 },
+                coin: { width: 0.36, depth: 0.36 }
+            }
+        };
+        this.fakeShadows = null;
         this.player = null;
         this.playerData = null;
 
@@ -70,6 +92,13 @@ class CatAdventure {
             sparkleTexture: null,
             sparkles: []
         };
+        this.spiderQuest = {
+            state: "unseen", // unseen, active, completing, completed
+            squished: 0,
+            required: 10,
+            announcement: 0,
+            token: 0
+        };
         
         this.texture2 = new THREE.TextureLoader().load("grasyfield.png");
         this.texture2.wrapS = THREE.RepeatWrapping;
@@ -102,6 +131,10 @@ class CatAdventure {
         this.skyTexture.colorSpace = THREE.SRGBColorSpace;
         this.skyTexture.needsUpdate = true;
 
+        this.fpsFrames = 0;
+        this.fpsTime = performance.now();
+        this.fps=0;
+
     }
 
     async start(mapUrl = "map.json") {
@@ -124,10 +157,14 @@ class CatAdventure {
         this.pathEdgeFlowers.build();
         this.water = new CatAdventureWater(this);
         this.water.build();
+        this.dryField = new CatAdventureDryField(this);
+        this.dryField.build();
         this.treeWind = new CatAdventureTreeWind(this);
         this.treeWind.build();
         this.dryGrassWind = new CatAdventureDryGrassWind(this);
         this.dryGrassWind.build();
+        this.fakeShadows = new CatAdventureFakeShadows(this);
+        this.fakeShadows.build();
         this.buildRenderBatches();
         this.addBackgroundFadeGLB();
         
@@ -193,7 +230,7 @@ class CatAdventure {
         this.renderer.shadowMap.type = THREE.PCFShadowMap;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.08;
-        this.renderer.setPixelRatio(0.75);
+        this.renderer.setPixelRatio(1);
 
         this.createSunsetSky();
 
@@ -282,12 +319,42 @@ class CatAdventure {
 
 
     }
+    debugPerformance() {
+        this.fpsFrames++;
+        
+        const now = performance.now();
+
+        if (now - this.fpsTime >= 1000) {
+            this.fps = Math.round(
+                this.fpsFrames * 1000 / (now - this.fpsTime)
+            );     
+            this.fpsFrames = 0;
+            this.fpsTime = now;
+        }
+        this.ctx.fillStyle = "#000000";
+        let extra=0;
+        this.ctx.font = "10px Arial";    
+        if(!mobileAndTabletCheck()){extra=35;this.ctx.font = "15px Arial";}
+
+          
+        this.ctx.fillText("FPS:" + this.fps, 10, 105+extra);
+        this.ctx.fillText("calls:" + this.renderer.info.render.calls, 10, 115+extra);
+        this.ctx.fillText("tris:" + this.renderer.info.render.triangles, 10, 125+extra);
+        this.ctx.fillText("geometries:"+ this.renderer.info.memory.geometries, 10, 135+extra);
+        this.ctx.fillText("textures:"+ this.renderer.info.memory.textures, 10, 145+extra);   
+
+    }
+
     configureEditorMaterial(obj, type) {
         // Alpha-blended crossed planes cannot be depth-sorted per instance.
         // A cutout gives the batch a stable depth order.  The small emissive
         // fill keeps the reverse side of each crossed blade from turning much
         // darker than its sun-facing side in the editor preview.
-        if (!/^(gras-tuftdry)$/i.test(type?.id || type?.name || "")) return;
+        const typeId = type?.id || type?.name || "";
+
+
+
+        if (!/^(gras-tuftdry)$/i.test(typeId)) return;
 
         obj.traverse(mesh => {
             if (!mesh.isMesh) return;
@@ -537,8 +604,14 @@ class CatAdventure {
         for (const object of this.mapObjects) {
             const type = object.userData.assetType || {};
             const name = type.name || type.id || "";
-            const usesShadows = type.castShadow !== false && !/^(path|water)$/i.test(name);
-            const usesShadows2 = !/^(water)$/i.test(name);
+            const typeId = String(type.id || type.name || "").toLowerCase();
+            const glb = String(type.glb || "").toLowerCase();
+            const usesFakeShadow = this.fakeShadowConfig?.enabled &&
+                (this.fakeShadowConfig.staticTypes.has(typeId) || this.fakeShadowConfig.dynamicTypes.has(typeId));
+            const noShadowSurface = /^(path|water|tracks)$/i.test(name) ||
+                /(?:^|\/)(?:path|tracks)\.glb$/i.test(glb);
+            const usesShadows = type.castShadow !== false && !usesFakeShadow && !noShadowSurface;
+            const usesShadows2 = !noShadowSurface;
             object.traverse(mesh => {
                 if (!mesh.isMesh) return;
                 // Paths and water should neither darken nearby scenery nor
@@ -567,6 +640,7 @@ class CatAdventure {
                 /^hill$/i.test(type.id || "") || /^hill$/i.test(type.name || "");
             const isrock = /rock\.glb$/i.test(type.glb || "") ||
                 /^rock$/i.test(type.id || "") || /^rock$/i.test(type.name || "");
+
 
             if (!isWall && !isHill && !isrock) continue;
 
@@ -617,7 +691,7 @@ class CatAdventure {
         this.draw();
         // Keep the overlay up until a completed frame exists on the canvas.
         this.hideLoadingScreen();
-
+        
         
 
 
@@ -656,6 +730,7 @@ class CatAdventure {
         this.updateSky();
         this.updateFoxPatrol(deltaSeconds);
         this.updateFoxQuest(deltaSeconds);
+        this.updateSpiderQuest(deltaSeconds);
         this.updateBugAI(deltaSeconds);
         this.updateHeartDrops(deltaSeconds);
         this.grass?.update(deltaSeconds);
@@ -665,6 +740,7 @@ class CatAdventure {
         for (const mixer of this.mixers) {
             mixer.update(deltaSeconds);
         }
+        this.fakeShadows?.update();
         if (this.insectObj?.userData.sleepingEffect) {
    
             this.insectObj.userData.sleepingEffect.update(deltaSeconds);
@@ -738,6 +814,8 @@ class CatAdventure {
         );
 
         insectObj.userData.collisionOverride = "none";
+        this.registerSpiderSquish(insectObj);
+        this.fakeShadows?.update();
         this.tryDropHeart(insectObj);
            
         
@@ -845,6 +923,7 @@ class CatAdventure {
         if (rebuildBatches) this.clearRenderBatches();
         this.scene.remove(mesh);
         this.mapObjects = this.mapObjects.filter(mapObject => mapObject !== mesh);
+        this.fakeShadows?.update();
         if (rebuildBatches) this.buildRenderBatches();
     }
     
@@ -907,9 +986,14 @@ class CatAdventure {
         this.drawCoinCounter(this.ctx);
         this.drawHealthUI(this.ctx);
         this.drawCinematicTitle(this.ctx, w, h);
-        this.drawFoxQuestUI(this.ctx, w, h);
+        this.drawQuestAnnouncement(this.ctx, w, h);
+        const mobileInset = mobile ? 0 : 6;
+        let nextQuestY = mobileInset;
+        nextQuestY = this.drawFoxQuestUI(this.ctx, w, h, nextQuestY);
+        this.drawSpiderQuestUI(this.ctx, w, h, nextQuestY);
         this.drawFoxQuestCompletion(this.ctx, w, h);
         this.drawDeathOverlay(this.ctx, w, h);
+        this.debugPerformance();
     }
 
     drawCinematicTitle(ctx, width, height) {
@@ -936,7 +1020,48 @@ class CatAdventure {
         ctx.restore();
     }
 
-    drawFoxQuestUI(ctx, width, height) {
+    drawQuestAnnouncement(ctx, width, height) {
+        const fox = this.foxQuest;
+        const spider = this.spiderQuest;
+        const quest = fox.announcement > 0 ? fox : (spider.announcement > 0 ? spider : null);
+        if (!quest) return;
+
+        const mobile = mobileAndTabletCheck();
+        const title = quest === fox ? "Strange Tracks" : "Spider Problem";
+        const flavour = quest === fox
+            ? (fox.state === "readyToComplete" ? "All the tracks have been found." : "Investigate the strange tracks in Fox Meadow.")
+            : ((spider.state === "completed" || spider.state === "completing") ? "The dryfield can breathe again.  +10 coins" : "The dry grass is crawling. Squish the spiders!");
+        const timer = quest.announcement;
+        const alpha = Math.min(1, timer / 0.4, (4 - timer) / 0.4);
+        const panelWidth = Math.min(width - 34, mobile ? 278 : 350);
+        const panelHeight = mobile ? 84 : 100;
+        const x = (width - panelWidth) * 0.5;
+        const y = height * (mobile ? 0.28 : 0.29);
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, alpha);
+        ctx.shadowColor = "rgba(15, 9, 4, 0.6)";
+        ctx.shadowBlur = 18;
+        this.roundRect(ctx, x, y, panelWidth, panelHeight, 17);
+        ctx.fillStyle = "rgba(27, 57, 35, 0.94)";
+        ctx.fill();
+        ctx.shadowColor = "transparent";
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "rgba(255, 218, 108, 0.88)";
+        ctx.stroke();
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#ffd66d";
+        ctx.font = `900 ${mobile ? 11 : 13}px system-ui, sans-serif`;
+        ctx.fillText(quest.state === "completed" || quest.state === "completing" || fox.state === "readyToComplete" ? "QUEST COMPLETED" : "QUEST STARTED", width * 0.5, y + (mobile ? 22 : 26));
+        ctx.fillStyle = "#fff4c8";
+        ctx.font = `800 ${mobile ? 23 : 28}px Georgia, serif`;
+        ctx.fillText(title, width * 0.5, y + (mobile ? 48 : 57));
+        ctx.fillStyle = "#dcebcf";
+        ctx.font = `600 ${mobile ? 10 : 12}px system-ui, sans-serif`;
+        ctx.fillText(flavour, width * 0.5, y + (mobile ? 68 : 80));
+        ctx.restore();
+    }
+
+    drawFoxQuestUI(ctx, width, height, stackY = 12) {
         const quest = this.foxQuest;
         const mobile = mobileAndTabletCheck();
         if (quest.dialog?.options) {
@@ -976,12 +1101,13 @@ class CatAdventure {
             quest.optionBounds = [];
         }
 
-        if (quest.state !== "active" && quest.state !== "readyToComplete") return;
-        const panelWidth = mobile ? 210 : 270;
-        const x = width - panelWidth - (mobile ? 12 : 18);
-        const y = mobile ? 50+20 : 80+50;
+        if (quest.state !== "active" && quest.state !== "readyToComplete") return stackY;
+        const panelWidth = mobile ? 142 : 178;
+        const panelHeight = mobile ? 32 : 50;
+        const x = width - panelWidth - (mobile ? 7 : 12);
+        const y = stackY;
         ctx.save();
-        this.roundRect(ctx, x, y, panelWidth, mobile ? 92 : 104, 14);
+        this.roundRect(ctx, x, y, panelWidth, panelHeight, 10);
         ctx.fillStyle = "rgba(20, 43, 31, 0.88)";
         ctx.fill();
         ctx.strokeStyle = "rgba(255, 224, 126, 0.72)";
@@ -989,16 +1115,40 @@ class CatAdventure {
         const tracksComplete = quest.state === "readyToComplete";
         ctx.fillStyle = "#ffd66d";
         ctx.font = `800 ${mobile ? 11 : 12}px system-ui, sans-serif`;
-        ctx.fillText(tracksComplete ? "TRACKS FOUND" : "QUEST STARTED", x + 14, y + 22);
         ctx.fillStyle = "#fff4c8";
-        ctx.font = `800 ${mobile ? 17 : 20}px Georgia, serif`;
-        ctx.fillText("Strange Tracks", x + 14, y + 46);
+        ctx.font = `800 ${mobile ? 13 : 16}px Georgia, serif`;
+        ctx.fillText("Strange Tracks", x + 9, y + 15);
         ctx.fillStyle = "#dcebcf";
-        ctx.font = `italic ${mobile ? 10 : 11}px system-ui, sans-serif`;
-        ctx.fillText(tracksComplete ? "Return to the fox in Fox Meadow." : "Investigate the strange tracks", x + 14, y + 66);
-        ctx.fillText(tracksComplete ? "The fox is waiting.  3 / 3" :
-            `in Fox Meadow.  ${quest.tracksFound} / ${quest.requiredTracks}`, x + 14, y + 81);
+        ctx.font = `700 ${mobile ? 9 : 10}px system-ui, sans-serif`;
+        ctx.fillText(tracksComplete ? "Return to fox  •  3 / 3" :
+            `Find tracks  •  ${quest.tracksFound} / ${quest.requiredTracks}`, x + 9, y + 28);
         ctx.restore();
+        return y + panelHeight + (mobile ? 3 : 5);
+    }
+
+    drawSpiderQuestUI(ctx, width, height, stackY = 12) {
+        const quest = this.spiderQuest;
+        if (quest.state !== "active") return stackY;
+        const mobile = mobileAndTabletCheck();
+        const panelWidth = mobile ? 142 : 178;
+        const panelHeight = mobile ? 32 : 50;
+        const x = width - panelWidth - (mobile ? 7 : 12);
+        const y = stackY;
+        const complete = quest.state === "completed";
+        ctx.save();
+        this.roundRect(ctx, x, y, panelWidth, panelHeight, 10);
+        ctx.fillStyle = "rgba(42, 29, 21, 0.88)";
+        ctx.fill();
+        ctx.strokeStyle = complete ? "rgba(132, 220, 141, 0.8)" : "rgba(244, 185, 82, 0.74)";
+        ctx.stroke();
+        ctx.fillStyle = "#fff4c8";
+        ctx.font = `800 ${mobile ? 13 : 16}px Georgia, serif`;
+        ctx.fillText("Spider Problem", x + 9, y + 15);
+        ctx.fillStyle = "#dcebcf";
+        ctx.font = `700 ${mobile ? 9 : 10}px system-ui, sans-serif`;
+        ctx.fillText(complete ? "Complete  •  10 / 10" : `Squish spiders  •  ${quest.squished} / ${quest.required}`, x + 9, y + 28);
+        ctx.restore();
+        return y + panelHeight + (mobile ? 3 : 5);
     }
 
     drawFoxQuestCompletion(ctx, width, height) {
@@ -1036,14 +1186,15 @@ class CatAdventure {
 
     drawHealthUI(ctx) {
         const mobile = mobileAndTabletCheck();
-        const inset = mobile ? 12 : 18;
-        const heartSize = mobile ? 23 : 29;
-        const gap = mobile ? 5 : 7;
-        const padding = mobile ? 10 : 13;
+        const inset = mobile ? 7 : 12;
+        const heartSize = mobile ? 20 : 26;
+        const gap = mobile ? 4 : 6;
+        const padding = mobile ? 8 : 11;
         const width = padding * 2 + heartSize * this.maxHealth + gap * (this.maxHealth - 1);
         const height = heartSize + padding * 2;
-        const x = this.canvas2d.width - inset - width;
-        const y = inset;
+        const coinHeight = mobile ? 40 : 50;
+        const x = inset;
+        const y = inset + coinHeight + (mobile ? 5 : 8);
         const hitShake = this.healthFlash > 0
             ? Math.sin(performance.now() * 0.045) * this.healthFlash * 3
             : 0;
@@ -1218,10 +1369,10 @@ class CatAdventure {
 
     drawCoinCounter(ctx) {
         const mobile = mobileAndTabletCheck();
-        const inset = mobile ? 12 : 18;
-        const height = mobile ? 44 : 56;
+        const inset = mobile ? 7 : 12;
+        const height = mobile ? 40 : 50;
         const coinRadius = height * 0.36;
-        const valueFont = mobile ? 21 : 28;
+        const valueFont = mobile ? 19 : 25;
         const value = `× ${this.coins}`;
 
         ctx.save();
@@ -1665,6 +1816,44 @@ class CatAdventure {
                 quest.announcement = 4;
             }
         }
+    }
+
+    updateSpiderQuest(deltaSeconds) {
+        const quest = this.spiderQuest;
+        if (quest.announcement > 0) quest.announcement = Math.max(0, quest.announcement - deltaSeconds);
+        if (quest.state !== "unseen" || !this.player) return;
+        if (!this.dryField?.containsPoint(this.player.position.x, this.player.position.z)) return;
+
+        quest.state = "active";
+        quest.announcement = 4;
+    }
+
+    registerSpiderSquish(spider) {
+        const quest = this.spiderQuest;
+        if (quest.state !== "active" || spider.userData.spiderQuestCounted) return;
+        spider.userData.spiderQuestCounted = true;
+        quest.squished = Math.min(quest.required, quest.squished + 1);
+        audio2("sounds/questfind.mp3");
+        if (quest.squished >= quest.required) {
+            this.completeSpiderQuest();
+        }
+    }
+
+    async completeSpiderQuest() {
+        const quest = this.spiderQuest;
+        if (quest.state !== "active" || quest.squished < quest.required) return;
+        const token = ++quest.token;
+        quest.state = "completing";
+        quest.announcement = 4;
+        // Keep the reward quick and readable, matching the Fox quest's
+        // satisfying row of coin pickups without creating coin objects.
+        for (let coin = 0; coin < 10; coin++) {
+            if (quest.token !== token) return;
+            this.coins++;
+            audio2("sounds/coin.mp3");
+            await new Promise(resolve => setTimeout(resolve, 105));
+        }
+        if (quest.token === token) quest.state = "completed";
     }
 
     isFoxQuestTrack(object) {
@@ -2477,6 +2666,165 @@ class CatAdventure {
     }
 }
 
+// Soft contact shadows for small props. Static and moving objects deliberately
+// live in separate InstancedMeshes: only the moving batch needs matrix uploads
+// each frame, while both replace many expensive shadow-map draws.
+class CatAdventureFakeShadows {
+    constructor(game) {
+        this.game = game;
+        this.root = new THREE.Group();
+        this.root.name = "Instanced fake shadows";
+        this.root.userData.isRenderBatch = true;
+        this.staticMesh = null;
+        this.dynamicMesh = null;
+        this.dynamicEntries = [];
+        this.geometry = new THREE.PlaneGeometry(1, 1);
+        this.material = this.createMaterial();
+        this.bounds = new THREE.Box3();
+        this.worldPosition = new THREE.Vector3();
+        this.dummy = new THREE.Object3D();
+        this.worldQuaternion = new THREE.Quaternion();
+        this.yawQuaternion = new THREE.Quaternion();
+        this.yAxis = new THREE.Vector3(0, 1, 0);
+        this.offsetVector = new THREE.Vector3();
+        this.planeQuaternion = new THREE.Quaternion().setFromAxisAngle(
+            new THREE.Vector3(1, 0, 0), -Math.PI / 2
+        );
+    }
+
+    createMaterial() {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 64;
+        const context = canvas.getContext("2d");
+        const gradient = context.createRadialGradient(32, 32, 3, 32, 32, 32);
+        gradient.addColorStop(0, "rgba(255,255,255,1)");
+        gradient.addColorStop(0.55, "rgba(255,255,255,0.72)");
+        gradient.addColorStop(1, "rgba(255,255,255,0)");
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, 64, 64);
+        const alphaMap = new THREE.CanvasTexture(canvas);
+        alphaMap.colorSpace = THREE.NoColorSpace;
+        return new THREE.MeshBasicMaterial({
+            color: 0x24170d,
+            alphaMap,
+            transparent: true,
+            opacity: this.game.fakeShadowConfig.opacity,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+    }
+
+    getKind(object) {
+        const type = object.userData.assetType || {};
+        const typeId = String(type.id || type.name || "").toLowerCase();
+        const config = this.game.fakeShadowConfig;
+        if (config.staticTypes.has(typeId) && !object.userData.mixer && !object.userData.animations?.length) return "static";
+        if (config.dynamicTypes.has(typeId)) return "dynamic";
+        return null;
+    }
+
+    makeEntry(object) {
+        const config = this.game.fakeShadowConfig;
+        this.bounds.setFromObject(object);
+        if (this.bounds.isEmpty()) return null;
+        object.getWorldPosition(this.worldPosition);
+        object.getWorldQuaternion(this.worldQuaternion);
+        const type = object.userData.assetType || {};
+        const typeId = String(type.id || type.name || "").toLowerCase();
+        const footprint = config.footprints[typeId];
+        const groundY = (this.game.ground?.position.y ?? this.worldPosition.y) + config.verticalOffset;
+        this.offsetVector.set(
+            (this.bounds.min.x + this.bounds.max.x) * 0.5 - this.worldPosition.x,
+            0,
+            (this.bounds.min.z + this.bounds.max.z) * 0.5 - this.worldPosition.z
+        ).applyQuaternion(this.worldQuaternion.clone().invert());
+        return {
+            object,
+            width: footprint?.width ?? Math.max(config.minSize, this.bounds.max.x - this.bounds.min.x + config.padding),
+            depth: footprint?.depth ?? Math.max(config.minSize, this.bounds.max.z - this.bounds.min.z + config.padding),
+            // Do not follow a jumping cat or a floating coin vertically. A
+            // contact shadow stays on the ground, which also makes flowers
+            // reliably visible above the terrain surface.
+            groundY,
+            x: (this.bounds.min.x + this.bounds.max.x) * 0.5,
+            z: (this.bounds.min.z + this.bounds.max.z) * 0.5,
+            localCenterX: this.offsetVector.x,
+            localCenterZ: this.offsetVector.z
+        };
+    }
+
+    setMatrix(mesh, index, entry, dynamic) {
+        const hidden = dynamic && (!entry.object.parent || entry.object.userData.squished);
+        if (dynamic) {
+            entry.object.getWorldPosition(this.worldPosition);
+            entry.object.getWorldQuaternion(this.worldQuaternion);
+            this.offsetVector.set(entry.localCenterX, 0, entry.localCenterZ)
+                .applyQuaternion(this.worldQuaternion);
+            this.dummy.position.set(
+                this.worldPosition.x + this.offsetVector.x,
+                entry.groundY,
+                this.worldPosition.z + this.offsetVector.z
+            );
+            const yaw = Math.atan2(
+                2 * (this.worldQuaternion.w * this.worldQuaternion.y + this.worldQuaternion.x * this.worldQuaternion.z),
+                1 - 2 * (this.worldQuaternion.y * this.worldQuaternion.y + this.worldQuaternion.z * this.worldQuaternion.z)
+            );
+            this.yawQuaternion.setFromAxisAngle(this.yAxis, yaw);
+            this.dummy.quaternion.copy(this.yawQuaternion).multiply(this.planeQuaternion);
+        } else {
+            this.dummy.position.set(entry.x, entry.groundY, entry.z);
+            this.dummy.quaternion.copy(this.planeQuaternion);
+        }
+        // Keep the instance slot, but collapse it when its source was removed
+        // (a collected coin) or squished (a defeated spider). This avoids
+        // rebuilding the InstancedMesh during gameplay.
+        this.dummy.scale.set(hidden ? 0 : entry.width, hidden ? 0 : entry.depth, 1);
+        this.dummy.updateMatrix();
+        mesh.setMatrixAt(index, this.dummy.matrix);
+    }
+
+    buildBatch(entries, dynamic) {
+        if (!entries.length) return null;
+        const mesh = new THREE.InstancedMesh(this.geometry, this.material, entries.length);
+        mesh.name = dynamic ? "Dynamic instanced fake shadows" : "Static instanced fake shadows";
+        mesh.castShadow = false;
+        mesh.receiveShadow = false;
+        mesh.frustumCulled = false;
+        mesh.renderOrder = -1;
+        mesh.userData.isRenderBatch = true;
+        entries.forEach((entry, index) => this.setMatrix(mesh, index, entry, dynamic));
+        mesh.instanceMatrix.needsUpdate = true;
+        this.root.add(mesh);
+        return mesh;
+    }
+
+    build() {
+        if (!this.game.fakeShadowConfig.enabled) return;
+        this.game.scene.updateMatrixWorld(true);
+        const staticEntries = [];
+        const dynamicEntries = [];
+        for (const object of this.game.mapObjects) {
+            const kind = this.getKind(object);
+            if (!kind) continue;
+            const entry = this.makeEntry(object);
+            if (!entry) continue;
+            (kind === "dynamic" ? dynamicEntries : staticEntries).push(entry);
+        }
+        this.staticMesh = this.buildBatch(staticEntries, false);
+        this.dynamicEntries = dynamicEntries;
+        this.dynamicMesh = this.buildBatch(dynamicEntries, true);
+        if (this.root.children.length) this.game.scene.add(this.root);
+    }
+
+    update() {
+        if (!this.dynamicMesh) return;
+        for (let index = 0; index < this.dynamicEntries.length; index++) {
+            this.setMatrix(this.dynamicMesh, index, this.dynamicEntries[index], true);
+        }
+        this.dynamicMesh.instanceMatrix.needsUpdate = true;
+    }
+}
+
 // Render-only batching for repeated static GLB map props. Physics continues to
 // traverse the original object trees, so collision/contact behaviour does not
 // change. Dynamic objects are excluded and remain conventional Meshes.
@@ -2502,7 +2850,6 @@ class CatAdventureRenderBatcher {
             !root.userData.sleepingEffect &&
             !root.userData.animations?.length &&
             !root.userData.isInvisibleBox &&
-            !root.userData.treeWind &&
             !type?.disableInstancing;
     }
 
@@ -2662,13 +3009,16 @@ class CatAdventureTreeWind {
             const glb = tree.userData.assetType?.glb || "";
             if (!/tree\.glb$/i.test(glb)) continue;
 
-            tree.userData.treeWind = true;
-            tree.updateWorldMatrix(true, true);
-            const bounds = new THREE.Box3().setFromObject(tree);
-            const baseY = bounds.min.y;
-            const height = Math.max(0.01, bounds.max.y - baseY);
             tree.traverse(mesh => {
-                if (!mesh.isMesh) return;
+                if (!mesh.isMesh || !mesh.geometry) return;
+                // Local bounds are identical for every tree GLB instance.
+                // That makes the bend work both before and after the render
+                // batcher moves the trees into one InstancedMesh.
+                mesh.geometry.computeBoundingBox();
+                const bounds = mesh.geometry.boundingBox;
+                if (!bounds) return;
+                const baseY = bounds.min.y;
+                const height = Math.max(0.01, bounds.max.y - baseY);
                 const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
                 for (const material of materials) this.addMaterialWind(material, baseY, height);
             });
@@ -2688,8 +3038,15 @@ class CatAdventureTreeWind {
                     uniform float treeWindBaseY;
                     uniform float treeWindHeight;`)
                 .replace("#include <begin_vertex>", `#include <begin_vertex>
-                    vec3 treeWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;
-                    float treeTip = pow(clamp((treeWorldPosition.y - treeWindBaseY) / treeWindHeight, 0.0, 1.0), 1.75);
+                    // Instanced trees need their per-instance world position
+                    // for a unique, stable wind phase. The bend itself stays
+                    // in local space so each trunk remains planted.
+                    #ifdef USE_INSTANCING
+                        vec3 treeWorldPosition = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+                    #else
+                        vec3 treeWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;
+                    #endif
+                    float treeTip = pow(clamp((transformed.y - treeWindBaseY) / treeWindHeight, 0.0, 1.0), 1.75);
                     float treePhase = dot(treeWorldPosition.xz, vec2(0.31, 0.67));
                     float treeWind = sin(treeWindTime * 2.7 + treePhase)
                         + 0.35 * sin(treeWindTime * 4.9 - treePhase * 1.4);
@@ -2704,6 +3061,148 @@ class CatAdventureTreeWind {
     update(deltaSeconds) {
         this.time += deltaSeconds;
         for (const shader of this.shaders) shader.uniforms.treeWindTime.value = this.time;
+    }
+}
+
+// dryfield.glb is authored as a broad flat brush. Map tiles can overlap while
+// painting the field, so render their 2D polygon union rather than stacking
+// coplanar textured planes that fight for the same depth pixels.
+class CatAdventureDryField {
+    constructor(game) {
+        this.game = game;
+        this.root = null;
+        this.textureWorldWidth = 28.52;
+        this.textureWorldDepth = 27.68;
+    }
+
+    build() {
+        const fields = this.game.mapObjects.filter(object =>
+            /dryfield\.glb$/i.test(object.userData.assetType?.glb || "")
+        );
+        if (!fields.length || !window.polygonClipping?.union || !this.game.water) return;
+
+        const brushes = [];
+        let sourceMaterial = null;
+        let surfaceY = 0.012;
+        for (const field of fields) {
+            field.updateWorldMatrix(true, true);
+            const boundaryEdges = new Map();
+            field.traverse(mesh => {
+                if (!mesh.isMesh) return;
+                sourceMaterial ||= Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+                this.game.water.collectBoundaryEdges(mesh, boundaryEdges);
+                const bounds = new THREE.Box3().setFromObject(mesh);
+                surfaceY = Math.max(surfaceY, bounds.max.y + 0.002);
+            });
+            for (const loop of this.game.water.getBoundaryLoops(boundaryEdges)) {
+                if (loop.length < 3) continue;
+                const ring = loop.map(point => [point.x, point.z]);
+                ring.push([...ring[0]]);
+                brushes.push([ring]);
+            }
+        }
+        if (!brushes.length || !sourceMaterial) return;
+
+        const union = window.polygonClipping.union(...brushes);
+        if (!union.length) return;
+        this.union = union;
+
+        const material = sourceMaterial.clone();
+        if (sourceMaterial.map) {
+            material.map = sourceMaterial.map.clone();
+            material.map.wrapS = THREE.RepeatWrapping;
+            material.map.wrapT = THREE.RepeatWrapping;
+            material.map.needsUpdate = true;
+        }
+        material.polygonOffset = false;
+        material.needsUpdate = true;
+        // This union mesh is generated rather than stored in mapObjects, so
+        // add it to the distance-background fade explicitly.
+        this.game.addBackgroundFadeToMaterial(material, this.game.skyTexture);
+
+        const geometries = [];
+        for (const polygon of union) {
+            const shape = this.toShape(polygon[0]);
+            for (let index = 1; index < polygon.length; index++) shape.holes.push(this.toPath(polygon[index]));
+            const geometry = new THREE.ShapeGeometry(shape);
+            geometry.rotateX(-Math.PI / 2);
+            this.setWorldRepeatingUVs(geometry);
+            geometries.push(geometry);
+        }
+        const geometry = geometries.length === 1
+            ? geometries[0]
+            : THREE.mergeGeometries?.(geometries, false);
+        if (!geometry) {
+            geometries.forEach(item => item.dispose());
+            return;
+        }
+        if (geometry !== geometries[0]) geometries.forEach(item => item.dispose());
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.name = "Combined dryfield union";
+        mesh.position.y = surfaceY;
+        mesh.castShadow = false;
+        mesh.receiveShadow = false;
+        mesh.userData.skipRenderBatch = true;
+        this.root = new THREE.Group();
+        this.root.name = "Combined dryfield";
+        this.root.add(mesh);
+        this.game.scene.add(this.root);
+
+        for (const field of fields) {
+            field.visible = false;
+            field.userData.skipRenderBatch = true;
+        }
+    }
+
+    containsPoint(x, z) {
+        if (!this.union) return false;
+        return this.union.some(polygon =>
+            this.pointInRing(x, z, polygon[0]) &&
+            !polygon.slice(1).some(hole => this.pointInRing(x, z, hole))
+        );
+    }
+
+    pointInRing(x, z, ring) {
+        let inside = false;
+        for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index++) {
+            const [ax, az] = ring[index];
+            const [bx, bz] = ring[previous];
+            const crosses = (az > z) !== (bz > z) &&
+                x < (bx - ax) * (z - az) / (bz - az || Number.EPSILON) + ax;
+            if (crosses) inside = !inside;
+        }
+        return inside;
+    }
+
+    toPath(ring) {
+        const path = new THREE.Path();
+        ring.slice(0, -1).forEach(([x, z], index) => {
+            if (index === 0) path.moveTo(x, -z);
+            else path.lineTo(x, -z);
+        });
+        path.closePath();
+        return path;
+    }
+
+    toShape(ring) {
+        const shape = new THREE.Shape();
+        ring.slice(0, -1).forEach(([x, z], index) => {
+            if (index === 0) shape.moveTo(x, -z);
+            else shape.lineTo(x, -z);
+        });
+        shape.closePath();
+        return shape;
+    }
+
+    setWorldRepeatingUVs(geometry) {
+        const position = geometry.getAttribute("position");
+        const uv = new Float32Array(position.count * 2);
+        for (let index = 0; index < position.count; index++) {
+            uv[index * 2] = position.getX(index) / this.textureWorldWidth;
+            uv[index * 2 + 1] = position.getZ(index) / this.textureWorldDepth;
+        }
+        geometry.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
     }
 }
 
@@ -3310,10 +3809,6 @@ class CatAdventureGrass {
         this.maxVisible = 150000;
         this.treeGrassRadius = 3;
         this.dummy = new THREE.Object3D();
-        this.frustum = new THREE.Frustum();
-        this.projectionMatrix = new THREE.Matrix4();
-       // this.cullPoint = new THREE.Vector3();
-        this.cullSphere = new THREE.Sphere();
         this.instanceColor = new THREE.Color();
         // Wall probes are only used for grid points inside a wall's world
         // bounds, so they retain the cheap terrain scatter while giving each
@@ -3608,12 +4103,6 @@ class CatAdventureGrass {
         const camera = this.game.camera.position;
         if (!force && this.lastCamera.distanceToSquared(camera) < 0.00001) return;
         this.lastCamera.copy(camera);
-        this.game.camera.updateMatrixWorld();
-        this.projectionMatrix.multiplyMatrices(
-            this.game.camera.projectionMatrix,
-            this.game.camera.matrixWorldInverse
-        );
-        this.frustum.setFromProjectionMatrix(this.projectionMatrix);
         let count = 0;
         const farSq = this.farDistance * this.farDistance;
         for (const grass of this.candidates) {
@@ -3625,19 +4114,6 @@ class CatAdventureGrass {
             // shader still fades the final surviving clumps smoothly.
             const density = 1 - Math.max(0, distance - this.nearDistance) / (this.farDistance - this.nearDistance);
             if (grass.seed > density || count === this.capacity) continue;
-            // The old mesh bypassed frustum culling, so it sent every grass
-            // card on the map to the GPU. Reject off-screen cards here without
-            // changing any grass that can actually be seen.
-            this.cullSphere.center.set(
-                grass.x,
-                grass.y + 0.5 * grass.scale,
-                grass.z
-            );
-
-            // Lite större än själva tuvan för mjukare culling vid skärmkanten.
-            this.cullSphere.radius = grass.scale * 1.5;
-
-            if (!this.frustum.intersectsSphere(this.cullSphere)) continue;
             this.dummy.position.set(grass.x, grass.y, grass.z);
             this.dummy.rotation.set(0, grass.rotation, 0);
             this.dummy.scale.setScalar(grass.scale);
