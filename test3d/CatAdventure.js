@@ -79,6 +79,9 @@ class CatAdventure {
         
         this.insectObj=null;
         this.bugAI = [];
+        this.owl = null;
+        this.owlHasMetPlayer = false;
+        this.owlMeetRadius = 4;
         this.foxPatrol = null;
         this.foxQuest = {
             state: "unseen", // unseen, speaking, choice, deferred, active, readyToComplete, completing, completed
@@ -148,6 +151,7 @@ class CatAdventure {
         
         this.findsleepingbug();
         this.findPlayerCat();
+        this.findOwl();
         this.setupAnimation();
         this.setupBugAI();
         this.setupFoxPatrol();
@@ -728,6 +732,7 @@ class CatAdventure {
         if (controlsLocked) this.updateCinematic(deltaSeconds);
         else this.updateCamera(scale);
         this.updateSky();
+        this.updateOwlEncounter(deltaSeconds);
         this.updateFoxPatrol(deltaSeconds);
         this.updateFoxQuest(deltaSeconds);
         this.updateSpiderQuest(deltaSeconds);
@@ -2208,6 +2213,41 @@ class CatAdventure {
         console.log("Player cat:", this.player);
     }
 
+    findOwl() {
+        this.owl = this.mapObjects.find(obj => {
+            const type = obj.userData.assetType || {};
+            return /owl/i.test(type.id || "") || /owl/i.test(type.name || "");
+        }) || null;
+
+        if (!this.owl) console.warn("No owl found in map.json.");
+    }
+
+    updateOwlEncounter(deltaSeconds) {
+        if (!this.owl || !this.player) return;
+
+        const toPlayer = new THREE.Vector3(
+            this.player.position.x - this.owl.position.x,
+            0,
+            this.player.position.z - this.owl.position.z
+        );
+        const withinMeetRange = toPlayer.lengthSq() <= this.owlMeetRadius * this.owlMeetRadius;
+
+        if (!withinMeetRange) return;
+
+        if (toPlayer.lengthSq() > 0.0001) {
+            const targetYaw = Math.atan2(-toPlayer.x, -toPlayer.z);
+            this.owl.rotation.y = this.lerpAngle(
+                this.owl.rotation.y, targetYaw, Math.min(1, deltaSeconds * 8)
+            );
+        }
+
+        if (this.owlHasMetPlayer) return;
+        this.owlHasMetPlayer = true;
+        audio2("sounds/owl1.mp3").catch(error => {
+            console.warn("Could not play owl encounter audio:", error);
+        });
+    }
+
     createFallbackPlayer() {
         const geo = new THREE.BoxGeometry(1, 1, 1);
         const mat = new THREE.MeshStandardMaterial({ color: 0xffaa55 });
@@ -2754,7 +2794,11 @@ class CatAdventureFakeShadows {
     }
 
     setMatrix(mesh, index, entry, dynamic) {
-        const hidden = dynamic && (!entry.object.parent || entry.object.userData.squished);
+        // The cat's contact shadow belongs on dry ground, not on the water
+        // surface while the wading effect is active.
+        const catIsInWater = entry.object === this.game.player &&
+            !!this.game.touching(this.game.player, "water", "solid", "down");
+        const hidden = dynamic && (!entry.object.parent || entry.object.userData.squished || catIsInWater);
         if (dynamic) {
             entry.object.getWorldPosition(this.worldPosition);
             entry.object.getWorldQuaternion(this.worldQuaternion);
