@@ -9,9 +9,9 @@ canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
 @media (pointer: coarse) {
   .mobile-joystick { display: block; position: fixed; z-index: 5; inset: 0 auto 0 0; width: 48vw; touch-action: none; }
   .mobile-joystick__base, .mobile-joystick__knob { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); }
-  .mobile-joystick__base { display: none; width: 108px; height: 108px; border: 2px solid rgb(255 255 255 / .8); background: rgb(20 41 30 / .22); box-shadow: 0 3px 16px rgb(0 0 0 / .25); }
+  .mobile-joystick__base { display: none; width: 80px; height: 80px; border: 2px solid rgb(255 255 255 / .8); background: rgb(20 41 30 / .22); box-shadow: 0 3px 16px rgb(0 0 0 / .25); }
   .mobile-joystick.is-active .mobile-joystick__base { display: block; }
-  .mobile-joystick__knob { left: 50%; top: 50%; width: 54px; height: 54px; border: 2px solid rgb(255 255 255 / .9); background: radial-gradient(circle at 35% 30%, #f45b5b, #65151b); transition: transform .03s linear; }
+  .mobile-joystick__knob { left: 50%; top: 50%; width: 34px; height: 34px; border: 2px solid rgb(255 255 255 / .9); background: radial-gradient(circle at 35% 30%, #f45b5b, #65151b); transition: transform .03s linear; }
 }
 .hud span, #editorStatus { color: #b7c8d8; font-size: .84rem; }
 .editor-bar { inset: 0 0 auto; height: 46px; display: flex; align-items: center; gap: 8px; padding: 8px 12px; }
