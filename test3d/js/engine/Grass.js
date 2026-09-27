@@ -7,7 +7,7 @@ export class Grass {
   constructor(scene) {
     this.scene = scene; this.root = new THREE.Group(); this.root.name = "Near painted grass"; this.scene.add(this.root);
     this.radius = 30; this.fadeStart = 15; this.fadeEnd = 27; this.maxVisible = 6000;
-    this.matrix = new THREE.Matrix4(); this.position = new THREE.Vector3(); this.rotation = new THREE.Quaternion(); this.scale = new THREE.Vector3(); this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity); this.dirty = true; this.sunDirection = new THREE.Vector3(.4, .8, .2).normalize(); this.sunPosition = new THREE.Vector3(); this.sunTargetPosition = new THREE.Vector3();
+    this.matrix = new THREE.Matrix4(); this.position = new THREE.Vector3(); this.rotation = new THREE.Quaternion(); this.scale = new THREE.Vector3(); this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity); this.lastCameraDirection = new THREE.Vector3(); this.cameraDirection = new THREE.Vector3(); this.viewPoint = new THREE.Vector3(); this.viewProjection = new THREE.Matrix4(); this.frustum = new THREE.Frustum(); this.hasCameraDirection = false; this.dirty = true; this.sunDirection = new THREE.Vector3(.4, .8, .2).normalize(); this.sunPosition = new THREE.Vector3(); this.sunTargetPosition = new THREE.Vector3();
     this.geometry = this.createBladeGeometry(); this.material = this.createMaterial(); this.mesh = null;
   }
 createBladeGeometry() {
@@ -191,12 +191,27 @@ createMaterial() {
     if (!this.config?.enabled || !camera) return;
     const shader = this.material.userData.grassShader;
     if (shader) { shader.uniforms.uGrassSunDirection.value.copy(this.sunDirection).transformDirection(camera.matrixWorldInverse); shader.uniforms.uGrassTime.value += delta; }
-    if (!this.dirty && this.lastCamera.distanceToSquared(camera.position) < 1) return;
-    this.lastCamera.copy(camera.position); this.dirty = false;
-    const radiusSq = this.radius ** 2, nearby = this.config.points.filter(point => (point.x - camera.position.x) ** 2 + (point.z - camera.position.z) ** 2 < radiusSq).slice(0, this.maxVisible);
+    camera.getWorldDirection(this.cameraDirection);
+    const cameraStill = this.lastCamera.distanceToSquared(camera.position) < 1;
+    const viewStill = this.hasCameraDirection && this.lastCameraDirection.dot(this.cameraDirection) > .9995;
+    if (!this.dirty && cameraStill && viewStill) return;
+    this.lastCamera.copy(camera.position); this.lastCameraDirection.copy(this.cameraDirection); this.hasCameraDirection = true; this.dirty = false;
+    // InstancedMesh cannot frustum-cull individual blades itself. Cull each
+    // painted point against the current camera frustum before filling it.
+    this.viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    this.frustum.setFromProjectionMatrix(this.viewProjection);
+    const radiusSq = this.radius ** 2, nearby = [];
+    for (const blade of this.config.points) {
+      if ((blade.x - camera.position.x) ** 2 + (blade.z - camera.position.z) ** 2 >= radiusSq) continue;
+      const groundY = this.terrain?.getHeightAt({ x: blade.x, z: blade.z }) ?? 0;
+      this.viewPoint.set(blade.x, groundY + .25, blade.z);
+      if (!this.frustum.containsPoint(this.viewPoint)) continue;
+      nearby.push({ blade, groundY });
+      if (nearby.length >= this.maxVisible) break;
+    }
     if (!this.mesh || this.mesh.instanceMatrix.count < nearby.length) { this.mesh?.removeFromParent(); this.mesh = new THREE.InstancedMesh(this.geometry, this.material, Math.max(nearby.length, 1)); this.mesh.name = "Near-camera procedural grass"; this.mesh.castShadow = false; this.mesh.receiveShadow = true; this.mesh.frustumCulled = false; this.root.add(this.mesh); }
     this.mesh.count = nearby.length;
-    for (let i = 0; i < nearby.length; i++) { const blade = nearby[i]; this.position.set(blade.x, this.terrain?.getHeightAt({ x: blade.x, z: blade.z }) ?? 0, blade.z); this.rotation.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, blade.rotation); this.scale.set(blade.scale, blade.scale * (blade.height ?? 1), blade.scale); this.matrix.compose(this.position, this.rotation, this.scale); this.mesh.setMatrixAt(i, this.matrix); }
+    for (let i = 0; i < nearby.length; i++) { const { blade, groundY } = nearby[i]; this.position.set(blade.x, groundY, blade.z); this.rotation.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, blade.rotation); this.scale.set(blade.scale, blade.scale * (blade.height ?? 1), blade.scale); this.matrix.compose(this.position, this.rotation, this.scale); this.mesh.setMatrixAt(i, this.matrix); }
     this.mesh.instanceMatrix.needsUpdate = true;
   }
 }
