@@ -6,6 +6,7 @@ import { Input } from "../engine/Input.js";
 import { PlayerController } from "../game/PlayerController.js";
 import { TouchJoystick } from "../game/TouchJoystick.js";
 
+
 const app = new ThreeApp(document.querySelector("#gameCanvas"), { mobileProfile: true });
 // Keep the base sky and fog identical to the editor. Sky captures this
 // background when it is created, while the fog remains visible on terrain.

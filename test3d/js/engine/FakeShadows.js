@@ -17,7 +17,7 @@ export class FakeShadows {
     // Keep normal depth testing so the caster (and other objects) can cover
     // the shadow. The small vertical/polygon offset keeps it above terrain
     // without z-fighting.
-    return new THREE.MeshBasicMaterial({ color: 0x1d160e, alphaMap, transparent: true, opacity: .42, depthTest: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -100, polygonOffsetUnits: -100, side: THREE.DoubleSide });
+    return new THREE.MeshBasicMaterial({ color: 0x1d160e, alphaMap, transparent: true, opacity: .42, depthTest: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -60, polygonOffsetUnits: -60, side: THREE.DoubleSide });
   }
   rebuild(objects, terrain) {
     this.root.clear(); this.mesh = null;

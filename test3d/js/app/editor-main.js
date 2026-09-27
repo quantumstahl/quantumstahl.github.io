@@ -21,6 +21,10 @@ try {
   console.error(error); editor.setStatus("Could not load maps/world.json");
 }
 
+
+
+
+
 document.querySelector("#openButton").addEventListener("click", async () => {
   try { await editor.loadWorld(await editor.files.open()); editor.setStatus("Map opened"); } catch (error) { if (error.name !== "AbortError") console.error(error); }
 });
