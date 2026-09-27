@@ -2,10 +2,10 @@
   "version": 1,
   "name": "New World",
   "editor": {
-    "showGrid": true
+    "showGrid": false
   },
   "sky": {
-    "mode": "night"
+    "mode": "day"
   },
   "terrain": {
     "enabled": true,
