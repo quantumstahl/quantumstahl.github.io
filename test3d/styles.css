@@ -1,6 +1,7 @@
 :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #1b2634; }
 * { box-sizing: border-box; }
-body { margin: 0; overflow: hidden; }
+body { margin: 0; overflow: hidden;-webkit-user-select: none;touch-action: none;overscroll-behavior: none;position: fixed;inset: 0; }
+
 canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
 .hud, .editor-bar, .help { position: fixed; z-index: 1; color: #eef6ff; background: rgb(10 19 28 / .78); backdrop-filter: blur(8px); }
 .hud { top: 16px; left: 16px; padding: 10px 14px; border-radius: 8px; display: grid; gap: 3px; }
