@@ -1,5 +1,5 @@
-// Small dependency-free renderer monitor. It reads Three.js stats after the
-// frame is rendered, so calls/triangles are for the frame the user just saw.
+// Compact renderer monitor. Detailed timing probes are deliberately omitted
+// from normal play because GPU queries can themselves disturb frame pacing.
 export class PerformanceInfo {
   constructor(renderer) {
     this.renderer = renderer;
@@ -13,12 +13,18 @@ export class PerformanceInfo {
     document.body.append(this.element);
     this.render();
   }
-  update(delta) {
+  // Lightweight compatibility hooks for the render loop.
+  beginFrame() {}
+  beginGpuTimer() {}
+  endGpuTimer() {}
+  measure(_label, callback) { return callback(); }
+  endFrame(delta) {
     this.frames++;
     this.elapsed += delta;
     if (this.elapsed < .25) return;
     this.fps = Math.round(this.frames / this.elapsed);
-    this.frames = 0; this.elapsed = 0;
+    this.frames = 0;
+    this.elapsed = 0;
     this.render();
   }
   setObjectCountProvider(provider) { this.objectCount = provider; }

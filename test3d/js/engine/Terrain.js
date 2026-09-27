@@ -9,13 +9,13 @@ export class Terrain {
     const signature = `${config.size}:${config.segments}:${config.color}`;
     if (this.signature !== signature || !this.mesh) {
       this.mesh?.removeFromParent(); this.mesh?.geometry.dispose(); this.mesh?.material.dispose();
-      const geometry = new THREE.PlaneGeometry(config.size, config.size, config.segments, config.segments); geometry.rotateX(-Math.PI / 2);
+       const geometry = new THREE.PlaneGeometry(config.size, config.size, config.segments, config.segments); geometry.rotateX(-Math.PI / 2);
       const material = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 1, metalness: 0, fog: true }); this.configureTextureBlend(material);
       this.mesh = new THREE.Mesh(geometry, material); this.mesh.name = "Terrain"; this.mesh.receiveShadow = true; this.mesh.userData.isTerrain = true; this.scene.add(this.mesh); this.signature = signature;
     }
     this.config = config; this.updateHeights(config); this.updateColors(config); this.updateTextureMasks(config); this.loadTextures(config.textures);
   }
-  updateHeights(config) { const positions = this.mesh?.geometry.getAttribute("position"); if (!positions) return; for (let i = 0; i < positions.count; i++) positions.setY(i, config.heights[i] ?? 0); positions.needsUpdate = true; this.mesh.geometry.computeVertexNormals(); }
+   updateHeights(config) { const positions = this.mesh?.geometry.getAttribute("position"); if (!positions) return; for (let i = 0; i < positions.count; i++) positions.setY(i, config.heights[i] ?? 0); positions.needsUpdate = true; this.mesh.geometry.computeVertexNormals(); }
   updateColors(config) { if (!this.mesh) return; const geometry = this.mesh.geometry; let colors = geometry.getAttribute("color"); if (!colors) { colors = new THREE.BufferAttribute(new Float32Array(geometry.getAttribute("position").count * 3), 3); geometry.setAttribute("color", colors); } const color = new THREE.Color(); for (let i = 0; i < colors.count; i++) { color.setHex(config.colors[i] ?? config.color); colors.setXYZ(i, color.r, color.g, color.b); } colors.needsUpdate = true; }
   updateTextureMasks(config) { if (!this.mesh) return; const geometry = this.mesh.geometry, count = geometry.getAttribute("position").count; for (let layer = 0; layer < MAX_TEXTURE_LAYERS; layer++) { let mask = geometry.getAttribute(`terrainTextureMask${layer}`); if (!mask) { mask = new THREE.BufferAttribute(new Float32Array(count), 1); geometry.setAttribute(`terrainTextureMask${layer}`, mask); } const values = config.textures?.[layer]?.mask ?? []; for (let i = 0; i < count; i++) mask.setX(i, values[i] ?? 0); mask.needsUpdate = true; } }
   configureTextureBlend(material) {
@@ -26,7 +26,9 @@ export class Terrain {
       const varyings = `varying vec2 vTerrainUv;\n${Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `varying float vTerrainTextureMask${i};`).join("\n")}`;
       const assignments = `vTerrainUv = uv;\n${Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `vTerrainTextureMask${i} = terrainTextureMask${i};`).join("\n")}`;
       const uniforms = Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `uniform sampler2D terrainMap${i};\nuniform float terrainMapScale${i};`).join("\n");
-      const samples = Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `vec3 terrainColor${i} = texture2D(terrainMap${i}, vTerrainUv * terrainMapScale${i}).rgb; terrainWeight += vTerrainTextureMask${i}; terrainPaint += terrainColor${i} * vTerrainTextureMask${i};`).join("\n        ");
+      // Most of the terrain only has one painted layer. Avoid sampling all
+      // eight textures for every terrain fragment, especially on mobile GPUs.
+      const samples = Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `float terrainMask${i} = vTerrainTextureMask${i}; if (terrainMask${i} > 0.0001) { vec3 terrainColor${i} = texture2D(terrainMap${i}, vTerrainUv * terrainMapScale${i}).rgb; terrainWeight += terrainMask${i}; terrainPaint += terrainColor${i} * terrainMask${i}; }`).join("\n        ");
       shader.vertexShader = shader.vertexShader.replace("#include <common>", `#include <common>\n${attributes}`).replace("#include <begin_vertex>", `${assignments}\n#include <begin_vertex>`);
       shader.fragmentShader = shader.fragmentShader.replace("#include <common>", `#include <common>\n${varyings}\n${uniforms}`).replace("#include <color_fragment>", `#include <color_fragment>\n        float terrainWeight = 0.0; vec3 terrainPaint = vec3(0.0);\n        ${samples}\n        diffuseColor.rgb = diffuseColor.rgb * max(0.0, 1.0 - terrainWeight) + terrainPaint;`);
       for (let i = 0; i < MAX_TEXTURE_LAYERS; i++) {

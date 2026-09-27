@@ -6,7 +6,10 @@ import * as THREE from "three";
 export class Grass {
   constructor(scene) {
     this.scene = scene; this.root = new THREE.Group(); this.root.name = "Near painted grass"; this.scene.add(this.root);
-    this.radius = 30; this.fadeStart = 15; this.fadeEnd = 27; this.maxVisible = 6000;
+    // This is the near-camera layer. Keep it genuinely near: the existing
+    // medium-distance vegetation covers the rest of the view much cheaper.
+    this.mobileProfile = window.matchMedia?.("(pointer: coarse)").matches;
+    this.radius = 42; this.fadeStart = 30; this.fadeEnd = 40; this.maxVisible = 6000;
     this.matrix = new THREE.Matrix4(); this.position = new THREE.Vector3(); this.rotation = new THREE.Quaternion(); this.scale = new THREE.Vector3(); this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity); this.lastCameraDirection = new THREE.Vector3(); this.cameraDirection = new THREE.Vector3(); this.viewPoint = new THREE.Vector3(); this.viewProjection = new THREE.Matrix4(); this.frustum = new THREE.Frustum(); this.hasCameraDirection = false; this.dirty = true; this.sunDirection = new THREE.Vector3(.4, .8, .2).normalize(); this.sunPosition = new THREE.Vector3(); this.sunTargetPosition = new THREE.Vector3();
     this.geometry = this.createBladeGeometry(); this.material = this.createMaterial(); this.mesh = null;
   }
@@ -15,8 +18,10 @@ createBladeGeometry() {
   const colors = [];
   const indices = [];
 
-  const blades = 9;
-  const segments = 3;
+  // Five two-segment ribbons are enough for a dense tuft at gameplay range,
+  // while cutting the per-instance triangle count from 54 to 20.
+  const blades = 5;
+  const segments = 2;
 
   const baseColor = new THREE.Color(0x245321);
   const tipColor  = new THREE.Color(0x6f9b3f);
@@ -191,9 +196,10 @@ createMaterial() {
     if (!this.config?.enabled || !camera) return;
     const shader = this.material.userData.grassShader;
     if (shader) { shader.uniforms.uGrassSunDirection.value.copy(this.sunDirection).transformDirection(camera.matrixWorldInverse); shader.uniforms.uGrassTime.value += delta; }
+   
     camera.getWorldDirection(this.cameraDirection);
     const cameraStill = this.lastCamera.distanceToSquared(camera.position) < 1;
-    const viewStill = this.hasCameraDirection && this.lastCameraDirection.dot(this.cameraDirection) > .9995;
+const viewStill = this.hasCameraDirection && this.lastCameraDirection.dot(this.cameraDirection) > 1;
     if (!this.dirty && cameraStill && viewStill) return;
     this.lastCamera.copy(camera.position); this.lastCameraDirection.copy(this.cameraDirection); this.hasCameraDirection = true; this.dirty = false;
     // InstancedMesh cannot frustum-cull individual blades itself. Cull each

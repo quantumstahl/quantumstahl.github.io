@@ -2,16 +2,19 @@ import * as THREE from "three";
 import { PerformanceInfo } from "./PerformanceInfo.js";
 
 export class ThreeApp {
-  constructor(canvas, { shadows = true } = {}) {
+  constructor(canvas, { shadows = true, mobileProfile = false } = {}) {
     this.canvas = canvas;
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(55, 1, .1, 1000);
+    this.mobileProfile = mobileProfile && window.matchMedia?.("(pointer: coarse)").matches;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // A 2x mobile screen costs four times as many fragments. Preserve a sharp
+    // enough image while avoiding an unnecessarily expensive full resolution.
+     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.mobileProfile ? 1 : 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.shadowMap.enabled = shadows;
-    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.shadowMap.type = this.mobileProfile ? THREE.BasicShadowMap : THREE.PCFShadowMap;
     this.performanceInfo = new PerformanceInfo(this.renderer);
     this.clock = new THREE.Clock();
     this.running = false;
@@ -23,7 +26,8 @@ export class ThreeApp {
     this.scene.add(new THREE.HemisphereLight(0xffffff, 1.5));
     const sun = new THREE.DirectionalLight(0xffffff, 2);
     sun.position.set(15, 40, 200); sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048); sun.shadow.camera.left = sun.shadow.camera.bottom = -40; sun.shadow.camera.right = sun.shadow.camera.top = 40;
+    const shadowSize = this.mobileProfile ? 1024 : 2048;
+    sun.shadow.mapSize.set(shadowSize, shadowSize); sun.shadow.camera.left = sun.shadow.camera.bottom = -40; sun.shadow.camera.right = sun.shadow.camera.top = 40;
     sun.shadow.camera.near = 1;
     sun.shadow.camera.far = 250;
     sun.shadow.bias = -0.001;
@@ -41,11 +45,19 @@ export class ThreeApp {
     this.running = true;
     const frame = () => {
       if (!this.running) return;
-      const delta = Math.min(this.clock.getDelta(), 1 / 20);
-      update(delta);
-      this.beforeRender?.(this.renderer, this.camera);
-      this.renderer.render(this.scene, this.camera);
-      this.performanceInfo.update(delta);
+      const rawDelta = this.clock.getDelta();
+      // Keep simulation stable after a tab-switch hitch, but report actual
+      // frame timing so short stalls are reflected in the FPS readout.
+      const delta = Math.min(rawDelta, 1 / 20);
+      this.performanceInfo.beginFrame(rawDelta);
+      this.performanceInfo.measure("Update", () => update(delta));
+      this.performanceInfo.beginGpuTimer("Sky");
+      this.performanceInfo.measure("Sky capture", () => this.beforeRender?.(this.renderer, this.camera));
+      this.performanceInfo.endGpuTimer();
+      this.performanceInfo.beginGpuTimer("Scene");
+      this.performanceInfo.measure("Render", () => this.renderer.render(this.scene, this.camera));
+      this.performanceInfo.endGpuTimer();
+      this.performanceInfo.endFrame(rawDelta);
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);

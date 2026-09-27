@@ -6,7 +6,7 @@ import { Input } from "../engine/Input.js";
 import { PlayerController } from "../game/PlayerController.js";
 import { TouchJoystick } from "../game/TouchJoystick.js";
 
-const app = new ThreeApp(document.querySelector("#gameCanvas"));
+const app = new ThreeApp(document.querySelector("#gameCanvas"), { mobileProfile: true });
 // Keep the base sky and fog identical to the editor. Sky captures this
 // background when it is created, while the fog remains visible on terrain.
 app.scene.background = new THREE.Color(0x8fb3d9);
@@ -25,8 +25,13 @@ try {
 } catch (error) {
   console.error(error); status.textContent = "Could not load maps/world.json";
 }
+
 app.beforeRender = (renderer, camera) => mapLoader.sky.renderToTexture(renderer, camera);
 const player = new PlayerController({ mapLoader, input, camera: app.camera, joystick });
 if (player.attach()) status.textContent = "Use WASD, arrow keys, or the mobile joystick to move the cat";
 else status.textContent = "No cat player found in this map";
-app.start(delta => { player.update(delta); mapLoader.update(delta, app.camera); input.endFrame(); });
+app.start(delta => {
+  app.performanceInfo.measure("Player", () => player.update(delta));
+  app.performanceInfo.measure("World", () => mapLoader.update(delta, app.camera));
+  app.performanceInfo.measure("Input", () => input.endFrame());
+});

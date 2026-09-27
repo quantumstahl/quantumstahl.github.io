@@ -15,7 +15,7 @@ export class Water {
   }
 createMaterial(config) {
 
-  return new THREE.ShaderMaterial({
+  const material = new THREE.ShaderMaterial({
 
     transparent: true,
     depthWrite: false,
@@ -38,6 +38,10 @@ createMaterial(config) {
         value: new THREE.Vector3()
       },
 
+      uBackgroundTexture: { value: new THREE.Texture() },
+      uFogNear: { value: 90 },
+      uFogFar: { value: 190 },
+
       // Ungefär samma riktning som:
       // sun.position.set(15, 24, 10)
       uSunDirection: {
@@ -56,6 +60,7 @@ createMaterial(config) {
 
       varying vec3 vWorldPosition;
       varying float vWave;
+      varying vec4 vClipPosition;
 
 
       float getWaveHeight(
@@ -115,6 +120,8 @@ createMaterial(config) {
           projectionMatrix *
           viewMatrix *
           worldPosition;
+
+        vClipPosition = gl_Position;
       }
     `,
 
@@ -128,10 +135,14 @@ createMaterial(config) {
 
       uniform vec3 uCameraPosition;
       uniform vec3 uSunDirection;
+      uniform sampler2D uBackgroundTexture;
+      uniform float uFogNear;
+      uniform float uFogFar;
 
 
       varying vec3 vWorldPosition;
       varying float vWave;
+      varying vec4 vClipPosition;
 
 
       // ------------------------------------------------
@@ -446,6 +457,13 @@ createMaterial(config) {
           vec3(0.025, 0.035, 0.045) *
           detail;
 
+        #ifdef USE_BACKGROUND_FADE
+          vec2 backgroundUv = vClipPosition.xy / vClipPosition.w * 0.5 + 0.5;
+          vec3 backgroundColor = texture2D(uBackgroundTexture, backgroundUv).rgb;
+          float backgroundFade = smoothstep(uFogNear, uFogFar, length(uCameraPosition - vWorldPosition));
+          color = mix(color, backgroundColor, backgroundFade);
+        #endif
+
 
         // --------------------------------------------
         // Transparency
@@ -468,6 +486,16 @@ createMaterial(config) {
       }
     `
   });
+  material.userData.addBackgroundFade = (backgroundTexture, fog) => {
+    material.uniforms.uBackgroundTexture.value = backgroundTexture;
+    material.uniforms.uFogNear.value = fog?.near ?? 90;
+    material.uniforms.uFogFar.value = fog?.far ?? 190;
+    material.defines ??= {};
+    material.defines.USE_BACKGROUND_FADE = 1;
+    material.needsUpdate = true;
+    return material.uniforms;
+  };
+  return material;
 }
   apply(config, terrain) {
     if (!config?.enabled || !terrain?.enabled) { this.mesh?.removeFromParent(); return; }

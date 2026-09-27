@@ -13,7 +13,7 @@ export class Sky {
     this.savedViewport = new THREE.Vector4();
     this.savedScissor = new THREE.Vector4();
     this.updateSunDirection(this.findDirectionalLight());
-    this.backgroundTarget = new THREE.WebGLRenderTarget(512, 256, {
+    this.backgroundTarget = new THREE.WebGLRenderTarget(256, 128, {
       depthBuffer: false,
       stencilBuffer: false,
       generateMipmaps: false,
@@ -40,7 +40,7 @@ export class Sky {
   // procedural sky. It samples the exact background colour at the fragment's
   // screen UV instead of approximating a sky gradient in every material.
 resizeBackgroundTarget(width, height) {
-    const w = 512;
+    const w = 256;
     const h = Math.max(
         1,
         Math.round(w * height / width)
@@ -79,6 +79,11 @@ renderBackground(renderer, camera) {
 }
 
 addBackgroundFadeToMaterial(material, backgroundTexture = this.backgroundTarget.texture) {
+        // Water is a custom shader, but exposes a compatible fade hook. This
+        // compiles the fade code only for render modes that request it.
+        if (material?.userData.addBackgroundFade) {
+            return material.userData.addBackgroundFade(backgroundTexture, this.scene.fog);
+        }
         // This hook patches Three's built-in material shader chunks. Custom
         // ShaderMaterials (such as procedural water) do not expose those fog
         // uniforms/chunks, so applying it would make the renderer read an
@@ -124,22 +129,84 @@ addBackgroundFadeToMaterial(material, backgroundTexture = this.backgroundTarget.
         `
         );
 
-        shader.fragmentShader = shader.fragmentShader.replace(
-        `#include <fog_fragment>`,
-        /*glsl*/ `
-        #ifdef USE_FOG
-            #ifdef FOG_EXP2
-            float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
-            #else
-            float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
-            #endif
-            vec2 vCoords = vClipPosition.xy / vClipPosition.w; // NDC coordinates
-            vCoords = vCoords * 0.5 + 0.5; // Convert to UV coordinates
-            vec3 bgColor = texture2D(uBackgroundTexture, vCoords).rgb;
-            gl_FragColor.rgb = mix( gl_FragColor.rgb, bgColor, fogFactor );
-        #endif 
-        `
+     shader.fragmentShader = shader.fragmentShader.replace(
+  `#include <fog_fragment>`,
+  /* glsl */ `
+  #ifdef USE_FOG
+
+    #ifdef FOG_EXP2
+
+      float fogFactor =
+        1.0 -
+        exp(
+          -fogDensity *
+          fogDensity *
+          vFogDepth *
+          vFogDepth
         );
+
+    #else
+
+      float fogFactor =
+        smoothstep(
+          fogNear,
+          fogFar,
+          vFogDepth
+        );
+
+    #endif
+
+
+    // Vanlig billig fog större delen av vägen.
+    vec3 fogTarget = fogColor;
+
+
+    // Den exakta sky-texturen behövs egentligen
+    // bara nära slutet av faden.
+    if (fogFactor > 0.80) {
+
+      vec2 vCoords =
+        vClipPosition.xy /
+        vClipPosition.w;
+
+      vCoords =
+        vCoords * 0.5 + 0.5;
+
+
+      vec3 backgroundColor =
+        texture2D(
+          uBackgroundTexture,
+          vCoords
+        ).rgb;
+
+
+      float exactSky =
+        smoothstep(
+          0.65,
+          0.90,
+          fogFactor
+        );
+
+
+      fogTarget =
+        mix(
+          fogColor,
+          backgroundColor,
+          exactSky
+        );
+    }
+
+
+    gl_FragColor.rgb =
+      mix(
+        gl_FragColor.rgb,
+        fogTarget,
+        fogFactor
+      );
+
+  #endif
+  `
+);
         };
 
         material.customProgramCacheKey = () => `${previousProgramKey}|background-fade-v1`;
