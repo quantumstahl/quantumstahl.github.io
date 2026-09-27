@@ -1,0 +1,33 @@
+:root { color-scheme: dark; font-family: system-ui, sans-serif; background: #1b2634; }
+* { box-sizing: border-box; }
+body { margin: 0; overflow: hidden; }
+canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+.hud, .editor-bar, .help { position: fixed; z-index: 1; color: #eef6ff; background: rgb(10 19 28 / .78); backdrop-filter: blur(8px); }
+.hud { top: 16px; left: 16px; padding: 10px 14px; border-radius: 8px; display: grid; gap: 3px; }
+.game-page .hud { display: none; }
+.hud span, #editorStatus { color: #b7c8d8; font-size: .84rem; }
+.editor-bar { inset: 0 0 auto; height: 46px; display: flex; align-items: center; gap: 8px; padding: 8px 12px; }
+.editor-bar strong { margin-right: 10px; }
+.terrain-label { margin-left: 5px; color: #b7c8d8; font-size: .82rem; }
+.terrain-texture-scale { display: inline-flex; align-items: center; gap: 3px; color: #b7c8d8; font-size: .78rem; }
+.terrain-texture-scale input { width: 3.5rem; }
+button { border: 1px solid #587087; border-radius: 5px; color: inherit; background: #273a4c; padding: 5px 9px; cursor: pointer; }
+button:hover { background: #39556d; }
+button.is-active { border-color: #ffd34f; background: #526073; color: #fff3b1; }
+.performance-info { position: fixed; z-index: 2; top: 12px; right: 12px; margin: 0; padding: 8px 10px; border: 1px solid #4f677b; border-radius: 6px; color: #dbefff; background: rgb(10 19 28 / .82); font: 12px/1.45 ui-monospace, Consolas, monospace; white-space: pre; pointer-events: none; }
+.editor-page .performance-info { top: 56px; }
+.editor-page canvas { height: calc(100vh - 46px); margin-top: 46px; }
+.asset-panel { position: fixed; z-index: 1; top: 54px; left: 8px; width: 252px; max-height: calc(100vh - 62px); overflow: auto; padding: 10px; border: 1px solid #496174; border-radius: 8px; color: #eaf4ff; background: rgb(10 19 28 / .88); }
+.asset-panel__title { margin-bottom: 8px; font-weight: 700; }
+.tree-row { display: flex; align-items: center; gap: 5px; min-height: 27px; padding: 2px 3px; border-radius: 4px; cursor: pointer; }
+.tree-row:hover, .tree-row.is-selected { background: #30485e; }
+.tree-row button { margin-left: auto; padding: 2px 6px; font-size: .75rem; }
+.tree-row button + button { margin-left: 0; }
+.tree-row button.is-enabled { border-color: #e3c267; color: #fff0aa; background: #594e2d; }
+.tree-row button.is-fake { border-color: #8bb5d6; color: #d7efff; background: #294a61; }
+.tree-layer { margin-top: 6px; font-weight: 600; }.tree-type { padding-left: 14px; }.tree-instance { padding-left: 29px; color: #c7d4df; }
+.tree-actions { display: flex; gap: 5px; padding-top: 9px; }.tree-actions button { flex: 1; }
+.tree-more { width: calc(100% - 28px); margin: 4px 0 4px 28px; padding: 4px 6px; font-size: .72rem; color: #c8ddef; }
+.tree-context-menu { position: fixed; z-index: 10; min-width: 200px; padding: 5px; border: 1px solid #607a90; border-radius: 6px; background: #172635; box-shadow: 0 8px 22px rgb(0 0 0 / .35); }
+.tree-context-menu button { width: 100%; border-color: #8b5861; background: #58313a; text-align: left; }
+.tree-context-menu button:hover { background: #7a424e; }

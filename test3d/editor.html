@@ -1,235 +1,29 @@
-
-<html>
-    <head>
-        <title>Editor</title>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        
-        <script type="importmap">
-            {
-                "imports": {
-                    "three": "https://unpkg.com/three@0.186.0/build/three.module.js",
-                    "three/addons/": "https://unpkg.com/three@0.186.0/examples/jsm/"
-                }
-            }
-        </script>
-        <script type="module" src="three-bootstrap.js"></script>
-        <script data-classic-src="js/Game7.js"></script>
-        <script data-classic-src="js/AssetManager.js"></script>
-        <script data-classic-src="js/MapFileManager.js"></script>
-        <script data-classic-src="js/InputManager.js"></script>
-        <script data-classic-src="js/EditorCamera.js"></script>
-        <script data-classic-src="js/ObjectBrushTool.js"></script>
-        <script data-classic-src="js/ToolManager.js"></script>
-        <script data-classic-src="js/SelectTool.js"></script>
-        <script data-classic-src="js/MoveTool.js"></script>
-        <script data-classic-src="js/JSTree7.js"></script>
-        <script data-classic-src="js/RotateTool.js"></script>
-        <script data-classic-src="js/ScaleTool.js"></script>
-        <script data-classic-src="js/StackTool.js"></script>
-
-        
-        <style>
-            body {
-                margin: 0;
-                overflow: hidden;
-                font-family: Arial, sans-serif;
-            }
-
-            #topbar {
-                position: absolute;
-                left: 0;
-                top: 0;
-                right: 0;
-                height: 32px;
-                background: #333;
-                color: white;
-                display: flex;
-                z-index: 10;
-            }
-
-            #leftPanel {
-                position: absolute;
-                left: 0;
-                top: 32px;
-                bottom: 48px;
-                width: 280px;
-                background: #ddd;
-                overflow: hidden;
-                z-index: 10;
-                display: flex;
-                flex-direction: column;
-            }
-
-            #treePanel {
-                flex: 1;
-                overflow-y: auto;
-                border-bottom: 1px solid #aaa;
-            }
-
-            #propertyPanel {
-                height: 260px;
-                overflow-y: auto;
-                background: #ccc;
-                padding: 6px;
-            }
-
-            #gameCanvas {
-                position: absolute;
-                left: 280px;
-                top: 32px;
-                width: calc(100vw - 280px);
-                height: calc(100vh - 80px);
-                display: block;
-            }
-
-            #bottomToolbar {
-                position: absolute;
-                left: 280px;
-                right: 0;
-                bottom: 0;
-                height: 48px;
-                background: #2f2f2f;
-                color: white;
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                padding: 4px 8px;
-                box-sizing: border-box;
-                z-index: 10;
-            }
-
-            .toolBtn {
-                min-width: 70px;
-                height: 34px;
-                border: 0;
-                background: #555;
-                color: white;
-                cursor: pointer;
-                border-radius: 4px;
-            }
-
-            .toolBtn:hover {
-                background: #666;
-            }
-
-            .toolBtn.active {
-                background: #2b7cff;
-                font-weight: bold;
-            }
-            .mapTab {
-                min-width: 90px;
-                height: 32px;
-                border: 0;
-                background: #444;
-                color: white;
-            }
-
-            .mapTab.active {
-                background: #666;
-                font-weight: bold;
-            }
-
-            .treeTitle {
-                padding: 8px;
-                font-weight: bold;
-                background: #ccc;
-            }
-
-            .treeLayer {
-                padding: 4px 8px;
-                font-weight: bold;
-                cursor: pointer;
-            }
-
-            .treeAssetType {
-                padding: 3px 8px 3px 20px;
-                cursor: pointer;
-            }
-
-            .treeInstance {
-                padding: 2px 8px 2px 38px;
-                font-size: 13px;
-                cursor: pointer;
-            }
-
-            .treeLayer:hover,
-            .treeAssetType:hover,
-            .treeInstance:hover {
-                background: #bbb;
-            }
-
-            .propRow {
-                display: flex;
-                justify-content: space-between;
-                gap: 8px;
-                padding: 4px;
-            }
-
-            .propRow input {
-                width: 80px;
-            }
-            .treeSelected {
-                background: #999 !important;
-                color: white;
-            }
-            .dangerBtn {
-                background: #9b2c2c;
-                color: white;
-                border: 0;
-                padding: 5px 8px;
-                margin-top: 8px;
-                cursor: pointer;
-            }
-
-            .dangerBtn:hover {
-                background: #c53030;
-            }
-            .collisionButtons {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 4px;
-                padding: 4px;
-            }
-
-            .collisionBtn {
-                padding: 4px 7px;
-                border: 0;
-                background: #777;
-                color: white;
-                cursor: pointer;
-                border-radius: 3px;
-                font-size: 12px;
-            }
-
-            .collisionBtn.active {
-                background: #2b7cff;
-                font-weight: bold;
-            }
-            
-            
-        </style>
-    </head>
-    <body>
-        <div id="topbar"></div>
-
-        <div id="leftPanel">
-            <div id="treePanel"></div>
-            <div id="propertyPanel"></div>
-        </div>
-
-        <canvas id="gameCanvas"></canvas>
-        <div id="bottomToolbar"></div>
-        <script type="text/plain" data-startup>
-            
-                const game = new Game7();
-                const tree = new JSTree7(game);
-                game.editorTree = tree;
-
-                game.start().then(() => {
-                    tree.refresh();
-                });
-
-        </script>
-    </body>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NextWorld Editor</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">
+    { "imports": {
+      "three": "https://unpkg.com/three@0.186.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.186.0/examples/jsm/"
+    } }
+  </script>
+</head>
+<body class="editor-page">
+  <header class="editor-bar">
+    <strong>NextWorld Editor</strong>
+    <button id="openButton">Open</button><button id="saveButton">Save</button><button id="selectToolButton">Select</button><button id="moveToolButton">Move</button><button id="rotateToolButton">Rotate</button><button id="scaleToolButton">Scale</button><button id="stackToolButton">Stack</button><button id="brushToolButton">Brush</button><button id="duplicateButton">Duplicate</button><span class="terrain-label">Terrain:</span><button id="terrainRaiseButton">Raise</button><button id="terrainLowerButton">Lower</button><button id="terrainSmoothButton">Smooth</button><button id="terrainFlattenButton">Flatten</button><button id="terrainTextureButton" title="Add a PNG texture layer">Add PNG…</button><select id="terrainTextureSelect" title="Choose the terrain texture layer"></select><label class="terrain-texture-scale" title="Higher tiling makes the selected texture appear smaller"><span>Tiling</span><input id="terrainTextureScale" type="number" min="1" max="200" step="1" value="16"></label><button id="terrainRemoveTextureButton" title="Remove the selected terrain texture layer">Remove PNG</button><button id="terrainPaintButton" title="Paint the selected PNG layer on terrain">Paint</button><button id="terrainGrassButton" title="Paint nearby-rendered grass">Grass</button><button id="terrainEraseGrassButton" title="Remove painted grass">Erase Grass</button>
+    <span id="editorStatus">Loading world…</span>
+  </header>
+  <aside id="assetPanel" class="asset-panel">
+    <div class="asset-panel__title">World</div>
+    <div id="assetTree"></div>
+  </aside>
+  
+  <canvas id="gameCanvas"></canvas>
+  <script type="module" src="js/app/editor-main.js"></script>
+</body>
 </html>
