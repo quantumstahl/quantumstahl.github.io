@@ -3,8 +3,8 @@ import * as THREE from "three";
 // Runtime-only control for the cat map instance. Map transforms remain the
 // spawn point; movement is intentionally not written back into the editor map.
 export class PlayerController {
-  constructor({ mapLoader, input, camera }) {
-    this.mapLoader = mapLoader; this.input = input; this.camera = camera; this.player = null;
+  constructor({ mapLoader, input, camera, joystick = null }) {
+    this.mapLoader = mapLoader; this.input = input; this.camera = camera; this.joystick = joystick; this.player = null;
     this.speed = 4.2; this.cameraYaw = Math.PI; this.cameraDistance = 6; this.cameraHeight = 3; this.groundOffset = 0; this.targetPlayerHeight = 0;
     this.cameraForward = new THREE.Vector3(); this.cameraRight = new THREE.Vector3(); this.move = new THREE.Vector3(); this.cameraTarget = new THREE.Vector3(); this.desiredCameraTarget = new THREE.Vector3(); this.cameraPosition = new THREE.Vector3();
   }
@@ -26,14 +26,15 @@ export class PlayerController {
   }
   update(delta) {
     if (!this.player) return;
-    const x = (this.input.down("d") || this.input.down("arrowright") ? 1 : 0) - (this.input.down("a") || this.input.down("arrowleft") ? 1 : 0);
-    const z = (this.input.down("w") || this.input.down("arrowup") ? 1 : 0) - (this.input.down("s") || this.input.down("arrowdown") ? 1 : 0);
+    const stick = this.joystick?.getVector() ?? { x: 0, y: 0, power: 0 };
+    const x = THREE.MathUtils.clamp((this.input.down("d") || this.input.down("arrowright") ? 1 : 0) - (this.input.down("a") || this.input.down("arrowleft") ? 1 : 0) + stick.x, -1, 1);
+    const z = THREE.MathUtils.clamp((this.input.down("w") || this.input.down("arrowup") ? 1 : 0) - (this.input.down("s") || this.input.down("arrowdown") ? 1 : 0) + stick.y, -1, 1);
     const moving = Boolean(x || z);
     if (moving) {
       this.camera.getWorldDirection(this.cameraForward); this.cameraForward.y = 0; this.cameraForward.normalize();
       this.cameraRight.crossVectors(this.cameraForward, THREE.Object3D.DEFAULT_UP).normalize();
       this.move.copy(this.cameraRight).multiplyScalar(x).addScaledVector(this.cameraForward, z).normalize();
-      this.player.position.addScaledVector(this.move, this.speed * delta);
+      this.player.position.addScaledVector(this.move, this.speed * Math.min(1, Math.hypot(x, z)) * delta);
       const targetHeading = Math.atan2(-this.move.x, -this.move.z);
       this.player.rotation.y = this.lerpAngle(this.player.rotation.y, targetHeading, 1 - Math.exp(-11 * delta));
     }
