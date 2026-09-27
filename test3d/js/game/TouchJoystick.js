@@ -12,6 +12,7 @@ export class TouchJoystick {
     this.root.addEventListener("pointermove", event => this.move(event));
     this.root.addEventListener("pointerup", event => this.end(event));
     this.root.addEventListener("pointercancel", event => this.end(event));
+    this.root.classList.add("is-active");
   }
   begin(event) {
     if (this.pointerId !== null || event.pointerType === "mouse") return;
@@ -19,7 +20,7 @@ export class TouchJoystick {
     this.centerX = Math.max(this.radius + 12, Math.min(event.clientX, maxX));
     this.centerY = Math.max(window.innerHeight * .52, Math.min(event.clientY, window.innerHeight - this.radius - 16));
     this.pointerId = event.pointerId; this.root.setPointerCapture?.(event.pointerId);
-    this.base.style.left = `${this.centerX}px`; this.base.style.top = `${this.centerY}px`; this.root.classList.add("is-active");
+    this.base.style.left = `${this.centerX}px`; this.base.style.top = `${this.centerY}px`; //this.root.classList.add("is-active");
     this.move(event); event.preventDefault();
   }
   move(event) {
@@ -34,7 +35,7 @@ export class TouchJoystick {
   end(event) {
     if (event.pointerId !== this.pointerId) return;
     this.pointerId = null; this.vector.x = 0; this.vector.y = 0; this.vector.power = 0;
-    this.knob.style.transform = "translate(-50%, -50%)"; this.root.classList.remove("is-active");
+    this.knob.style.transform = "translate(-50%, -50%)"; //this.root.classList.remove("is-active");
   }
   getVector() { return this.vector; }
 }

@@ -6,7 +6,7 @@ import * as THREE from "three";
 export class Grass {
   constructor(scene) {
     this.scene = scene; this.root = new THREE.Group(); this.root.name = "Near painted grass"; this.scene.add(this.root);
-    this.radius = 44; this.fadeStart = 30; this.fadeEnd = 40; this.maxVisible = 6000;
+    this.radius = 30; this.fadeStart = 15; this.fadeEnd = 27; this.maxVisible = 6000;
     this.matrix = new THREE.Matrix4(); this.position = new THREE.Vector3(); this.rotation = new THREE.Quaternion(); this.scale = new THREE.Vector3(); this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity); this.dirty = true; this.sunDirection = new THREE.Vector3(.4, .8, .2).normalize(); this.sunPosition = new THREE.Vector3(); this.sunTargetPosition = new THREE.Vector3();
     this.geometry = this.createBladeGeometry(); this.material = this.createMaterial(); this.mesh = null;
   }
