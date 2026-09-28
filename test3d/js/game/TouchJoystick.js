@@ -3,7 +3,7 @@
 export class TouchJoystick {
   constructor() {
     this.vector = { x: 0, y: 0, power: 0 };
-    this.radius = 54; this.touchId = null; this.centerX = 0; this.centerY = 0;
+    this.radius = 20; this.touchId = null; this.centerX = 0; this.centerY = 0;
     this.root = document.createElement("div"); this.root.className = "mobile-joystick";
     this.base = document.createElement("div"); this.base.className = "mobile-joystick__base";
     this.knob = document.createElement("div"); this.knob.className = "mobile-joystick__knob";
