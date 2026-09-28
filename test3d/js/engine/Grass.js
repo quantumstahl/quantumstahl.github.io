@@ -1,223 +1,305 @@
 import * as THREE from "three";
 
-// Dense near-camera grass: one generated crossed-card blade mesh, rendered as
-// an InstancedMesh. The old gras.glb remains available for medium-distance
-// vegetation and is deliberately not used here.
+// Painted grass rendered in two instanced LOD tiers. A paint point represents
+// a clump, not one blade: close clumps are rich and varied, while medium
+// distance clumps use a small card cluster and cross-fade into the terrain.
 export class Grass {
   constructor(scene) {
-    this.scene = scene; this.root = new THREE.Group(); this.root.name = "Near painted grass"; this.scene.add(this.root);
-    // This is the near-camera layer. Keep it genuinely near: the existing
-    // medium-distance vegetation covers the rest of the view much cheaper.
+    this.scene = scene;
+    this.root = new THREE.Group();
+    this.root.name = "Procedural painted grass";
+    scene.add(this.root);
+
     this.mobileProfile = window.matchMedia?.("(pointer: coarse)").matches;
-    this.radius = 42; this.fadeStart = 30; this.fadeEnd = 40; this.maxVisible = 6000;
-    this.matrix = new THREE.Matrix4(); this.position = new THREE.Vector3(); this.rotation = new THREE.Quaternion(); this.scale = new THREE.Vector3(); this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity); this.lastCameraDirection = new THREE.Vector3(); this.cameraDirection = new THREE.Vector3(); this.viewPoint = new THREE.Vector3(); this.viewProjection = new THREE.Matrix4(); this.frustum = new THREE.Frustum(); this.hasCameraDirection = false; this.dirty = true; this.sunDirection = new THREE.Vector3(.4, .8, .2).normalize(); this.sunPosition = new THREE.Vector3(); this.sunTargetPosition = new THREE.Vector3();
-    this.geometry = this.createBladeGeometry(); this.material = this.createMaterial(); this.mesh = null;
-  }
-createBladeGeometry() {
-  const positions = [];
-  const colors = [];
-  const indices = [];
-
-  // Five two-segment ribbons are enough for a dense tuft at gameplay range,
-  // while cutting the per-instance triangle count from 54 to 20.
-  const blades = 5;
-  const segments = 2;
-
-  const baseColor = new THREE.Color(0x245321);
-  const tipColor  = new THREE.Color(0x6f9b3f);
-
-  for (let blade = 0; blade < blades; blade++) {
-
-    const angle = blade * 2.399963; // golden angle
-
-    const radial =
-      blade === 0
-        ? 0
-        : 0.04 + (blade % 4) * 0.025;
-
-    const cx = Math.cos(angle) * radial;
-    const cz = Math.sin(angle) * radial;
-
-    const height =
-       0.32 + (blade % 5) * 0.04;
-
-    const baseWidth =
-      0.010 + (blade % 3) * 0.003;
-
-    const lean =
-      0.05 + (blade % 4) * 0.012;
-
-    const leanX = Math.cos(angle) * lean;
-    const leanZ = Math.sin(angle) * lean;
-
-    // Ribbon direction
-    const rightX = Math.cos(angle + Math.PI * 0.5);
-    const rightZ = Math.sin(angle + Math.PI * 0.5);
-
-    const startIndex = positions.length / 3;
-
-    for (let s = 0; s <= segments; s++) {
-
-      const t = s / segments;
-
-      // taper to a point
-      const width =
-        baseWidth *
-        (1.0 - t * 0.92);
-
-      // increasingly bent toward tip
-      const bend =
-        t * t;
-
-      const centerX =
-        cx + leanX * bend;
-
-      const centerZ =
-        cz + leanZ * bend;
-
-      const y =
-        height * t;
-
-      const leftX =
-        centerX - rightX * width;
-
-      const leftZ =
-        centerZ - rightZ * width;
-
-      const rightPX =
-        centerX + rightX * width;
-
-      const rightPZ =
-        centerZ + rightZ * width;
-
-      positions.push(
-        leftX, y, leftZ,
-        rightPX, y, rightPZ
-      );
-
-      const c =
-        baseColor.clone().lerp(
-          tipColor,
-          t
-        );
-
-      colors.push(
-        c.r, c.g, c.b,
-        c.r, c.g, c.b
-      );
-    }
-
-    for (let s = 0; s < segments; s++) {
-
-      const a = startIndex + s * 2;
-      const b = a + 1;
-      const c = a + 2;
-      const d = a + 3;
-
-      indices.push(
-        a, b, d,
-        a, d, c
-      );
-    }
-  }
-
-  const geometry =
-    new THREE.BufferGeometry();
-
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(
-      positions,
-      3
-    )
-  );
-
-  geometry.setAttribute(
-    "color",
-    new THREE.Float32BufferAttribute(
-      colors,
-      3
-    )
-  );
-
-  geometry.setIndex(indices);
-
-  geometry.computeVertexNormals();
-
-  return geometry;
-}
-createMaterial() {
-  const material = new THREE.MeshLambertMaterial({
-  vertexColors: true,
-  side: THREE.DoubleSide,
-
-  emissive: 0x102b0e,
-  emissiveIntensity: 2.35
+    this.nearRadius = this.mobileProfile ? 24 : 24;
+    this.midRadius = this.mobileProfile ? 920 : 920;
+    this.nearMax = this.mobileProfile ? 3400 : 3400;
+    this.midMax = this.mobileProfile ? 8000 : 8000;
+    this.cullInterval = this.mobileProfile ? .25 : .1;
+    this.cullTimer = Infinity;
+    this.dirty = true;
+    this.hasCameraDirection = false;
+    this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity);
+    this.lastCameraDirection = new THREE.Vector3();
+    this.cameraDirection = new THREE.Vector3();
+    this.viewPoint = new THREE.Vector3();
+    this.viewProjection = new THREE.Matrix4();
+    this.frustum = new THREE.Frustum();
+    this.matrix = new THREE.Matrix4();
+    this.position = new THREE.Vector3();
+    this.rotation = new THREE.Quaternion();
+    this.scale = new THREE.Vector3();
+    this.sunDirection = new THREE.Vector3(.4, .8, .2).normalize();
+    this.sunPosition = new THREE.Vector3();
+    this.sunTargetPosition = new THREE.Vector3();
+    this.grassSphere = new THREE.Sphere();
+    this.nearGeometry = this.createClusterGeometry({
+    blades: 90, segments: 1, spread: .29, width: .055
 });
-  material.onBeforeCompile = shader => {
-    shader.uniforms.uGrassSunDirection = { value: this.sunDirection.clone() };
-    shader.uniforms.uGrassTime = { value: 0 };
-    shader.vertexShader = shader.vertexShader
-  .replace(
-    "#include <common>",
-    "#include <common>\nuniform float uGrassTime;\nvarying float vGrassBladeHeight;"
-  )
-  .replace(
-    "#include <begin_vertex>",
-    "vGrassBladeHeight = clamp( position.y / 0.6, 0.0, 1.0 );\n#include <begin_vertex>\nfloat bladePhase = position.x * 17.3 + position.z * 23.7;\nfloat windPhase = instanceMatrix[3].x * 0.73 + instanceMatrix[3].z * 0.91 + bladePhase + uGrassTime * 1.4;\nfloat gust = sin( instanceMatrix[3].x * 0.08 + instanceMatrix[3].z * 0.06 + uGrassTime * 0.45 );\nfloat windSway = ( sin( windPhase ) * 0.032 + sin( windPhase * 0.47 + uGrassTime * 0.7 ) * 0.018 );\nwindSway *= ( 0.75 + gust * 0.25 ) * vGrassBladeHeight * vGrassBladeHeight;\ntransformed.x += windSway;\ntransformed.z += windSway * 0.45;"
-  );
-    shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nuniform vec3 uGrassSunDirection;\nvarying float vGrassBladeHeight;").replace("#include <lights_fragment_begin>","\nfloat bladeHeight = vGrassBladeHeight;\ndiffuseColor.rgb *= mix( 0.65, 1.0, bladeHeight );\n#include <lights_fragment_begin>");
-    material.userData.grassShader = shader;
-  };
-  material.customProgramCacheKey = () => "next-world-grass-sun-height-wind-v2";
-  return material;
-}
-  async apply(config, terrain) { this.config = config; this.terrain = terrain; this.root.visible = Boolean(config?.enabled); this.dirty = true; }
+    this.midGeometry = this.createClusterGeometry({ blades: 5, segments: 1, spread: .29, width: .3 },true);
+    this.nearMaterial = this.createMaterial({ fadeInStart: 0, fadeInEnd: 0, fadeOutStart: this.nearRadius-4, fadeOutEnd: this.nearRadius });
+    this.midMaterial = this.createMaterial({ fadeInStart: this.nearRadius-4, fadeInEnd: this.nearRadius, fadeOutStart: this.midRadius - 6, fadeOutEnd: this.midRadius });
+    this.nearMesh = null;
+    this.midMesh = null;
+  }
+
+  createClusterGeometry({ blades, segments, spread, width },back) {
+    const positions = [], colors = [], indices = [];
+    let baseColor = new THREE.Color(0x174b1d);
+
+    let red="#729d3e";
+    let midColor = new THREE.Color(0x0e1f0a);
+    const tipColor = new THREE.Color(0x729d3e);
+
+    if(back){midColor = new THREE.Color(0x729d3e);baseColor = new THREE.Color(0x729d3e);}
+
+    for (let blade = 0; blade < blades; blade++) {
+      const angle = blade * 2.399963 + (blade % 3) * .31;
+      const radial = blade === 0 ? 0 : Math.sqrt((blade + .35) / blades) * spread;
+      const cx = Math.cos(angle) * radial, cz = Math.sin(angle) * radial;
+      const height = 0.64 + ((blade * 37) % 7) * .055;
+      const bladeWidth = width * (.72 + ((blade * 17) % 5) * .11);
+      const lean = .07 + ((blade * 11) % 6) * .018;
+      const leanX = Math.cos(angle + .38) * lean, leanZ = Math.sin(angle + .38) * lean;
+      const rightX = Math.cos(angle + Math.PI * .5), rightZ = Math.sin(angle + Math.PI * .5);
+      const start = positions.length / 3;
+
+      for (let segment = 0; segment <= segments; segment++) {
+        const t = segment / segments;
+        const bend = t * t;
+        const halfWidth = bladeWidth * (1 - t * .91);
+        const x = cx + leanX * bend, z = cz + leanZ * bend, y = height * t;
+        positions.push(x - rightX * halfWidth, y, z - rightZ * halfWidth, x + rightX * halfWidth, y, z + rightZ * halfWidth);
+        const color = baseColor.clone().lerp(midColor, Math.min(1, t * 1.5)).lerp(tipColor, Math.max(0, t * 1.45 - .45));
+        colors.push(color.r, color.g, color.b, color.r, color.g, color.b);
+      }
+      for (let segment = 0; segment < segments; segment++) {
+        const a = start + segment * 2, b = a + 1, c = a + 2, d = a + 3;
+        // Two-sided material makes this ribbon visible from either direction.
+        indices.push(a, b, d);
+      }
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    return geometry;
+  }
+
+  createMaterial(lod) {
+    const material = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      side: THREE.DoubleSide,
+      transparent: false,
+      depthWrite: true,
+    });
+    material.onBeforeCompile = shader => {
+      shader.uniforms.uGrassTime = { value: 0 };
+      shader.uniforms.uGrassSunDirection = { value: this.sunDirection.clone() };
+      shader.uniforms.uGrassCameraPosition = { value: new THREE.Vector3() };
+      shader.uniforms.uGrassFadeInStart = { value: lod.fadeInStart };
+      shader.uniforms.uGrassFadeInEnd = { value: lod.fadeInEnd };
+      shader.uniforms.uGrassFadeOutStart = { value: lod.fadeOutStart };
+      shader.uniforms.uGrassFadeOutEnd = { value: lod.fadeOutEnd };
+      shader.vertexShader = shader.vertexShader
+        .replace("#include <common>", "#include <common>\nuniform float uGrassTime;\nuniform vec3 uGrassCameraPosition;\nuniform float uGrassFadeInStart;\nuniform float uGrassFadeInEnd;\nuniform float uGrassFadeOutStart;\nuniform float uGrassFadeOutEnd;\nvarying float vGrassBladeHeight;\nvarying float vGrassFade;")
+        .replace("#include <begin_vertex>", `vGrassBladeHeight = clamp(position.y / .7, 0.0, 1.0);
+vec3 grassOrigin = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+float grassDistance = distance(grassOrigin.xz, uGrassCameraPosition.xz);
+float fadeIn = uGrassFadeInEnd <= uGrassFadeInStart ? 1.0 : smoothstep(uGrassFadeInStart, uGrassFadeInEnd, grassDistance);
+float fadeOut = 1.0 - smoothstep(uGrassFadeOutStart, uGrassFadeOutEnd, grassDistance);
+vGrassFade = fadeIn * fadeOut;
+#include <begin_vertex>
+float bladePhase = position.x * 19.7 + position.z * 27.1;
+float windPhase = instanceMatrix[3].x * .67 + instanceMatrix[3].z * .81 + bladePhase + uGrassTime * 1.55;
+float gust = sin(instanceMatrix[3].x * .075 + instanceMatrix[3].z * .052 + uGrassTime * .38);
+float windSway = (sin(windPhase) * .036 + sin(windPhase * .51 + uGrassTime * .73) * .019);
+windSway *= (.78 + gust * .22) * vGrassBladeHeight * vGrassBladeHeight;
+transformed.x += windSway;
+transformed.z += windSway * .56;`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace("#include <common>", "#include <common>\nuniform vec3 uGrassSunDirection;\nvarying float vGrassBladeHeight;\nvarying float vGrassFade;")
+        .replace("#include <color_fragment>", `#include <color_fragment>
+diffuseColor.rgb *= mix(.62, 1.08, vGrassBladeHeight);
+diffuseColor.a *= vGrassFade;
+if (diffuseColor.a < .015) discard;`)
+        .replace("#include <lights_fragment_begin>", `float sunAmount = max(dot(normal, normalize(uGrassSunDirection)), 0.0);
+diffuseColor.rgb *= .65 + sunAmount * .35;
+#include <lights_fragment_begin>`);
+      material.userData.grassShader = shader;
+    };
+    material.customProgramCacheKey = () => `next-world-cluster-grass-${lod.fadeInStart}-${lod.fadeOutEnd}`;
+    return material;
+  }
+
+  async apply(config, terrain) {
+    this.config = config;
+    this.terrain = terrain;
+    this.root.visible = Boolean(config?.enabled);
+    this.dirty = true;
+  }
+
   setSunDirection(sun) {
     if (!sun?.isDirectionalLight || !sun.target) return false;
-    sun.updateWorldMatrix(true, false); sun.target.updateWorldMatrix(true, false); sun.getWorldPosition(this.sunPosition); sun.target.getWorldPosition(this.sunTargetPosition);
-    const direction = this.sunPosition.sub(this.sunTargetPosition); if (direction.lengthSq() < 1e-8) return false;
-    this.sunDirection.copy(direction.normalize()); return true;
+    sun.updateWorldMatrix(true, false);
+    sun.target.updateWorldMatrix(true, false);
+    sun.getWorldPosition(this.sunPosition);
+    sun.target.getWorldPosition(this.sunTargetPosition);
+    const direction = this.sunPosition.sub(this.sunTargetPosition);
+    if (direction.lengthSq() < 1e-8) return false;
+    this.sunDirection.copy(direction.normalize());
+    return true;
   }
+
   paint(config, terrain, point, radius) {
     if (!config?.enabled || radius <= 0) return false;
     const count = Math.max(3, Math.round(radius * radius * config.density));
-    for (let i = 0; i < count; i++) { const angle = Math.random() * Math.PI * 2, distance = Math.sqrt(Math.random()) * radius; config.points.push({ x: point.x + Math.cos(angle) * distance, z: point.z + Math.sin(angle) * distance, scale: .7 + Math.random() * .6, height: .75 + Math.random() * .35, rotation: Math.random() * Math.PI * 2 }); }
-    this.config = config; this.terrain = terrain; this.dirty = true; return true;
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2, distance = Math.sqrt(Math.random()) * radius;
+      config.points.push({ x: point.x + Math.cos(angle) * distance, z: point.z + Math.sin(angle) * distance, scale: .72 + Math.random() * .55, height: .78 + Math.random() * .42, rotation: Math.random() * Math.PI * 2 });
+    }
+    this.config = config;
+    this.terrain = terrain;
+    this.dirty = true;
+    return true;
   }
+
   erase(config, point, radius) {
     if (!config?.enabled || radius <= 0) return false;
     const radiusSq = radius ** 2, before = config.points.length;
-    config.points = config.points.filter(blade => (blade.x - point.x) ** 2 + (blade.z - point.z) ** 2 > radiusSq);
+    config.points = config.points.filter(clump => (clump.x - point.x) ** 2 + (clump.z - point.z) ** 2 > radiusSq);
     if (config.points.length === before) return false;
-    this.config = config; this.dirty = true; return true;
+    this.config = config;
+    this.dirty = true;
+    return true;
   }
+
+  updateMesh(name, geometry, material, entries, key) {
+    let mesh = this[key];
+    if (!mesh || mesh.instanceMatrix.count < entries.length) {
+      mesh?.removeFromParent();
+      mesh = new THREE.InstancedMesh(geometry, material, Math.max(entries.length, 1));
+      mesh.name = name;
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      mesh.frustumCulled = false;
+      this.root.add(mesh);
+      this[key] = mesh;
+    }
+    mesh.count = entries.length;
+    for (let index = 0; index < entries.length; index++) {
+      const { clump, groundY } = entries[index];
+      this.position.set(clump.x, groundY, clump.z);
+      this.rotation.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, clump.rotation);
+      const size = clump.scale;
+      this.scale.set(size, size * (clump.height ?? 1), size);
+      this.matrix.compose(this.position, this.rotation, this.scale);
+      mesh.setMatrixAt(index, this.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  }
+
   update(delta, camera) {
     if (!this.config?.enabled || !camera) return;
-    const shader = this.material.userData.grassShader;
-    if (shader) { shader.uniforms.uGrassSunDirection.value.copy(this.sunDirection).transformDirection(camera.matrixWorldInverse); shader.uniforms.uGrassTime.value += delta; }
-   
+    for (const material of [this.nearMaterial, this.midMaterial]) {
+      const shader = material.userData.grassShader;
+      if (!shader) continue;
+      shader.uniforms.uGrassTime.value += delta;
+      shader.uniforms.uGrassCameraPosition.value.copy(camera.position);
+      shader.uniforms.uGrassSunDirection.value.copy(this.sunDirection).transformDirection(camera.matrixWorldInverse);
+    }
+
+  
     camera.getWorldDirection(this.cameraDirection);
     const cameraStill = this.lastCamera.distanceToSquared(camera.position) < 1;
-const viewStill = this.hasCameraDirection && this.lastCameraDirection.dot(this.cameraDirection) > 1;
-    if (!this.dirty && cameraStill && viewStill) return;
-    this.lastCamera.copy(camera.position); this.lastCameraDirection.copy(this.cameraDirection); this.hasCameraDirection = true; this.dirty = false;
-    // InstancedMesh cannot frustum-cull individual blades itself. Cull each
-    // painted point against the current camera frustum before filling it.
+    const viewStill = this.hasCameraDirection && this.lastCameraDirection.dot(this.cameraDirection) > .9999999999999999999;
+    //if (!this.dirty && ((cameraStill && viewStill))) return;
+    this.lastCamera.copy(camera.position);
+    this.lastCameraDirection.copy(this.cameraDirection);
+    this.hasCameraDirection = true;
+
+    this.dirty = false;
+
     this.viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     this.frustum.setFromProjectionMatrix(this.viewProjection);
-    const radiusSq = this.radius ** 2, nearby = [];
-    for (const blade of this.config.points) {
-      if ((blade.x - camera.position.x) ** 2 + (blade.z - camera.position.z) ** 2 >= radiusSq) continue;
-      const groundY = this.terrain?.getHeightAt({ x: blade.x, z: blade.z }) ?? 0;
-      this.viewPoint.set(blade.x, groundY + .25, blade.z);
-      if (!this.frustum.containsPoint(this.viewPoint)) continue;
-      nearby.push({ blade, groundY });
-      if (nearby.length >= this.maxVisible) break;
-    }
-    if (!this.mesh || this.mesh.instanceMatrix.count < nearby.length) { this.mesh?.removeFromParent(); this.mesh = new THREE.InstancedMesh(this.geometry, this.material, Math.max(nearby.length, 1)); this.mesh.name = "Near-camera procedural grass"; this.mesh.castShadow = false; this.mesh.receiveShadow = true; this.mesh.frustumCulled = false; this.root.add(this.mesh); }
-    this.mesh.count = nearby.length;
-    for (let i = 0; i < nearby.length; i++) { const { blade, groundY } = nearby[i]; this.position.set(blade.x, groundY, blade.z); this.rotation.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, blade.rotation); this.scale.set(blade.scale, blade.scale * (blade.height ?? 1), blade.scale); this.matrix.compose(this.position, this.rotation, this.scale); this.mesh.setMatrixAt(i, this.matrix); }
-    this.mesh.instanceMatrix.needsUpdate = true;
+
+    
+const nearCandidates = [];
+const midCandidates = [];
+
+for (const clump of this.config.points) {
+
+    const dx = clump.x - camera.position.x;
+    const dz = clump.z - camera.position.z;
+    const distanceSq = dx * dx + dz * dz;
+
+    if (distanceSq > this.midRadius ** 2) continue;
+
+    const groundY =
+        this.terrain?.getHeightAt({
+            x: clump.x,
+            z: clump.z
+        }) ?? 0;
+
+    // generous grass bounds
+    const size = clump.scale ?? 1;
+    const heightScale = clump.height ?? 1;
+
+    const grassHeight = 0.7 * size * heightScale;
+
+    this.grassSphere.center.set(
+        clump.x,
+        groundY + grassHeight * 0.5,
+        clump.z
+    );
+
+    this.grassSphere.radius =
+        Math.max(1.5, grassHeight + 0.75);
+
+    if (!this.frustum.intersectsSphere(this.grassSphere))
+        continue;
+
+    const entry = {
+        clump,
+        groundY,
+        distanceSq
+    };
+
+    if (distanceSq < this.nearRadius ** 2)
+        nearCandidates.push(entry);
+
+    if (distanceSq >= 13 ** 2)
+        midCandidates.push(entry);
+}
+
+const byDistance = (a, b) =>
+    a.distanceSq - b.distanceSq;
+
+nearCandidates.sort(byDistance);
+midCandidates.sort(byDistance);
+
+const near =
+    nearCandidates.slice(0, this.nearMax);
+
+const mid =
+    midCandidates.slice(0, this.midMax);
+
+this.updateMesh(
+    "Near dense grass clumps",
+    this.nearGeometry,
+    this.nearMaterial,
+    near,
+    "nearMesh"
+);
+
+this.updateMesh(
+    "Medium grass card clumps",
+    this.midGeometry,
+    this.midMaterial,
+    mid,
+    "midMesh"
+);
   }
 }

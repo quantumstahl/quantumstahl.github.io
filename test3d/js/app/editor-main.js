@@ -12,16 +12,17 @@ const grid = new THREE.GridHelper(100, 100, 0x58796a, 0x425a50); grid.position.y
 app.editorGrid = grid;
 
 const editor = new Editor(app);
+
+
 try {
 
     await editor.load("maps/world.json");
     editor.setStatus(`${editor.mapLoader.world.name} loaded`);
+    window.mapLoader= editor.mapLoader;
   
 } catch (error) {
   console.error(error); editor.setStatus("Could not load maps/world.json");
 }
-
-
 
 
 
@@ -55,4 +56,5 @@ document.querySelector("#terrainEraseGrassButton").addEventListener("click", () 
 document.querySelector("#duplicateButton").addEventListener("click", () => editor.duplicateSelected());
 editor.setTool("select");
 app.beforeRender = (renderer, camera) => editor.mapLoader.sky.renderToTexture(renderer, camera);
-app.start(delta => editor.update(delta));
+window.editor=editor;
+app.start(true);

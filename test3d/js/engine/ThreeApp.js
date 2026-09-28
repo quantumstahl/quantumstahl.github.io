@@ -18,9 +18,11 @@ export class ThreeApp {
     this.performanceInfo = new PerformanceInfo(this.renderer);
     this.clock = new THREE.Clock();
     this.running = false;
-
+    this.animationFramHandle;
     window.addEventListener("resize", () => this.resize());
     this.resize();
+    this.targetFPS=60;
+    this.lolo=0;
   }
   addDefaultLighting() {
     this.scene.add(new THREE.HemisphereLight(0xffffff, 1.5));
@@ -41,25 +43,54 @@ export class ThreeApp {
     this.renderer.setSize(safeWidth, safeHeight, false);
     this.camera.aspect = safeWidth / safeHeight; this.camera.updateProjectionMatrix();
   }
-  start(update) {
-    this.running = true;
-    const frame = () => {
-      if (!this.running) return;
-      const rawDelta = this.clock.getDelta();
-      // Keep simulation stable after a tab-switch hitch, but report actual
-      // frame timing so short stalls are reflected in the FPS readout.
-      const delta = Math.min(rawDelta, 1 / 20);
-      this.performanceInfo.beginFrame(rawDelta);
-      this.performanceInfo.measure("Update", () => update(delta));
-      this.performanceInfo.beginGpuTimer("Sky");
-      this.performanceInfo.measure("Sky capture", () => this.beforeRender?.(this.renderer, this.camera));
-      this.performanceInfo.endGpuTimer();
-      this.performanceInfo.beginGpuTimer("Scene");
-      this.performanceInfo.measure("Render", () => this.renderer.render(this.scene, this.camera));
-      this.performanceInfo.endGpuTimer();
-      this.performanceInfo.endFrame(rawDelta);
-      requestAnimationFrame(frame);
-    };
-    requestAnimationFrame(frame);
+
+  setframerate(mobile){
+    if(mobile)this.targetFPS=60;
+
+
   }
+
+start(editor) {
+    if(editor){ requestAnimationFrame((t) => this.editorLoop(t));}
+    else{ requestAnimationFrame((t) => this.gameLoop(t));}
+   
+}
+    gameLoop(time) {
+        if(this.lolo===0){
+
+            if (!this.lastTime) this.lastTime = time;
+            let deltaMs = time - this.lastTime;
+            this.lastTime = time;
+            if (deltaMs > 50) deltaMs = 50;
+            const scale = deltaMs / (1000 );
+
+            player.update(scale);
+            mapLoader.update(scale, this.camera);
+            this.beforeRender?.(this.renderer, this.camera)
+            this.renderer.render(this.scene, this.camera)
+            this.performanceInfo.endFrame(scale);
+            if(this.targetFPS<60)this.lolo=1;
+        }else if(this.lolo===1) this.lolo=0;
+
+        requestAnimationFrame((t) => this.gameLoop(t));
+    }
+    editorLoop(time) {
+        if(this.lolo===0){
+
+            if (!this.lastTime) this.lastTime = time;
+            let deltaMs = time - this.lastTime;
+            this.lastTime = time;
+            if (deltaMs > 50) deltaMs = 50;
+            const scale = deltaMs / (1000 );
+
+            editor.update(scale);
+            mapLoader.update(scale, this.camera);
+            this.beforeRender?.(this.renderer, this.camera)
+            this.renderer.render(this.scene, this.camera)
+            this.performanceInfo.endFrame(scale);
+            if(this.targetFPS<60)this.lolo=1;
+        }else if(this.lolo===1) this.lolo=0;
+
+        requestAnimationFrame((t) => this.editorLoop(t));
+    }
 }

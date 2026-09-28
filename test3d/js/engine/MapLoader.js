@@ -20,9 +20,10 @@ export class MapLoader {
     this.batcher = new RenderBatcher(scene);
     this.terrain = new Terrain(scene);
     this.water = new Water(scene);
-    this.grass = new Grass(scene, assets);
-    this.fakeShadows = new FakeShadows(scene);
     this.sky = new Sky(scene);
+    this.grass = new Grass(scene,this.sky, assets);
+    this.fakeShadows = new FakeShadows(scene);
+    
     this.sky.updateSunDirection();
     this.selectedObject = null;
   }
@@ -54,6 +55,8 @@ export class MapLoader {
     this.water.setSunDirection(this.sky.findDirectionalLight());
     this.sky.addBackgroundFadeToMaterial(this.terrain.mesh?.material);
     this.sky.addBackgroundFadeToMaterial(this.water.mesh?.material);
+    this.sky.addBackgroundFadeToMaterial(this.grass.nearMaterial);
+    this.sky.addBackgroundFadeToMaterial(this.grass.midMaterial);
     for (const layer of this.world.layers) {
       if (!layer.visible) continue;
       for (const type of layer.assetTypes) {
@@ -199,7 +202,7 @@ export class MapLoader {
   }
   paintGrass(point, radius) { return this.grass.paint(this.world.grass, this.terrain, point, radius); }
   eraseGrass(point, radius) { return this.grass.erase(this.world.grass, point, radius); }
-  update(delta, camera) { const sun = this.sky.findDirectionalLight(); this.water.update(delta, camera); this.water.setSunDirection(sun); this.grass.setSunDirection(sun); this.grass.update(delta, camera); this.fakeShadows.update(this.terrain, delta); }
+  update(delta, camera) { const sun = this.sky.findDirectionalLight(); this.water.update(delta, camera); this.water.setSunDirection(sun);  this.grass.update(delta, camera); this.fakeShadows.update(this.terrain, delta); }
   refreshWater() { this.water.apply(this.world.water, this.world.terrain); }
   refreshFakeShadows() { this.fakeShadows.rebuild(this.objects, this.terrain); }
   setSelected(object) {
