@@ -68,7 +68,7 @@ this.beforeRender?.(this.renderer, this.camera);
             player.update(scale);
             mapLoader.update(scale, this.camera);
             
-            this.performanceInfo.endFrame(scale);
+            //this.performanceInfo.endFrame(scale);
             if(this.targetFPS<60)this.lolo=1;
         }else if(this.lolo===1) this.lolo=0;
 
