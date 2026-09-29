@@ -21,8 +21,8 @@ export class PerformanceInfo {
   endFrame(delta) {
     this.frames=1;
     this.elapsed +=delta;
-    if(this.fps<5||this.fps >Math.round(this.frames /this.delta))
-    this.fps = Math.round(this.frames / this.delta);
+    if(this.fps<5||this.fps >Math.round(this.frames /delta))
+    this.fps = Math.round(this.frames / delta);
     if (this.elapsed < 10) return;
     
     this.frames = 0;
