@@ -57,8 +57,7 @@ start(editor) {
 }
     gameLoop(time) {
         if(this.lolo===0){
-this.beforeRender?.(this.renderer, this.camera);
-            this.renderer.render(this.scene, this.camera);
+
             if (!this.lastTime) this.lastTime = time;
             let deltaMs = time - this.lastTime;
             this.lastTime = time;
@@ -67,7 +66,8 @@ this.beforeRender?.(this.renderer, this.camera);
 
             player.update(scale);
             mapLoader.update(scale, this.camera);
-            
+            this.beforeRender?.(this.renderer, this.camera);
+            this.renderer.render(this.scene, this.camera);
             this.performanceInfo.endFrame(scale);
             if(this.targetFPS<60)this.lolo=1;
         }else if(this.lolo===1) this.lolo=0;
