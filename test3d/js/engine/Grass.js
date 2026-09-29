@@ -177,29 +177,44 @@ diffuseColor.rgb *= .65 + sunAmount * .35;
   }
 
   updateMesh(name, geometry, material, entries, key) {
-    let mesh = this[key];
-    if (!mesh || mesh.instanceMatrix.count < entries.length) {
-      mesh?.removeFromParent();
-      mesh = new THREE.InstancedMesh(geometry, material, Math.max(entries.length, 1));
-      mesh.name = name;
-      mesh.castShadow = false;
-      mesh.receiveShadow = false;
-      mesh.frustumCulled = false;
-      this.root.add(mesh);
-      this[key] = mesh;
-    }
-    mesh.count = entries.length;
-    for (let index = 0; index < entries.length; index++) {
-      const { clump, groundY } = entries[index];
-      this.position.set(clump.x, groundY, clump.z);
-      this.rotation.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, clump.rotation);
-      const size = clump.scale;
-      this.scale.set(size, size * (clump.height ?? 1), size);
-      this.matrix.compose(this.position, this.rotation, this.scale);
-      mesh.setMatrixAt(index, this.matrix);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
+  let mesh = this[key];
+  const count = entries.length;
+
+  // Bara skapa om den inte finns eller är för liten
+  if (!mesh || mesh.instanceMatrix.count < count) {
+    mesh?.removeFromParent();
+    mesh = new THREE.InstancedMesh(geometry, material, Math.max(count, 1));
+    mesh.name = name;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mesh.frustumCulled = false;          // behåll om du verkligen behöver det
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); // viktigt
+    this.root.add(mesh);
+    this[key] = mesh;
   }
+
+  mesh.count = count;
+
+  // Temp-objekt (återanvänd samma)
+  const pos = this.position;
+  const rot = this.rotation;
+  const scl = this.scale;
+  const mat = this.matrix;
+
+  for (let i = 0; i < count; i++) {
+    const { clump, groundY } = entries[i];
+
+    pos.set(clump.x, groundY, clump.z);
+    rot.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, clump.rotation);
+    const s = clump.scale;
+    scl.set(s, s * (clump.height ?? 1), s);
+
+    mat.compose(pos, rot, scl);
+    mesh.setMatrixAt(i, mat);
+  }
+
+  mesh.instanceMatrix.needsUpdate = true;
+}
 
   update(delta, camera) {
     if (!this.config?.enabled || !camera) return;
