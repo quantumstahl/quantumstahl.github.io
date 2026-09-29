@@ -275,8 +275,8 @@ for (const clump of this.config.points) {
     this.grassSphere.radius =
         Math.max(1.5, grassHeight + 0.75);
 
-    if (!this.frustum.intersectsSphere(this.grassSphere))
-        continue;
+    //if (!this.frustum.intersectsSphere(this.grassSphere))
+        //continue;
 
     const entry = {
         clump,
