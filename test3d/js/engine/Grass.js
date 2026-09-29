@@ -13,8 +13,8 @@ export class Grass {
     this.mobileProfile = window.matchMedia?.("(pointer: coarse)").matches;
     this.nearRadius = this.mobileProfile ? 0 : 0;
     this.midRadius = this.mobileProfile ? 92 : 92;
-    this.nearMax = this.mobileProfile ? 3400 : 3400;
-    this.midMax = this.mobileProfile ? 8000 : 8000;
+    this.nearMax = this.mobileProfile ? 0 : 0;
+    this.midMax = this.mobileProfile ? 0 : 0;
     this.cullInterval = this.mobileProfile ? .25 : .1;
     this.cullTimer = Infinity;
     this.dirty = true;
@@ -33,12 +33,12 @@ export class Grass {
     this.sunPosition = new THREE.Vector3();
     this.sunTargetPosition = new THREE.Vector3();
     this.grassSphere = new THREE.Sphere();
-    //this.nearGeometry = this.createClusterGeometry({
-    //blades: 90, segments: 1, spread: .29, width: .055
+    this.nearGeometry = this.createClusterGeometry({
+    blades: 90, segments: 1, spread: .29, width: .055
 });
-    //this.midGeometry = this.createClusterGeometry({ blades: 5, segments: 1, spread: .29, width: .3 },true);
-    //this.nearMaterial = this.createMaterial({ fadeInStart: 0, fadeInEnd: 0, fadeOutStart: this.nearRadius-4, fadeOutEnd: this.nearRadius });
-    //this.midMaterial = this.createMaterial({ fadeInStart: this.nearRadius, fadeInEnd: this.nearRadius, fadeOutStart: this.midRadius - 6, fadeOutEnd: this.midRadius });
+    this.midGeometry = this.createClusterGeometry({ blades: 5, segments: 1, spread: .29, width: .3 },true);
+    this.nearMaterial = this.createMaterial({ fadeInStart: 0, fadeInEnd: 0, fadeOutStart: this.nearRadius-4, fadeOutEnd: this.nearRadius });
+    this.midMaterial = this.createMaterial({ fadeInStart: this.nearRadius, fadeInEnd: this.nearRadius, fadeOutStart: this.midRadius - 6, fadeOutEnd: this.midRadius });
     this.nearMesh = null;
     this.midMesh = null;
     this.ko=1;
