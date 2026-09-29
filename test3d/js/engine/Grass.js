@@ -11,7 +11,7 @@ export class Grass {
     scene.add(this.root);
 
     this.mobileProfile = window.matchMedia?.("(pointer: coarse)").matches;
-    this.nearRadius = this.mobileProfile ? 24 : 24;
+    this.nearRadius = this.mobileProfile ? 240 : 240;
     this.midRadius = this.mobileProfile ? 920 : 920;
     this.nearMax = this.mobileProfile ? 3400 : 3400;
     this.midMax = this.mobileProfile ? 8000 : 8000;
@@ -41,6 +41,7 @@ export class Grass {
     this.midMaterial = this.createMaterial({ fadeInStart: this.nearRadius-4, fadeInEnd: this.nearRadius, fadeOutStart: this.midRadius - 6, fadeOutEnd: this.midRadius });
     this.nearMesh = null;
     this.midMesh = null;
+    this.ko=0;
   }
 
   createClusterGeometry({ blades, segments, spread, width },back) {
@@ -217,6 +218,7 @@ diffuseColor.rgb *= .65 + sunAmount * .35;
 }
 
   update(delta, camera) {
+    if(this.ko===1)return;
     if (!this.config?.enabled || !camera) return;
     for (const material of [this.nearMaterial, this.midMaterial]) {
       const shader = material.userData.grassShader;
@@ -245,7 +247,7 @@ const nearCandidates = [];
 const midCandidates = [];
 
 for (const clump of this.config.points) {
-
+    
     const dx = clump.x - camera.position.x;
     const dz = clump.z - camera.position.z;
     const distanceSq = dx * dx + dz * dz;
@@ -316,5 +318,6 @@ this.updateMesh(
     mid,
     "midMesh"
 );
+this.ko=1;
   }
 }
