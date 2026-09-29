@@ -21,8 +21,9 @@ export class PerformanceInfo {
   endFrame(delta) {
     this.frames++;
     this.elapsed += delta;
+    if(this.fps<5||this.fps >Math.round(this.frames / this.elapsed))this.fps = Math.round(this.frames / this.elapsed);
     if (this.elapsed < .25) return;
-    this.fps = Math.round(this.frames / this.elapsed);
+    
     this.frames = 0;
     this.elapsed = 0;
     this.render();
@@ -31,5 +32,5 @@ export class PerformanceInfo {
   render() {
     const { render, memory } = this.renderer.info;
     this.element.textContent = `FPS  ${this.fps}\nObjects  ${this.objectCount().toLocaleString()}\nCalls  ${render.calls}\nTris  ${render.triangles.toLocaleString()}\nGeometries  ${memory.geometries}\nTextures  ${memory.textures}`;
-  }
+  this.fps=0;}
 }
