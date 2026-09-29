@@ -287,7 +287,7 @@ for (const clump of this.config.points) {
     if (distanceSq < this.nearRadius ** 2)
         nearCandidates.push(entry);
 
-    if (distanceSq >= 13 ** 2)
+    if (distanceSq >= this.nearRadius ** 2)
         midCandidates.push(entry);
 }
 
