@@ -80,7 +80,7 @@ start(editor) {
             if (!this.lastTime) this.lastTime = time;
             let deltaMs = time - this.lastTime;
             this.lastTime = time;
-            if (deltaMs > 50) deltaMs = 50;
+            //if (deltaMs > 50) deltaMs = 50;
             const scale = deltaMs / (1000 );
 
             editor.update(scale);
