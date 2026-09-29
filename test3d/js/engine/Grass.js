@@ -11,7 +11,7 @@ export class Grass {
     scene.add(this.root);
 
     this.mobileProfile = window.matchMedia?.("(pointer: coarse)").matches;
-    this.nearRadius = this.mobileProfile ? 6 : 6;
+    this.nearRadius = this.mobileProfile ? 0 : 0;
     this.midRadius = this.mobileProfile ? 92 : 92;
     this.nearMax = this.mobileProfile ? 3400 : 3400;
     this.midMax = this.mobileProfile ? 8000 : 8000;
@@ -38,7 +38,7 @@ export class Grass {
 });
     this.midGeometry = this.createClusterGeometry({ blades: 5, segments: 1, spread: .29, width: .3 },true);
     this.nearMaterial = this.createMaterial({ fadeInStart: 0, fadeInEnd: 0, fadeOutStart: this.nearRadius-4, fadeOutEnd: this.nearRadius });
-    this.midMaterial = this.createMaterial({ fadeInStart: this.nearRadius-4, fadeInEnd: this.nearRadius, fadeOutStart: this.midRadius - 6, fadeOutEnd: this.midRadius });
+    this.midMaterial = this.createMaterial({ fadeInStart: this.nearRadius, fadeInEnd: this.nearRadius, fadeOutStart: this.midRadius - 6, fadeOutEnd: this.midRadius });
     this.nearMesh = null;
     this.midMesh = null;
     this.ko=0;
