@@ -188,7 +188,7 @@ diffuseColor.rgb *= .65 + sunAmount * .35;
     mesh.name = name;
     mesh.castShadow = false;
     mesh.receiveShadow = false;
-    mesh.frustumCulled = false;          // behåll om du verkligen behöver det
+    mesh.frustumCulled = true;          // behåll om du verkligen behöver det
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); // viktigt
     this.root.add(mesh);
     this[key] = mesh;
