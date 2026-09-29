@@ -7,7 +7,7 @@ export class ThreeApp {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(55, 1, .1, 1000);
     this.mobileProfile = mobileProfile && window.matchMedia?.("(pointer: coarse)").matches;
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    this.renderer = new THREE.WebGLRenderer({ powerPreference: 'high-performance',canvas, antialias: true });
     // A 2x mobile screen costs four times as many fragments. Preserve a sharp
     // enough image while avoiding an unnecessarily expensive full resolution.
      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.mobileProfile ? 1 : 2));
