@@ -1,323 +1,1369 @@
 import * as THREE from "three";
 
-// Painted grass rendered in two instanced LOD tiers. A paint point represents
-// a clump, not one blade: close clumps are rich and varied, while medium
-// distance clumps use a small card cluster and cross-fade into the terrain.
+// Dense near-camera grass: one generated crossed-card blade mesh, rendered as
+// an InstancedMesh. The old gras.glb remains available for medium-distance
+// vegetation and is deliberately not used here.
 export class Grass {
   constructor(scene) {
-    this.scene = scene;
-    this.root = new THREE.Group();
-    this.root.name = "Procedural painted grass";
-    scene.add(this.root);
-
-    this.mobileProfile = window.matchMedia?.("(pointer: coarse)").matches;
-    this.nearRadius = this.mobileProfile ? 0 : 0;
-    this.midRadius = this.mobileProfile ? 92 : 92;
-    this.nearMax = this.mobileProfile ? 0 : 0;
-    this.midMax = this.mobileProfile ? 0 : 0;
-    this.cullInterval = this.mobileProfile ? .25 : .1;
-    this.cullTimer = Infinity;
-    this.dirty = true;
-    this.hasCameraDirection = false;
-    this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity);
-    this.lastCameraDirection = new THREE.Vector3();
-    this.cameraDirection = new THREE.Vector3();
-    this.viewPoint = new THREE.Vector3();
-    this.viewProjection = new THREE.Matrix4();
-    this.frustum = new THREE.Frustum();
-    this.matrix = new THREE.Matrix4();
-    this.position = new THREE.Vector3();
-    this.rotation = new THREE.Quaternion();
-    this.scale = new THREE.Vector3();
-    this.sunDirection = new THREE.Vector3(.4, .8, .2).normalize();
-    this.sunPosition = new THREE.Vector3();
-    this.sunTargetPosition = new THREE.Vector3();
+    this.scene = scene; this.root = new THREE.Group(); this.root.name = "Near painted grass"; this.scene.add(this.root);
+    this.radius = 42; this.fadeStart = 20; this.fadeEnd = 50; this.maxVisible = 24000;
+    this.textureend=scene.fog.far;
+    if(mobileProfile===false){this.radius = 62; this.fadeStart = 40; this.fadeEnd = 60; this.maxVisible = 24000; }
+    this.matrix = new THREE.Matrix4(); this.position = new THREE.Vector3(); this.rotation = new THREE.Quaternion(); this.scale = new THREE.Vector3(); this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity); this.lastCameraDirection = new THREE.Vector3(); this.cameraDirection = new THREE.Vector3(); this.viewPoint = new THREE.Vector3(); this.viewProjection = new THREE.Matrix4(); this.frustum = new THREE.Frustum(); this.hasCameraDirection = false; this.dirty = true; this.sunDirection = new THREE.Vector3(.4, .8, .2).normalize(); this.sunPosition = new THREE.Vector3(); this.sunTargetPosition = new THREE.Vector3();
+    this.geometry = this.createBladeGeometry(); this.material = this.createMaterial(); 
     this.grassSphere = new THREE.Sphere();
-    this.nearGeometry = this.createClusterGeometry({
-    blades: 90, segments: 1, spread: .29, width: .055
-});
-    this.midGeometry = this.createClusterGeometry({ blades: 5, segments: 1, spread: .29, width: .3 },true);
-    this.nearMaterial = this.createMaterial({ fadeInStart: 0, fadeInEnd: 0, fadeOutStart: this.nearRadius-4, fadeOutEnd: this.nearRadius });
-    this.midMaterial = this.createMaterial({ fadeInStart: this.nearRadius, fadeInEnd: this.nearRadius, fadeOutStart: this.midRadius - 6, fadeOutEnd: this.midRadius });
-    this.nearMesh = null;
-    this.midMesh = null;
-    this.ko=1;
+    this.createMesh();
+    this.grassGrid = new Map();
+    this.gridCellSize = 5;
+    this.gridDirty = true;
+    this.farGrassCellSize = 1;
+    this.farGrassOpacity = 0.80;
+
+    this.farGrassMesh = null;
+    this.farGrassMaterial = this.createFarGrassMaterial();
+
+    this.farGrassNeedsRebuild = true;
+    this.farGrassRebuildTimer = 0;
   }
+  createFarGrassMaterial() {
 
-  createClusterGeometry({ blades, segments, spread, width },back) {
-    const positions = [], colors = [], indices = [];
-    let baseColor = new THREE.Color(0x174b1d);
+    return new THREE.ShaderMaterial({
 
-    let red="#729d3e";
-    let midColor = new THREE.Color(0x0e1f0a);
-    const tipColor = new THREE.Color(0x729d3e);
+        transparent: true,
+        depthWrite: false,
+        depthTest: true,
 
-    if(back){midColor = new THREE.Color(0x729d3e);baseColor = new THREE.Color(0x729d3e);}
+        uniforms: {
 
-    for (let blade = 0; blade < blades; blade++) {
-      const angle = blade * 2.399963 + (blade % 3) * .31;
-      const radial = blade === 0 ? 0 : Math.sqrt((blade + .35) / blades) * spread;
-      const cx = Math.cos(angle) * radial, cz = Math.sin(angle) * radial;
-      const height = 0.64 + ((blade * 37) % 7) * .055;
-      const bladeWidth = width * (.72 + ((blade * 17) % 5) * .11);
-      const lean = .07 + ((blade * 11) % 6) * .018;
-      const leanX = Math.cos(angle + .38) * lean, leanZ = Math.sin(angle + .38) * lean;
-      const rightX = Math.cos(angle + Math.PI * .5), rightZ = Math.sin(angle + Math.PI * .5);
-      const start = positions.length / 3;
+            uFadeStart: {
+                value: this.fadeStart
+            },
 
-      for (let segment = 0; segment <= segments; segment++) {
-        const t = segment / segments;
-        const bend = t * t;
-        const halfWidth = bladeWidth * (1 - t * .91);
-        const x = cx + leanX * bend, z = cz + leanZ * bend, y = height * t;
-        positions.push(x - rightX * halfWidth, y, z - rightZ * halfWidth, x + rightX * halfWidth, y, z + rightZ * halfWidth);
-        const color = baseColor.clone().lerp(midColor, Math.min(1, t * 1.5)).lerp(tipColor, Math.max(0, t * 1.45 - .45));
-        colors.push(color.r, color.g, color.b, color.r, color.g, color.b);
-      }
-      for (let segment = 0; segment < segments; segment++) {
-        const a = start + segment * 2, b = a + 1, c = a + 2, d = a + 3;
-        // Two-sided material makes this ribbon visible from either direction.
-        indices.push(a, b, d);
-      }
+            uFadeEnd: {
+                value: this.fadeEnd
+            },
+
+            uTextureEnd: {
+                value: this.textureend
+            },
+
+            uOpacity: {
+                value: this.farGrassOpacity
+            },
+            uTime:{
+              value:0
+
+            }
+
+        },
+
+        vertexShader: `
+
+            varying vec3 vWorldPosition;
+            varying float vCoverage;
+            attribute float coverage;
+
+            void main() {
+
+                vec4 worldPosition =
+                    modelMatrix * vec4(position, 1.0);
+
+                vWorldPosition = worldPosition.xyz;
+                vCoverage = coverage;
+
+                gl_Position =
+                    projectionMatrix *
+                    viewMatrix *
+                    worldPosition;
+            }
+
+        `,
+
+        fragmentShader: `
+
+            uniform float uFadeStart;
+            uniform float uFadeEnd;
+            uniform float uTextureEnd;
+            uniform float uOpacity;
+            uniform float uTime;
+
+            varying vec3 vWorldPosition;
+            varying float vCoverage;
+
+
+            float hash(vec2 p) {
+
+                return fract(
+                    sin(
+                        dot(
+                            p,
+                            vec2(127.1, 311.7)
+                        )
+                    ) * 43758.5453
+                );
+            }
+
+
+            float noise(vec2 p) {
+
+                vec2 i = floor(p);
+                vec2 f = fract(p);
+
+                f = f * f * (3.0 - 2.0 * f);
+
+                float a = hash(i);
+                float b = hash(i + vec2(1.0, 0.0));
+                float c = hash(i + vec2(0.0, 1.0));
+                float d = hash(i + vec2(1.0, 1.0));
+
+                return mix(
+                    mix(a, b, f.x),
+                    mix(c, d, f.x),
+                    f.y
+                );
+            }
+            float hash21(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+
+float vnoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+
+    // Smooth interpolation
+    f = f * f * (3.0 - 2.0 * f);
+
+    float a = hash21(i);
+    float b = hash21(i + vec2(1.0, 0.0));
+    float c = hash21(i + vec2(0.0, 1.0));
+    float d = hash21(i + vec2(1.0, 1.0));
+
+    return mix(
+        mix(a, b, f.x),
+        mix(c, d, f.x),
+        f.y
+    );
+}
+
+            void main() {
+
+
+                vec2 p = vWorldPosition.xz;
+
+
+float d = distance(vWorldPosition.xz, cameraPosition.xz);
+
+float patches = vnoise(vWorldPosition.xz * 0.15);
+float mid     = vnoise(vWorldPosition.xz * 1.3);
+float fine    = vnoise(vWorldPosition.xz * vec2(220.0, 110.0));
+
+
+
+// Minska de små detaljerna långt bort
+fine = mix(fine, 0.5, smoothstep(30.0, 120.0, d));
+
+float grassNoise =
+      patches * 0.1
+    + mid     * 0.35
+    + fine    * 0.90;
+
+
+
+
+    float wave =
+        sin(p.x * 0.18 + uTime * 1.4) *
+        sin(p.y * 0.11 + uTime * 1.1);
+
+    wave = wave * 0.5 + 0.5;
+
+    grassNoise += (wave - 0.5) * 0.4;
+    grassNoise = clamp(grassNoise, 0.0, 1.0);
+
+
+
+vec3 darkGrass  = vec3(0.141, 0.325, 0.129);
+
+
+vec3 lightGrass = vec3(0.467, 0.702, 0.251);
+
+vec3 grassColor = mix(darkGrass, lightGrass, grassNoise);
+
+float grassLOD = smoothstep(2500.0, 55.0, d);
+
+grassColor = mix(grassColor, darkGrass,grassLOD * 0.1);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                // Bara XZ-avstånd.
+                // Höjdskillnader skall inte påverka LOD.
+
+                float distanceToCamera =
+                    distance(
+                        vWorldPosition.xz,
+                        cameraPosition.xz
+                    );
+
+
+                // Börja visa markgräset lite innan
+                // 3D-gräset är helt borta.
+
+                float nearFade =
+                    smoothstep(
+                        uFadeStart - 5.0,
+                        uFadeEnd,
+                        distanceToCamera
+                    );
+
+
+                // Försvinn väldigt långt bort.
+
+                float farFade =
+                    1.0 -
+                    smoothstep(
+                        uTextureEnd - 20.0,
+                        uTextureEnd,
+                        distanceToCamera
+                    );
+
+
+                float alpha =
+                    nearFade *
+                    farFade *
+                    uOpacity *
+                    smoothstep(0.0, 1.0, vCoverage);
+
+
+                if (alpha < 0.01) {
+                    discard;
+                }
+
+
+                gl_FragColor =
+                    vec4(
+                        grassColor,
+                        alpha
+                    );
+            }
+
+        `
+    });
+}
+rebuildFarGrass() {
+
+    this.farGrassNeedsRebuild = false;
+    this.farGrassRebuildTimer = 0;
+
+
+    if (
+        !this.config?.enabled ||
+        !this.terrain ||
+        !this.config.points?.length
+    ) {
+
+        if (this.farGrassMesh) {
+            this.farGrassMesh.visible = false;
+        }
+
+        return;
     }
+
+
+    const cellSize =
+        this.farGrassCellSize;
+
+
+    // Samla alla grid-celler där det finns målat gräs.
+
+    const cells =
+        new Set();
+
+
+    for (const blade of this.config.points) {
+
+        const cellX =
+            Math.floor(
+                blade.x / cellSize
+            );
+
+        const cellZ =
+            Math.floor(
+                blade.z / cellSize
+            );
+
+        cells.add(
+            `${cellX},${cellZ}`
+        );
+    }
+
+    // Include a one-cell border around the painted cells. Coverage values at
+    // shared vertices fade that border out, avoiding the hard square outline
+    // of the old one-quad-per-cell mesh.
+    const renderCells = new Set();
+
+    for (const key of cells) {
+        const [cellX, cellZ] = key.split(",").map(Number);
+
+        for (let offsetX = -1; offsetX <= 1; offsetX++) {
+            for (let offsetZ = -1; offsetZ <= 1; offsetZ++) {
+                renderCells.add(`${cellX + offsetX},${cellZ + offsetZ}`);
+            }
+        }
+    }
+
+    const vertexCoverage = (vertexX, vertexZ) => {
+        let occupied = 0;
+
+        for (let offsetX = -1; offsetX <= 0; offsetX++) {
+            for (let offsetZ = -1; offsetZ <= 0; offsetZ++) {
+                if (cells.has(`${vertexX + offsetX},${vertexZ + offsetZ}`)) {
+                    occupied++;
+                }
+            }
+        }
+
+        return occupied / 4;
+    };
+
+
+    const positions = [];
+    const coverage = [];
+    const indices = [];
+
+    let vertexIndex = 0;
+
+
+    for (const key of renderCells) {
+
+        const parts =
+            key.split(",");
+
+        const cellX =
+            Number(parts[0]);
+
+        const cellZ =
+            Number(parts[1]);
+
+
+        const x0 =
+            cellX * cellSize;
+
+        const z0 =
+            cellZ * cellSize;
+
+        const x1 =
+            x0 + cellSize;
+
+        const z1 =
+            z0 + cellSize;
+
+
+        // Lite ovanför marken för att undvika z-fighting.
+
+        const offsetY = 0.025;
+
+
+        const y00 =
+            (
+                this.terrain.getHeightAt({
+                    x: x0,
+                    z: z0
+                }) ?? 0
+            ) + offsetY;
+
+
+        const y10 =
+            (
+                this.terrain.getHeightAt({
+                    x: x1,
+                    z: z0
+                }) ?? 0
+            ) + offsetY;
+
+
+        const y11 =
+            (
+                this.terrain.getHeightAt({
+                    x: x1,
+                    z: z1
+                }) ?? 0
+            ) + offsetY;
+
+
+        const y01 =
+            (
+                this.terrain.getHeightAt({
+                    x: x0,
+                    z: z1
+                }) ?? 0
+            ) + offsetY;
+
+
+        positions.push(
+
+            x0, y00, z0,
+            x1, y10, z0,
+            x1, y11, z1,
+            x0, y01, z1
+
+        );
+
+        coverage.push(
+            vertexCoverage(cellX, cellZ),
+            vertexCoverage(cellX + 1, cellZ),
+            vertexCoverage(cellX + 1, cellZ + 1),
+            vertexCoverage(cellX, cellZ + 1)
+        );
+
+
+        // Winding uppåt.
+
+        indices.push(
+
+            vertexIndex,
+            vertexIndex + 2,
+            vertexIndex + 1,
+
+            vertexIndex,
+            vertexIndex + 3,
+            vertexIndex + 2
+
+        );
+
+
+        vertexIndex += 4;
+    }
+
+
+    const geometry =
+        new THREE.BufferGeometry();
+
+
+    geometry.setAttribute(
+
+        "position",
+
+        new THREE.Float32BufferAttribute(
+            positions,
+            3
+        )
+    );
+
+    geometry.setAttribute(
+        "coverage",
+        new THREE.Float32BufferAttribute(coverage, 1)
+    );
+
+
+    geometry.setIndex(indices);
+
+
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+
+
+    if (!this.farGrassMesh) {
+
+        this.farGrassMesh =
+            new THREE.Mesh(
+                geometry,
+                this.farGrassMaterial
+            );
+
+
+        this.farGrassMesh.name =
+            "Far grass ground shader";
+
+
+        this.farGrassMesh.castShadow = false;
+        this.farGrassMesh.receiveShadow = false;
+
+
+        this.root.add(
+            this.farGrassMesh
+        );
+
+    } else {
+
+        this.farGrassMesh.geometry.dispose();
+
+        this.farGrassMesh.geometry =
+            geometry;
+
+        this.farGrassMesh.visible =
+            true;
+    }
+}
+createBladeGeometry() {
+
+    const positions = [];
+    const colors = [];
+
+    const blades = 50;
+
+    const baseColor = new THREE.Color(0x245321);
+    const tipColor  = new THREE.Color(0x6c973f);
+    for (let blade = 0; blade < blades; blade++) {
+
+        const angle = blade * 2.39996;
+
+        const radial =
+            blade === 0
+                ? 0
+                : 0.04 + (blade % 30) * 0.025;
+
+        const cx = Math.cos(angle) * radial;
+        const cz = Math.sin(angle) * radial;
+
+        const height =
+            0.40 + (blade % 30) * 0.04;
+
+        const baseWidth =
+            0.010 + (blade % 7) * 0.003;
+
+        const lean =
+            0.05 + (blade % 10) * 0.012;
+
+        const leanX = Math.cos(angle) * lean;
+        const leanZ = Math.sin(angle) * lean;
+
+        // Direction sideways from blade
+        const rightX =
+            Math.cos(angle + Math.PI * 0.5);
+
+        const rightZ =
+            Math.sin(angle + Math.PI * 0.5);
+
+
+        // LEFT BASE
+        positions.push(
+            cx - rightX * baseWidth,
+            0,
+            cz - rightZ * baseWidth
+        );
+
+        // RIGHT BASE
+        positions.push(
+            cx + rightX * baseWidth,
+            0,
+            cz + rightZ * baseWidth
+        );
+
+        // TIP
+        positions.push(
+            cx + leanX,
+            height,
+            cz + leanZ
+        );
+
+
+        // Base colors
+        colors.push(
+            baseColor.r,
+            baseColor.g,
+            baseColor.b
+        );
+
+        colors.push(
+            baseColor.r,
+            baseColor.g,
+            baseColor.b
+        );
+
+        // Tip color
+        colors.push(
+            tipColor.r,
+            tipColor.g,
+            tipColor.b
+        );
+    }
+
 
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    geometry.setIndex(indices);
-    geometry.computeVertexNormals();
+
+    geometry.setAttribute(
+        "position",
+        new THREE.Float32BufferAttribute(
+            positions,
+            3
+        )
+    );
+
+    geometry.setAttribute(
+        "color",
+        new THREE.Float32BufferAttribute(
+            colors,
+            3
+        )
+    );
+
+
     return geometry;
-  }
+}
+buildGrassGrid() {
 
-  createMaterial(lod) {
+    this.grassGrid.clear();
+
+    const cellSize = this.gridCellSize;
+
+    // Sortera gräset i celler
+    for (const blade of this.config.points) {
+
+        const cellX = Math.floor(blade.x / cellSize);
+        const cellZ = Math.floor(blade.z / cellSize);
+
+        let column = this.grassGrid.get(cellX);
+
+        if (!column) {
+            column = new Map();
+            this.grassGrid.set(cellX, column);
+        }
+
+        let cell = column.get(cellZ);
+
+        if (!cell) {
+            cell = {
+                blades: [],
+                matrices: null,
+                box: null,
+                minY: Infinity,
+                maxY: -Infinity
+            };
+
+            column.set(cellZ, cell);
+        }
+
+        cell.blades.push(blade);
+
+        const y = blade.y ?? 0;
+
+        const grassHeight =
+            0.7 *
+            blade.scale *
+            (blade.height ?? 1);
+
+        cell.minY = Math.min(
+            cell.minY,
+            y
+        );
+
+        cell.maxY = Math.max(
+            cell.maxY,
+            y + grassHeight
+        );
+    }
+
+
+    // Bygg matriser + bounding box EN GÅNG
+    for (const [cellX, column] of this.grassGrid) {
+
+        for (const [cellZ, cell] of column) {
+
+            const count = cell.blades.length;
+
+            cell.matrices =
+                new Float32Array(count * 16);
+
+            let offset = 0;
+
+            for (const blade of cell.blades) {
+
+                this.position.set(
+                    blade.x,
+                    blade.y ?? 0,
+                    blade.z
+                );
+
+                this.rotation.setFromAxisAngle(
+                    THREE.Object3D.DEFAULT_UP,
+                    blade.rotation
+                );
+
+                this.scale.set(
+                    blade.scale,
+                    blade.scale * (blade.height ?? 1),
+                    blade.scale
+                );
+
+                this.matrix.compose(
+                    this.position,
+                    this.rotation,
+                    this.scale
+                );
+
+                cell.matrices.set(
+                    this.matrix.elements,
+                    offset
+                );
+
+                offset += 16;
+            }
+
+
+            const minX = cellX * cellSize;
+            const minZ = cellZ * cellSize;
+
+            const maxX = minX + cellSize;
+            const maxZ = minZ + cellSize;
+
+            // Lite extra marginal för vind/gräsets lutning.
+            cell.box = new THREE.Box3(
+                new THREE.Vector3(
+                    minX - 1,
+                    cell.minY - 0.2,
+                    minZ - 1
+                ),
+                new THREE.Vector3(
+                    maxX + 1,
+                    cell.maxY + 1,
+                    maxZ + 1
+                )
+            );
+
+            cell.minX = minX;
+            cell.maxX = maxX;
+            cell.minZ = minZ;
+            cell.maxZ = maxZ;
+        }
+    }
+
+    this.gridDirty = false;
+}
+
+
+getGrassCell(cellX, cellZ) {
+    return this.grassGrid.get(cellX)?.get(cellZ);
+}
+getOrCreateGrassCell(cellX, cellZ) {
+    let column = this.grassGrid.get(cellX);
+
+    if (!column) {
+        column = new Map();
+        this.grassGrid.set(cellX, column);
+    }
+
+    let cell = column.get(cellZ);
+
+    if (!cell) {
+        cell = { blades: [], matrices: null, box: null };
+        column.set(cellZ, cell);
+    }
+
+    return cell;
+}
+rebuildGrassCell(cellX, cellZ, cell) {
+    const cellSize = this.gridCellSize;
+    const count = cell.blades.length;
+
+    cell.matrices = new Float32Array(count * 16);
+
+    let minY = Infinity;
+    let maxY = -Infinity;
+    let offset = 0;
+
+    for (const blade of cell.blades) {
+        const y = blade.y ?? 0;
+        const grassHeight = 0.7 * blade.scale * (blade.height ?? 1);
+
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y + grassHeight);
+
+        this.position.set(blade.x, y, blade.z);
+        this.rotation.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, blade.rotation);
+        this.scale.set(blade.scale, blade.scale * (blade.height ?? 1), blade.scale);
+        this.matrix.compose(this.position, this.rotation, this.scale);
+        cell.matrices.set(this.matrix.elements, offset);
+        offset += 16;
+    }
+
+    const minX = cellX * cellSize;
+    const minZ = cellZ * cellSize;
+
+    cell.minX = minX;
+    cell.maxX = minX + cellSize;
+    cell.minZ = minZ;
+    cell.maxZ = minZ + cellSize;
+    cell.box = new THREE.Box3(
+        new THREE.Vector3(minX - 1, minY - 0.2, minZ - 1),
+        new THREE.Vector3(cell.maxX + 1, maxY + 1, cell.maxZ + 1)
+    );
+}
+cacheGroundHeights() {
+
+    if (!this.config?.points || !this.terrain) {
+        return;
+    }
+
+    for (const blade of this.config.points) {
+
+        if (blade.y !== undefined) {
+            continue;
+        }
+
+        blade.y =
+            this.terrain.getHeightAt({
+                x: blade.x,
+                z: blade.z
+            }) ?? 0;
+    }
+}
+createMaterial() {
+
     const material = new THREE.MeshBasicMaterial({
-      vertexColors: true,
-      side: THREE.DoubleSide,
-      transparent: false,
-      depthWrite: true,
+        vertexColors: true,
+        side: THREE.DoubleSide
     });
-    material.onBeforeCompile = shader => {
-      shader.uniforms.uGrassTime = { value: 0 };
-      shader.uniforms.uGrassSunDirection = { value: this.sunDirection.clone() };
-      shader.uniforms.uGrassCameraPosition = { value: new THREE.Vector3() };
-      shader.uniforms.uGrassFadeInStart = { value: lod.fadeInStart };
-      shader.uniforms.uGrassFadeInEnd = { value: lod.fadeInEnd };
-      shader.uniforms.uGrassFadeOutStart = { value: lod.fadeOutStart };
-      shader.uniforms.uGrassFadeOutEnd = { value: lod.fadeOutEnd };
-      shader.vertexShader = shader.vertexShader
-        .replace("#include <common>", "#include <common>\nuniform float uGrassTime;\nuniform vec3 uGrassCameraPosition;\nuniform float uGrassFadeInStart;\nuniform float uGrassFadeInEnd;\nuniform float uGrassFadeOutStart;\nuniform float uGrassFadeOutEnd;\nvarying float vGrassBladeHeight;\nvarying float vGrassFade;")
-        .replace("#include <begin_vertex>", `vGrassBladeHeight = clamp(position.y / .7, 0.0, 1.0);
-vec3 grassOrigin = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-float grassDistance = distance(grassOrigin.xz, uGrassCameraPosition.xz);
-float fadeIn = uGrassFadeInEnd <= uGrassFadeInStart ? 1.0 : smoothstep(uGrassFadeInStart, uGrassFadeInEnd, grassDistance);
-float fadeOut = 1.0 - smoothstep(uGrassFadeOutStart, uGrassFadeOutEnd, grassDistance);
-vGrassFade = fadeIn * fadeOut;
-#include <begin_vertex>
-float bladePhase = position.x * 19.7 + position.z * 27.1;
-float windPhase = instanceMatrix[3].x * .67 + instanceMatrix[3].z * .81 + bladePhase + uGrassTime * 1.55;
-float gust = sin(instanceMatrix[3].x * .075 + instanceMatrix[3].z * .052 + uGrassTime * .38);
-float windSway = (sin(windPhase) * .036 + sin(windPhase * .51 + uGrassTime * .73) * .019);
-windSway *= (.78 + gust * .22) * vGrassBladeHeight * vGrassBladeHeight;
-transformed.x += windSway;
-transformed.z += windSway * .56;`);
-      shader.fragmentShader = shader.fragmentShader
-        .replace("#include <common>", "#include <common>\nuniform vec3 uGrassSunDirection;\nvarying float vGrassBladeHeight;\nvarying float vGrassFade;")
-        .replace("#include <color_fragment>", `#include <color_fragment>
-diffuseColor.rgb *= mix(.62, 1.08, vGrassBladeHeight);
-diffuseColor.a *= vGrassFade;
-if (diffuseColor.a < .015) discard;`)
-        .replace("#include <lights_fragment_begin>", `float sunAmount = max(dot(normal, normalize(uGrassSunDirection)), 0.0);
-diffuseColor.rgb *= .65 + sunAmount * .35;
-#include <lights_fragment_begin>`);
-      material.userData.grassShader = shader;
-    };
-    material.customProgramCacheKey = () => `next-world-cluster-grass-${lod.fadeInStart}-${lod.fadeOutEnd}`;
-    return material;
-  }
 
+    material.onBeforeCompile = shader => {
+
+        // När individuella grässtrån börjar försvinna
+        shader.uniforms.uFadeStart = { value: this.fadeStart };
+        shader.uniforms.uFadeEnd   = { value: this.fadeEnd };
+
+        // Högt gräs börjar bli kortare tidigare
+        shader.uniforms.uHeightFadeStart = { value: this.fadeStart * 0.7 };
+        shader.uniforms.uHeightFadeEnd   = { value: this.fadeStart*1.1 };
+
+        // Hur högt gräset är när det nått mark-shader-området.
+        // 0.20 = 20% av normal höjd.
+        shader.uniforms.uFarHeight = { value: 0.40 };
+
+        shader.uniforms.uGrassTime = { value: 0 };
+
+
+        shader.vertexShader = shader.vertexShader
+
+            .replace(
+                "#include <common>",
+                `
+                #include <common>
+
+                uniform float uGrassTime;
+
+                uniform float uFadeStart;
+                uniform float uFadeEnd;
+
+                uniform float uHeightFadeStart;
+                uniform float uHeightFadeEnd;
+                uniform float uFarHeight;
+                `
+            )
+
+            .replace(
+                "#include <begin_vertex>",
+                `
+                #include <begin_vertex>
+
+
+                // Position för denna instans i world-space
+                vec3 iPos = (
+                    modelMatrix *
+                    instanceMatrix *
+                    vec4(0.0, 0.0, 0.0, 1.0)
+                ).xyz;
+
+
+                float dXZ = distance(
+                    iPos.xz,
+                    cameraPosition.xz
+                );
+
+
+                // ------------------------------------------------
+                // 1. HEIGHT LOD
+                //
+                // Högt gräs blir gradvis kortare innan vi börjar
+                // ta bort individuella strån.
+                // ------------------------------------------------
+
+                float heightFade = smoothstep(
+                    uHeightFadeStart,
+                    uHeightFadeEnd,
+                    dXZ-5.0
+                );
+
+                float grassHeightScale = mix(
+                    1.0,
+                    uFarHeight,
+                    heightFade
+                );
+
+                transformed.y *= grassHeightScale;
+
+
+                // ------------------------------------------------
+                // 2. DENSITY FADE
+                //
+                // Börjar senare. Slumpmässiga strån försvinner
+                // gradvis istället för att hela fältet kapas.
+                // ------------------------------------------------
+
+                float keep =
+                    1.0 -
+                    smoothstep(
+                        uFadeStart,
+                        uFadeEnd,
+                        dXZ
+                    );
+
+
+                float rnd = fract(
+                    sin(
+                        dot(
+                            iPos.xz,
+                            vec2(12.9898, 78.233)
+                        )
+                    ) *
+                    43758.5453
+                );
+
+
+                float grow = clamp(
+                    (keep * 1.2 - rnd) / 0.2,
+                    0.0,
+                    1.0
+                );
+
+
+                // När ett strå försvinner krymper hela bladet.
+                // Height-LOD däremot ändrar bara Y.
+                transformed *= grow;
+                `
+            )
+
+            .replace(
+                "#include <project_vertex>",
+                `
+
+                vec4 mvPosition =
+                    instanceMatrix *
+                    vec4(transformed, 1.0);
+
+
+                // ------------------------------------------------
+                // WIND
+                // ------------------------------------------------
+
+                float hgt = max(position.y * 1.55, 0.0);
+                hgt *= hgt;
+
+
+                float ph =
+                    iPos.x * 0.35 +
+                    iPos.z * 0.28 +
+                    position.x * 17.3 +
+                    uGrassTime * 1.6;
+
+
+                // Kortare distant grass behöver också mindre vind.
+                float w =
+                    sin(ph) *
+                    0.05 *
+                    hgt *
+                    grassHeightScale *
+                    grow;
+
+
+                mvPosition.x += w;
+                mvPosition.z += w * 0.4;
+
+
+                mvPosition =
+                    modelViewMatrix *
+                    mvPosition;
+
+
+                gl_Position =
+                    projectionMatrix *
+                    mvPosition;
+                `
+            );
+
+
+        material.userData.grassShader = shader;
+    };
+
+
+    material.customProgramCacheKey = () =>
+        "next-world-grass-height-lod-v2";
+
+
+    return material;
+}
   async apply(config, terrain) {
+
     this.config = config;
     this.terrain = terrain;
-    this.root.visible = Boolean(config?.enabled);
-    this.dirty = true;
-  }
+    this.farGrassNeedsRebuild = true;
 
+    this.rebuildFarGrass();
+    this.root.visible = Boolean(config?.enabled);
+
+    this.cacheGroundHeights();
+
+    this.gridDirty = true;
+    this.dirty = true;
+}
   setSunDirection(sun) {
     if (!sun?.isDirectionalLight || !sun.target) return false;
-    sun.updateWorldMatrix(true, false);
-    sun.target.updateWorldMatrix(true, false);
-    sun.getWorldPosition(this.sunPosition);
-    sun.target.getWorldPosition(this.sunTargetPosition);
-    const direction = this.sunPosition.sub(this.sunTargetPosition);
-    if (direction.lengthSq() < 1e-8) return false;
-    this.sunDirection.copy(direction.normalize());
-    return true;
+    sun.updateWorldMatrix(true, false); sun.target.updateWorldMatrix(true, false); sun.getWorldPosition(this.sunPosition); sun.target.getWorldPosition(this.sunTargetPosition);
+    const direction = this.sunPosition.sub(this.sunTargetPosition); if (direction.lengthSq() < 1e-8) return false;
+    this.sunDirection.copy(direction.normalize()); return true;
   }
-
   paint(config, terrain, point, radius) {
-    if (!config?.enabled || radius <= 0) return false;
-    const count = Math.max(3, Math.round(radius * radius * config.density));
-    for (let i = 0; i < count; i++) {
-      const angle = Math.random() * Math.PI * 2, distance = Math.sqrt(Math.random()) * radius;
-      config.points.push({ x: point.x + Math.cos(angle) * distance, z: point.z + Math.sin(angle) * distance, scale: .72 + Math.random() * .55, height: .78 + Math.random() * .42, rotation: Math.random() * Math.PI * 2 });
-    }
-    this.config = config;
-    this.terrain = terrain;
-    this.dirty = true;
-    return true;
-  }
+      if (!config?.enabled || radius <= 0) return false;
 
+      const count = Math.max(
+          3,
+          Math.round(radius * radius * config.density)
+      );
+
+      const paintedBlades = [];
+
+      for (let i = 0; i < count; i++) {
+
+          const angle = Math.random() * Math.PI * 2;
+          const distance = Math.sqrt(Math.random()) * radius;
+
+          const x = point.x + Math.cos(angle) * distance;
+          const z = point.z + Math.sin(angle) * distance;
+
+          const y = terrain?.getHeightAt({
+              x,
+              z
+          }) ?? 0;
+
+          const blade = {
+              x,
+              y,
+              z,
+
+              scale: 0.7 + Math.random() * 0.6,
+              height: 0.75 + Math.random() * 0.35,
+              rotation: Math.random() * Math.PI * 2
+          };
+
+          config.points.push(blade);
+          paintedBlades.push(blade);
+      }
+
+      this.config = config;
+      this.terrain = terrain;
+
+      // A brush stroke only changes a few cells. Avoid rebuilding matrices for
+      // every painted blade in the world when the existing grid is current.
+      if (!this.gridDirty) {
+          const changedCells = new Map();
+
+          for (const blade of paintedBlades) {
+              const cellX = Math.floor(blade.x / this.gridCellSize);
+              const cellZ = Math.floor(blade.z / this.gridCellSize);
+              const cell = this.getOrCreateGrassCell(cellX, cellZ);
+              cell.blades.push(blade);
+              changedCells.set(`${cellX},${cellZ}`, { cellX, cellZ, cell });
+          }
+
+          for (const { cellX, cellZ, cell } of changedCells.values()) {
+              this.rebuildGrassCell(cellX, cellZ, cell);
+          }
+      }
+      this.farGrassNeedsRebuild = true;
+      this.dirty = true;
+
+      return true;
+  }
   erase(config, point, radius) {
     if (!config?.enabled || radius <= 0) return false;
     const radiusSq = radius ** 2, before = config.points.length;
-    config.points = config.points.filter(clump => (clump.x - point.x) ** 2 + (clump.z - point.z) ** 2 > radiusSq);
+    config.points = config.points.filter(blade => (blade.x - point.x) ** 2 + (blade.z - point.z) ** 2 > radiusSq);
     if (config.points.length === before) return false;
     this.config = config;
+
+    if (!this.gridDirty) {
+        const minCellX = Math.floor((point.x - radius) / this.gridCellSize);
+        const maxCellX = Math.floor((point.x + radius) / this.gridCellSize);
+        const minCellZ = Math.floor((point.z - radius) / this.gridCellSize);
+        const maxCellZ = Math.floor((point.z + radius) / this.gridCellSize);
+
+        for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
+            const column = this.grassGrid.get(cellX);
+            if (!column) continue;
+
+            for (let cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
+                const cell = column.get(cellZ);
+                if (!cell) continue;
+
+                cell.blades = cell.blades.filter(
+                    blade => (blade.x - point.x) ** 2 + (blade.z - point.z) ** 2 > radiusSq
+                );
+
+                if (cell.blades.length) {
+                    this.rebuildGrassCell(cellX, cellZ, cell);
+                } else {
+                    column.delete(cellZ);
+                }
+            }
+
+            if (column.size === 0) this.grassGrid.delete(cellX);
+        }
+    }
+    this.farGrassNeedsRebuild = true;
     this.dirty = true;
     return true;
   }
+update(delta, camera) {
 
-  updateMesh(name, geometry, material, entries, key) {
-  let mesh = this[key];
-  const count = entries.length;
+    if (!this.config?.enabled || !camera || !this.mesh)
+        return;
 
-  // Bara skapa om den inte finns eller är för liten
-  if (!mesh || mesh.instanceMatrix.count < count) {
-    mesh?.removeFromParent();
-    mesh = new THREE.InstancedMesh(geometry, material, Math.max(count, 1));
-    mesh.name = name;
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
-    mesh.frustumCulled = true;          // behåll om du verkligen behöver det
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); // viktigt
-    this.root.add(mesh);
-    this[key] = mesh;
-  }
+    // Wind animation runs every frame.
+    const shader = this.material.userData.grassShader;
 
-  mesh.count = count;
+    if (shader) {
+        shader.uniforms.uGrassTime.value += delta;
+        
+    }
+    if (this.farGrassMaterial) {
+        this.farGrassMaterial.uniforms.uTime.value += delta;
+     }
+    // Uppdatera distant-grass efter paint/erase.
+    // Vänta lite så vi inte bygger om meshen för varje penselpunkt.
 
-  // Temp-objekt (återanvänd samma)
-  const pos = this.position;
-  const rot = this.rotation;
-  const scl = this.scale;
-  const mat = this.matrix;
+    if (this.farGrassNeedsRebuild) {
 
-  for (let i = 0; i < count; i++) {
-    const { clump, groundY } = entries[i];
+        this.farGrassRebuildTimer += delta;
 
-    pos.set(clump.x, groundY, clump.z);
-    rot.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, clump.rotation);
-    const s = clump.scale;
-    scl.set(s, s * (clump.height ?? 1), s);
+        if (this.farGrassRebuildTimer > 0.12) {
 
-    mat.compose(pos, rot, scl);
-    mesh.setMatrixAt(i, mat);
-  }
+            this.rebuildFarGrass();
+        }
 
-  mesh.instanceMatrix.needsUpdate = true;
-}
+    }
+    camera.getWorldDirection(this.cameraDirection);
 
-  update(delta, camera) {
-    if(this.ko===1)return;
-    if (!this.config?.enabled || !camera) return;
-    for (const material of [this.nearMaterial, this.midMaterial]) {
-      const shader = material.userData.grassShader;
-      if (!shader) continue;
-      shader.uniforms.uGrassTime.value += delta;
-      shader.uniforms.uGrassCameraPosition.value.copy(camera.position);
-      shader.uniforms.uGrassSunDirection.value.copy(this.sunDirection).transformDirection(camera.matrixWorldInverse);
+    const cameraStill =
+        this.lastCamera.distanceToSquared(camera.position) < 1;
+
+    const viewStill =
+        this.hasCameraDirection &&
+        this.lastCameraDirection.dot(this.cameraDirection) > 0.9995;
+
+    // Don't rebuild instance matrices unnecessarily.
+    if (!this.dirty && cameraStill && viewStill) {
+        return;
     }
 
-  
-    camera.getWorldDirection(this.cameraDirection);
-    const cameraStill = this.lastCamera.distanceToSquared(camera.position) < 1;
-    const viewStill = this.hasCameraDirection && this.lastCameraDirection.dot(this.cameraDirection) > .9999999999999999999;
-    //if (!this.dirty && ((cameraStill && viewStill))) return;
     this.lastCamera.copy(camera.position);
     this.lastCameraDirection.copy(this.cameraDirection);
-    this.hasCameraDirection = true;
 
+    this.hasCameraDirection = true;
     this.dirty = false;
 
-    this.viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-    this.frustum.setFromProjectionMatrix(this.viewProjection);
 
-    
-const nearCandidates = [];
-const midCandidates = [];
-
-for (const clump of this.config.points) {
-    
-    const dx = clump.x - camera.position.x;
-    const dz = clump.z - camera.position.z;
-    const distanceSq = dx * dx + dz * dz;
-
-    if (distanceSq > this.midRadius ** 2) continue;
-
-    const groundY =
-        this.terrain?.getHeightAt({
-            x: clump.x,
-            z: clump.z
-        }) ?? 0;
-
-    // generous grass bounds
-    const size = clump.scale ?? 1;
-    const heightScale = clump.height ?? 1;
-
-    const grassHeight = 0.7 * size * heightScale;
-
-    this.grassSphere.center.set(
-        clump.x,
-        groundY + grassHeight * 0.5,
-        clump.z
+    // Update frustum.
+    this.viewProjection.multiplyMatrices(
+        camera.projectionMatrix,
+        camera.matrixWorldInverse
     );
 
-    this.grassSphere.radius =
-        Math.max(1.5, grassHeight + 0.75);
+    this.frustum.setFromProjectionMatrix(this.viewProjection);
 
-    if (!this.frustum.intersectsSphere(this.grassSphere))
-        continue;
 
-    const entry = {
-        clump,
-        groundY,
-        distanceSq
-    };
+    const camX = camera.position.x;
+    const camZ = camera.position.z;
 
-    if (distanceSq < this.nearRadius ** 2)
-        nearCandidates.push(entry);
+    const radiusSq = this.radius * this.radius;
 
-    if (distanceSq >= this.nearRadius ** 2)
-        midCandidates.push(entry);
+    let visibleCount = 0;
+
+
+if (this.gridDirty) {
+    this.buildGrassGrid();
 }
 
-const byDistance = (a, b) =>
-    a.distanceSq - b.distanceSq;
 
-nearCandidates.sort(byDistance);
-midCandidates.sort(byDistance);
 
-const near =
-    nearCandidates.slice(0, this.nearMax);
+const radius = this.radius;
 
-const mid =
-    midCandidates.slice(0, this.midMax);
 
-this.updateMesh(
-    "Near dense grass clumps",
-    this.nearGeometry,
-    this.nearMaterial,
-    near,
-    "nearMesh"
+const cellSize = this.gridCellSize;
+
+const minCellX =
+    Math.floor((camX - radius) / cellSize);
+
+const maxCellX =
+    Math.floor((camX + radius) / cellSize);
+
+const minCellZ =
+    Math.floor((camZ - radius) / cellSize);
+
+const maxCellZ =
+    Math.floor((camZ + radius) / cellSize);
+
+
+const target =
+    this.mesh.instanceMatrix.array;
+
+
+
+
+const visibleCells = [];
+for (
+    let cellX = minCellX;
+    cellX <= maxCellX;
+    cellX++
+) {
+
+    const column =
+        this.grassGrid.get(cellX);
+
+    if (!column) continue;
+
+
+    for (
+        let cellZ = minCellZ;
+        cellZ <= maxCellZ;
+        cellZ++
+    ) {
+
+        const cell =
+            column.get(cellZ);
+
+        if (!cell) continue;
+
+
+        // ------------------------
+        // Distance cull CELL
+        // ------------------------
+
+        const nearestX =
+            Math.max(
+                cell.minX,
+                Math.min(camX, cell.maxX)
+            );
+
+        const nearestZ =
+            Math.max(
+                cell.minZ,
+                Math.min(camZ, cell.maxZ)
+            );
+
+        const dx = nearestX - camX;
+        const dz = nearestZ - camZ;
+
+        if (
+            dx * dx + dz * dz >
+            radiusSq
+        ) {
+            continue;
+        }
+
+
+        // ------------------------
+        // Frustum cull CELL
+        // ------------------------
+
+        if (
+            !this.frustum.intersectsBox(cell.box)
+        ) {
+            continue;
+        }
+
+
+        // Keep a candidate; coordinate iteration order must not decide which
+        // grass is removed when we hit maxVisible.
+        visibleCells.push({ cell, distanceSq: dx * dx + dz * dz });
+    }
+}
+
+// Copy nearest visible cells first, keeping grass around the player intact.
+visibleCells.sort((a, b) => a.distanceSq - b.distanceSq);
+
+for (const { cell } of visibleCells) {
+    const remaining =
+        this.maxVisible - visibleCount;
+
+    if (remaining <= 0) {
+        break;
+    }
+
+    const cellCount =
+        cell.matrices.length / 16;
+
+    const take =
+        Math.min(
+            cellCount,
+            remaining
+        );
+
+    const destinationOffset =
+        visibleCount * 16;
+
+
+    if (take === cellCount) {
+
+            target.set(
+                cell.matrices,
+                destinationOffset
+            );
+
+    } else {
+
+            // Bara sista delcellen behöver subarray.
+            target.set(
+                cell.matrices.subarray(
+                    0,
+                    take * 16
+                ),
+                destinationOffset
+            );
+        }
+
+    visibleCount += take;
+}
+
+this.mesh.count = visibleCount;
+
+const instanceMatrix =
+    this.mesh.instanceMatrix;
+
+instanceMatrix.clearUpdateRanges();
+
+instanceMatrix.addUpdateRange(
+    0,
+    visibleCount * 16
 );
 
-this.updateMesh(
-    "Medium grass card clumps",
-    this.midGeometry,
-    this.midMaterial,
-    mid,
-    "midMesh"
-);
-this.ko=0;
-  }
+instanceMatrix.needsUpdate = true;
+}
+createMesh() {
+    this.mesh = new THREE.InstancedMesh(
+        this.geometry,
+        this.material,
+        this.maxVisible
+    );
+
+    this.mesh.name = "Near-camera procedural grass";
+    this.mesh.castShadow = false;
+    this.mesh.receiveShadow = false;
+    this.mesh.frustumCulled = false;
+
+    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+    this.root.add(this.mesh);
+}
 }

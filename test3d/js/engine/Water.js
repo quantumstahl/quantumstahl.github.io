@@ -521,7 +521,7 @@ createMaterial(config) {
     }
     this.mesh?.removeFromParent(); this.mesh?.geometry.dispose(); this.mesh = null; if (!indices.length) return;
     const geometry = new THREE.BufferGeometry(); geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3)); geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2)); geometry.setIndex(indices);
-    this.mesh = new THREE.Mesh(geometry, this.material); this.mesh.name = "Water"; this.mesh.userData.isWater = true; this.mesh.renderOrder = 1; this.scene.add(this.mesh);
+    this.mesh = new THREE.Mesh(geometry, this.material); this.mesh.name = "Water"; this.mesh.userData.isWater = true; this.scene.add(this.mesh);
   }
   update(delta, camera) { if (!this.material) return; this.material.uniforms.uTime.value += delta; if (camera) this.material.uniforms.uCameraPosition.value.copy(camera.position); }
 }

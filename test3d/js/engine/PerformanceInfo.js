@@ -19,12 +19,10 @@ export class PerformanceInfo {
   endGpuTimer() {}
   measure(_label, callback) { return callback(); }
   endFrame(delta) {
-    this.frames=1;
-    this.elapsed +=delta;
-    if(this.fps<5||this.fps >Math.round(this.frames /delta))
-    this.fps = Math.round(this.frames / delta);
-    if (this.elapsed < 10) return;
-    
+    this.frames++;
+    this.elapsed += delta;
+    if (this.elapsed < .25) return;
+    this.fps = Math.round(this.frames / this.elapsed);
     this.frames = 0;
     this.elapsed = 0;
     this.render();
@@ -33,5 +31,5 @@ export class PerformanceInfo {
   render() {
     const { render, memory } = this.renderer.info;
     this.element.textContent = `FPS  ${this.fps}\nObjects  ${this.objectCount().toLocaleString()}\nCalls  ${render.calls}\nTris  ${render.triangles.toLocaleString()}\nGeometries  ${memory.geometries}\nTextures  ${memory.textures}`;
-  this.fps=0;}
+  }
 }

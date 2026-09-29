@@ -2,7 +2,10 @@ import * as THREE from "three";
 import { ThreeApp } from "../engine/ThreeApp.js";
 import { Editor } from "../editor/Editor.js";
 
-const app = new ThreeApp(document.querySelector("#gameCanvas"));
+
+const isMobile = {Android: function() { return navigator.userAgent.match(/Android/i); },BlackBerry: function() { return navigator.userAgent.match(/BlackBerry/i); },iOS: function() { return navigator.userAgent.match(/iPhone|iPod/i); },Opera: function() { return navigator.userAgent.match(/Opera Mini/i); },Windows: function() { return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i); },any: function() {return (isMobile.Android() ||isMobile.BlackBerry() ||isMobile.iOS() ||isMobile.Opera() ||isMobile.Windows() ||(navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints &&navigator.maxTouchPoints > 1));}};
+
+const app = new ThreeApp(document.querySelector("#gameCanvas"),isMobile.any());
 app.scene.background = new THREE.Color(0x8fb3d9);
 // A 200m terrain reaches its edge about 100m from its centre. End fog before
 // that edge so geometry actually dissolves into the shader sky.
@@ -12,17 +15,16 @@ const grid = new THREE.GridHelper(100, 100, 0x58796a, 0x425a50); grid.position.y
 app.editorGrid = grid;
 
 const editor = new Editor(app);
-
-
 try {
 
     await editor.load("maps/world.json");
     editor.setStatus(`${editor.mapLoader.world.name} loaded`);
-    window.mapLoader= editor.mapLoader;
   
 } catch (error) {
   console.error(error); editor.setStatus("Could not load maps/world.json");
 }
+
+
 
 
 
@@ -56,5 +58,4 @@ document.querySelector("#terrainEraseGrassButton").addEventListener("click", () 
 document.querySelector("#duplicateButton").addEventListener("click", () => editor.duplicateSelected());
 editor.setTool("select");
 app.beforeRender = (renderer, camera) => editor.mapLoader.sky.renderToTexture(renderer, camera);
-window.editor=editor;
-app.start(true);
+app.start(delta => editor.update(delta));
