@@ -19,8 +19,8 @@ export class PerformanceInfo {
   endGpuTimer() {}
   measure(_label, callback) { return callback(); }
   endFrame(delta) {
-    this.frames++;
-    this.elapsed += delta;
+    this.frames=1;
+    this.elapsed =delta;
     if(this.fps<5||this.fps >Math.round(this.frames / this.elapsed))this.fps = Math.round(this.frames / this.elapsed);
     if (this.elapsed < 10) return;
     
