@@ -11,7 +11,7 @@ export class Grass {
     scene.add(this.root);
 
     this.mobileProfile = window.matchMedia?.("(pointer: coarse)").matches;
-    this.nearRadius = this.mobileProfile ? 24 : 24;
+    this.nearRadius = this.mobileProfile ? 12 : 12;
     this.midRadius = this.mobileProfile ? 92 : 92;
     this.nearMax = this.mobileProfile ? 3400 : 3400;
     this.midMax = this.mobileProfile ? 8000 : 8000;
