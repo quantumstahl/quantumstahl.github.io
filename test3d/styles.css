@@ -47,7 +47,8 @@ canvas { display: block; width: 100vw; height: 100vh; margin: 0;
 button { border: 1px solid #587087; border-radius: 5px; color: inherit; background: #273a4c; padding: 5px 9px; cursor: pointer; }
 button:hover { background: #39556d; }
 button.is-active { border-color: #ffd34f; background: #526073; color: #fff3b1; }
-.performance-info { position: fixed; z-index: 2; top: 12px; right: 12px; margin: 0; padding: 8px 10px; border: 1px solid #4f677b; border-radius: 6px; color: #dbefff; background: rgb(10 19 28 / .82); font: 12px/1.45 ui-monospace, Consolas, monospace; white-space: pre; pointer-events: none; }
+.performance-info { position: fixed; z-index: 2; top: 3px; right: 3px; margin: 0; padding: 8px 10px; border: 1px solid #4f677b; border-radius: 6px; color: #dbefff; background: rgb(10 19 28 / .42); font: 8px/1.45 ui-monospace, Consolas, monospace; white-space: pre; pointer-events: none; }
+@media (pointer: coarse){.performance-info{font: 4px/1.45 ui-monospace;}} 
 .editor-page .performance-info { top: 56px; }
 .editor-page canvas { height: calc(100vh - 46px); margin-top: 46px; }
 .asset-panel { position: fixed; z-index: 1; top: 54px; left: 8px; width: 252px; max-height: calc(100vh - 62px); overflow: auto; padding: 10px; border: 1px solid #496174; border-radius: 8px; color: #eaf4ff; background: rgb(10 19 28 / .88); }
