@@ -7,8 +7,8 @@ export class Grass {
   constructor(scene) {
     this.scene = scene; this.root = new THREE.Group(); this.root.name = "Near painted grass"; this.scene.add(this.root);
     this.radius = 42; this.fadeStart = 20; this.fadeEnd = 50; this.maxVisible = 24000;
+    this.tramplePosition = new THREE.Vector3(1e6, 0, 1e6); this.trampleRadius = 2.00; this.trampleFlatten = 1.5; this.trampleBend = 0.80;
     this.textureend=scene.fog.far;
-    if(mobileProfile===false){this.radius = 62; this.fadeStart = 40; this.fadeEnd = 60; this.maxVisible = 24000; }
     this.matrix = new THREE.Matrix4(); this.position = new THREE.Vector3(); this.rotation = new THREE.Quaternion(); this.scale = new THREE.Vector3(); this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity); this.lastCameraDirection = new THREE.Vector3(); this.cameraDirection = new THREE.Vector3(); this.viewPoint = new THREE.Vector3(); this.viewProjection = new THREE.Matrix4(); this.frustum = new THREE.Frustum(); this.hasCameraDirection = false; this.dirty = true; this.sunDirection = new THREE.Vector3(.4, .8, .2).normalize(); this.sunPosition = new THREE.Vector3(); this.sunTargetPosition = new THREE.Vector3();
     this.geometry = this.createBladeGeometry(); this.material = this.createMaterial(); 
     this.grassSphere = new THREE.Sphere();
@@ -164,6 +164,7 @@ float fine    = vnoise(vWorldPosition.xz * vec2(220.0, 110.0));
 // Minska de små detaljerna långt bort
 fine = mix(fine, 0.5, smoothstep(30.0, 120.0, d));
 
+
 float grassNoise =
       patches * 0.1
     + mid     * 0.35
@@ -194,10 +195,18 @@ float grassLOD = smoothstep(2500.0, 55.0, d);
 
 grassColor = mix(grassColor, darkGrass,grassLOD * 0.1);
 
+float macroNoise = noise(vWorldPosition.xz * 0.99); // eller ännu lägre om du vill ha större fält
+float macroTint  = mix(0.92, 1.08, macroNoise);
+
+grassColor.rgb *= macroTint;
 
 
+float grassFade = smoothstep(uFadeEnd, uTextureEnd, d);
 
+// mörkare precis när distant grass börjar synas
+float edgeDarken = mix(0.82, 1.0, grassFade);
 
+grassColor.rgb *= edgeDarken;
 
 
 
@@ -513,7 +522,7 @@ createBladeGeometry() {
     const positions = [];
     const colors = [];
 
-    const blades = 50;
+    const blades = 30;
 
     const baseColor = new THREE.Color(0x245321);
     const tipColor  = new THREE.Color(0x6c973f);
@@ -536,7 +545,7 @@ createBladeGeometry() {
             0.010 + (blade % 7) * 0.003;
 
         const lean =
-            0.05 + (blade % 10) * 0.012;
+            0.05 + (blade % 20) * 0.012;
 
         const leanX = Math.cos(angle) * lean;
         const leanZ = Math.sin(angle) * lean;
@@ -843,6 +852,10 @@ createMaterial() {
         shader.uniforms.uFarHeight = { value: 0.40 };
 
         shader.uniforms.uGrassTime = { value: 0 };
+        shader.uniforms.uTramplePosition = { value: this.tramplePosition };
+        shader.uniforms.uTrampleRadius = { value: this.trampleRadius };
+        shader.uniforms.uTrampleFlatten = { value: this.trampleFlatten };
+        shader.uniforms.uTrampleBend = { value: this.trampleBend };
 
 
         shader.vertexShader = shader.vertexShader
@@ -860,6 +873,10 @@ createMaterial() {
                 uniform float uHeightFadeStart;
                 uniform float uHeightFadeEnd;
                 uniform float uFarHeight;
+                uniform vec3 uTramplePosition;
+                uniform float uTrampleRadius;
+                uniform float uTrampleFlatten;
+                uniform float uTrampleBend;
                 `
             )
 
@@ -953,6 +970,17 @@ createMaterial() {
                     instanceMatrix *
                     vec4(transformed, 1.0);
 
+                // The cat presses nearby blades down and pushes their tips
+                // away. This is one shared shader interaction, not per-blade
+                // CPU work, so it remains suitable for the instanced mesh.
+                vec2 trampleOffset = iPos.xz - uTramplePosition.xz;
+                float trampleDistance = length(trampleOffset);
+                float trample = 1.0 - smoothstep(uTrampleRadius * 0.35, uTrampleRadius, trampleDistance);
+                float bladeTip = clamp(position.y / 1.55, 0.0, 1.0);
+                vec2 pushDirection = trampleDistance > 0.001 ? trampleOffset / trampleDistance : vec2(1.0, 0.0);
+                mvPosition.xz += pushDirection * trample * bladeTip * uTrampleBend;
+                mvPosition.y = mix(mvPosition.y, iPos.y, trample * bladeTip * uTrampleFlatten);
+
 
                 // ------------------------------------------------
                 // WIND
@@ -999,7 +1027,7 @@ createMaterial() {
 
 
     material.customProgramCacheKey = () =>
-        "next-world-grass-height-lod-v2";
+        "next-world-grass-height-lod-trample-v3";
 
 
     return material;
@@ -1023,6 +1051,15 @@ createMaterial() {
     sun.updateWorldMatrix(true, false); sun.target.updateWorldMatrix(true, false); sun.getWorldPosition(this.sunPosition); sun.target.getWorldPosition(this.sunTargetPosition);
     const direction = this.sunPosition.sub(this.sunTargetPosition); if (direction.lengthSq() < 1e-8) return false;
     this.sunDirection.copy(direction.normalize()); return true;
+  }
+  setTramplePosition(position) {
+    if (position) this.tramplePosition.copy(position);
+    const shader = this.material.userData.grassShader;
+    if (!shader) return;
+    shader.uniforms.uTramplePosition.value.copy(this.tramplePosition);
+    shader.uniforms.uTrampleRadius.value = this.trampleRadius;
+    shader.uniforms.uTrampleFlatten.value = this.trampleFlatten;
+    shader.uniforms.uTrampleBend.value = this.trampleBend;
   }
   paint(config, terrain, point, radius) {
       if (!config?.enabled || radius <= 0) return false;

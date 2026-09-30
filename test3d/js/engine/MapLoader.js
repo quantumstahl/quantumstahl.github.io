@@ -5,6 +5,7 @@ import { Terrain } from "./Terrain.js";
 import { Water } from "./Water.js";
 import { Grass } from "./Grass.js";
 import { FakeShadows } from "./FakeShadows.js";
+import { GroundMist } from "./GroundMist.js";
 import { Sky } from "./Sky.js";
 
 export class MapLoader {
@@ -22,6 +23,7 @@ export class MapLoader {
     this.water = new Water(scene);
     this.grass = new Grass(scene, assets);
     this.fakeShadows = new FakeShadows(scene);
+    this.groundMist = new GroundMist(scene);
     this.sky = new Sky(scene);
     this.sky.updateSunDirection();
     this.selectedObject = null;
@@ -49,6 +51,7 @@ export class MapLoader {
     this.clear();
     this.sky.apply(this.world.sky);
     this.terrain.apply(this.world.terrain);
+    this.groundMist.apply(this.terrain.mesh);
     this.water.apply(this.world.water, this.world.terrain);
     await this.grass.apply(this.world.grass, this.terrain);
     this.water.setSunDirection(this.sky.findDirectionalLight());
@@ -199,7 +202,7 @@ export class MapLoader {
   }
   paintGrass(point, radius) { return this.grass.paint(this.world.grass, this.terrain, point, radius); }
   eraseGrass(point, radius) { return this.grass.erase(this.world.grass, point, radius); }
-  update(delta, camera) { const sun = this.sky.findDirectionalLight(); this.water.update(delta, camera); this.water.setSunDirection(sun); this.grass.setSunDirection(sun); this.grass.update(delta, camera); this.fakeShadows.update(this.terrain, delta); }
+  update(delta, camera) { const sun = this.sky.findDirectionalLight(); this.water.update(delta, camera); this.water.setSunDirection(sun); this.grass.setSunDirection(sun); this.grass.update(delta, camera); this.groundMist.apply(this.terrain.mesh); this.groundMist.update(delta, camera); this.fakeShadows.update(this.terrain, delta); }
   refreshWater() { this.water.apply(this.world.water, this.world.terrain); }
   refreshFakeShadows() { this.fakeShadows.rebuild(this.objects, this.terrain); }
   setSelected(object) {

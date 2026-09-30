@@ -23,7 +23,7 @@ try {
 } catch (error) {
   console.error(error); editor.setStatus("Could not load maps/world.json");
 }
-
+editor.mapLoader.groundMist.mistOpacity=0.1;
 
 
 

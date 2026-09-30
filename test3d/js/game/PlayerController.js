@@ -59,6 +59,7 @@ export class PlayerController {
     this.cameraYaw = this.lerpAngle(this.cameraYaw, this.player.rotation.y, 1 - Math.exp(-.7 * delta));
     this.cameraPosition.set(this.cameraTarget.x + Math.sin(this.cameraYaw) * this.cameraDistance, this.cameraTarget.y + this.cameraHeight, this.cameraTarget.z + Math.cos(this.cameraYaw) * this.cameraDistance);
     this.camera.position.lerp(this.cameraPosition, 1 - Math.exp(-7 * delta)); this.camera.lookAt(this.cameraTarget);
+    this.mapLoader.grass.setTramplePosition(this.player.position);
   }
   lerpAngle(from, to, amount) { let difference = to - from; while (difference > Math.PI) difference -= Math.PI * 2; while (difference < -Math.PI) difference += Math.PI * 2; return from + difference * amount; }
   setWalkAnimation(moving) { if (!this.walkAction || this.walkAction.paused === !moving) return; this.walkAction.enabled = true; this.walkAction.paused = !moving; if (moving) this.walkAction.setEffectiveWeight(1).play(); }
