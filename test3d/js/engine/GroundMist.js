@@ -15,9 +15,9 @@ export class GroundMist {
     this.mistSpeed = 1.0;
     this.baseMistColor = new THREE.Color(0xdbeaf2);
     this.mistColor = this.baseMistColor.clone();
-    // Keep the original mist visible, while making the horizon colour clear
-    // enough to read warm at dawn and violet only at an actual violet dusk.
-    this.horizonTintStrength = 0.40;
+    // Keep the mist predominantly pale; a subtle horizon tint avoids a
+    // saturated orange or violet band in the distant fade.
+    this.horizonTintStrength = 0.80;
     this.mistNearFadeStart = 25;
     this.mistNearFadeEnd = 35;
     this.mistSegments = 32;
@@ -118,10 +118,49 @@ export class GroundMist {
     this.updateProxyGeometry(terrainMesh.geometry);
   }
 
-  // Preserve the pale mist, with enough horizon colour to visually tie it to
-  // the sky without becoming a copy of the sky/fog colour.
-  setHorizonColor(color) {
-    if (color) this.mistColor.lerpColors(this.baseMistColor, color, this.horizonTintStrength);
+  // Preserve the pale mist, with enough of the active horizon palette to tie
+  // it to the sky without making it a copy of the fog or sky colour. Horizon
+  // colours are selected here instead of accepting EnvironmentSystem's
+  // composite horizonColor, so dawn and dusk remain distinct mist phases.
+  setHorizonColors({ nightHorizonColor, dayHorizonColor, dawnHorizonColor, duskHorizonColor }, timeOfDay) {
+    if (!nightHorizonColor || !dayHorizonColor || !dawnHorizonColor || !duskHorizonColor) return;
+
+    const time = THREE.MathUtils.euclideanModulo(timeOfDay, 1);
+    const horizonColor = new THREE.Color();
+    if (time < 0.18) {
+      // Keep mist cool through most of the night, then begin a short,
+      // gradual dawn transition as the sun approaches the horizon.
+      horizonColor.copy(nightHorizonColor);
+    } else if (time < 0.25) {
+      horizonColor.lerpColors(
+        nightHorizonColor,
+        dawnHorizonColor,
+        THREE.MathUtils.smoothstep(time, 0.18, 0.25)
+      );
+    } else if (time < 0.4) {
+      horizonColor.lerpColors(
+        dawnHorizonColor,
+        dayHorizonColor,
+        THREE.MathUtils.smoothstep(time, 0.25, 0.4)
+      );
+    } else if (time < 0.68) {
+      horizonColor.copy(dayHorizonColor);
+    } else if (time < 0.75) {
+      horizonColor.lerpColors(
+        dayHorizonColor,
+        duskHorizonColor,
+        THREE.MathUtils.smoothstep(time, 0.68, 0.75)
+      );
+    } else if (time < 0.85) {
+      horizonColor.lerpColors(
+        duskHorizonColor,
+        nightHorizonColor,
+        THREE.MathUtils.smoothstep(time, 0.75, 0.85)
+      );
+    } else {
+      horizonColor.copy(nightHorizonColor);
+    }
+    this.mistColor.lerpColors(this.baseMistColor, horizonColor, this.horizonTintStrength);
   }
 
   createProxyGeometry(sourceGeometry) {

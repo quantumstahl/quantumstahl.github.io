@@ -9,7 +9,7 @@ export class Grass {
     this.radius = 42; this.fadeStart = 20; this.fadeEnd = 50; this.maxVisible = 24000;
     this.tramplePosition = new THREE.Vector3(1e6, 0, 1e6); this.trampleRadius = 2.00; this.trampleFlatten = 1.5; this.trampleBend = 0.80;
     this.environmentTint = new THREE.Color(1, 1, 1);
-    this.textureend=scene.fog.far;
+    this.textureend=scene.fog.far+200;
     this.matrix = new THREE.Matrix4(); this.position = new THREE.Vector3(); this.rotation = new THREE.Quaternion(); this.scale = new THREE.Vector3(); this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity); this.lastCameraDirection = new THREE.Vector3(); this.cameraDirection = new THREE.Vector3(); this.viewPoint = new THREE.Vector3(); this.viewProjection = new THREE.Matrix4(); this.frustum = new THREE.Frustum(); this.hasCameraDirection = false; this.dirty = true; this.sunDirection = new THREE.Vector3(.4, .8, .2).normalize(); this.sunPosition = new THREE.Vector3(); this.sunTargetPosition = new THREE.Vector3(); this.sunBacklight = 1; this.backlightCameraPosition = new THREE.Vector3();
     this.geometry = this.createBladeGeometry(); this.baseBladeColors = this.geometry.getAttribute("color").array.slice(); this.material = this.createMaterial(); 
     this.grassSphere = new THREE.Sphere();
@@ -28,7 +28,7 @@ export class Grass {
   }
   createFarGrassMaterial() {
 
-    return new THREE.ShaderMaterial({
+    const material = new THREE.ShaderMaterial({
 
         transparent: true,
         depthWrite: false,
@@ -57,7 +57,15 @@ export class Grass {
             },
             uEnvironmentTint: {
               value: this.environmentTint
-
+            },
+            uBackgroundTexture: {
+              value: new THREE.Texture()
+            },
+            uFogNear: {
+              value: this.scene.fog?.near ?? 50
+            },
+            uFogFar: {
+              value: this.scene.fog?.far ?? 70
             }
 
         },
@@ -66,6 +74,8 @@ export class Grass {
 
             varying vec3 vWorldPosition;
             varying float vCoverage;
+            varying vec4 vClipPosition;
+            varying float vFogDepth;
             attribute float coverage;
 
             void main() {
@@ -76,10 +86,10 @@ export class Grass {
                 vWorldPosition = worldPosition.xyz;
                 vCoverage = coverage;
 
-                gl_Position =
-                    projectionMatrix *
-                    viewMatrix *
-                    worldPosition;
+                vec4 viewPosition = viewMatrix * worldPosition;
+                gl_Position = projectionMatrix * viewPosition;
+                vClipPosition = gl_Position;
+                vFogDepth = -viewPosition.z;
             }
 
         `,
@@ -92,9 +102,14 @@ export class Grass {
             uniform float uOpacity;
             uniform float uTime;
             uniform vec3 uEnvironmentTint;
+            uniform sampler2D uBackgroundTexture;
+            uniform float uFogNear;
+            uniform float uFogFar;
 
             varying vec3 vWorldPosition;
             varying float vCoverage;
+            varying vec4 vClipPosition;
+            varying float vFogDepth;
 
 
             float hash(vec2 p) {
@@ -207,12 +222,10 @@ float macroTint  = mix(0.92, 1.08, macroNoise);
 grassColor.rgb *= macroTint;
 
 
-float grassFade = smoothstep(uFadeEnd, uTextureEnd, d);
 
 // mörkare precis när distant grass börjar synas
-float edgeDarken = mix(0.82, 1.0, grassFade);
 
-grassColor.rgb *= edgeDarken;
+// Keep the far-grass transition neutral; darkening this edge makes a visible horizon band.
 grassColor.rgb *= uEnvironmentTint;
 
 
@@ -234,13 +247,21 @@ grassColor.rgb *= uEnvironmentTint;
                         cameraPosition.xz
                     );
 
+                // The far-grass material is custom, so it does not use
+                // Three's fog chunk. Blend to the captured sky here instead
+                // of fading its alpha toward the older blue fog colour.
+                vec2 backgroundUv = vClipPosition.xy / vClipPosition.w * 0.5 + 0.5;
+                vec3 backgroundColor = texture2D(uBackgroundTexture, backgroundUv).rgb;
+                float skyFade = smoothstep(uFogNear, uFogFar, vFogDepth);
+                grassColor = mix(grassColor, backgroundColor, skyFade);
+
 
                 // Börja visa markgräset lite innan
                 // 3D-gräset är helt borta.
 
                 float nearFade =
                     smoothstep(
-                        uFadeStart - 5.0,
+                        uFadeStart - 15.0,
                         uFadeEnd,
                         distanceToCamera
                     );
@@ -248,13 +269,8 @@ grassColor.rgb *= uEnvironmentTint;
 
                 // Försvinn väldigt långt bort.
 
-                float farFade =
-                    1.0 -
-                    smoothstep(
-                        uTextureEnd - 20.0,
-                        uTextureEnd,
-                        distanceToCamera
-                    );
+                // Sky-colour blending is the far fade; do not fade alpha a second time.
+                float farFade = 1.0;
 
 
                 float alpha =
@@ -278,6 +294,13 @@ grassColor.rgb *= uEnvironmentTint;
 
         `
     });
+    material.userData.addBackgroundFade = (backgroundTexture, fog) => {
+      material.uniforms.uBackgroundTexture.value = backgroundTexture;
+      material.uniforms.uFogNear.value = fog?.near ?? 50;
+      material.uniforms.uFogFar.value = fog?.far ?? 70;
+      return material.uniforms;
+    };
+    return material;
 }
 rebuildFarGrass() {
 
@@ -851,7 +874,7 @@ createMaterial() {
         shader.uniforms.uFadeEnd   = { value: this.fadeEnd };
 
         // Högt gräs börjar bli kortare tidigare
-        shader.uniforms.uHeightFadeStart = { value: this.fadeStart * 0.7 };
+        shader.uniforms.uHeightFadeStart = { value: 0 };
         shader.uniforms.uHeightFadeEnd   = { value: this.fadeStart*1.1 };
 
         // Hur högt gräset är när det nått mark-shader-området.
@@ -1113,6 +1136,13 @@ createMaterial() {
     colors.needsUpdate = true;
     this.material.color.set(0xffffff);
     if (farTint) this.farGrassMaterial.uniforms.uEnvironmentTint.value.copy(farTint);
+  }
+  setBackgroundFade(backgroundTexture, fog) {
+    if (!backgroundTexture || !this.farGrassMaterial) return;
+    const uniforms = this.farGrassMaterial.uniforms;
+    uniforms.uBackgroundTexture.value = backgroundTexture;
+    uniforms.uFogNear.value = fog?.near ?? 50;
+    uniforms.uFogFar.value = fog?.far ?? 70;
   }
   setTramplePosition(position) {
     if (position) this.tramplePosition.copy(position);

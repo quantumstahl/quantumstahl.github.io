@@ -58,6 +58,7 @@ export class MapLoader {
     this.water.setSunDirection(this.sky.findDirectionalLight());
     this.sky.addBackgroundFadeToMaterial(this.terrain.mesh?.material);
     this.sky.addBackgroundFadeToMaterial(this.water.mesh?.material);
+    this.sky.addBackgroundFadeToMaterial(this.grass.farGrassMaterial);
     for (const layer of this.world.layers) {
       if (!layer.visible) continue;
       for (const type of layer.assetTypes) {
@@ -205,7 +206,7 @@ export class MapLoader {
   }
   paintGrass(point, radius) { return this.grass.paint(this.world.grass, this.terrain, point, radius); }
   eraseGrass(point, radius) { return this.grass.erase(this.world.grass, point, radius); }
-  update(delta, camera) { this.environment.update(delta); const sun = this.environment.sun; this.water.update(delta, camera); this.water.setSunDirection(sun); this.grass.setSunDirection(sun); this.grass.setEnvironmentTint(this.environment.nearGrassTint, this.environment.farGrassTint); this.grass.update(delta, camera); this.groundMist.apply(this.terrain.mesh); this.groundMist.setHorizonColor(this.environment.horizonColor); this.groundMist.update(delta, camera); this.fakeShadows.update(this.terrain, delta); }
+  update(delta, camera) { this.environment.update(delta); const sun = this.environment.sun; this.water.update(delta, camera); this.water.setSunDirection(sun); this.grass.setSunDirection(sun); this.grass.setEnvironmentTint(this.environment.nearGrassTint, this.environment.farGrassTint); this.grass.update(delta, camera); this.groundMist.apply(this.terrain.mesh); this.groundMist.setHorizonColors(this.environment, this.environment.timeOfDay); this.groundMist.update(delta, camera); this.fakeShadows.update(this.terrain, delta); }
   refreshWater() { this.water.apply(this.world.water, this.world.terrain); }
   refreshFakeShadows() { this.fakeShadows.rebuild(this.objects, this.terrain); }
   setSelected(object) {

@@ -14,7 +14,6 @@ export class EnvironmentSystem {
     this.sunDirection = new THREE.Vector3();
     this.moonDirection = new THREE.Vector3();
     this.fogColor = new THREE.Color();
-    this.horizonColor = new THREE.Color();
     this.nightFogColor = new THREE.Color(0x091125);
     this.dayFogColor = new THREE.Color(0x9ec9f2);
     // Match the procedural sky at its horizon, including its dedicated
@@ -23,7 +22,7 @@ export class EnvironmentSystem {
     this.dayHorizonColor = new THREE.Color(0.66, 0.85, 1.0);
     this.dawnHorizonColor = new THREE.Color(1.0, 0.38, 0.14);
     this.duskHorizonColor = new THREE.Color(0.48, 0.17, 0.62);
-    this.twilightHorizonColor = new THREE.Color();
+    this.fogHorizonColor = new THREE.Color();
     this.nightHemisphereColor = new THREE.Color(0x1b2945);
     this.dayHemisphereColor = new THREE.Color(0xffffff);
     this.hemisphereGroundColor = new THREE.Color(0x1b2534);
@@ -87,14 +86,27 @@ export class EnvironmentSystem {
     const sunVisibility = THREE.MathUtils.smoothstep(this.sunDirection.y, -0.30, -0.03);
     const moonVisibility = THREE.MathUtils.smoothstep(this.moonDirection.y, -0.30, -0.03);
     const twilight = 1 - THREE.MathUtils.smoothstep(0.03, 0.32, Math.abs(this.sunDirection.y));
-    const horizonDusk = 1 - THREE.MathUtils.smoothstep(-0.15, 0.15, this.sunDirection.x);
     // The sun travels toward negative X after noon, making this horizon band
     // sunset only; sunrise retains the cool twilight treatment.
     const sunset = twilight * THREE.MathUtils.smoothstep(-0.15, 0.55, -this.sunDirection.x);
-    this.fogColor.lerpColors(this.nightFogColor, this.dayFogColor, daylight);
-    this.horizonColor.lerpColors(this.nightHorizonColor, this.dayHorizonColor, daylight);
-    this.twilightHorizonColor.lerpColors(this.dawnHorizonColor, this.duskHorizonColor, horizonDusk);
-    this.horizonColor.lerp(this.twilightHorizonColor, twilight * 0.68);
+    // Fog must meet the sky at the actual horizon colour. Select directly
+    // from the four time-of-day palettes rather than fading through the
+    // blue day/night fog colours, which produced a visible horizon stripe at
+    // dawn and dusk.
+    const horizonPhase = this.timeOfDay * 4;
+    const horizonIndex = Math.floor(horizonPhase);
+    const horizonPalette = [
+      this.nightHorizonColor,
+      this.dawnHorizonColor,
+      this.dayHorizonColor,
+      this.duskHorizonColor,
+      this.nightHorizonColor
+    ];
+    this.fogHorizonColor.copy(horizonPalette[horizonIndex]).lerp(
+      horizonPalette[horizonIndex + 1],
+      horizonPhase - horizonIndex
+    );
+    this.fogColor.copy(this.fogHorizonColor);
     this.nearGrassTint.lerpColors(this.nightNearGrassTint, this.dayNearGrassTint, daylight);
     this.nearGrassTint.lerp(this.twilightNearGrassTint, twilight * 0.52);
     this.nearGrassTint.lerp(this.sunsetNearGrassTint, sunset * 0.18);

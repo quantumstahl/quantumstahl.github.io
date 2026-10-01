@@ -20,10 +20,17 @@ export class Sky {
       minFilter: THREE.LinearFilter,
       magFilter: THREE.LinearFilter
     });
+    // The capture is sampled by scene materials before the main renderer's
+    // tone-mapping pass, so it must remain in the linear working space.
+    this.backgroundTarget.texture.colorSpace = THREE.LinearSRGBColorSpace;
     this.skyScene = new THREE.Scene();
-    // The visible dome stays in the main scene; this clone shares its exact
-    // shader and material for the background render texture.
-    this.captureDome = new THREE.Mesh(this.dome.geometry, this.dome.material);
+    // The capture uses the same shader uniforms as the visible dome, but must
+    // not tone-map them. Otherwise dawn/dusk colours are tone-mapped into the
+    // render target and then tone-mapped once more with the fogged material.
+    this.captureMaterial = this.dome.material.clone();
+    this.captureMaterial.uniforms = this.dome.material.uniforms;
+    this.captureMaterial.toneMapped = false;
+    this.captureDome = new THREE.Mesh(this.dome.geometry, this.captureMaterial);
     this.skyScene.add(this.captureDome);
   }
   apply(config) { this.setMode(config?.mode); }
@@ -418,8 +425,13 @@ day += vec3(0.04, 0.06, 0.08) * horizonFade;
 vec3 sunDirection = normalize(uSunDirection);
 float sunDot = max(dot(d, sunDirection), 0.0);
 
-// Stor men mjuk glow
-float sunGlow = pow(sunDot, 10.0);
+// A broad, subtle halo only while the sun is near the horizon. The disc is
+// still visible in daylight, but the atmospheric glow belongs to dawn/dusk.
+float twilight = 1.0 - smoothstep(0.05, 0.35, abs(sunDirection.y));
+float sunGlow = pow(sunDot, 7.0) * twilight;
+// Make the twilight bloom visibly brighter than the surrounding orange sky.
+// It extends to about twice the sun disc's radius and is additive below.
+float sunHalo = smoothstep(0.985, 0.999, sunDot) * twilight;
 
 // Mindre tydligare solskiva
 float sunDisc = smoothstep(
@@ -540,13 +552,13 @@ float sunDisc = smoothstep(
     // Give dawn and dusk a horizon palette of their own. Draw the sun and
     // moon after the sky blend, so each remains visible at the horizon while
     // the day and night layers are transitioning.
-    float twilight = 1.0 - smoothstep(0.03, 0.32, abs(sunDirection.y));
     float horizonBand = 1.0 - smoothstep(0.0, 0.42, abs(y));
     float dusk = 1.0 - smoothstep(-0.15, 0.15, sunDirection.x);
     vec3 twilightColor = mix(vec3(1.0, 0.38, 0.14), vec3(0.48, 0.17, 0.62), dusk);
     color = mix(color, twilightColor, twilight * horizonBand * 0.68);
 
-    color += vec3(1.0, 0.47, 0.16) * sunGlow * 0.45 * uSunVisibility;
+    color += vec3(1.0, 0.62, 0.24) * sunHalo * 1.10 * uSunVisibility;
+    color += vec3(1.0, 0.82, 0.48) * sunGlow * 0.85 * uSunVisibility;
     color = mix(color, vec3(1.0, 0.88, 0.58), sunDisc * uSunVisibility);
     color += vec3(0.28, 0.42, 0.86) * moonHalo * 0.35 * uMoonVisibility;
     color = mix(color, vec3(0.72, 0.84, 1.0), moonDisc * uMoonVisibility);
