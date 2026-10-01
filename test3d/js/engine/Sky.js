@@ -29,10 +29,25 @@ export class Sky {
   apply(config) { this.setMode(config?.mode); }
   setMode(mode) {
     this.mode = mode === "night" ? "night" : "day";
-    this.dome.material.uniforms.uNight.value = this.mode === "night" ? 1 : 0;
+    this.setEnvironment({
+      nightAmount: this.mode === "night" ? 1 : 0,
+      starVisibility: this.mode === "night" ? 1 : 0,
+      sunVisibility: this.mode === "night" ? 0 : 1,
+      moonVisibility: this.mode === "night" ? 1 : 0,
+      fogColor: new THREE.Color(this.mode === "night" ? 0x091125 : 0x9ec9f2)
+    });
+  }
+  setEnvironment({ nightAmount, starVisibility, sunVisibility, moonVisibility, sunDirection, moonDirection, fogColor }) {
+    const uniforms = this.dome.material.uniforms;
+    if (nightAmount !== undefined) uniforms.uNight.value = THREE.MathUtils.clamp(nightAmount, 0, 1);
+    if (starVisibility !== undefined) uniforms.uStarVisibility.value = THREE.MathUtils.clamp(starVisibility, 0, 1);
+    if (sunVisibility !== undefined) uniforms.uSunVisibility.value = THREE.MathUtils.clamp(sunVisibility, 0, 1);
+    if (moonVisibility !== undefined) uniforms.uMoonVisibility.value = THREE.MathUtils.clamp(moonVisibility, 0, 1);
+    if (sunDirection) uniforms.uSunDirection.value.copy(sunDirection).normalize();
+    if (moonDirection) uniforms.uMoonDirection.value.copy(moonDirection).normalize();
     // Built-in Three.js fog uses this colour. Matching it to the shader's
     // horizon lets every fog-enabled material disappear into the sky.
-    this.scene.fog?.color.set(this.mode === "night" ? 0x091125 : 0x9ec9f2);
+    if (fogColor) this.scene.fog?.color.copy(fogColor);
     this.scene.background = this.defaultBackground;
   }
 
@@ -163,7 +178,8 @@ addBackgroundFadeToMaterial(material, backgroundTexture = this.backgroundTarget.
 
     // Den exakta sky-texturen behövs egentligen
     // bara nära slutet av faden.
-    if (fogFactor > 0.80) {
+    // Sampling earlier keeps dawn/dusk horizon colours intact in mid-distance fog.
+    if (fogFactor > 0.20) {
 
       vec2 vCoords =
         vClipPosition.xy /
@@ -182,8 +198,8 @@ addBackgroundFadeToMaterial(material, backgroundTexture = this.backgroundTarget.
 
       float exactSky =
         smoothstep(
-          0.65,
-          0.90,
+          0.20,
+          0.75,
           fogFactor
         );
 
@@ -209,7 +225,7 @@ addBackgroundFadeToMaterial(material, backgroundTexture = this.backgroundTarget.
 );
         };
 
-        material.customProgramCacheKey = () => `${previousProgramKey}|background-fade-v1`;
+        material.customProgramCacheKey = () => `${previousProgramKey}|background-fade-v2`;
         material.userData.backgroundFadeAdded = true;
         material.userData.backgroundFadeUniforms = uniforms;
         material.needsUpdate = true;
@@ -251,6 +267,9 @@ addBackgroundFadeToMaterial(material, backgroundTexture = this.backgroundTarget.
       fog: false,
       uniforms: {
         uNight: { value: 0 },
+        uStarVisibility: { value: 0 },
+        uSunVisibility: { value: 1 },
+        uMoonVisibility: { value: 0 },
         uSunDirection: { value: new THREE.Vector3(-0.45, 0.62, -0.38).normalize() },
         uMoonDirection: { value: new THREE.Vector3(0.42, 0.48, -0.62).normalize() }
     },
@@ -264,6 +283,9 @@ addBackgroundFadeToMaterial(material, backgroundTexture = this.backgroundTarget.
       fragmentShader: /* glsl */`
 varying vec3 vDirection;
 uniform float uNight;
+uniform float uStarVisibility;
+uniform float uSunVisibility;
+uniform float uMoonVisibility;
 
 uniform vec3 uSunDirection;
 uniform vec3 uMoonDirection;
@@ -407,14 +429,6 @@ float sunDisc = smoothstep(
 );
 
 // Varm glow runt solen
-day += vec3(1.0, 0.72, 0.30) * sunGlow * 0.18;
-
-// Själva solen
-day = mix(
-    day,
-    vec3(1.0, 0.95, 0.78),
-    sunDisc
-);
 
 
 
@@ -445,8 +459,8 @@ day = mix(
 
     float starMask =
         smoothstep(
-            -0.02,
-            0.18,
+            -0.10,
+            0.10,
             y
         );
 
@@ -476,7 +490,7 @@ day = mix(
             0.994
         ) * 1.45;
 
-    stars *= starMask;
+    stars *= starMask * uStarVisibility;
 
 
     // Lite färgvariation
@@ -510,14 +524,6 @@ day = mix(
     ) - moonDisc;
 
     // Basfärg natt
-    night += vec3(0.16, 0.22, 0.40) * moonHalo * 0.25;
-
-    // Själva månen - mycket tydligare kant
-    night = mix(
-        night,
-        vec3(0.90, 0.93, 1.0),
-        moonDisc
-    );
 
 
     // ==================================================
@@ -530,6 +536,20 @@ day = mix(
             night,
             uNight
         );
+
+    // Give dawn and dusk a horizon palette of their own. Draw the sun and
+    // moon after the sky blend, so each remains visible at the horizon while
+    // the day and night layers are transitioning.
+    float twilight = 1.0 - smoothstep(0.03, 0.32, abs(sunDirection.y));
+    float horizonBand = 1.0 - smoothstep(0.0, 0.42, abs(y));
+    float dusk = 1.0 - smoothstep(-0.15, 0.15, sunDirection.x);
+    vec3 twilightColor = mix(vec3(1.0, 0.38, 0.14), vec3(0.48, 0.17, 0.62), dusk);
+    color = mix(color, twilightColor, twilight * horizonBand * 0.68);
+
+    color += vec3(1.0, 0.47, 0.16) * sunGlow * 0.45 * uSunVisibility;
+    color = mix(color, vec3(1.0, 0.88, 0.58), sunDisc * uSunVisibility);
+    color += vec3(0.28, 0.42, 0.86) * moonHalo * 0.35 * uMoonVisibility;
+    color = mix(color, vec3(0.72, 0.84, 1.0), moonDisc * uMoonVisibility);
 
     gl_FragColor =
         vec4(color, 1.0);

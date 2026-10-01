@@ -13,7 +13,11 @@ export class GroundMist {
     this.mistThreshold = 0.4;
     this.mistSoftness = 0.14;
     this.mistSpeed = 1.0;
-    this.mistColor = new THREE.Color(0xdbeaf2);
+    this.baseMistColor = new THREE.Color(0xdbeaf2);
+    this.mistColor = this.baseMistColor.clone();
+    // Keep the original mist visible, while making the horizon colour clear
+    // enough to read warm at dawn and violet only at an actual violet dusk.
+    this.horizonTintStrength = 0.40;
     this.mistNearFadeStart = 25;
     this.mistNearFadeEnd = 35;
     this.mistSegments = 32;
@@ -112,6 +116,12 @@ export class GroundMist {
       if (!this.mesh.parent) this.scene.add(this.mesh);
     }
     this.updateProxyGeometry(terrainMesh.geometry);
+  }
+
+  // Preserve the pale mist, with enough horizon colour to visually tie it to
+  // the sky without becoming a copy of the sky/fog colour.
+  setHorizonColor(color) {
+    if (color) this.mistColor.lerpColors(this.baseMistColor, color, this.horizonTintStrength);
   }
 
   createProxyGeometry(sourceGeometry) {

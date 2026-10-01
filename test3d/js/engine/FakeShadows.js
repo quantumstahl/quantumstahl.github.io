@@ -6,7 +6,7 @@ export class FakeShadows {
   constructor(scene) {
     this.scene = scene; this.root = new THREE.Group(); this.root.name = "Fake contact shadows";
     this.geometry = new THREE.PlaneGeometry(1, 1); this.material = this.createMaterial(); this.mesh = null; this.entries = [];
-    this.bounds = new THREE.Box3(); this.center = new THREE.Vector3(); this.objectPosition = new THREE.Vector3(); this.objectQuaternion = new THREE.Quaternion(); this.localCenter = new THREE.Vector3(); this.dummy = new THREE.Object3D(); this.yawQuaternion = new THREE.Quaternion(); this.yAxis = new THREE.Vector3(0, 1, 0); this.planeRotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+    this.bounds = new THREE.Box3(); this.localBounds = new THREE.Box3(); this.childBounds = new THREE.Box3(); this.center = new THREE.Vector3(); this.objectPosition = new THREE.Vector3(); this.objectQuaternion = new THREE.Quaternion(); this.objectScale = new THREE.Vector3(); this.localCenter = new THREE.Vector3(); this.inverseObjectMatrix = new THREE.Matrix4(); this.childLocalMatrix = new THREE.Matrix4(); this.dummy = new THREE.Object3D(); this.yawQuaternion = new THREE.Quaternion(); this.yAxis = new THREE.Vector3(0, 1, 0); this.planeRotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
   }
   createMaterial() {
     const canvas = document.createElement("canvas"); canvas.width = canvas.height = 64;
@@ -24,11 +24,27 @@ export class FakeShadows {
     const entries = [];
     for (const object of objects) {
       if (object.userData.assetType?.render?.shadowMode !== "fake") continue;
-      object.updateWorldMatrix(true, true); this.bounds.setFromObject(object);
-      if (this.bounds.isEmpty()) continue;
-      this.bounds.getCenter(this.center); object.getWorldPosition(this.objectPosition); object.getWorldQuaternion(this.objectQuaternion);
-      this.localCenter.copy(this.center).sub(this.objectPosition).applyQuaternion(this.objectQuaternion.clone().invert());
-      entries.push({ object, localCenter: this.localCenter.clone(), width: Math.max(.35, this.bounds.max.x - this.bounds.min.x + .16), depth: Math.max(.35, this.bounds.max.z - this.bounds.min.z + .16) });
+      object.updateWorldMatrix(true, true);
+      // Keep the footprint in object-local space. A world AABB gets wider
+      // when a model rotates, then becomes wrong if that AABB is rotated again.
+      this.localBounds.makeEmpty();
+      this.inverseObjectMatrix.copy(object.matrixWorld).invert();
+      object.traverse(child => {
+        if (!child.isMesh || !child.geometry) return;
+        child.geometry.computeBoundingBox();
+        if (!child.geometry.boundingBox) return;
+        this.childLocalMatrix.multiplyMatrices(this.inverseObjectMatrix, child.matrixWorld);
+        this.childBounds.copy(child.geometry.boundingBox).applyMatrix4(this.childLocalMatrix);
+        this.localBounds.union(this.childBounds);
+      });
+      if (this.localBounds.isEmpty()) continue;
+      this.localBounds.getCenter(this.localCenter);
+      entries.push({
+        object,
+        localCenter: this.localCenter.clone(),
+        localWidth: Math.max(.35, this.localBounds.max.x - this.localBounds.min.x + .16),
+        localDepth: Math.max(.35, this.localBounds.max.z - this.localBounds.min.z + .16)
+      });
     }
     this.entries = entries;
     if (!entries.length) { this.root.removeFromParent(); return; }
@@ -37,8 +53,8 @@ export class FakeShadows {
     this.mesh.instanceMatrix.needsUpdate = true; this.root.add(this.mesh); this.scene.add(this.root);
   }
   setMatrix(index, entry, terrain, delta = 0) {
-    entry.object.updateWorldMatrix(true, true); entry.object.getWorldPosition(this.objectPosition); entry.object.getWorldQuaternion(this.objectQuaternion);
-    this.center.copy(entry.localCenter).applyQuaternion(this.objectQuaternion).add(this.objectPosition);
+    entry.object.updateWorldMatrix(true, true); entry.object.getWorldPosition(this.objectPosition); entry.object.getWorldQuaternion(this.objectQuaternion); entry.object.getWorldScale(this.objectScale);
+    this.center.copy(entry.localCenter).multiply(this.objectScale).applyQuaternion(this.objectQuaternion).add(this.objectPosition);
     const yaw = Math.atan2(2 * (this.objectQuaternion.w * this.objectQuaternion.y + this.objectQuaternion.x * this.objectQuaternion.z), 1 - 2 * (this.objectQuaternion.y * this.objectQuaternion.y + this.objectQuaternion.z * this.objectQuaternion.z));
     this.yawQuaternion.setFromAxisAngle(this.yAxis, yaw);
     const terrainHeight = terrain.getHeightAt(this.center) + .018;
@@ -47,7 +63,7 @@ export class FakeShadows {
     entry.shadowHeight = Number.isFinite(entry.shadowHeight)
       ? THREE.MathUtils.lerp(entry.shadowHeight, terrainHeight, 1 - Math.exp(-14 * delta))
       : terrainHeight;
-    this.dummy.position.set(this.center.x, entry.shadowHeight, this.center.z); this.dummy.quaternion.copy(this.yawQuaternion).multiply(this.planeRotation); this.dummy.scale.set(entry.width, entry.depth, 1); this.dummy.updateMatrix(); this.mesh.setMatrixAt(index, this.dummy.matrix);
+    this.dummy.position.set(this.center.x, entry.shadowHeight, this.center.z); this.dummy.quaternion.copy(this.yawQuaternion).multiply(this.planeRotation); this.dummy.scale.set(entry.localWidth * Math.abs(this.objectScale.x), entry.localDepth * Math.abs(this.objectScale.z), 1); this.dummy.updateMatrix(); this.mesh.setMatrixAt(index, this.dummy.matrix);
   }
   update(terrain, delta) { if (!this.mesh) return; this.entries.forEach((entry, index) => this.setMatrix(index, entry, terrain, delta)); this.mesh.instanceMatrix.needsUpdate = true; }
   clear() { this.root.removeFromParent(); this.root.clear(); this.mesh = null; this.entries = []; }

@@ -8,9 +8,10 @@ export class Grass {
     this.scene = scene; this.root = new THREE.Group(); this.root.name = "Near painted grass"; this.scene.add(this.root);
     this.radius = 42; this.fadeStart = 20; this.fadeEnd = 50; this.maxVisible = 24000;
     this.tramplePosition = new THREE.Vector3(1e6, 0, 1e6); this.trampleRadius = 2.00; this.trampleFlatten = 1.5; this.trampleBend = 0.80;
+    this.environmentTint = new THREE.Color(1, 1, 1);
     this.textureend=scene.fog.far;
-    this.matrix = new THREE.Matrix4(); this.position = new THREE.Vector3(); this.rotation = new THREE.Quaternion(); this.scale = new THREE.Vector3(); this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity); this.lastCameraDirection = new THREE.Vector3(); this.cameraDirection = new THREE.Vector3(); this.viewPoint = new THREE.Vector3(); this.viewProjection = new THREE.Matrix4(); this.frustum = new THREE.Frustum(); this.hasCameraDirection = false; this.dirty = true; this.sunDirection = new THREE.Vector3(.4, .8, .2).normalize(); this.sunPosition = new THREE.Vector3(); this.sunTargetPosition = new THREE.Vector3();
-    this.geometry = this.createBladeGeometry(); this.material = this.createMaterial(); 
+    this.matrix = new THREE.Matrix4(); this.position = new THREE.Vector3(); this.rotation = new THREE.Quaternion(); this.scale = new THREE.Vector3(); this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity); this.lastCameraDirection = new THREE.Vector3(); this.cameraDirection = new THREE.Vector3(); this.viewPoint = new THREE.Vector3(); this.viewProjection = new THREE.Matrix4(); this.frustum = new THREE.Frustum(); this.hasCameraDirection = false; this.dirty = true; this.sunDirection = new THREE.Vector3(.4, .8, .2).normalize(); this.sunPosition = new THREE.Vector3(); this.sunTargetPosition = new THREE.Vector3(); this.sunBacklight = 1; this.backlightCameraPosition = new THREE.Vector3();
+    this.geometry = this.createBladeGeometry(); this.baseBladeColors = this.geometry.getAttribute("color").array.slice(); this.material = this.createMaterial(); 
     this.grassSphere = new THREE.Sphere();
     this.createMesh();
     this.grassGrid = new Map();
@@ -53,6 +54,10 @@ export class Grass {
             uTime:{
               value:0
 
+            },
+            uEnvironmentTint: {
+              value: this.environmentTint
+
             }
 
         },
@@ -86,6 +91,7 @@ export class Grass {
             uniform float uTextureEnd;
             uniform float uOpacity;
             uniform float uTime;
+            uniform vec3 uEnvironmentTint;
 
             varying vec3 vWorldPosition;
             varying float vCoverage;
@@ -207,6 +213,7 @@ float grassFade = smoothstep(uFadeEnd, uTextureEnd, d);
 float edgeDarken = mix(0.82, 1.0, grassFade);
 
 grassColor.rgb *= edgeDarken;
+grassColor.rgb *= uEnvironmentTint;
 
 
 
@@ -856,6 +863,9 @@ createMaterial() {
         shader.uniforms.uTrampleRadius = { value: this.trampleRadius };
         shader.uniforms.uTrampleFlatten = { value: this.trampleFlatten };
         shader.uniforms.uTrampleBend = { value: this.trampleBend };
+        shader.uniforms.uSunDirection = { value: this.sunDirection };
+        shader.uniforms.uSunBacklight = { value: this.sunBacklight };
+        shader.uniforms.uBacklightCameraPosition = { value: this.backlightCameraPosition };
 
 
         shader.vertexShader = shader.vertexShader
@@ -877,6 +887,8 @@ createMaterial() {
                 uniform float uTrampleRadius;
                 uniform float uTrampleFlatten;
                 uniform float uTrampleBend;
+                varying float vBladeTip;
+                varying vec3 vGrassWorldPosition;
                 `
             )
 
@@ -959,6 +971,7 @@ createMaterial() {
                 // När ett strå försvinner krymper hela bladet.
                 // Height-LOD däremot ändrar bara Y.
                 transformed *= grow;
+                vBladeTip = clamp(position.y / 1.55, 0.0, 1.0);
                 `
             )
 
@@ -1010,9 +1023,9 @@ createMaterial() {
                 mvPosition.z += w * 0.4;
 
 
-                mvPosition =
-                    modelViewMatrix *
-                    mvPosition;
+                vec4 grassWorldPosition = modelMatrix * mvPosition;
+                vGrassWorldPosition = grassWorldPosition.xyz;
+                mvPosition = viewMatrix * grassWorldPosition;
 
 
                 gl_Position =
@@ -1021,13 +1034,37 @@ createMaterial() {
                 `
             );
 
+        shader.fragmentShader = shader.fragmentShader
+            .replace(
+                "#include <common>",
+                `
+                #include <common>
+                uniform vec3 uSunDirection;
+                uniform float uSunBacklight;
+                uniform vec3 uBacklightCameraPosition;
+                varying float vBladeTip;
+                varying vec3 vGrassWorldPosition;
+                `
+            )
+            .replace(
+                "#include <color_fragment>",
+                `
+                #include <color_fragment>
+                // A small transmission-like lift appears only on the upper
+                // blade when the camera is looking toward the sun.
+                vec3 viewToBlade = normalize(vGrassWorldPosition - uBacklightCameraPosition);
+                float towardSun = smoothstep(0.52, 0.94, dot(viewToBlade, uSunDirection));
+                float tipGlow = smoothstep(0.48, 0.95, vBladeTip) * towardSun * uSunBacklight;
+                diffuseColor.rgb += vec3(0.21, 0.075, 0.018) * tipGlow;
+                `
+            );
 
         material.userData.grassShader = shader;
     };
 
 
     material.customProgramCacheKey = () =>
-        "next-world-grass-height-lod-trample-v3";
+        "next-world-grass-height-lod-trample-backlight-v6";
 
 
     return material;
@@ -1050,7 +1087,32 @@ createMaterial() {
     if (!sun?.isDirectionalLight || !sun.target) return false;
     sun.updateWorldMatrix(true, false); sun.target.updateWorldMatrix(true, false); sun.getWorldPosition(this.sunPosition); sun.target.getWorldPosition(this.sunTargetPosition);
     const direction = this.sunPosition.sub(this.sunTargetPosition); if (direction.lengthSq() < 1e-8) return false;
-    this.sunDirection.copy(direction.normalize()); return true;
+    this.sunDirection.copy(direction.normalize());
+    this.sunBacklight = sun.visible ? THREE.MathUtils.clamp(sun.intensity / 2, 0, 1) : 0;
+    const shader = this.material.userData.grassShader;
+    if (shader) {
+      shader.uniforms.uSunDirection.value.copy(this.sunDirection);
+      shader.uniforms.uSunBacklight.value = this.sunBacklight;
+    }
+    return true;
+  }
+  setEnvironmentTint(nearTint, farTint = nearTint) {
+    if (!nearTint) return;
+    this.environmentTint.copy(nearTint);
+    // The near mesh shares one tiny blade template, so tinting its vertex
+    // colours updates every instance without per-instance CPU work.
+    const colors = this.geometry.getAttribute("color");
+    for (let i = 0; i < colors.count; i++) {
+      const offset = i * 3;
+      colors.setXYZ(i,
+        this.baseBladeColors[offset] * this.environmentTint.r,
+        this.baseBladeColors[offset + 1] * this.environmentTint.g,
+        this.baseBladeColors[offset + 2] * this.environmentTint.b
+      );
+    }
+    colors.needsUpdate = true;
+    this.material.color.set(0xffffff);
+    if (farTint) this.farGrassMaterial.uniforms.uEnvironmentTint.value.copy(farTint);
   }
   setTramplePosition(position) {
     if (position) this.tramplePosition.copy(position);
@@ -1172,6 +1234,7 @@ update(delta, camera) {
 
     if (shader) {
         shader.uniforms.uGrassTime.value += delta;
+        camera.getWorldPosition(this.backlightCameraPosition);
         
     }
     if (this.farGrassMaterial) {

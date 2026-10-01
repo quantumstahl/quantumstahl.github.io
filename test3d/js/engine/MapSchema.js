@@ -40,7 +40,13 @@ export class WorldMap {
     this.version = 1;
     this.name = data.name ?? "Untitled World";
     this.editor = { showGrid: data.editor?.showGrid ?? true };
-    this.sky = { mode: data.sky?.mode === "night" ? "night" : "day" };
+    const savedTimeOfDay = Number(data.sky?.timeOfDay);
+    const savedDayDuration = Number(data.sky?.dayDuration);
+    this.sky = {
+      mode: data.sky?.mode === "night" ? "night" : "day",
+      timeOfDay: Number.isFinite(savedTimeOfDay) ? ((savedTimeOfDay % 1) + 1) % 1 : (data.sky?.mode === "night" ? 0 : 0.25),
+      dayDuration: Number.isFinite(savedDayDuration) ? Math.max(30, savedDayDuration) : 360
+    };
     // Texture paint is stored per terrain vertex. A 64-segment, 200m terrain
     // has 3.125m between paint points, which makes narrow paths impossible.
     // 128 segments keeps a practical 1.56m paint grid with one quarter of

@@ -135,7 +135,8 @@ export class Editor {
   }
   setSkyMode(mode) {
     this.mapLoader.world.sky.mode = mode === "night" ? "night" : "day";
-    this.mapLoader.sky.apply(this.mapLoader.world.sky);
+    this.mapLoader.world.sky.timeOfDay = this.mapLoader.world.sky.mode === "night" ? 0 : 0.25;
+    this.mapLoader.environment.apply(this.mapLoader.world.sky);
     this.markDirty(); this.tree.render();
     this.setStatus(`Shader sky: ${this.mapLoader.world.sky.mode === "night" ? "Night" : "Day"}`);
   }
