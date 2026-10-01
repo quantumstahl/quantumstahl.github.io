@@ -33,6 +33,7 @@ export class Sky {
     this.captureDome = new THREE.Mesh(this.dome.geometry, this.captureMaterial);
     this.skyScene.add(this.captureDome);
   }
+
   apply(config) { this.setMode(config?.mode); }
   setMode(mode) {
     this.mode = mode === "night" ? "night" : "day";
@@ -178,47 +179,12 @@ addBackgroundFadeToMaterial(material, backgroundTexture = this.backgroundTarget.
 
     #endif
 
-
-    // Vanlig billig fog större delen av vägen.
-    vec3 fogTarget = fogColor;
-
-
-    // Den exakta sky-texturen behövs egentligen
-    // bara nära slutet av faden.
-    // Sampling earlier keeps dawn/dusk horizon colours intact in mid-distance fog.
-    if (fogFactor > 0.20) {
-
-      vec2 vCoords =
-        vClipPosition.xy /
-        vClipPosition.w;
-
-      vCoords =
-        vCoords * 0.5 + 0.5;
-
-
-      vec3 backgroundColor =
-        texture2D(
-          uBackgroundTexture,
-          vCoords
-        ).rgb;
-
-
-      float exactSky =
-        smoothstep(
-          0.20,
-          0.75,
-          fogFactor
-        );
-
-
-      fogTarget =
-        mix(
-          fogColor,
-          backgroundColor,
-          exactSky
-        );
-    }
-
+    // Every fogged material, including terrain and far grass, must blend to
+    // the same captured sky. A separate fogColor-to-sky transition creates a
+    // second horizontal band before the clouded horizon.
+    vec2 vCoords = vClipPosition.xy / vClipPosition.w;
+    vCoords = vCoords * 0.5 + 0.5;
+    vec3 fogTarget = texture2D(uBackgroundTexture, vCoords).rgb;
 
     gl_FragColor.rgb =
       mix(

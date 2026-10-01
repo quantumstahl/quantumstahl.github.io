@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { Clouds } from "./Clouds.js";
 
 // Central time and lighting controller. Sky continues to own rendering its
 // procedural dome and background texture; this class only supplies its state.
@@ -6,6 +7,10 @@ export class EnvironmentSystem {
   constructor({ scene, sky }) {
     this.scene = scene;
     this.sky = sky;
+    // EnvironmentSystem owns all time-driven atmosphere layers. Clouds do
+    // their own camera following in the render hook, so callers need not pass
+    // camera state through the world update path.
+    this.clouds = new Clouds(scene);
     this.timeOfDay = 0.25; // 0 = midnight, .25 = sunrise, .5 = noon.
     this.dayDuration = 360;
     this.timeScale = 10;
@@ -139,5 +144,7 @@ export class EnvironmentSystem {
       moonDirection: this.moonDirection,
       fogColor: this.fogColor
     });
+    this.clouds.setEnvironment({ daylight, sunset, sunDirection: this.sunDirection });
+    this.clouds.update(delta);
   }
 }
