@@ -11,7 +11,7 @@ export class ThreeApp {
     // A 2x mobile screen costs four times as many fragments. Preserve a sharp
     // enough image while avoiding an unnecessarily expensive full resolution.
     this.targetFPS = 60;
-    this.renderer.setPixelRatio( window.devicePixelRatio );
+    this.renderer.setPixelRatio( 1,window.devicePixelRatio ||2);
 
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
