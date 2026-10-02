@@ -294,38 +294,50 @@ vec2 hash22(vec2 p) {
 
 float starLayer(vec3 d, float scale, float threshold) {
 
-    // Direction -> spherical UV
     float lon = atan(d.z, d.x) / (2.0 * PI) + 0.5;
     float lat = asin(clamp(d.y, -1.0, 1.0)) / PI + 0.5;
 
     vec2 uv = vec2(lon * 2.0, lat);
-
     vec2 p = uv * scale;
-    vec2 cell = floor(p);
+
+    // Screen-space pixel footprint.
+    // Viktigt: beräknas från kontinuerliga p, INTE från fract/local/dist.
+    float pixelSize = max(
+        length(dFdx(p)),
+        length(dFdy(p))
+    );
+
+    // Skyddar även mot enorma derivatives vid atan-seamen.
+    pixelSize = clamp(pixelSize, 0.0015, 0.035);
+
+    vec2 cell  = floor(p);
     vec2 local = fract(p) - 0.5;
 
     float rnd = hash21(cell);
-
-    if (rnd < threshold)
-        return 0.0;
+    float hasStar = step(threshold, rnd);
 
     vec2 offset =
         (hash22(cell + 4.7) - 0.5) * 0.65;
 
     vec2 delta = local - offset;
-
     float dist = length(delta);
 
-    // Olika storlek på stjärnorna
-    float size =
+    float randomSize =
         mix(
-            0.025,
-            0.10,
+            0.2,
+            0.201,
             pow(hash21(cell + 23.1), 8.0)
         );
 
-    // Antialiasing
-    float aa = max(fwidth(dist), 0.001);
+    // Gör aldrig stjärnan mycket mindre än en pixel.
+    // Detta stoppar nästan allt temporal flicker.
+    float size = max(
+        randomSize,
+        pixelSize * 0.2
+    );
+
+    // AA baseras på pixelstorleken, inte dist.
+    float aa = max(pixelSize * 0.2, 0.002);
 
     float star =
         1.0 -
@@ -337,12 +349,12 @@ float starLayer(vec3 d, float scale, float threshold) {
 
     float brightness =
         mix(
-            0.35,
-            1.5,
+            1.0,
+            5.5,
             pow(hash21(cell + 91.7), 3.0)
         );
 
-    return star * brightness;
+    return star * brightness * hasStar;
 }
 
 float cloudStarOcclusion(vec3 d) {
@@ -476,24 +488,11 @@ float sunDisc = smoothstep(
         starLayer(
             d,
             900.0,
-            0.965
-        ) * 0.60;
+            0.900
+        ) * 1.00;
 
-    // Färre lite starkare
-    stars +=
-        starLayer(
-            d,
-            420.0,
-            0.985
-        ) * 1.10;
+  
 
-    // Några stora
-    stars +=
-        starLayer(
-            d,
-            180.0,
-            0.994
-        ) * 1.45;
 
     float cloudMask = cloudStarOcclusion(d) * uCloudCoverage;
     stars *= starMask * uStarVisibility * (1.0 - cloudMask);

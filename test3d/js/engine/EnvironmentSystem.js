@@ -13,7 +13,7 @@ export class EnvironmentSystem {
     this.clouds = new Clouds(scene);
     this.timeOfDay = 0.25; // 0 = midnight, .25 = sunrise, .5 = noon.
     this.dayDuration = 360;
-    this.timeScale = 10;
+    this.timeScale = 1;
     this.sunDistance = 200;
     this.sunIntensity = 2;
     this.sunDirection = new THREE.Vector3();
@@ -31,26 +31,16 @@ export class EnvironmentSystem {
     this.nightHemisphereColor = new THREE.Color(0x1b2945);
     this.dayHemisphereColor = new THREE.Color(0xffffff);
     this.hemisphereGroundColor = new THREE.Color(0x1b2534);
-    this.nearGrassTint = new THREE.Color(1, 1, 1);
-    this.farGrassTint = new THREE.Color(1, 1, 1);
-    // Grass keeps its daytime albedo. At night, the procedural grass uses a
-    // restrained version of the moonlight's cool blue rather than becoming
-    // neutral grey. Far grass receives a slightly clearer version so the
-    // moonlit colour carries into the distance.
-    this.nightNearGrassTint = new THREE.Color(0.00, 0.00, 0.15);
-    this.dayNearGrassTint = new THREE.Color(1, 1, 1);
-    this.twilightNearGrassTint = new THREE.Color(0.54, 0.60, 0.61);
-    this.sunsetNearGrassTint = new THREE.Color(0.72, 0.62, 0.49);
-    this.nightFarGrassTint = new THREE.Color(0.32, 0.38, 0.42);
-    this.dayFarGrassTint = new THREE.Color(1, 1, 1);
-    this.twilightFarGrassTint = new THREE.Color(0.60, 0.65, 0.67);
-    this.sunsetFarGrassTint = new THREE.Color(0.72, 0.61, 0.46);
+    this.GrassTint = new THREE.Color(0.00, 0.00, 0.09);
+    this.savedGrasstint= new THREE.Color(0.00, 0.00, 0.09);
+    this.NoGrasstint= new THREE.Color(0.00, 0.00, 0.00);
     this.sun = sky.findDirectionalLight();
     this.moon = new THREE.DirectionalLight(0xaec8ff, 0);
     this.moon.name = "Moonlight";
     this.moon.castShadow = false;
     this.scene.add(this.moon);
     this.hemisphere = null;
+    this.sunsun=0.84375;
     scene.traverse(item => { if (!this.hemisphere && item.isHemisphereLight) this.hemisphere = item; });
   }
 
@@ -76,7 +66,7 @@ export class EnvironmentSystem {
       this.timeOfDay + delta * this.timeScale / this.dayDuration,
       1
     );
-
+    
     // A full revolution gives sunrise, noon, sunset and midnight in a stable
     // world-space arc. The fixed Z component keeps the sun off the exact east/
     // west axis, which makes terrain lighting easier to read.
@@ -114,15 +104,8 @@ export class EnvironmentSystem {
       horizonPhase - horizonIndex
     );
     this.fogColor.copy(this.fogHorizonColor);
-    this.nearGrassTint.lerpColors(this.nightNearGrassTint, this.dayNearGrassTint, daylight);
-    // twilight is active at both sunrise and sunset, giving both a soft
-    // orange cast; the sunset-specific pass below remains a little warmer.
-    this.nearGrassTint.lerp(this.twilightNearGrassTint, twilight * 0.52);
-    this.nearGrassTint.lerp(this.sunsetNearGrassTint, sunset * 0.18);
-    this.farGrassTint.lerpColors(this.nightFarGrassTint, this.dayFarGrassTint, daylight);
-    this.farGrassTint.lerp(this.twilightFarGrassTint, twilight * 0.48);
-    this.farGrassTint.lerp(this.sunsetFarGrassTint, sunset * 0.15);
-
+    this.GrassTint.lerpColors(this.savedGrasstint, this.NoGrasstint, daylight);
+    this.sunsun=daylight.valueOf();
     if (this.sun) {
       this.sun.position.copy(this.sunDirection).multiplyScalar(this.sunDistance);
       this.sun.intensity = this.sunIntensity * daylight;
@@ -130,7 +113,7 @@ export class EnvironmentSystem {
       this.sun.updateMatrixWorld();
     }
     this.moon.position.copy(this.moonDirection).multiplyScalar(this.sunDistance);
-    this.moon.intensity = 1.5 * moonlight;
+    this.moon.intensity = 2.5 * moonlight;
     this.moon.visible = moonlight > 0.001;
     this.moon.updateMatrixWorld();
     if (this.hemisphere) {

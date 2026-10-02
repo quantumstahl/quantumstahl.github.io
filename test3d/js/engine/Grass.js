@@ -8,10 +8,10 @@ export class Grass {
     this.scene = scene; this.root = new THREE.Group(); this.root.name = "Near painted grass"; this.scene.add(this.root);
     this.radius = 42; this.fadeStart = 20; this.fadeEnd = 50; this.maxVisible = 24000;
     this.tramplePosition = new THREE.Vector3(1e6, 0, 1e6); this.trampleRadius = 2.00; this.trampleFlatten = 1.5; this.trampleBend = 0.80;
-    this.environmentTint = new THREE.Color(1, 1, 1);
+    this.environmentTint = new THREE.Color(0.00, 0.00, 0.00);
     this.textureend=scene.fog.far+200;
     this.matrix = new THREE.Matrix4(); this.position = new THREE.Vector3(); this.rotation = new THREE.Quaternion(); this.scale = new THREE.Vector3(); this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity); this.lastCameraDirection = new THREE.Vector3(); this.cameraDirection = new THREE.Vector3(); this.viewPoint = new THREE.Vector3(); this.viewProjection = new THREE.Matrix4(); this.frustum = new THREE.Frustum(); this.hasCameraDirection = false; this.dirty = true; this.sunDirection = new THREE.Vector3(.4, .8, .2).normalize(); this.sunPosition = new THREE.Vector3(); this.sunTargetPosition = new THREE.Vector3(); this.sunBacklight = 1; this.backlightCameraPosition = new THREE.Vector3();
-    this.geometry = this.createBladeGeometry(); this.baseBladeColors = this.geometry.getAttribute("color").array.slice(); this.material = this.createMaterial(); 
+    this.geometry = this.createBladeGeometry(); this.material = this.createMaterial(); 
     this.grassSphere = new THREE.Sphere();
     this.createMesh();
     this.grassGrid = new Map();
@@ -25,6 +25,8 @@ export class Grass {
 
     this.farGrassNeedsRebuild = true;
     this.farGrassRebuildTimer = 0;
+
+    this.environmentsun=true;
   }
   createFarGrassMaterial() {
 
@@ -57,6 +59,9 @@ export class Grass {
             },
             uEnvironmentTint: {
               value: this.environmentTint
+            },
+            uEnvironmentSun: {
+              value: this.environmentsun
             },
             uBackgroundTexture: {
               value: new THREE.Texture()
@@ -102,6 +107,7 @@ export class Grass {
             uniform float uOpacity;
             uniform float uTime;
             uniform vec3 uEnvironmentTint;
+            uniform float uEnvironmentSun;
             uniform sampler2D uBackgroundTexture;
             uniform float uFogNear;
             uniform float uFogFar;
@@ -226,9 +232,17 @@ grassColor.rgb *= macroTint;
 // mörkare precis när distant grass börjar synas
 
 // Keep the far-grass transition neutral; darkening this edge makes a visible horizon band.
-grassColor.rgb *= uEnvironmentTint;
 
 
+
+
+
+                    vec3 savecolor =grassColor.rgb;
+                 grassColor.rgb-=grassColor.rgb;
+                grassColor.rgb += uEnvironmentTint+savecolor;
+
+                
+                    grassColor.rgb *=((-1.00+uEnvironmentSun)*0.70)+1.0;
 
 
 
@@ -294,6 +308,7 @@ grassColor.rgb *= uEnvironmentTint;
 
         `
     });
+    
     material.userData.addBackgroundFade = (backgroundTexture, fog) => {
       material.uniforms.uBackgroundTexture.value = backgroundTexture;
       material.uniforms.uFogNear.value = fog?.near ?? 50;
@@ -889,7 +904,11 @@ createMaterial() {
         shader.uniforms.uSunDirection = { value: this.sunDirection };
         shader.uniforms.uSunBacklight = { value: this.sunBacklight };
         shader.uniforms.uBacklightCameraPosition = { value: this.backlightCameraPosition };
-
+        // Keep the original green blade palette in the vertex buffer. The
+        // changing atmosphere tint is applied in the fragment shader so it
+        // works for every instance without rewriting that buffer each frame.
+        shader.uniforms.uEnvironmentTint = { value: this.environmentTint };
+        shader.uniforms.uEnvironmentSun = { value: this.environmentsun };
 
         shader.vertexShader = shader.vertexShader
 
@@ -1065,6 +1084,8 @@ createMaterial() {
                 uniform vec3 uSunDirection;
                 uniform float uSunBacklight;
                 uniform vec3 uBacklightCameraPosition;
+                uniform vec3 uEnvironmentTint;
+                uniform float uEnvironmentSun;
                 varying float vBladeTip;
                 varying vec3 vGrassWorldPosition;
                 `
@@ -1073,7 +1094,18 @@ createMaterial() {
                 "#include <color_fragment>",
                 `
                 #include <color_fragment>
-                // A small transmission-like lift appears only on the upper
+                vec3 savecolor =diffuseColor.rgb;
+
+               
+
+                diffuseColor.rgb-=diffuseColor.rgb;
+                diffuseColor.rgb += uEnvironmentTint+savecolor;
+
+                
+                    diffuseColor.rgb *=((-1.00+uEnvironmentSun)*0.70)+1.0;
+                
+
+                
                 // blade when the camera is looking toward the sun.
                 vec3 viewToBlade = normalize(vGrassWorldPosition - uBacklightCameraPosition);
                 float towardSun = smoothstep(0.52, 0.94, dot(viewToBlade, uSunDirection));
@@ -1087,7 +1119,7 @@ createMaterial() {
 
 
     material.customProgramCacheKey = () =>
-        "next-world-grass-height-lod-trample-backlight-v6";
+        "next-world-grass-height-lod-trample-backlight-environment-v7";
 
 
     return material;
@@ -1119,23 +1151,23 @@ createMaterial() {
     }
     return true;
   }
-  setEnvironmentTint(nearTint, farTint = nearTint) {
-    if (!nearTint) return;
-    this.environmentTint.copy(nearTint);
-    // The near mesh shares one tiny blade template, so tinting its vertex
-    // colours updates every instance without per-instance CPU work.
-    const colors = this.geometry.getAttribute("color");
-    for (let i = 0; i < colors.count; i++) {
-      const offset = i * 3;
-      colors.setXYZ(i,
-        this.baseBladeColors[offset] * this.environmentTint.r,
-        this.baseBladeColors[offset + 1] * this.environmentTint.g,
-        this.baseBladeColors[offset + 2] * this.environmentTint.b
-      );
+  setEnvironmentTint(grassTint,issunup) {
+    if (!grassTint) return;
+    
+    this.environmentTint.lerp(grassTint,issunup);
+   
+    this.environmentsun=issunup;
+    const shader = this.material.userData.grassShader;
+    if (shader) {
+      shader.uniforms.uEnvironmentSun.value = this.environmentsun;
+      shader.uniforms.uEnvironmentTint.value = this.environmentTint;
     }
-    colors.needsUpdate = true;
-    this.material.color.set(0xffffff);
-    if (farTint) this.farGrassMaterial.uniforms.uEnvironmentTint.value.copy(farTint);
+    const shader2 = this.farGrassMaterial;
+    if (shader2) {
+      shader2.uniforms.uEnvironmentSun.value = this.environmentsun;
+      shader2.uniforms.uEnvironmentTint.value = this.environmentTint;
+    }
+
   }
   setBackgroundFade(backgroundTexture, fog) {
     if (!backgroundTexture || !this.farGrassMaterial) return;
