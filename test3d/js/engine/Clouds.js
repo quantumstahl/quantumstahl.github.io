@@ -103,7 +103,7 @@ vec4 cloudSample = texture2D(
               horizon + 0.020,
               uv.y
           );
-          float alpha = cloud * 0.70 * horizonCloudFade;
+          float alpha = cloud * 0.8 * horizonCloudFade;
 
 
           
@@ -113,16 +113,12 @@ vec4 cloudSample = texture2D(
           // it consistently with the existing day/night and sunset system.
 vec3 cloudColor = cloudSample.rgb;
 
-// lite mindre blågrått
-float brightness = dot(
-    cloudColor,
-    vec3(0.199, 0.487, 0.114)
-);
+
 
 cloudColor = mix(
     cloudColor,
-    vec3(brightness),
-    0.95
+    vec3(1.00, 1.00, 1.00),
+    0.1
 );
 
 cloudColor *= 1.95;
