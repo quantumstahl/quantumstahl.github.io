@@ -314,14 +314,6 @@ float starLayer(vec3 d, float scale, float threshold) {
     vec2 local = fract(p) - 0.5;
 
     float rnd = hash21(cell);
-<<<<<<< HEAD
-=======
-
-    // Keep all neighbouring fragments on the same derivative path. Calling
-    // fwidth only for selected cells is undefined when a 2x2 mobile GPU
-    // fragment quad crosses a star-cell boundary, and can produce square
-    // halos around otherwise round stars.
->>>>>>> 7e38b5dd20186c08d05bcfcbc4dbb0017cd51c1e
     float hasStar = step(threshold, rnd);
 
     vec2 offset =
