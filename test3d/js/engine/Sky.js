@@ -13,7 +13,7 @@ export class Sky {
     this.savedViewport = new THREE.Vector4();
     this.savedScissor = new THREE.Vector4();
     this.updateSunDirection(this.findDirectionalLight());
-    this.backgroundTarget = new THREE.WebGLRenderTarget(256, 128, {
+    this.backgroundTarget = new THREE.WebGLRenderTarget(1, 1, {
       depthBuffer: false,
       stencilBuffer: false,
       generateMipmaps: false,
@@ -58,16 +58,19 @@ export class Sky {
     if (fogColor) this.scene.fog?.color.copy(fogColor);
     this.scene.background = this.defaultBackground;
   }
+  setCloudStarOcclusion(cloudMap, time) {
+    const uniforms = this.dome.material.uniforms;
+    uniforms.uCloudMap.value = cloudMap ?? null;
+    uniforms.uCloudTime.value = time ?? 0;
+    uniforms.uCloudCoverage.value = cloudMap ? 1 : 0;
+  }
 
   // The CatAdventure fade shader, fed by a live low-resolution render of this
   // procedural sky. It samples the exact background colour at the fragment's
   // screen UV instead of approximating a sky gradient in every material.
 resizeBackgroundTarget(width, height) {
-    const w = 256;
-    const h = Math.max(
-        1,
-        Math.round(w * height / width)
-    );
+    const w = Math.max(1, Math.round(width));
+    const h = Math.max(1, Math.round(height));
 
     if (this.backgroundTarget.width !== w || this.backgroundTarget.height !== h) this.backgroundTarget.setSize(w, h);
 }
@@ -243,6 +246,9 @@ addBackgroundFadeToMaterial(material, backgroundTexture = this.backgroundTarget.
         uStarVisibility: { value: 0 },
         uSunVisibility: { value: 1 },
         uMoonVisibility: { value: 0 },
+        uCloudMap: { value: null },
+        uCloudTime: { value: 0 },
+        uCloudCoverage: { value: 0 },
         uSunDirection: { value: new THREE.Vector3(-0.45, 0.62, -0.38).normalize() },
         uMoonDirection: { value: new THREE.Vector3(0.42, 0.48, -0.62).normalize() }
     },
@@ -259,6 +265,9 @@ uniform float uNight;
 uniform float uStarVisibility;
 uniform float uSunVisibility;
 uniform float uMoonVisibility;
+uniform sampler2D uCloudMap;
+uniform float uCloudTime;
+uniform float uCloudCoverage;
 
 uniform vec3 uSunDirection;
 uniform vec3 uMoonDirection;
@@ -334,6 +343,24 @@ float starLayer(vec3 d, float scale, float threshold) {
         );
 
     return star * brightness;
+}
+
+float cloudStarOcclusion(vec3 d) {
+    // This duplicates the Clouds.js UV transform so stars are removed from
+    // the sky before the soft, alpha-blended cloud layer is drawn on top.
+    const float horizon = 0.502;
+    vec2 uv = vec2(
+        atan(d.z, d.x) * 0.15915494 + 0.5,
+        d.y * 0.5 + 0.5
+    );
+    float cloudY = horizon + (uv.y - horizon) * 6.2;
+    vec2 mapUv = vec2(
+        fract(uv.x * 3.0 - 0.2028 * uCloudTime * 0.0118),
+        clamp(cloudY, 0.0, 1.0)
+    );
+    float cloud = texture2D(uCloudMap, mapUv).a;
+    
+    return smoothstep(0.003, 0.04, cloud) ;
 }
 
 
@@ -468,7 +495,8 @@ float sunDisc = smoothstep(
             0.994
         ) * 1.45;
 
-    stars *= starMask * uStarVisibility;
+    float cloudMask = cloudStarOcclusion(d) * uCloudCoverage;
+    stars *= starMask * uStarVisibility * (1.0 - cloudMask);
 
 
     // Lite färgvariation

@@ -13,7 +13,7 @@ export class EnvironmentSystem {
     this.clouds = new Clouds(scene);
     this.timeOfDay = 0.25; // 0 = midnight, .25 = sunrise, .5 = noon.
     this.dayDuration = 360;
-    this.timeScale = 1;
+    this.timeScale = 10;
     this.sunDistance = 200;
     this.sunIntensity = 2;
     this.sunDirection = new THREE.Vector3();
@@ -33,9 +33,11 @@ export class EnvironmentSystem {
     this.hemisphereGroundColor = new THREE.Color(0x1b2534);
     this.nearGrassTint = new THREE.Color(1, 1, 1);
     this.farGrassTint = new THREE.Color(1, 1, 1);
-    // Grass keeps its daytime albedo.  Away from direct sun, use restrained
-    // blue-grey tints so it reads cooler and less saturated rather than blue.
-    this.nightNearGrassTint = new THREE.Color(0.18, 0.23, 0.27);
+    // Grass keeps its daytime albedo. At night, the procedural grass uses a
+    // restrained version of the moonlight's cool blue rather than becoming
+    // neutral grey. Far grass receives a slightly clearer version so the
+    // moonlit colour carries into the distance.
+    this.nightNearGrassTint = new THREE.Color(0.00, 0.00, 0.15);
     this.dayNearGrassTint = new THREE.Color(1, 1, 1);
     this.twilightNearGrassTint = new THREE.Color(0.54, 0.60, 0.61);
     this.sunsetNearGrassTint = new THREE.Color(0.72, 0.62, 0.49);
@@ -113,6 +115,8 @@ export class EnvironmentSystem {
     );
     this.fogColor.copy(this.fogHorizonColor);
     this.nearGrassTint.lerpColors(this.nightNearGrassTint, this.dayNearGrassTint, daylight);
+    // twilight is active at both sunrise and sunset, giving both a soft
+    // orange cast; the sunset-specific pass below remains a little warmer.
     this.nearGrassTint.lerp(this.twilightNearGrassTint, twilight * 0.52);
     this.nearGrassTint.lerp(this.sunsetNearGrassTint, sunset * 0.18);
     this.farGrassTint.lerpColors(this.nightFarGrassTint, this.dayFarGrassTint, daylight);
@@ -135,6 +139,9 @@ export class EnvironmentSystem {
       this.hemisphere.groundColor.copy(this.hemisphereGroundColor);
     }
 
+    this.clouds.setEnvironment({ daylight, sunset, sunDirection: this.sunDirection });
+    this.clouds.update(delta);
+    this.sky.setCloudStarOcclusion(this.clouds.cloudMap, this.clouds.time);
     this.sky.setEnvironment({
       nightAmount: 1 - daylight,
       starVisibility: stars,
@@ -144,7 +151,5 @@ export class EnvironmentSystem {
       moonDirection: this.moonDirection,
       fogColor: this.fogColor
     });
-    this.clouds.setEnvironment({ daylight, sunset, sunDirection: this.sunDirection });
-    this.clouds.update(delta);
   }
 }
