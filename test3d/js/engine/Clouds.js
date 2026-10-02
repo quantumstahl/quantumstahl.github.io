@@ -99,7 +99,7 @@ vec4 cloudSample = texture2D(
           // Soften clouds as they meet the horizon instead of leaving a hard
           // texture edge. Raise the second value for a broader fade band.
           float horizonCloudFade = smoothstep(
-              horizon - 0.043,
+              horizon - 0.046,
               horizon + 0.020,
               uv.y
           );

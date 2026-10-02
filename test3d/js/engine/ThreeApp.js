@@ -11,20 +11,7 @@ export class ThreeApp {
     // A 2x mobile screen costs four times as many fragments. Preserve a sharp
     // enough image while avoiding an unnecessarily expensive full resolution.
     this.targetFPS = 60;
-    this.minRenderScale = 0.5;
-    this.maxRenderScale = 1;
-    this.renderScale = this.maxRenderScale;
-    // Assess sustained performance and leave time for a new render scale to
-    // settle before considering another change.
-    this.dynamicResolution = {
-      elapsed: 0,
-      frames: 0,
-      cooldown: 0,
-      sampleSeconds: 1,
-      cooldownSeconds: 1,
-      step: 0.1
-    };
-    this.renderer.setPixelRatio(this.renderScale);
+    this.renderer.setPixelRatio(1);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.shadowMap.enabled = true;
@@ -58,37 +45,6 @@ export class ThreeApp {
     this.renderer.setSize(safeWidth, safeHeight, false);
     this.camera.aspect = safeWidth / safeHeight; this.camera.updateProjectionMatrix();
   }
-  updateDynamicResolution(rawDelta) {
-    // Ignore a suspended-tab hitch: it should not lower resolution after the
-    // game becomes visible again.
-    if (rawDelta <= 0) return;
-    if (rawDelta > 0.25) {
-      this.dynamicResolution.elapsed = 0;
-      this.dynamicResolution.frames = 0;
-      return;
-    }
-    const controller = this.dynamicResolution;
-    controller.elapsed += rawDelta;
-    controller.frames++;
-    controller.cooldown = Math.max(0, controller.cooldown - rawDelta);
-    if (controller.elapsed < controller.sampleSeconds || controller.cooldown > 0) return;
-
-    const fps = controller.frames / controller.elapsed;
-    controller.elapsed = 0;
-    controller.frames = 0;
-    let nextScale = this.renderScale;
-    // Leave a small dead zone below the target to prevent oscillation.
-    if (fps < this.targetFPS - 2) nextScale = Math.max(this.minRenderScale, this.renderScale - controller.step);
-    else if (fps > this.targetFPS + 3) nextScale = Math.min(this.maxRenderScale, this.renderScale + controller.step);
-    if (nextScale === this.renderScale) return;
-
-    this.renderScale = Number(nextScale.toFixed(2));
-    // WebGLRenderer.setPixelRatio() internally reapplies its current size.
-    // Calling resize() afterwards reallocates the drawing buffer a second
-    // time, which briefly clears the canvas and appears as a screen blink.
-    this.renderer.setPixelRatio(this.renderScale);
-    controller.cooldown = controller.cooldownSeconds;
-  }
   start(update) {
     this.running = true;
     const frame = () => {
@@ -97,7 +53,6 @@ export class ThreeApp {
       // Keep simulation stable after a tab-switch hitch, but report actual
       // frame timing so short stalls are reflected in the FPS readout.
       const delta = Math.min(rawDelta, 1 / 20);
-      this.updateDynamicResolution(rawDelta);
       this.performanceInfo.beginFrame(rawDelta);
       this.performanceInfo.measure("Update", () => update(delta));
       this.performanceInfo.beginGpuTimer("Sky");
