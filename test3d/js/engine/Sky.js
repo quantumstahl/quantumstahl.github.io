@@ -306,8 +306,11 @@ float starLayer(vec3 d, float scale, float threshold) {
 
     float rnd = hash21(cell);
 
-    if (rnd < threshold)
-        return 0.0;
+    // Keep all neighbouring fragments on the same derivative path. Calling
+    // fwidth only for selected cells is undefined when a 2x2 mobile GPU
+    // fragment quad crosses a star-cell boundary, and can produce square
+    // halos around otherwise round stars.
+    float hasStar = step(threshold, rnd);
 
     vec2 offset =
         (hash22(cell + 4.7) - 0.5) * 0.65;
@@ -342,7 +345,7 @@ float starLayer(vec3 d, float scale, float threshold) {
             pow(hash21(cell + 91.7), 3.0)
         );
 
-    return star * brightness;
+    return star * brightness * hasStar;
 }
 
 float cloudStarOcclusion(vec3 d) {
