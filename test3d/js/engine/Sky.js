@@ -347,13 +347,15 @@ float starLayer(vec3 d, float scale, float threshold) {
 
     // Gör aldrig stjärnan mycket mindre än en pixel.
     // Detta stoppar nästan allt temporal flicker.
-    float size = max(
-        randomSize,
-        pixelSize * 0.2
-    );
+   float size = max(
+    randomSize,
+    pixelSize * 0.75
+);
 
-    // AA baseras på pixelstorleken, inte dist.
-    float aa = max(pixelSize * 0.2, 0.002);
+float aa = max(
+    pixelSize * 0.6,
+    0.002
+);
 
     float star =
         1.0 -
