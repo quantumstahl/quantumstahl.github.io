@@ -7,6 +7,9 @@ export class Clouds {
   constructor(scene) {
     this.scene = scene;
     this.time = 0;
+    // This is deliberately much larger than the fog radius. Clouds belong to
+    // the distant sky, not to the small fog bubble surrounding the player.
+    this.horizonRadius = 900;
     this.cloudMap = new THREE.TextureLoader().load("assets/cloud-map.png");
     this.cloudMap.colorSpace = THREE.SRGBColorSpace;
     this.cloudMap.wrapS = THREE.RepeatWrapping;
@@ -22,7 +25,9 @@ export class Clouds {
     const material = new THREE.ShaderMaterial({
       transparent: true,
       depthWrite: false,
-      depthTest: true,
+      // Clouds are a distant sky layer. Do not let terrain beyond the fog
+      // horizon cut into this dome through the depth buffer.
+      depthTest: false,
       side: THREE.BackSide,
       uniforms: {
         uTime: { value: 0 },
@@ -31,6 +36,7 @@ export class Clouds {
         uSunset: { value: 0 },
         uSunDirection: { value: new THREE.Vector3(0, 1, 0) },
         uFogFar: { value: 1000 },
+        uHorizonOffset: { value: 0 },
         uCameraHeight: { value: 1 },
         uDayColor: { value: new THREE.Color(0.96, 0.98, 1.0) },
         uNightColor: { value: new THREE.Color(0.10, 0.15, 0.25) },
@@ -51,13 +57,14 @@ export class Clouds {
         uniform float uSunset;
         uniform vec3 uSunDirection;
         uniform float uFogFar;
+        uniform float uHorizonOffset;
         uniform float uCameraHeight;
         uniform vec3 uSunsetColor;
         uniform sampler2D uCloudMap;
         varying vec3 vDirection;
 
         void main() {
-          vec3 d = normalize(vDirection);
+          vec3 d = normalize(vDirection + vec3(0.0, uHorizonOffset, 0.0));
           vec2 uv = vec2(
             atan(d.z, d.x) * 0.15915494 + 0.5,
             d.y * 0.5 + 0.5
@@ -65,7 +72,7 @@ export class Clouds {
 
           // One filtered texture lookup replaces all individual procedural
           // cloud-bank, puff, and noise calculations.
-          float horizon = 0.502;
+          float horizon = 0.55;
 
 // 2.0 = molnen blir ungefär hälften så breda.
 // Heltal är bra här eftersom X wrappar sömlöst.
@@ -147,10 +154,21 @@ cloudColor *= 1.95;
     mesh.renderOrder = 900;
     mesh.frustumCulled = false;
     mesh.onBeforeRender = (_renderer, _scene, camera) => {
-      mesh.position.copy(camera.position);
+      // A fixed, distant dome prevents the cloud bank from following the
+      // player as a ring at fog distance. Its world-height origin also moves
+      // the clouds down naturally when the camera climbs a hill.
+      mesh.position.set(0, 0, 0);
       const fogFar = this.scene.fog?.far ?? 1000000;
       material.uniforms.uFogFar.value = fogFar;
-      mesh.scale.setScalar(Math.max(1, fogFar * 0.875));
+      // Although the dome is intentionally very large and world-anchored, the
+      // fog horizon is only fogFar units away. Use that nearer distance for
+      // the angular shift so clouds drop with the ground horizon on hills.
+      material.uniforms.uHorizonOffset.value = THREE.MathUtils.clamp(
+        camera.position.y / fogFar,
+        -0.3,
+        0.3
+      );
+      mesh.scale.setScalar(this.horizonRadius);
       material.uniforms.uCameraHeight.value = Math.max(camera.position.y, 0.01);
     };
     return mesh;

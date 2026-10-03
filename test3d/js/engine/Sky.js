@@ -64,6 +64,16 @@ export class Sky {
     uniforms.uCloudTime.value = time ?? 0;
     uniforms.uCloudCoverage.value = cloudMap ? 1 : 0;
   }
+  updateHorizonOffset(camera) {
+    // Raise the celestial texture as camera height falls, and lower it as the
+    // player climbs. The dome itself stays camera-centred for a round horizon.
+    const fogFar = this.scene.fog?.far ?? 70;
+    this.dome.material.uniforms.uHorizonOffset.value = THREE.MathUtils.clamp(
+      camera.position.y / fogFar,
+      -0.3,
+      0.3
+    );
+  }
 
   // The CatAdventure fade shader, fed by a live low-resolution render of this
   // procedural sky. It samples the exact background colour at the fragment's
@@ -75,6 +85,8 @@ resizeBackgroundTarget(width, height) {
     if (this.backgroundTarget.width !== w || this.backgroundTarget.height !== h) this.backgroundTarget.setSize(w, h);
 }
 renderBackground(renderer, camera) {
+
+    this.updateHorizonOffset(camera);
 
     renderer.getDrawingBufferSize(this.captureSize);
 
@@ -88,6 +100,8 @@ renderBackground(renderer, camera) {
     renderer.setRenderTarget(this.backgroundTarget);
     renderer.clear();
 
+    // This is a camera-centred sky bubble, matching the circular fog boundary
+    // around the player instead of projecting a flat world-height horizon.
     this.captureDome.position.copy(camera.position);
 
     renderer.render(
@@ -249,6 +263,7 @@ addBackgroundFadeToMaterial(material, backgroundTexture = this.backgroundTarget.
         uCloudMap: { value: null },
         uCloudTime: { value: 0 },
         uCloudCoverage: { value: 0 },
+        uHorizonOffset: { value: 0 },
         uSunDirection: { value: new THREE.Vector3(-0.45, 0.62, -0.38).normalize() },
         uMoonDirection: { value: new THREE.Vector3(0.42, 0.48, -0.62).normalize() }
     },
@@ -268,6 +283,7 @@ uniform float uMoonVisibility;
 uniform sampler2D uCloudMap;
 uniform float uCloudTime;
 uniform float uCloudCoverage;
+uniform float uHorizonOffset;
 
 uniform vec3 uSunDirection;
 uniform vec3 uMoonDirection;
@@ -378,7 +394,7 @@ float cloudStarOcclusion(vec3 d) {
 
 void main() {
 
-    vec3 d = normalize(vDirection);
+    vec3 d = normalize(vDirection + vec3(0.0, uHorizonOffset, 0.0));
 
     float y = clamp(d.y, -1.0, 1.0);
 
@@ -566,7 +582,10 @@ float sunDisc = smoothstep(
     dome.name = "Shader sky";
     dome.renderOrder = -1000;
     dome.onBeforeRender = (_renderer, _scene, camera) => {
+      // Keep the sky as a bubble around the camera so its horizon wraps around
+      // the player at the fog boundary rather than becoming a flat line.
       dome.position.copy(camera.position);
+      this.updateHorizonOffset(camera);
     };
     return dome;
   }
