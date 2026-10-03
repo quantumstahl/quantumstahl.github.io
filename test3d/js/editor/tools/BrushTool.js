@@ -40,7 +40,7 @@ export class BrushTool {
     this.ndc.set(input.pointer.x / rect.width * 2 - 1, -(input.pointer.y / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(this.ndc, camera);
     const terrain = this.editor.mapLoader.terrain.mesh;
-    const hit = terrain && this.raycaster.intersectObject(terrain, false)[0];
+    const hit = terrain && this.raycaster.intersectObject(terrain, true)[0];
     return hit ? hit.point.clone() : (this.raycaster.ray.intersectPlane(this.ground, this.point) ? this.point.clone() : null);
   }
   makeStampPoints(center) {
@@ -57,7 +57,7 @@ export class BrushTool {
     const terrain = this.editor.mapLoader.terrain.mesh;
     if (!terrain) return new THREE.Vector3(x, fallbackY, z);
     this.heightRaycaster.set(new THREE.Vector3(x, 10000, z), this.down);
-    const hit = this.heightRaycaster.intersectObject(terrain, false)[0];
+    const hit = this.heightRaycaster.intersectObject(terrain, true)[0];
     return new THREE.Vector3(x, hit?.point.y ?? fallbackY, z);
   }
   instanceCount() { return Math.max(1, Math.round(this.radius * this.radius * 1.5)); }

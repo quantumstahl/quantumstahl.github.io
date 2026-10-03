@@ -3,7 +3,7 @@ import * as THREE from "three";
 // Builds only water cells below the configured level, then shades the surface
 // with inexpensive procedural waves. No external normal map is required.
 export class Water {
-  constructor(scene) { this.scene = scene; this.mesh = null; this.material = null; this.sunPosition = new THREE.Vector3(); this.sunTargetPosition = new THREE.Vector3(); }
+  constructor(scene) { this.scene = scene; this.mesh = null; this.material = null; this.sunPosition = new THREE.Vector3(); this.sunTargetPosition = new THREE.Vector3(); this.chunkRoot = null; this.chunkMeshes = new Map(); this.chunkConfig = null; }
   setSunDirection(sun) {
     if (!this.material || !sun?.isDirectionalLight || !sun.target) return false;
     sun.updateWorldMatrix(true, false); sun.target.updateWorldMatrix(true, false);
@@ -522,6 +522,73 @@ createMaterial(config) {
     this.mesh?.removeFromParent(); this.mesh?.geometry.dispose(); this.mesh = null; if (!indices.length) return;
     const geometry = new THREE.BufferGeometry(); geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3)); geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2)); geometry.setIndex(indices);
     this.mesh = new THREE.Mesh(geometry, this.material); this.mesh.name = "Water"; this.mesh.userData.isWater = true; this.scene.add(this.mesh);
+  }
+  beginChunked(config) {
+    this.mesh?.removeFromParent();
+    this.mesh?.geometry.dispose();
+    this.mesh = null;
+    this.chunkConfig = config;
+    if (!this.material) this.material = this.createMaterial(config);
+    this.material.uniforms.uColor.value.set(config.color);
+    this.material.uniforms.uOpacity.value = config.opacity;
+    if (!this.chunkRoot) {
+      this.chunkRoot = new THREE.Group();
+      this.chunkRoot.name = "Streamed water chunks";
+      this.scene.add(this.chunkRoot);
+    }
+  }
+  applyChunk(chunk, terrain) {
+    if (!this.chunkConfig?.enabled || !terrain?.enabled) return;
+    const key = `${chunk.x},${chunk.z}`;
+    this.removeChunk(chunk.x, chunk.z);
+    const resolution = terrain.resolution ?? 50;
+    const width = resolution + 1;
+    const step = (terrain.chunkSize ?? 50) / resolution;
+    const size = terrain.chunkSize ?? 50;
+    const heights = chunk.terrain?.heights ?? [];
+    const vertices = [], uvs = [], indices = [], wet = new Uint8Array(resolution * resolution);
+    for (let z = 0; z < resolution; z++) for (let x = 0; x < resolution; x++) {
+      const index = z * width + x;
+      wet[z * resolution + x] = Math.min(heights[index] ?? 0, heights[index + 1] ?? 0, heights[index + width] ?? 0, heights[index + width + 1] ?? 0) <= this.chunkConfig.level ? 1 : 0;
+    }
+    const vertexIndices = new Map();
+    const getVertex = (x, z) => {
+      const key = z * width + x;
+      if (vertexIndices.has(key)) return vertexIndices.get(key);
+      const index = vertices.length / 3;
+      vertices.push(chunk.x * size + x * step, this.chunkConfig.level, chunk.z * size + z * step);
+      uvs.push(x / resolution, z / resolution);
+      vertexIndices.set(key, index);
+      return index;
+    };
+    for (let z = 0; z < resolution; z++) for (let x = 0; x < resolution; x++) {
+      if (!wet[z * resolution + x]) continue;
+      const a = getVertex(x, z), b = getVertex(x + 1, z), c = getVertex(x + 1, z + 1), d = getVertex(x, z + 1);
+      indices.push(a, b, c, a, c, d);
+    }
+    if (!indices.length) return;
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setIndex(indices);
+    const mesh = new THREE.Mesh(geometry, this.material);
+    mesh.name = `Water ${key}`;
+    mesh.userData.isWater = true;
+    this.chunkRoot.add(mesh);
+    this.chunkMeshes.set(key, mesh);
+  }
+  removeChunk(x, z) {
+    const key = `${x},${z}`;
+    const mesh = this.chunkMeshes.get(key);
+    if (!mesh) return;
+    mesh.removeFromParent();
+    mesh.geometry.dispose();
+    this.chunkMeshes.delete(key);
+  }
+  clearChunks() {
+    for (const mesh of this.chunkMeshes.values()) mesh.geometry.dispose();
+    this.chunkMeshes.clear();
+    this.chunkRoot?.clear();
   }
   update(delta, camera) { if (!this.material) return; this.material.uniforms.uTime.value += delta; if (camera) this.material.uniforms.uCameraPosition.value.copy(camera.position); }
 }

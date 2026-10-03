@@ -157,7 +157,8 @@ cloudColor *= 1.95;
       // A fixed, distant dome prevents the cloud bank from following the
       // player as a ring at fog distance. Its world-height origin also moves
       // the clouds down naturally when the camera climbs a hill.
-      mesh.position.set(0, 0, 0);
+      mesh.position.copy(camera.position);
+      mesh.updateMatrixWorld(true);
       const fogFar = this.scene.fog?.far ?? 1000000;
       material.uniforms.uFogFar.value = fogFar;
       // Although the dome is intentionally very large and world-anchored, the

@@ -61,7 +61,7 @@ export class EnvironmentSystem {
     this.update(0);
   }
 
-  update(delta) {
+  update(delta, camera = null) {
     this.timeOfDay = THREE.MathUtils.euclideanModulo(
       this.timeOfDay + delta * this.timeScale / this.dayDuration,
       1
@@ -107,9 +107,14 @@ export class EnvironmentSystem {
     this.GrassTint.lerpColors(this.savedGrasstint, this.NoGrasstint, daylight);
     this.sunsun=daylight.valueOf();
     if (this.sun) {
-      this.sun.position.copy(this.sunDirection).multiplyScalar(this.sunDistance);
+      // Directional-light shadows are bounded by the shadow camera. Centre
+      // that volume on the player/editor camera so streamed chunks receive
+      // shadows instead of leaving the fixed origin-area cascade.
+      if (camera) this.sun.target.position.set(camera.position.x, 0, camera.position.z);
+      this.sun.position.copy(this.sunDirection).multiplyScalar(this.sunDistance).add(this.sun.target.position);
       this.sun.intensity = this.sunIntensity * daylight;
       this.sun.visible = daylight > 0.001;
+      this.sun.target.updateMatrixWorld();
       this.sun.updateMatrixWorld();
     }
     this.moon.position.copy(this.moonDirection).multiplyScalar(this.sunDistance);

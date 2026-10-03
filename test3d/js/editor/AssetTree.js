@@ -130,13 +130,10 @@ export class AssetTree {
     this.closeContextMenu();
     const menu = document.createElement("div");
     menu.className = "tree-context-menu";
-    const resize = document.createElement("button");
-    resize.textContent = "Change terrain size…";
-    resize.addEventListener("click", () => { this.closeContextMenu(); this.editor.changeTerrainSize(); });
     const water = document.createElement("button");
     water.textContent = "Change water level…";
     water.addEventListener("click", () => { this.closeContextMenu(); this.editor.changeWaterLevel(); });
-    menu.append(resize, water);
+    menu.append(water);
     menu.style.left = `${Math.min(event.clientX, window.innerWidth - 210)}px`;
     menu.style.top = `${Math.min(event.clientY, window.innerHeight - 50)}px`;
     document.body.append(menu); this.contextMenu = menu;

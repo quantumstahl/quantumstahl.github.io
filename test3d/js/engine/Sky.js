@@ -7,6 +7,14 @@ export class Sky {
     this.scene = scene;
     this.defaultBackground = scene.background?.clone?.() ?? new THREE.Color(0x8fb3d9);
     this.mode = "day";
+    this.starMap = new THREE.TextureLoader().load("assets/stars.png");
+    this.starMap.colorSpace = THREE.SRGBColorSpace;
+    this.starMap.wrapS = THREE.RepeatWrapping;
+    this.starMap.wrapT = THREE.RepeatWrapping;
+    this.starMap.minFilter = THREE.LinearMipmapLinearFilter;
+    this.starMap.magFilter = THREE.LinearFilter;
+    this.starMap.generateMipmaps = true;
+    this.starMap.anisotropy = 1;
     this.dome = this.createDome();
     this.scene.add(this.dome);
     this.captureSize = new THREE.Vector2();
@@ -63,6 +71,7 @@ export class Sky {
     uniforms.uCloudMap.value = cloudMap ?? null;
     uniforms.uCloudTime.value = time ?? 0;
     uniforms.uCloudCoverage.value = cloudMap ? 1 : 0;
+    uniforms.uTime.value = time ?? 0;
   }
   updateHorizonOffset(camera) {
     // Raise the celestial texture as camera height falls, and lower it as the
@@ -261,8 +270,10 @@ addBackgroundFadeToMaterial(material, backgroundTexture = this.backgroundTarget.
         uSunVisibility: { value: 1 },
         uMoonVisibility: { value: 0 },
         uCloudMap: { value: null },
+        uStarMap: { value: this.starMap },
         uCloudTime: { value: 0 },
         uCloudCoverage: { value: 0 },
+        uTime: { value: 0 },
         uHorizonOffset: { value: 0 },
         uSunDirection: { value: new THREE.Vector3(-0.45, 0.62, -0.38).normalize() },
         uMoonDirection: { value: new THREE.Vector3(0.42, 0.48, -0.62).normalize() }
@@ -281,8 +292,10 @@ uniform float uStarVisibility;
 uniform float uSunVisibility;
 uniform float uMoonVisibility;
 uniform sampler2D uCloudMap;
+uniform sampler2D uStarMap;
 uniform float uCloudTime;
 uniform float uCloudCoverage;
+uniform float uTime;
 uniform float uHorizonOffset;
 
 uniform vec3 uSunDirection;
@@ -314,7 +327,7 @@ float starLayer(vec3 d, float scale, float threshold) {
     float lat = asin(clamp(d.y, -1.0, 1.0)) / PI + 0.5;
 
     vec2 uv = vec2(lon * 2.0, lat);
-    vec2 p = uv * scale;
+    vec2 p = uv * scale/1.5;
 
     // Screen-space pixel footprint.
     // Viktigt: beräknas från kontinuerliga p, INTE från fract/local/dist.
@@ -376,21 +389,26 @@ float aa = max(
 }
 
 float cloudStarOcclusion(vec3 d) {
-    // This duplicates the Clouds.js UV transform so stars are removed from
-    // the sky before the soft, alpha-blended cloud layer is drawn on top.
-    const float horizon = 0.502;
+    // Keep this transform in lockstep with Clouds.js. The sky is rendered to
+    // the background texture before the cloud mesh, so its stars need the
+    // same alpha mask that will be drawn immediately afterwards.
+    const float horizon = 0.55;
+    const float cloudScaleX = 3.0;
+    const float cloudScaleY = 6.2;
     vec2 uv = vec2(
         atan(d.z, d.x) * 0.15915494 + 0.5,
         d.y * 0.5 + 0.5
     );
-    float cloudY = horizon + (uv.y - horizon) * 6.2;
+    float cloudY = horizon + (uv.y - horizon) * cloudScaleY;
     vec2 mapUv = vec2(
-        fract(uv.x * 3.0 - 0.2028 * uCloudTime * 0.0118),
+        fract(uv.x * cloudScaleX - 0.2028 * uCloudTime * 0.0118),
         clamp(cloudY, 0.0, 1.0)
     );
     float cloud = texture2D(uCloudMap, mapUv).a;
-    
-    return smoothstep(0.003, 0.04, cloud) ;
+    float horizonCloudFade = smoothstep(horizon - 0.046, horizon + 0.020, uv.y);
+    float alpha = cloud * 0.8 * horizonCloudFade;
+
+    return smoothstep(0.003, 0.04, alpha);
 }
 
 
@@ -494,35 +512,31 @@ float sunDisc = smoothstep(
 
     float starMask =
         smoothstep(
-            -0.10,
-            0.10,
+            0.00,
+            0.01,
             y
         );
 
-    float stars = 0.0;
+    vec2 starUv = vec2(
+        atan(d.z, d.x) * 0.15915494 + 0.5,
+        acos(clamp(d.y, -1.0, 1.0)) / PI
+    );
+    // stars.png is a 2:1 equirectangular map; remove its near-black base
+    // before adding the remaining star light to the night gradient.
+    vec2 repeatedStarUv = starUv * 7.0;
 
-    // Många små stjärnor
-    stars +=
-        starLayer(
-            d,
-            900.0,
-            0.900
-        ) * 1.00;
+    vec3 stars = max(texture2D(uStarMap, repeatedStarUv).rgb - vec3(0.012), vec3(0.0));
 
-  
+
 
 
     float cloudMask = cloudStarOcclusion(d) * uCloudCoverage;
-    stars *= starMask * uStarVisibility * (1.0 - cloudMask);
+    stars *= 1.5 * starMask * uStarVisibility * (1.0 - cloudMask);
 
 
-    // Lite färgvariation
-    vec3 starColor =
-        vec3(0.78, 0.87, 1.0);
+ 
 
-    night +=
-        starColor *
-        stars;
+    night +=stars;
 
 
     // ==================================================

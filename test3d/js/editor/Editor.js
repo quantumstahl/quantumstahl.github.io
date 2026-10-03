@@ -43,6 +43,7 @@ export class Editor {
   }
   async load(url) { await this.mapLoader.load(url); this.syncWorldEditorSettings(); this.syncTerrainTexturePicker(); this.tree.render(); }
   async loadWorld(world) { await this.mapLoader.loadData(world); this.syncWorldEditorSettings(); this.syncTerrainTexturePicker(); this.setSelected(null); this.tree.render(); }
+  async loadWorkspace({ world, directoryHandle }) { await this.mapLoader.loadData(world, null, directoryHandle); this.syncWorldEditorSettings(); this.syncTerrainTexturePicker(); this.setSelected(null); this.tree.render(); }
   setSelected(object) {
     this.selected = object;
     this.mapLoader.setSelected(object);
@@ -148,23 +149,6 @@ export class Editor {
     settings.showGrid = !settings.showGrid;
     this.syncWorldEditorSettings(); this.markDirty(); this.tree.render();
     this.setStatus(`Grid ${settings.showGrid ? "shown" : "hidden"}`);
-  }
-  changeTerrainSize() {
-    const terrain = this.mapLoader.world.terrain;
-    const value = window.prompt("Terrain size in metres?", String(terrain.size));
-    if (value === null) return;
-    const size = Number(value);
-    if (!Number.isFinite(size) || size < 10 || size > 5000) {
-      this.setStatus("Terrain size must be between 10 and 5000 metres");
-      return;
-    }
-    this.mapLoader.terrain.resize(terrain, size);
-    // resize() rebuilds the terrain material, so restore the sky/fog fade
-    // patch that was attached to the material during the initial map load.
-    this.mapLoader.sky.addBackgroundFadeToMaterial(this.mapLoader.terrain.mesh?.material);
-    this.mapLoader.refreshWater();
-    this.markDirty(); this.tree.render();
-    this.setStatus(`Terrain resized to ${size}m × ${size}m`);
   }
   changeWaterLevel() {
     const water = this.mapLoader.world.water;

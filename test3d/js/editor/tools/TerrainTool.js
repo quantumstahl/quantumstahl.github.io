@@ -45,7 +45,7 @@ export class TerrainTool {
     const rect = canvas.getBoundingClientRect();
     this.ndc.set(input.pointer.x / rect.width * 2 - 1, -(input.pointer.y / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(this.ndc, camera);
-    return this.raycaster.intersectObject(terrain, false)[0] ?? null;
+    return this.raycaster.intersectObject(terrain, true)[0] ?? null;
   }
   setRadius(value) {
     this.radius = THREE.MathUtils.clamp(value, .25, 50);

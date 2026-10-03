@@ -1,5 +1,34 @@
 const newId = () => globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
 
+export const WORLD_CHUNK_SIZE = 50;
+export const WORLD_CHUNK_RADIUS = 2;
+
+// Version 2 manifests intentionally contain no per-vertex terrain or placed
+// object arrays. Those live in chunks/x_z.json and are fetched on demand.
+export function isChunkedWorld(data) { return data?.version === 2 && Array.isArray(data?.chunks); }
+
+export function createChunkedWorldManifest(data = {}) {
+  return {
+    version: 2,
+    name: data.name ?? "Untitled World",
+    chunkSize: WORLD_CHUNK_SIZE,
+    chunkRadius: WORLD_CHUNK_RADIUS,
+    chunks: Array.isArray(data.chunks) ? data.chunks.map(chunk => ({ x: Number(chunk.x) || 0, z: Number(chunk.z) || 0 })) : [{ x: 0, z: 0 }],
+    editor: { showGrid: data.editor?.showGrid ?? true },
+    sky: data.sky ?? { mode: "day", timeOfDay: 0.25, dayDuration: 360 },
+    terrain: {
+      enabled: data.terrain?.enabled ?? true,
+      resolution: Math.max(2, Math.min(100, Number(data.terrain?.resolution) || 50)),
+      color: data.terrain?.color ?? 0x638450,
+      textures: data.terrain?.textures ?? [],
+      activeTexture: Number(data.terrain?.activeTexture) || 0
+    },
+    water: data.water ?? { enabled: true, level: -0.5, color: 0x3b86c4, opacity: 0.72 },
+    grass: data.grass ?? { enabled: true, density: 2.5 },
+    layers: (data.layers ?? []).map(layer => new MapLayer(layer))
+  };
+}
+
 export class MapObject {
   constructor(data = {}) {
     this.id = data.id ?? newId();
@@ -96,6 +125,7 @@ export class WorldMap {
 }
 
 export function deserializeWorld(data) {
+  if (isChunkedWorld(data)) return createChunkedWorldManifest(data);
   // An empty/missing JSON map should still give the editor a usable tree.
   if (!data || !Array.isArray(data.layers) || data.layers.length === 0) return createDefaultWorld();
   return new WorldMap(data);

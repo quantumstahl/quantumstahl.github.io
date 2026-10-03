@@ -31,7 +31,7 @@ export class MoveTool {
     const rect = canvas.getBoundingClientRect();
     this.ndc.set(input.pointer.x / rect.width * 2 - 1, -(input.pointer.y / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(this.ndc, camera);
-    const terrainHit = this.editor.mapLoader.terrain.mesh && this.raycaster.intersectObject(this.editor.mapLoader.terrain.mesh, false)[0];
+    const terrainHit = this.editor.mapLoader.terrain.mesh && this.raycaster.intersectObject(this.editor.mapLoader.terrain.mesh, true)[0];
     if (terrainHit) this.hitPoint.copy(terrainHit.point);
     else if (!this.raycaster.ray.intersectPlane(this.ground, this.hitPoint)) return false;
     this.box.setFromObject(selected);

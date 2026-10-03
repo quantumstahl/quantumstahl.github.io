@@ -1138,6 +1138,56 @@ createMaterial() {
     this.gridDirty = true;
     this.dirty = true;
 }
+  applyChunked(config, terrain, chunks = []) {
+    // Keep renderer-only point data separate from the manifest. Each chunk
+    // remains the owner of its grass payload and can be discarded on unload.
+    this.chunkedConfig = config;
+    this.config = { ...config, points: [] };
+    this.terrain = terrain;
+    this.setChunkedChunks(chunks);
+    this.root.visible = Boolean(config?.enabled);
+  }
+  setChunkedChunks(chunks = []) {
+    if (!this.chunkedConfig) return;
+    this.config.points = chunks.flatMap(chunk => chunk.grass?.points ?? []);
+    this.farGrassNeedsRebuild = true;
+    this.gridDirty = true;
+    this.dirty = true;
+  }
+  paintChunked(point, radius, getChunkAt, chunks) {
+    if (!this.chunkedConfig?.enabled || radius <= 0) return false;
+    const count = Math.max(3, Math.round(radius * radius * this.chunkedConfig.density));
+    for (let index = 0; index < count; index++) {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = Math.sqrt(Math.random()) * radius;
+      const x = point.x + Math.cos(angle) * distance;
+      const z = point.z + Math.sin(angle) * distance;
+      const chunk = getChunkAt({ x, z });
+      if (!chunk) continue;
+      chunk.grass ??= { points: [] };
+      chunk.grass.points ??= [];
+      chunk.grass.points.push({
+        x, z,
+        y: this.terrain?.getHeightAt({ x, z }) ?? 0,
+        scale: 0.7 + Math.random() * 0.6,
+        height: 0.75 + Math.random() * 0.35,
+        rotation: Math.random() * Math.PI * 2
+      });
+    }
+    this.setChunkedChunks(chunks);
+    return true;
+  }
+  eraseChunked(point, radius, chunks) {
+    const radiusSq = radius ** 2;
+    let changed = false;
+    for (const chunk of chunks) {
+      const points = chunk.grass?.points ?? [];
+      const kept = points.filter(blade => (blade.x - point.x) ** 2 + (blade.z - point.z) ** 2 > radiusSq);
+      if (kept.length !== points.length) { chunk.grass.points = kept; changed = true; }
+    }
+    if (changed) this.setChunkedChunks(chunks);
+    return changed;
+  }
   setSunDirection(sun) {
     if (!sun?.isDirectionalLight || !sun.target) return false;
     sun.updateWorldMatrix(true, false); sun.target.updateWorldMatrix(true, false); sun.getWorldPosition(this.sunPosition); sun.target.getWorldPosition(this.sunTargetPosition);

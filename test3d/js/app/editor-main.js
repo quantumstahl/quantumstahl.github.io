@@ -29,13 +29,14 @@ editor.mapLoader.groundMist.mistOpacity=0.1;
 
 
 document.querySelector("#openButton").addEventListener("click", async () => {
-  try { await editor.loadWorld(await editor.files.open()); editor.setStatus("Map opened"); } catch (error) { if (error.name !== "AbortError") console.error(error); }
+  try { await editor.loadWorkspace(await editor.files.openWorkspace()); editor.setStatus("Chunked map workspace opened"); } catch (error) { if (error.name !== "AbortError") console.error(error); }
 });
 document.querySelector("#saveButton").addEventListener("click", async () => {
-  try { const bytes = await editor.files.saveAs(editor.mapLoader.world); editor.dirty = false; editor.setStatus(`Saved ${bytes} bytes`); } catch (error) {
+  try { const bytes = editor.mapLoader.chunkStore ? await editor.files.saveWorkspace(editor.mapLoader.world, editor.mapLoader.chunkStore) : await editor.files.saveAs(editor.mapLoader.world); editor.dirty = false; editor.setStatus(`Saved ${bytes} bytes`); } catch (error) {
     if (error.name === "AbortError") return;
     console.error(error);
-    try { const bytes = editor.files.download(editor.mapLoader.world); editor.setStatus(`File save failed; downloaded ${bytes} bytes instead`); } catch (downloadError) { editor.setStatus(`Save failed: ${downloadError.message}`); }
+     if (editor.mapLoader.chunkStore) editor.setStatus(`Save failed: ${error.message}`);
+     else try { const bytes = editor.files.download(editor.mapLoader.world); editor.setStatus(`File save failed; downloaded ${bytes} bytes instead`); } catch (downloadError) { editor.setStatus(`Save failed: ${downloadError.message}`); }
   }
 });
 document.querySelector("#selectToolButton").addEventListener("click", () => editor.setTool("select"));
