@@ -159,6 +159,9 @@ export class Editor {
       return;
     }
     this.mapLoader.terrain.resize(terrain, size);
+    // resize() rebuilds the terrain material, so restore the sky/fog fade
+    // patch that was attached to the material during the initial map load.
+    this.mapLoader.sky.addBackgroundFadeToMaterial(this.mapLoader.terrain.mesh?.material);
     this.mapLoader.refreshWater();
     this.markDirty(); this.tree.render();
     this.setStatus(`Terrain resized to ${size}m × ${size}m`);

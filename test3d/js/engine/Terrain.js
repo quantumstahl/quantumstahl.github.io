@@ -1,6 +1,9 @@
 import * as THREE from "three";
 
 const MAX_TEXTURE_LAYERS = 8;
+// Preserve the editor's original ~1m terrain grid when maps are enlarged.
+// A 200m, 192-segment map can therefore grow to 2,000m at 1,920 segments.
+const MAX_TERRAIN_SEGMENTS = 2048;
 
 export class Terrain {
   constructor(scene) { this.scene = scene; this.mesh = null; this.signature = ""; this.textureLoader = new THREE.TextureLoader(); this.textures = new Map(); this.placeholderTexture = new THREE.Texture(); }
@@ -46,6 +49,62 @@ export class Terrain {
   sculpt(config, point, radius, amount, mode, flattenHeight = 0) { if (!this.mesh || radius <= 0) return false; const positions = this.mesh.geometry.getAttribute("position"), heights = config.heights, width = config.segments + 1, before = mode === "smooth" ? heights.slice() : null; let changed = false; for (let i = 0; i < positions.count; i++) { const distance = Math.hypot(positions.getX(i) - point.x, positions.getZ(i) - point.z); if (distance > radius) continue; const weight = (1 - distance / radius) ** 2; if (mode === "smooth") { const x = i % width, z = Math.floor(i / width); let total = before[i], count = 1; for (const n of [x > 0 ? i - 1 : -1, x < width - 1 ? i + 1 : -1, z > 0 ? i - width : -1, z < width - 1 ? i + width : -1]) if (n >= 0) { total += before[n]; count++; } heights[i] += (total / count - heights[i]) * Math.min(1, amount * 3) * weight; } else if (mode === "flatten") heights[i] += (flattenHeight - heights[i]) * Math.min(1, amount * 3) * weight; else heights[i] += amount * weight; changed = true; } if (changed) this.updateHeights(config); return changed; }
   paint(config, point, radius, colorHex, strength) { if (!this.mesh || radius <= 0) return false; const positions = this.mesh.geometry.getAttribute("position"), from = new THREE.Color(), target = new THREE.Color(colorHex); let changed = false; for (let i = 0; i < positions.count; i++) { const d = Math.hypot(positions.getX(i) - point.x, positions.getZ(i) - point.z); if (d > radius) continue; from.setHex(config.colors[i] ?? config.color).lerp(target, Math.min(1, strength * (1 - d / radius) ** 2)); config.colors[i] = from.getHex(); changed = true; } if (changed) this.updateColors(config); return changed; }
   paintTexture(config, point, radius, strength) { const active = config.activeTexture ?? 0, layers = config.textures ?? []; if (!this.mesh || radius <= 0 || !layers[active]?.src) return false; const positions = this.mesh.geometry.getAttribute("position"); let changed = false; for (let i = 0; i < positions.count; i++) { const d = Math.hypot(positions.getX(i) - point.x, positions.getZ(i) - point.z); if (d > radius) continue; const add = Math.min(1, strength * (1 - d / radius) ** 2), current = layers[active].mask[i] ?? 0, next = Math.min(1, current + add), reduction = Math.max(0, 1 - next) / Math.max(.0001, 1 - current); for (let layer = 0; layer < layers.length; layer++) if (layer !== active) layers[layer].mask[i] = (layers[layer].mask[i] ?? 0) * reduction; layers[active].mask[i] = next; changed = true; } if (changed) this.updateTextureMasks(config); return changed; }
-  resize(config, newSize) { const oldSize = config.size, segments = config.segments, newSegments = THREE.MathUtils.clamp(Math.round(segments * newSize / oldSize), 8, 512), width = segments + 1, newWidth = newSegments + 1, oldHeights = config.heights.slice(), oldColors = config.colors.slice(), oldMasks = config.textures.map(layer => layer.mask.slice()); const sample = (values, x, z, fallback = 0) => { if (x < 0 || z < 0 || x > segments || z > segments) return fallback; return values[Math.round(z) * width + Math.round(x)] ?? fallback; }; const remap = (values, fallback) => Array.from({ length: newWidth * newWidth }, (_, i) => { const x = i % newWidth, z = Math.floor(i / newWidth), wx = (x / newSegments - .5) * newSize, wz = (z / newSegments - .5) * newSize; return sample(values, (wx / oldSize + .5) * segments, (wz / oldSize + .5) * segments, fallback); }); config.heights = remap(oldHeights, 0); config.colors = remap(oldColors, config.color); config.textures.forEach((layer, i) => { layer.mask = remap(oldMasks[i], 0); }); config.size = newSize; config.segments = newSegments; this.signature = ""; this.apply(config); }
+  resize(config, newSize) {
+    const oldSize = config.size;
+    const sizeRatio = newSize / oldSize;
+    const segments = config.segments;
+    const newSegments = THREE.MathUtils.clamp(
+      Math.round(segments * sizeRatio),
+      8,
+      MAX_TERRAIN_SEGMENTS
+    );
+    const width = segments + 1;
+    const newWidth = newSegments + 1;
+    const oldHeights = config.heights.slice();
+    const oldColors = config.colors.slice();
+    const oldMasks = config.textures.map(layer => layer.mask.slice());
+
+    // Bilinear sampling preserves sculpted slopes and painted masks when the
+    // terrain grid is rebuilt at a new resolution.
+    const sample = (values, x, z, fallback = 0) => {
+      if (x < 0 || z < 0 || x > segments || z > segments) return fallback;
+      const x0 = Math.floor(x), z0 = Math.floor(z);
+      const x1 = Math.min(segments, x0 + 1), z1 = Math.min(segments, z0 + 1);
+      const tx = x - x0, tz = z - z0;
+      const valueAt = (column, row) => values[row * width + column] ?? fallback;
+      return THREE.MathUtils.lerp(
+        THREE.MathUtils.lerp(valueAt(x0, z0), valueAt(x1, z0), tx),
+        THREE.MathUtils.lerp(valueAt(x0, z1), valueAt(x1, z1), tx),
+        tz
+      );
+    };
+    const remap = (values, fallback) => Array.from({ length: newWidth * newWidth }, (_, i) => {
+      const x = i % newWidth, z = Math.floor(i / newWidth);
+      // Keep the existing landscape at its current world size in the centre.
+      // Positions outside the former bounds become new, flat map area rather
+      // than stretching every hill and painted texture across the larger map.
+      const wx = (x / newSegments - .5) * newSize;
+      const wz = (z / newSegments - .5) * newSize;
+      return sample(
+        values,
+        (wx / oldSize + .5) * segments,
+        (wz / oldSize + .5) * segments,
+        fallback
+      );
+    });
+
+    config.heights = remap(oldHeights, 0);
+    config.colors = remap(oldColors, config.color);
+    config.textures.forEach((layer, i) => {
+      layer.mask = remap(oldMasks[i], 0);
+      // Layer scale is repeats across the terrain. Increase it with world
+      // size so a grass/rock tile stays the same number of metres wide.
+      layer.scale = Math.max(0.01, (Number(layer.scale) || 16) * sizeRatio);
+    });
+    config.size = newSize;
+    config.segments = newSegments;
+    this.signature = "";
+    this.apply(config);
+  }
   getHeightAt(point) { const config = this.config; if (!config) return 0; const width = config.segments + 1, gridX = THREE.MathUtils.clamp((point.x / config.size + .5) * config.segments, 0, config.segments), gridZ = THREE.MathUtils.clamp((point.z / config.size + .5) * config.segments, 0, config.segments), x0 = Math.floor(gridX), z0 = Math.floor(gridZ), x1 = Math.min(config.segments, x0 + 1), z1 = Math.min(config.segments, z0 + 1), tx = gridX - x0, tz = gridZ - z0, h00 = config.heights[z0 * width + x0] ?? 0, h10 = config.heights[z0 * width + x1] ?? 0, h01 = config.heights[z1 * width + x0] ?? 0, h11 = config.heights[z1 * width + x1] ?? 0; return THREE.MathUtils.lerp(THREE.MathUtils.lerp(h00, h10, tx), THREE.MathUtils.lerp(h01, h11, tx), tz); }
 }
