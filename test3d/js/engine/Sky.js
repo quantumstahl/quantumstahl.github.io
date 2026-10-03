@@ -340,8 +340,8 @@ float starLayer(vec3 d, float scale, float threshold) {
 
     float randomSize =
         mix(
-            0.3,
-            0.301,
+            0.2,
+            0.201,
             pow(hash21(cell + 23.1), 8.0)
         );
 
