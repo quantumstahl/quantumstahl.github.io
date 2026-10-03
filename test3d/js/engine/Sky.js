@@ -316,17 +316,14 @@ float starLayer(vec3 d, float scale, float threshold) {
     vec2 uv = vec2(lon * 2.0, lat);
     vec2 p = uv * scale;
 
-    // Screen-space pixel footprint.
-    // Viktigt: beräknas från kontinuerliga p, INTE från fract/local/dist.
     float pixelSize = max(
         length(dFdx(p)),
         length(dFdy(p))
     );
 
-    // Skyddar även mot enorma derivatives vid atan-seamen.
-    pixelSize = clamp(pixelSize, 0.0015, 0.035);
+    pixelSize = clamp(pixelSize, 0.0015, 1.0);
 
-    vec2 cell  = floor(p);
+    vec2 cell = floor(p);
     vec2 local = fract(p) - 0.5;
 
     float rnd = hash21(cell);
@@ -336,39 +333,32 @@ float starLayer(vec3 d, float scale, float threshold) {
         (hash22(cell + 4.7) - 0.5) * 0.65;
 
     vec2 delta = local - offset;
-    float dist = length(delta);
 
-    float randomSize =
+    float dist2 = dot(delta, delta);
+
+    // Actual desired star radius.
+    float baseSize =
         mix(
-            0.2,
-            0.201,
-            pow(hash21(cell + 23.1), 8.0)
+            0.12,
+            0.22,
+            pow(hash21(cell + 23.1), 5.0)
         );
 
-    // Gör aldrig stjärnan mycket mindre än en pixel.
-    // Detta stoppar nästan allt temporal flicker.
-   float size = max(
-    randomSize,
-    pixelSize * 0.75
-);
+    // Important:
+    // don't let the star become much smaller than a screen pixel.
+    float size = max(
+        baseSize,
+        pixelSize * 0.65
+    );
 
-float aa = max(
-    pixelSize * 0.6,
-    0.002
-);
-
+    // Gaussian falloff is much less prone to popping than a tiny hard disc.
     float star =
-        1.0 -
-        smoothstep(
-            size,
-            size + aa * 1.5,
-            dist
-        );
+        exp(-dist2 / max(size * size * 0.35, 0.00001));
 
     float brightness =
         mix(
-            1.0,
-            5.5,
+            0.35,
+            1.5,
             pow(hash21(cell + 91.7), 3.0)
         );
 
