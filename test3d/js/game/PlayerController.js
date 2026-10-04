@@ -5,8 +5,8 @@ import * as THREE from "three";
 export class PlayerController {
   constructor({ mapLoader, input, camera, joystick = null }) {
     this.mapLoader = mapLoader; this.input = input; this.camera = camera; this.joystick = joystick; this.player = null;
-    this.speed = 4.2; this.cameraYaw = Math.PI; this.cameraDistance = 6; this.cameraHeight = 3; this.groundOffset = 0; this.targetPlayerHeight = 0;
-    this.cameraForward = new THREE.Vector3(); this.cameraRight = new THREE.Vector3(); this.move = new THREE.Vector3(); this.cameraTarget = new THREE.Vector3(); this.desiredCameraTarget = new THREE.Vector3(); this.cameraPosition = new THREE.Vector3();
+    this.speed = 14.2; this.cameraYaw = Math.PI; this.cameraDistance = 6; this.cameraHeight = 3; this.groundOffset = 0; this.targetPlayerHeight = 0;
+     this.cameraForward = new THREE.Vector3(); this.cameraRight = new THREE.Vector3(); this.move = new THREE.Vector3(); this.previousPosition = new THREE.Vector3(); this.cameraTarget = new THREE.Vector3(); this.desiredCameraTarget = new THREE.Vector3(); this.cameraPosition = new THREE.Vector3();
   }
   attach() {
     this.player = this.mapLoader.objects.find(object => {
@@ -14,6 +14,9 @@ export class PlayerController {
       return String(type?.id ?? "").toLowerCase() === "cat" || String(type?.name ?? "").toLowerCase() === "cat";
     }) ?? null;
     if (!this.player) return false;
+    // The cat is authored in a streamed map chunk, but becomes a persistent
+    // runtime player once control begins. Its source chunk may unload later.
+    this.mapLoader.playerObject = this.player;
     this.groundOffset = this.player.position.y - this.mapLoader.terrain.getHeightAt(this.player.position);
     this.targetPlayerHeight = this.player.position.y;
     this.cameraYaw = this.player.rotation.y;
@@ -34,7 +37,9 @@ export class PlayerController {
       this.camera.getWorldDirection(this.cameraForward); this.cameraForward.y = 0; this.cameraForward.normalize();
       this.cameraRight.crossVectors(this.cameraForward, THREE.Object3D.DEFAULT_UP).normalize();
       this.move.copy(this.cameraRight).multiplyScalar(x).addScaledVector(this.cameraForward, z).normalize();
+      this.previousPosition.copy(this.player.position);
       this.player.position.addScaledVector(this.move, this.speed * Math.min(1, Math.hypot(x, z)) * delta);
+      this.mapLoader.constrainToGameplayChunks(this.player.position, this.previousPosition);
       const targetHeading = Math.atan2(-this.move.x, -this.move.z);
       this.player.rotation.y = this.lerpAngle(this.player.rotation.y, targetHeading, 1 - Math.exp(-11 * delta));
     }

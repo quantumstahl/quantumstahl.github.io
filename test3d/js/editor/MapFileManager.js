@@ -39,6 +39,7 @@ export class MapFileManager {
     // Persist loaded chunks first. The manifest only lists their coordinates,
     // so a completed manifest write can never point at an unfinished chunk.
     for (const chunk of chunkStore.cache.values()) await chunkStore.save(chunk);
+    this.calculateDecorativeChunks(world);
     const manifestHandle = await chunkStore.directoryHandle.getFileHandle("world.json", { create: true });
     const json = this.serialize(world);
     const writable = await manifestHandle.createWritable();
@@ -82,7 +83,7 @@ export class MapFileManager {
     // them into world.json, or the manifest would grow with the whole map.
     const source = world.version === 2 ? {
       ...world,
-      chunks: world.chunks.map(chunk => ({ x: chunk.x, z: chunk.z })),
+      chunks: world.chunks.map(chunk => ({ x: chunk.x, z: chunk.z, decorative: Boolean(chunk.decorative) })),
       layers: world.layers.map(layer => ({
         ...layer,
         assetTypes: layer.assetTypes.map(({ instances, ...type }) => type)
@@ -92,6 +93,15 @@ export class MapFileManager {
     if (!json || !json.trim() || json === "undefined") throw new Error("Refusing to save an empty map payload.");
     JSON.parse(json);
     return json;
+  }
+  calculateDecorativeChunks(world) {
+    if (world.version !== 2 || !world.chunks?.length) return;
+    const keys = new Set(world.chunks.map(chunk => `${chunk.x},${chunk.z}`));
+    for (const chunk of world.chunks) {
+      chunk.decorative = ![-1, 0, 1].every(dz => [-1, 0, 1].every(dx =>
+        (dx === 0 && dz === 0) || keys.has(`${chunk.x + dx},${chunk.z + dz}`)
+      ));
+    }
   }
   autosave(world) { localStorage.setItem(this.storageKey, this.serialize(world)); }
   loadAutosave() { const data = localStorage.getItem(this.storageKey); return data ? deserializeWorld(JSON.parse(data)) : null; }

@@ -13,8 +13,10 @@ export function createChunkedWorldManifest(data = {}) {
     name: data.name ?? "Untitled World",
     chunkSize: WORLD_CHUNK_SIZE,
     chunkRadius: WORLD_CHUNK_RADIUS,
-    chunks: Array.isArray(data.chunks) ? data.chunks.map(chunk => ({ x: Number(chunk.x) || 0, z: Number(chunk.z) || 0 })) : [{ x: 0, z: 0 }],
-    editor: { showGrid: data.editor?.showGrid ?? true },
+    chunks: Array.isArray(data.chunks) && data.chunks.length
+      ? data.chunks.map(chunk => ({ x: Number(chunk.x) || 0, z: Number(chunk.z) || 0, decorative: Boolean(chunk.decorative) }))
+      : [{ x: 0, z: 0, decorative: true }],
+    editor: { showGrid: data.editor?.showGrid ?? true, autoCreateChunks: data.editor?.autoCreateChunks ?? true },
     sky: data.sky ?? { mode: "day", timeOfDay: 0.25, dayDuration: 360 },
     terrain: {
       enabled: data.terrain?.enabled ?? true,
@@ -68,7 +70,7 @@ export class WorldMap {
   constructor(data = {}) {
     this.version = 1;
     this.name = data.name ?? "Untitled World";
-    this.editor = { showGrid: data.editor?.showGrid ?? true };
+    this.editor = { showGrid: data.editor?.showGrid ?? true, autoCreateChunks: data.editor?.autoCreateChunks ?? true };
     const savedTimeOfDay = Number(data.sky?.timeOfDay);
     const savedDayDuration = Number(data.sky?.dayDuration);
     this.sky = {

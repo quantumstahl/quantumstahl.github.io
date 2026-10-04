@@ -1,12 +1,13 @@
 // Streams map objects in fixed-size world cells. Map data remains in the
 // WorldMap, while only the nearby object instances exist in the scene.
 export class ChunkSystem {
-  constructor({ chunkSize = 50, radius = 2, loadChunk, unloadChunk, onChanged }) {
+  constructor({ chunkSize = 50, radius = 2, loadChunk, unloadChunk, onChanged, shouldLoad = () => true }) {
     this.chunkSize = chunkSize;
     this.radius = radius;
     this.loadChunk = loadChunk;
     this.unloadChunk = unloadChunk;
     this.onChanged = onChanged;
+    this.shouldLoad = shouldLoad;
     this.entries = new Map();
     this.active = new Map();
     this.loading = new Map();
@@ -47,7 +48,10 @@ export class ChunkSystem {
   async setCenter(x, z) {
     const wanted = new Set();
     for (let chunkZ = z - this.radius; chunkZ <= z + this.radius; chunkZ++) {
-      for (let chunkX = x - this.radius; chunkX <= x + this.radius; chunkX++) wanted.add(this.key(chunkX, chunkZ));
+      for (let chunkX = x - this.radius; chunkX <= x + this.radius; chunkX++) {
+        const key = this.key(chunkX, chunkZ);
+        if (this.shouldLoad(key)) wanted.add(key);
+      }
     }
 
     let changed = false;
@@ -91,6 +95,11 @@ export class ChunkSystem {
     const z = Math.floor((camera?.position.z ?? 0) / this.chunkSize);
     this.currentKey = this.key(x, z);
     await this.setCenter(x, z);
+  }
+
+  refresh(camera) {
+    this.currentKey = null;
+    this.update(camera);
   }
 
   clear() {

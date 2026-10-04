@@ -33,8 +33,8 @@ export class AssetTree {
       event.preventDefault(); event.stopPropagation(); this.openSkyMenu(event);
     });
     this.panel.append(sky);
-    const terrain = this.row(`▸ Terrain (${world.terrain.size}m)`, "tree-terrain");
-    terrain.title = "Click for terrain info; right-click to change size";
+    const terrain = this.row("▸ Terrain", "tree-terrain");
+    terrain.title = "Click for terrain info; right-click for terrain options";
     terrain.addEventListener("click", () => this.editor.inspectTerrain());
     terrain.addEventListener("contextmenu", event => {
       event.preventDefault(); event.stopPropagation(); this.openTerrainMenu(event);
@@ -145,7 +145,16 @@ export class AssetTree {
     const grid = document.createElement("button");
     grid.textContent = world.editor.showGrid ? "Hide grid" : "Show grid";
     grid.addEventListener("click", () => { this.closeContextMenu(); this.editor.toggleGrid(); });
-    menu.append(grid);
+    const chunks = document.createElement("button");
+    chunks.textContent = world.editor.autoCreateChunks ? "Disable automatic chunks" : "Enable automatic chunks";
+    chunks.addEventListener("click", () => { this.closeContextMenu(); this.editor.toggleAutoCreateChunks(); });
+    const origin = document.createElement("button");
+    origin.textContent = "Teleport to origin";
+    origin.addEventListener("click", () => { this.closeContextMenu(); this.editor.teleportToOrigin(); });
+    const trim = document.createElement("button");
+    trim.textContent = "Trim empty chunks";
+    trim.addEventListener("click", () => { this.closeContextMenu(); this.editor.trimEmptyChunks().catch(error => console.error("Could not trim chunks", error)); });
+    menu.append(grid, chunks, origin, trim);
     menu.style.left = `${Math.min(event.clientX, window.innerWidth - 210)}px`;
     menu.style.top = `${Math.min(event.clientY, window.innerHeight - 50)}px`;
     document.body.append(menu); this.contextMenu = menu;

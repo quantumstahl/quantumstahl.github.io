@@ -29,8 +29,12 @@ export class WorldChunkStore {
   async load(x, z) {
     const key = WorldChunkStore.key(x, z);
     if (this.cache.has(key)) return this.cache.get(key);
-    if (!this.has(x, z)) {
+    // No manifest URL means MapLoader created an in-memory blank fallback
+    // after a missing/empty map. There is no chunk file to fetch in that
+    // case; start with an editable in-memory tile instead.
+    if (!this.has(x, z) || !this.manifestUrl) {
       const chunk = this.createEmptyChunk(x, z);
+      chunk._isNew = true;
       this.cache.set(key, chunk);
       return chunk;
     }
@@ -52,17 +56,32 @@ export class WorldChunkStore {
 
   async save(chunk) {
     if (!this.directoryHandle) throw new Error("Saving chunks requires a map workspace directory.");
+    // Preloaded empty tiles are runtime look-ahead only. Do not turn them
+    // into map territory unless an edit or placed object marked them dirty.
+    if (!this.has(chunk.x, chunk.z) && !chunk._dirty) return;
     const chunks = await this.directoryHandle.getDirectoryHandle("chunks", { create: true });
     const handle = await chunks.getFileHandle(WorldChunkStore.fileName(chunk.x, chunk.z), { create: true });
     // The editor keeps a non-serializable back-reference from an object data
     // record to its containing chunk. Chunk JSON must contain data only.
-    const json = JSON.stringify(chunk, (key, value) => key === "_chunkRecord" ? undefined : value, 2);
+    const json = JSON.stringify(chunk, (key, value) => key === "_chunkRecord" || key.startsWith("_") ? undefined : value, 2);
     const writable = await handle.createWritable();
     await writable.write(json);
     await writable.close();
     const key = WorldChunkStore.key(chunk.x, chunk.z);
     this.cache.set(key, chunk);
     if (!this.has(chunk.x, chunk.z)) this.manifest.chunks.push({ x: chunk.x, z: chunk.z });
+    chunk._dirty = false;
+  }
+
+  markDirty(chunk) { if (chunk) chunk._dirty = true; }
+
+  async remove(x, z) {
+    this.cache.delete(WorldChunkStore.key(x, z));
+    if (!this.directoryHandle) return;
+    const chunks = await this.directoryHandle.getDirectoryHandle("chunks", { create: true });
+    try { await chunks.removeEntry(WorldChunkStore.fileName(x, z)); } catch (error) {
+      if (error.name !== "NotFoundError") throw error;
+    }
   }
 
   release(x, z) { this.cache.delete(WorldChunkStore.key(x, z)); }

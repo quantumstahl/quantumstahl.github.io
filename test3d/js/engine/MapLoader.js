@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { createDefaultWorld, deserializeWorld, isChunkedWorld } from "./MapSchema.js";
+import { createDefaultWorld, createChunkedWorldManifest, deserializeWorld, isChunkedWorld } from "./MapSchema.js";
 import { RenderBatcher } from "./RenderBatcher.js";
 import { Terrain } from "./Terrain.js";
 import { Water } from "./Water.js";
@@ -42,6 +42,7 @@ export class MapLoader {
       radius: 2,
       loadChunk: (entries, key) => this.loadChunk(entries, key),
       unloadChunk: objects => this.unloadChunk(objects),
+      shouldLoad: key => this.shouldLoadChunk(key),
       onChanged: () => {
         this.refreshBatches();
         this.refreshFakeShadows();
@@ -62,8 +63,39 @@ export class MapLoader {
   }
 
   async loadData(data, manifestUrl = null, directoryHandle = null) {
-    this.chunkStore = isChunkedWorld(data) ? new WorldChunkStore({ manifest: data, manifestUrl, directoryHandle }) : null;
-    this.world = deserializeWorld(data);
+    if (isChunkedWorld(data)) {
+      this.world = deserializeWorld(data);
+      this.chunkStore = new WorldChunkStore({ manifest: this.world, manifestUrl, directoryHandle });
+    } else {
+      // The editor no longer saves the monolithic format. A legacy world is
+      // promoted once in memory; its placed objects are assigned to their
+      // 50 m chunks and the next Save writes the native v2 workspace.
+      const legacy = deserializeWorld(data);
+      this.world = createChunkedWorldManifest({
+        name: legacy.name,
+        editor: legacy.editor,
+        sky: legacy.sky,
+        terrain: { enabled: legacy.terrain.enabled, color: legacy.terrain.color, textures: legacy.terrain.textures, activeTexture: legacy.terrain.activeTexture },
+        water: legacy.water,
+        grass: { enabled: legacy.grass.enabled, density: legacy.grass.density },
+        layers: legacy.layers.map(layer => ({ ...layer, assetTypes: layer.assetTypes.map(({ instances, ...type }) => type) })),
+        chunks: []
+      });
+      this.chunkStore = new WorldChunkStore({ manifest: this.world, manifestUrl, directoryHandle });
+      for (const layer of legacy.layers) for (const type of layer.assetTypes) for (const instance of type.instances) {
+        const x = Math.floor(instance.position.x / this.world.chunkSize);
+        const z = Math.floor(instance.position.z / this.world.chunkSize);
+        const key = WorldChunkStore.key(x, z);
+        let chunk = this.chunkStore.cache.get(key);
+        if (!chunk) {
+          chunk = this.chunkStore.createEmptyChunk(x, z);
+          this.chunkStore.cache.set(key, chunk);
+          this.world.chunks.push({ x, z });
+        }
+        chunk.objects.push({ layerId: layer.id, typeId: type.id, chunkX: x, chunkZ: z, data: instance });
+        this.chunkStore.markDirty(chunk);
+      }
+    }
     await this.rebuild();
     return this.world;
   }
@@ -117,6 +149,10 @@ export class MapLoader {
     if (this.chunkStore) {
       const [x, z] = key.split(",").map(Number);
       const chunk = await this.chunkStore.load(x, z);
+      const decoration = this.getChunkDecoration(x, z);
+      chunk._decorative = decoration.decorative;
+      chunk._decorativeEdges = decoration.edges;
+      chunk._decorativeCorners = decoration.corners;
       objects.terrainChunk = chunk;
       this.streamedTerrain.loadChunk(chunk);
       this.water.applyChunk(chunk, this.world.terrain);
@@ -126,6 +162,9 @@ export class MapLoader {
         const layer = this.world.layers.find(item => item.id === record.layerId);
         const type = layer?.assetTypes.find(item => item.id === record.typeId);
         if (!layer || !type || !record.data) continue;
+        // The controlled cat remains in the scene after its source chunk
+        // streams out, so do not create another instance when it streams in.
+        if (this.playerObject?.userData.mapObject === record.data) continue;
         record.chunkX ??= x;
         record.chunkZ ??= z;
         record.data._chunkRecord = record;
@@ -146,6 +185,9 @@ export class MapLoader {
     if (objects.waterChunk) this.water.removeChunk(objects.waterChunk.x, objects.waterChunk.z);
     if (objects.terrainChunk) this.refreshChunkedGrass();
     for (const object of objects) {
+      // Do not unload the player with its authored spawn chunk. It is moved
+      // independently by PlayerController and must survive world streaming.
+      if (object === this.playerObject) continue;
       this.batcher.remove(object);
       object.removeFromParent();
       const index = this.objects.indexOf(object);
@@ -170,6 +212,7 @@ export class MapLoader {
       const chunk = await this.chunkStore.load(x, z);
       const record = { layerId: layer.id, typeId: type.id, chunkX: x, chunkZ: z, data };
       chunk.objects.push(record);
+      this.chunkStore.markDirty(chunk);
       data._chunkRecord = record;
     }
     return object;
@@ -251,6 +294,8 @@ export class MapLoader {
     if (source) source.objects = source.objects.filter(item => item !== record);
     const target = await this.chunkStore.load(x, z);
     target.objects.push(record);
+    this.chunkStore.markDirty(source);
+    this.chunkStore.markDirty(target);
     record.chunkX = x;
     record.chunkZ = z;
   }
@@ -283,6 +328,7 @@ export class MapLoader {
     if (record && this.chunkStore) {
       const chunk = this.chunkStore.cache.get(WorldChunkStore.key(record.chunkX, record.chunkZ));
       if (chunk) chunk.objects = chunk.objects.filter(item => item !== record);
+      this.chunkStore.markDirty(chunk);
     }
     if (this.selectedObject === object) this.selectedObject = null;
     this.refreshFakeShadows();
@@ -310,29 +356,201 @@ export class MapLoader {
       ? this.terrain.sculpt(point, radius, amount, mode, flattenHeight)
       : this.terrain.sculpt(this.world.terrain, point, radius, amount, mode, flattenHeight);
     if (changed) {
+      this.markActiveChunksDirty();
       if (this.chunkStore) for (const { chunk } of this.streamedTerrain.tiles.values()) this.water.applyChunk(chunk, this.world.terrain);
       else this.water.apply(this.world.water, this.world.terrain);
     }
     return changed;
   }
   paintTerrain(point, radius, color, strength) {
-    return this.chunkStore
+    const changed = this.chunkStore
       ? this.terrain.paint(point, radius, color, strength)
       : this.terrain.paint(this.world.terrain, point, radius, color, strength);
+    if (changed) this.markActiveChunksDirty();
+    return changed;
   }
   paintTerrainTexture(point, radius, strength) {
-    return this.chunkStore
+    const changed = this.chunkStore
       ? this.terrain.paintTexture(point, radius, strength)
       : this.terrain.paintTexture(this.world.terrain, point, radius, strength);
+    if (changed) this.markActiveChunksDirty();
+    return changed;
   }
   activeTerrainChunks() { return [...this.streamedTerrain.tiles.values()].map(tile => tile.chunk); }
+  shouldLoadChunk(key) {
+    if (!this.chunkStore) return true;
+    const [x, z] = key.split(",").map(Number);
+    // Game mode never creates terrain that was not authored. In the editor,
+    // the toggle permits creating new tiles while still allowing boundary
+    // work with only the manifest's existing chunk coordinates loaded.
+    return this.chunkStore.has(x, z) || (this.mode === "editor" && this.world.editor.autoCreateChunks);
+  }
+  setAutoCreateChunks(enabled, camera) {
+    if (!this.chunkStore || this.mode !== "editor") return;
+    this.world.editor.autoCreateChunks = Boolean(enabled);
+    // Freezing automatic creation turns every generated tile into authored
+    // map territory. Always include the 5x5 starter area at the origin so it
+    // remains available after travelling elsewhere and teleporting back.
+    if (!enabled) {
+      const chunksByKey = new Map(this.chunkStore.cache);
+      for (const chunk of this.activeTerrainChunks()) chunksByKey.set(WorldChunkStore.key(chunk.x, chunk.z), chunk);
+      for (let z = -this.world.chunkRadius; z <= this.world.chunkRadius; z++) {
+        for (let x = -this.world.chunkRadius; x <= this.world.chunkRadius; x++) {
+          const key = WorldChunkStore.key(x, z);
+          if (!chunksByKey.has(key)) chunksByKey.set(key, this.chunkStore.createEmptyChunk(x, z));
+        }
+      }
+      const chunks = [...chunksByKey.values()];
+      for (const chunk of chunks) {
+        const key = WorldChunkStore.key(chunk.x, chunk.z);
+        if (!this.chunkStore.cache.has(key)) this.chunkStore.cache.set(key, chunk);
+        if (!this.world.chunks.some(item => item.x === chunk.x && item.z === chunk.z)) this.world.chunks.push({ x: chunk.x, z: chunk.z });
+        this.chunkStore.markDirty(chunk);
+      }
+      this.calculateChunkDecorativeFlags();
+    }
+    this.chunks.refresh(camera);
+  }
+  async trimEmptyChunks(camera) {
+    if (!this.chunkStore || this.mode !== "editor" || !this.world.chunks.length) return 0;
+    const coordinates = this.world.chunks.map(chunk => ({ x: chunk.x, z: chunk.z }));
+    const defaultColor = this.world.terrain.color;
+    const isEmpty = chunk => {
+      const terrain = chunk.terrain ?? {};
+      const untouchedHeights = !(terrain.heights ?? []).some(height => Math.abs(Number(height) || 0) > 1e-6);
+      const untouchedColors = !(terrain.colors ?? []).some(color => Number(color) !== defaultColor);
+      const untouchedMasks = !(terrain.masks ?? []).some(mask => mask?.some(value => Number(value) > 1e-6));
+      return untouchedHeights && untouchedColors && untouchedMasks && !(chunk.grass?.points?.length) && !(chunk.objects?.length);
+    };
+    const chunkData = new Map();
+    for (const coordinate of coordinates) chunkData.set(`${coordinate.x},${coordinate.z}`, await this.chunkStore.load(coordinate.x, coordinate.z));
+    const nonEmptyKeys = new Set([...chunkData].filter(([, chunk]) => !isEmpty(chunk)).map(([key]) => key));
+    const removed = [];
+    for (const coordinate of coordinates) {
+      const isOrigin = coordinate.x === 0 && coordinate.z === 0;
+      const isStarterChunk = Math.abs(coordinate.x) <= this.world.chunkRadius && Math.abs(coordinate.z) <= this.world.chunkRadius;
+      // Preserve the immediate 3x3 decorative ring around authored terrain.
+      const isDecorativeBorder = [-1, 0, 1].some(dx => [-1, 0, 1].some(dz => (dx || dz) && nonEmptyKeys.has(`${coordinate.x + dx},${coordinate.z + dz}`)));
+      if (isOrigin || isStarterChunk || nonEmptyKeys.has(`${coordinate.x},${coordinate.z}`) || isDecorativeBorder) continue;
+      const chunk = chunkData.get(`${coordinate.x},${coordinate.z}`);
+      if (!isEmpty(chunk)) continue;
+      await this.chunkStore.remove(coordinate.x, coordinate.z);
+      removed.push(coordinate);
+    }
+    if (!removed.length) return 0;
+    const removedKeys = new Set(removed.map(chunk => `${chunk.x},${chunk.z}`));
+    this.world.chunks = this.world.chunks.filter(chunk => !removedKeys.has(`${chunk.x},${chunk.z}`));
+    this.chunkStore.manifest.chunks = this.world.chunks;
+    this.calculateChunkDecorativeFlags();
+    this.chunks.refresh(camera);
+    return removed.length;
+  }
+  markActiveChunksDirty() { if (this.chunkStore) for (const chunk of this.activeTerrainChunks()) this.chunkStore.markDirty(chunk); }
+  getChunkBounds() {
+    if (!this.chunkStore || !this.world.chunks?.length) {
+      const size = this.world.terrain?.size;
+      return Number.isFinite(size) ? { minX: -size * .5, maxX: size * .5, minZ: -size * .5, maxZ: size * .5 } : null;
+    }
+    const size = this.world.chunkSize;
+    return {
+      minX: Math.min(...this.world.chunks.map(chunk => chunk.x * size)),
+      maxX: Math.max(...this.world.chunks.map(chunk => (chunk.x + 1) * size)),
+      minZ: Math.min(...this.world.chunks.map(chunk => chunk.z * size)),
+      maxZ: Math.max(...this.world.chunks.map(chunk => (chunk.z + 1) * size))
+    };
+  }
+  constrainToChunkBounds(position, padding = 0.65) {
+    const bounds = this.getChunkBounds();
+    if (!bounds) return position;
+    position.x = THREE.MathUtils.clamp(position.x, bounds.minX + padding, bounds.maxX - padding);
+    position.z = THREE.MathUtils.clamp(position.z, bounds.minZ + padding, bounds.maxZ - padding);
+    return position;
+  }
+  calculateChunkDecorativeFlags() {
+    if (!this.chunkStore || !this.world.chunks?.length) return;
+    const keys = new Set(this.world.chunks.map(chunk => `${chunk.x},${chunk.z}`));
+    for (const chunk of this.world.chunks) {
+      chunk.decorative = ![-1, 0, 1].every(dz => [-1, 0, 1].every(dx =>
+        (dx === 0 && dz === 0) || keys.has(`${chunk.x + dx},${chunk.z + dz}`)
+      ));
+    }
+    for (const { chunk } of this.streamedTerrain.tiles.values()) {
+      const decoration = this.getChunkDecoration(chunk.x, chunk.z);
+      this.streamedTerrain.setChunkDecorative(chunk, decoration.decorative, decoration.edges, decoration.corners);
+    }
+  }
+  getChunkDecoration(x, z) {
+    const chunks = new Map(this.world.chunks.map(chunk => [`${chunk.x},${chunk.z}`, chunk]));
+    const definition = chunks.get(`${x},${z}`);
+    const decorative = Boolean(definition?.decorative);
+    const isPlayable = (offsetX, offsetZ) => {
+      const neighbour = chunks.get(`${x + offsetX},${z + offsetZ}`);
+      return Boolean(neighbour && !neighbour.decorative);
+    };
+    // PlaneGeometry's UV Y axis is reversed after the terrain's X rotation:
+    // UV-bottom faces world +Z, while UV-top faces world -Z.
+    const edges = decorative ? [isPlayable(-1, 0), isPlayable(1, 0), isPlayable(0, 1), isPlayable(0, -1)].map(Number) : [0, 0, 0, 0];
+    // Soften only a true T-junction: a playable diagonal with both directly
+    // adjacent chunks still decorative. Ordinary corners keep no round mark.
+    const softCorner = (offsetX, offsetZ) => isPlayable(offsetX, offsetZ) && !isPlayable(offsetX, 0) && !isPlayable(0, offsetZ);
+    // UV corners are: world (-X,+Z), (+X,+Z), (-X,-Z), (+X,-Z).
+    const corners = decorative ? [softCorner(-1, 1), softCorner(1, 1), softCorner(-1, -1), softCorner(1, -1)].map(Number) : [0, 0, 0, 0];
+    return { decorative, edges, corners };
+  }
+  constrainToGameplayChunks(position, previousPosition, padding = 0.05) {
+    if (!this.world.chunks?.length) {
+        return position;
+    }
+
+    const chunkSize = this.world.chunkSize;
+
+    const chunksByKey = new Map(this.world.chunks.map(chunk => [`${chunk.x},${chunk.z}`, chunk]));
+
+    const isGameplayChunk = (worldX, worldZ) => {
+        const cx = Math.floor(worldX / chunkSize);
+        const cz = Math.floor(worldZ / chunkSize);
+
+        return Boolean(chunksByKey.get(`${cx},${cz}`) && !chunksByKey.get(`${cx},${cz}`).decorative);
+    };
+
+    // Try X movement first
+    if (!isGameplayChunk(position.x, previousPosition.z)) {
+        position.x = previousPosition.x;
+    }
+
+    // Then Z
+    if (!isGameplayChunk(position.x, position.z)) {
+        position.z = previousPosition.z;
+    }
+
+    return position;
+}
+  getGameplayBoundaryPadding(cameraClearance = 8) {
+    const bounds = this.getChunkBounds();
+    const chunkSize = this.world.chunkSize;
+    // Reserve the outer tile ring for backdrop terrain. The player stops at
+    // its inner edge, while the third-person camera may use that decorative
+    // terrain behind the player. Tiny/legacy maps retain camera clearance.
+    if (!bounds || !Number.isFinite(chunkSize)) return cameraClearance;
+    const width = bounds.maxX - bounds.minX;
+    const depth = bounds.maxZ - bounds.minZ;
+    return width > chunkSize * 1 && depth > chunkSize * 1
+      ? chunkSize
+      : cameraClearance;
+  }
   refreshChunkedGrass() { if (this.chunkStore) this.grass.setChunkedChunks(this.activeTerrainChunks()); }
   paintGrass(point, radius) {
     if (!this.chunkStore) return this.grass.paint(this.world.grass, this.terrain, point, radius);
     const chunks = this.activeTerrainChunks();
-    return this.grass.paintChunked(point, radius, target => this.streamedTerrain.getTileAt(target)?.chunk, chunks);
+    const changed = this.grass.paintChunked(point, radius, target => this.streamedTerrain.getTileAt(target)?.chunk, chunks);
+    if (changed) this.markActiveChunksDirty();
+    return changed;
   }
-  eraseGrass(point, radius) { return this.chunkStore ? this.grass.eraseChunked(point, radius, this.activeTerrainChunks()) : this.grass.erase(this.world.grass, point, radius); }
+  eraseGrass(point, radius) {
+    const changed = this.chunkStore ? this.grass.eraseChunked(point, radius, this.activeTerrainChunks()) : this.grass.erase(this.world.grass, point, radius);
+    if (changed) this.markActiveChunksDirty();
+    return changed;
+  }
   update(delta, camera) {
     this.chunks?.update(camera);
     this.environment.update(delta, camera);

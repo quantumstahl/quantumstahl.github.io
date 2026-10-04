@@ -83,6 +83,17 @@ export class ChunkedTerrain {
       colorAttribute.setXYZ(index, color.r, color.g, color.b);
     }
     geometry.setAttribute("color", colorAttribute);
+    geometry.setAttribute("terrainDecorative", new THREE.BufferAttribute(
+      Float32Array.from({ length: count }, () => chunk._decorative ? 1 : 0), 1
+    ));
+    const decorativeEdges = chunk._decorativeEdges ?? [0, 0, 0, 0];
+    geometry.setAttribute("terrainDecorativeEdges", new THREE.BufferAttribute(
+      Float32Array.from({ length: count * 4 }, (_, index) => decorativeEdges[index % 4]), 4
+    ));
+    const decorativeCorners = chunk._decorativeCorners ?? [0, 0, 0, 0];
+    geometry.setAttribute("terrainDecorativeCorners", new THREE.BufferAttribute(
+      Float32Array.from({ length: count * 4 }, (_, index) => decorativeCorners[index % 4]), 4
+    ));
     for (let layer = 0; layer < MAX_TEXTURE_LAYERS; layer++) {
       const values = masks[layer] ?? [];
       geometry.setAttribute(`terrainTextureMask${layer}`, new THREE.BufferAttribute(Float32Array.from({ length: count }, (_, index) => Number(values[index]) || 0), 1));
@@ -99,6 +110,25 @@ export class ChunkedTerrain {
     this.root.add(mesh);
     this.tiles.set(key, { chunk, mesh });
     return mesh;
+  }
+
+  setChunkDecorative(chunk, decorative, edges = [0, 0, 0, 0], corners = [0, 0, 0, 0]) {
+    chunk._decorative = Boolean(decorative);
+    chunk._decorativeEdges = edges;
+    chunk._decorativeCorners = corners;
+    const tile = this.tiles.get(this.key(chunk.x, chunk.z));
+    const attribute = tile?.mesh.geometry.getAttribute("terrainDecorative");
+    const edgeAttribute = tile?.mesh.geometry.getAttribute("terrainDecorativeEdges");
+    const cornerAttribute = tile?.mesh.geometry.getAttribute("terrainDecorativeCorners");
+    if (attribute) { attribute.array.fill(chunk._decorative ? 1 : 0); attribute.needsUpdate = true; }
+    if (edgeAttribute) {
+      for (let index = 0; index < edgeAttribute.count; index++) edgeAttribute.setXYZW(index, edges[0], edges[1], edges[2], edges[3]);
+      edgeAttribute.needsUpdate = true;
+    }
+    if (cornerAttribute) {
+      for (let index = 0; index < cornerAttribute.count; index++) cornerAttribute.setXYZW(index, corners[0], corners[1], corners[2], corners[3]);
+      cornerAttribute.needsUpdate = true;
+    }
   }
 
   unloadChunk(x, z) {
@@ -250,24 +280,178 @@ export class ChunkedTerrain {
 
   configureTextureBlend(material) {
     material.onBeforeCompile = shader => {
-      const attributes = Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `attribute float terrainTextureMask${i}; varying float vTerrainTextureMask${i};`).join("\n");
-      const varyings = Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `varying float vTerrainTextureMask${i};`).join("\n");
-      const uniforms = Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `uniform sampler2D terrainMap${i}; uniform float terrainMapScale${i};`).join("\n");
-      const assignments = Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `vTerrainTextureMask${i} = terrainTextureMask${i};`).join("\n");
+
+
+      const attributes = `${Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `attribute float terrainTextureMask${i}; varying float vTerrainTextureMask${i};`).join("\n")}\nattribute float terrainDecorative; varying float vTerrainDecorative; attribute vec4 terrainDecorativeEdges; varying vec4 vTerrainDecorativeEdges; attribute vec4 terrainDecorativeCorners; varying vec4 vTerrainDecorativeCorners;`;
+      const varyings = `${Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `varying float vTerrainTextureMask${i};`).join("\n")}\nvarying float vTerrainDecorative; varying vec4 vTerrainDecorativeEdges; varying vec4 vTerrainDecorativeCorners;`;
+      const uniforms = Array.from(
+    { length: MAX_TEXTURE_LAYERS },
+    (_, i) => `
+        uniform sampler2D terrainMap${i};
+        uniform float terrainMapScale${i};
+    `
+).join("\n");
+      const assignments = `${Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `vTerrainTextureMask${i} = terrainTextureMask${i};`).join("\n")}\nvTerrainDecorative = terrainDecorative; vTerrainDecorativeEdges = terrainDecorativeEdges; vTerrainDecorativeCorners = terrainDecorativeCorners;`;
       const samples = Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `float terrainMask${i} = vTerrainTextureMask${i}; if (terrainMask${i} > 0.0001) { terrainWeight += terrainMask${i}; terrainPaint += texture2D(terrainMap${i}, vTerrainUv * terrainMapScale${i}).rgb * terrainMask${i}; }`).join("\n");
       shader.vertexShader = shader.vertexShader
-        .replace("#include <common>", `#include <common>\nvarying vec2 vTerrainUv;\n${attributes}`)
+        .replace("#include <common>", `#include <common>\nvarying vec2 vTerrainUv;float smoothMin(float a, float b, float k) {
+    float h = max(k - abs(a - b), 0.0) / k;
+    return min(a, b) - h * h * k * 0.25;
+}\n${attributes}`)
         .replace("#include <begin_vertex>", `vTerrainUv = uv;\n${assignments}\n#include <begin_vertex>`);
       shader.fragmentShader = shader.fragmentShader
-        .replace("#include <common>", `#include <common>\nvarying vec2 vTerrainUv;\n${varyings}\n${uniforms}`)
-        .replace("#include <color_fragment>", `#include <color_fragment>\nfloat terrainWeight = 0.0; vec3 terrainPaint = vec3(0.0);\n${samples}\ndiffuseColor.rgb = diffuseColor.rgb * max(0.0, 1.0 - terrainWeight) + terrainPaint;`);
+        .replace("#include <common>", `#include <common>\nvarying vec2 vTerrainUv;float smoothMin(float a, float b, float k) {
+    float h = max(k - abs(a - b), 0.0) / k;
+    return min(a, b) - h * h * k * 0.25;
+}\n${varyings}\n${uniforms}`)
+.replace("#include <color_fragment>", `
+#include <color_fragment>
+
+float terrainWeight = 0.0;
+vec3 terrainPaint = vec3(0.0);
+
+${samples}
+
+
+// ==================================================
+// Decorative boundary
+// ==================================================
+
+vec4 edges =
+    step(vec4(0.5), vTerrainDecorativeEdges);
+
+vec4 corners =
+    step(vec4(0.5), vTerrainDecorativeCorners);
+
+
+// Samma fade-avstånd för edges och corners.
+// Då möts de geometriskt korrekt.
+float fadeSize = 0.12;
+
+
+// Börja väldigt långt bort.
+float boundaryDistance = 1000.0;
+
+
+// --------------------------------------------------
+// Direct playable neighbours
+// --------------------------------------------------
+
+if (edges.x > 0.5)
+    boundaryDistance = min(
+        boundaryDistance,
+        vTerrainUv.x
+    );
+
+if (edges.y > 0.5)
+    boundaryDistance = min(
+        boundaryDistance,
+        1.0 - vTerrainUv.x
+    );
+
+if (edges.z > 0.5)
+    boundaryDistance = min(
+        boundaryDistance,
+        vTerrainUv.y
+    );
+
+if (edges.w > 0.5)
+    boundaryDistance = min(
+        boundaryDistance,
+        1.0 - vTerrainUv.y
+    );
+
+
+// --------------------------------------------------
+// Diagonal playable neighbours
+//
+// Det här är chunken som ligger "mellan"
+// de två andra edge-chunksen.
+//
+// Avståndet måste vara radiellt från hörnet.
+// --------------------------------------------------
+
+// world (-X, +Z)
+if (corners.x > 0.5)
+    boundaryDistance = min(
+        boundaryDistance,
+        length(vTerrainUv - vec2(0.0, 0.0))
+    );
+
+// world (+X, +Z)
+if (corners.y > 0.5)
+    boundaryDistance = min(
+        boundaryDistance,
+        length(vTerrainUv - vec2(1.0, 0.0))
+    );
+
+// world (-X, -Z)
+if (corners.z > 0.5)
+    boundaryDistance = min(
+        boundaryDistance,
+        length(vTerrainUv - vec2(0.0, 1.0))
+    );
+
+// world (+X, -Z)
+if (corners.w > 0.5)
+    boundaryDistance = min(
+        boundaryDistance,
+        length(vTerrainUv - vec2(1.0, 1.0))
+    );
+
+
+// --------------------------------------------------
+// One continuous distance -> one continuous fade
+// --------------------------------------------------
+
+float borderFade =
+    1.0 - smoothstep(
+        0.0,
+        fadeSize,
+        boundaryDistance
+    );
+
+
+// Mörkt ute i decorative-terrain.
+// Normal färg mot playable-terrain.
+float decorativeTint =
+    mix(
+        0.68,
+        1.0,
+        borderFade
+    );
+
+float terrainTint =
+    mix(
+        1.0,
+        decorativeTint,
+        step(0.5, vTerrainDecorative)
+    );
+
+
+// --------------------------------------------------
+// Terrain + texture first, tint afterwards
+// --------------------------------------------------
+
+vec3 finalTerrainColor =
+    diffuseColor.rgb *
+    max(0.0, 1.0 - terrainWeight)
+    + terrainPaint;
+
+diffuseColor.rgb =
+    finalTerrainColor *
+    terrainTint;
+`);
+
+
+        
       for (let index = 0; index < MAX_TEXTURE_LAYERS; index++) {
         shader.uniforms[`terrainMap${index}`] = { value: material.userData.terrainTextures?.[index] ?? this.placeholderTexture };
         shader.uniforms[`terrainMapScale${index}`] = { value: material.userData.terrainTextureScales?.[index] ?? 1 };
       }
       material.userData.terrainShader = shader;
     };
-    material.customProgramCacheKey = () => "next-world-chunked-terrain-textures-v1";
+    material.customProgramCacheKey = () => "next-world-chunked-terrain-textures-v7";
   }
 
   configureTexture(texture, scale) {

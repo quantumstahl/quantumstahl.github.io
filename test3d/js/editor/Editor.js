@@ -36,14 +36,14 @@ export class Editor {
     this.selected = null;
     this.selectionBox = new THREE.BoxHelper(undefined, 0xffd34f);
     this.selectionBox.visible = false; this.scene.add(this.selectionBox);
-    this.dirty = false; this.autosaveTimer = null;
+    this.dirty = false; this.autosaveTimer = null; this.gridSignature = "";
     this.duplicateBusy = false;
     this.tree = new AssetTree(this, document.querySelector("#assetTree"));
     window.addEventListener("keydown", event => this.onKeyDown(event));
   }
-  async load(url) { await this.mapLoader.load(url); this.syncWorldEditorSettings(); this.syncTerrainTexturePicker(); this.tree.render(); }
-  async loadWorld(world) { await this.mapLoader.loadData(world); this.syncWorldEditorSettings(); this.syncTerrainTexturePicker(); this.setSelected(null); this.tree.render(); }
-  async loadWorkspace({ world, directoryHandle }) { await this.mapLoader.loadData(world, null, directoryHandle); this.syncWorldEditorSettings(); this.syncTerrainTexturePicker(); this.setSelected(null); this.tree.render(); }
+  async load(url) { await this.mapLoader.load(url); this.mapLoader.calculateChunkDecorativeFlags(); this.syncWorldEditorSettings(); this.syncTerrainTexturePicker(); this.tree.render(); }
+  async loadWorld(world) { await this.mapLoader.loadData(world); this.mapLoader.calculateChunkDecorativeFlags(); this.syncWorldEditorSettings(); this.syncTerrainTexturePicker(); this.setSelected(null); this.tree.render(); }
+  async loadWorkspace({ world, directoryHandle }) { await this.mapLoader.loadData(world, null, directoryHandle); this.mapLoader.calculateChunkDecorativeFlags(); this.syncWorldEditorSettings(); this.syncTerrainTexturePicker(); this.setSelected(null); this.tree.render(); }
   setSelected(object) {
     this.selected = object;
     this.mapLoader.setSelected(object);
@@ -54,6 +54,7 @@ export class Editor {
   }
   update(delta) {
     this.mapLoader.update(delta, this.camera);
+    this.refreshChunkGrid();
     this.cameraController.update(this.input, delta);
     this.selectTool.update();
     if (this.activeTool === "move") this.moveTool.update(delta);
@@ -129,7 +130,8 @@ export class Editor {
   }
   inspectTerrain() {
     const terrain = this.mapLoader.world.terrain;
-    this.setStatus(`Terrain: flat ${terrain.size}m × ${terrain.size}m, ${terrain.segments} × ${terrain.segments} heightfield`);
+    const resolution = terrain.resolution ?? terrain.segments;
+    this.setStatus(`Terrain: streamed 50m chunks, ${resolution} × ${resolution} vertices per chunk`);
   }
   inspectSky() {
     this.setStatus(`Shader sky: ${this.mapLoader.world.sky.mode === "night" ? "Night" : "Day"}`);
@@ -144,11 +146,66 @@ export class Editor {
   syncWorldEditorSettings() {
     if (this.app.editorGrid) this.app.editorGrid.visible = this.mapLoader.world.editor.showGrid;
   }
+  refreshChunkGrid() {
+    const chunks = this.mapLoader.activeTerrainChunks?.() ?? [];
+    if (!chunks.length || !this.app.editorGrid) return;
+    const size = this.mapLoader.world.chunkSize ?? 50;
+    const signature = chunks.map(chunk => `${chunk.x},${chunk.z}`).sort().join("|");
+    if (signature === this.gridSignature) return;
+    this.gridSignature = signature;
+    const old = this.app.editorGrid;
+    const lines = [], colors = [];
+    const fineColor = new THREE.Color(0x425a50);
+    const chunkColor = new THREE.Color(0xa8d8ff);
+    const addLine = (x1, z1, x2, z2, color) => {
+      lines.push(x1, .015, z1, x2, .015, z2);
+      colors.push(color.r, color.g, color.b, color.r, color.g, color.b);
+    };
+    for (const chunk of chunks) {
+      const originX = chunk.x * size, originZ = chunk.z * size;
+      for (let offset = 0; offset <= size; offset++) {
+        const color = offset === 0 || offset === size ? chunkColor : fineColor;
+        addLine(originX + offset, originZ, originX + offset, originZ + size, color);
+        addLine(originX, originZ + offset, originX + size, originZ + offset, color);
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(lines, 3));
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    const grid = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: .85 }));
+    grid.name = "Chunk terrain grid";
+    grid.visible = this.mapLoader.world.editor.showGrid;
+    this.scene.add(grid);
+    old.removeFromParent();
+    old.geometry.dispose();
+    for (const material of Array.isArray(old.material) ? old.material : [old.material]) material.dispose();
+    this.app.editorGrid = grid;
+  }
   toggleGrid() {
     const settings = this.mapLoader.world.editor;
     settings.showGrid = !settings.showGrid;
     this.syncWorldEditorSettings(); this.markDirty(); this.tree.render();
     this.setStatus(`Grid ${settings.showGrid ? "shown" : "hidden"}`);
+  }
+  toggleAutoCreateChunks() {
+    const settings = this.mapLoader.world.editor;
+    settings.autoCreateChunks = !settings.autoCreateChunks;
+    this.mapLoader.setAutoCreateChunks(settings.autoCreateChunks, this.camera);
+    this.markDirty(); this.tree.render();
+    this.setStatus(`Automatic chunk creation ${settings.autoCreateChunks ? "enabled" : "disabled"}`);
+  }
+  teleportToOrigin() {
+    this.cameraController.target.set(0, 0, 0);
+    this.cameraController.updateCamera();
+    this.mapLoader.chunks?.refresh(this.camera);
+    this.setStatus("Teleported to world origin");
+  }
+  async trimEmptyChunks() {
+    if (!window.confirm("Trim empty chunks? The 5x5 starter area and the border around authored terrain will be kept.")) return;
+    const removed = await this.mapLoader.trimEmptyChunks(this.camera);
+    if (!removed) { this.setStatus("No empty interior chunks to trim"); return; }
+    this.markDirty(); this.tree.render();
+    this.setStatus(`Trimmed ${removed} empty interior ${removed === 1 ? "chunk" : "chunks"}`);
   }
   changeWaterLevel() {
     const water = this.mapLoader.world.water;
@@ -184,7 +241,14 @@ export class Editor {
     if (terrain.textures.length >= 8) { this.setStatus("Terrain supports up to 8 painted textures"); return; }
     const src = `assets/${file.name}`;
     let index = terrain.textures.findIndex(layer => layer.src === src);
-    if (index < 0) { terrain.textures.push({ src, scale: 16, mask: Array(terrain.heights.length).fill(0) }); index = terrain.textures.length - 1; }
+    if (index < 0) {
+      // Chunked terrain stores texture masks beside each tile's vertex data;
+      // only the legacy terrain format has one global heights/mask array.
+      const layer = { src, scale: 16 };
+      if (!this.mapLoader.chunkStore) layer.mask = Array(terrain.heights.length).fill(0);
+      terrain.textures.push(layer);
+      index = terrain.textures.length - 1;
+    }
     terrain.activeTexture = index;
     this.mapLoader.terrain.updateTextureMasks(terrain);
     // Compile the terrain material for every layer now. The selected file will
