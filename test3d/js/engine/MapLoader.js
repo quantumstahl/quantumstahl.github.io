@@ -385,6 +385,24 @@ export class MapLoader {
   shouldLoadChunk(key) {
     if (!this.chunkStore) return true;
     const [x, z] = key.split(",").map(Number);
+    if (this.chunkStore.has(x, z)) return true;
+    // A complete decorative perimeter is the authored end of the world. Do
+    // not render temporary flat editor chunks beyond it: they appear as a
+    // checkerboard hole after the mountain border and make the ridge fall off.
+    const authored = this.world.chunks ?? [];
+    if (authored.length) {
+      const minX = Math.min(...authored.map(chunk => chunk.x));
+      const maxX = Math.max(...authored.map(chunk => chunk.x));
+      const minZ = Math.min(...authored.map(chunk => chunk.z));
+      const maxZ = Math.max(...authored.map(chunk => chunk.z));
+      if (x < minX || x > maxX || z < minZ || z > maxZ) {
+        const boundary = authored.find(chunk =>
+          chunk.x === THREE.MathUtils.clamp(x, minX, maxX) &&
+          chunk.z === THREE.MathUtils.clamp(z, minZ, maxZ)
+        );
+        if (boundary?.decorative) return false;
+      }
+    }
     // Game mode never creates terrain that was not authored. In the editor,
     // the toggle permits creating new tiles while still allowing boundary
     // work with only the manifest's existing chunk coordinates loaded.
@@ -450,8 +468,8 @@ export class MapLoader {
     this.chunks.refresh(camera);
     return removed.length;
   }
-  async paintDecorativeChunks() {
-    if (!this.chunkStore || this.mode !== "editor") return { painted: 0, skipped: 0 };
+  async paintDecorativeChunks(camera = null) {
+    if (!this.chunkStore || this.mode !== "editor") return { painted: 0, hilled: 0, skipped: 0 };
 
     this.calculateChunkDecorativeFlags();
     const targets = this.world.chunks.filter(chunk => chunk.decorative);
@@ -462,15 +480,36 @@ export class MapLoader {
       return value - Math.floor(value);
     };
     let painted = 0;
+    let hilled = 0;
     let skipped = 0;
 
     for (const definition of targets) {
       const chunk = await this.chunkStore.load(definition.x, definition.z);
       chunk.grass ??= { points: [] };
       chunk.grass.points ??= [];
+      const hillVersion = Number(chunk.terrain?.decorativeHillsVersion) || 0;
+      const refreshGeneratedHills = (hillVersion > 0 && hillVersion < 8) || this.hasLegacyDecorativeHills(chunk, definition);
       // This command creates base cover once. Re-running it must not pile
-      // hundreds more blades onto chunks the user has already painted.
+      // hundreds more blades onto chunks the user has already painted. The
+      // previous auto-hill profile is the sole exception: repair it in place.
+      if (chunk.grass.points.length && !refreshGeneratedHills) {
+        skipped++;
+        continue;
+      }
+
+      // Add terrain before sampling grass height. Only untouched, flat tiles
+      // are changed: a decorative chunk the user has already sculpted remains
+      // exactly as authored.
+      const changedHills = await this.makeDecorativeChunkHilly(chunk, definition, refreshGeneratedHills);
+      if (changedHills) {
+        hilled++;
+        // A repaired auto-hill must move its existing grass down/up with the
+        // terrain; otherwise the blades appear to float over the water.
+        for (const blade of chunk.grass.points) blade.y = this.getChunkHeight(chunk, blade.x, blade.z);
+        chunk.grass.revision = (Number(chunk.grass.revision) || 0) + 1;
+      }
       if (chunk.grass.points.length) {
+        this.chunkStore.markDirty(chunk);
         skipped++;
         continue;
       }
@@ -493,8 +532,820 @@ export class MapLoader {
     }
 
     this.refreshChunkedGrass();
-    return { painted, skipped };
+    // Re-evaluate the streamed window after establishing the decorative map
+    // boundary, removing any temporary editor tiles beyond the new ridge.
+    this.chunks?.refresh(camera);
+    return { painted, hilled, skipped };
   }
+  hasLegacyDecorativeHills(chunk, definition) {
+    const resolution = this.world.terrain?.resolution ?? 50;
+    const heights = chunk.terrain?.heights ?? [];
+    if (heights.length < (resolution + 1) ** 2) return false;
+    const { edges } = this.getChunkDecoration(definition.x, definition.z);
+    const samples = [.18, .41, .67, .84];
+    const size = this.world.chunkSize;
+    const legacyHeightAt = (u, v) => {
+      const worldX = (definition.x + u) * size;
+      const worldZ = (definition.z + v) * size;
+      const hill = 1.7 * Math.sin(worldX * 0.075 + worldZ * 0.042)
+        + 0.8 * Math.sin(worldX * 0.17 - worldZ * 0.11 + 1.3);
+      let fade = 1;
+      if (edges[0]) fade *= THREE.MathUtils.smoothstep(u, 0, 0.28);
+      if (edges[1]) fade *= THREE.MathUtils.smoothstep(1 - u, 0, 0.28);
+      if (edges[2]) fade *= THREE.MathUtils.smoothstep(v, 0, 0.28);
+      if (edges[3]) fade *= THREE.MathUtils.smoothstep(1 - v, 0, 0.28);
+      return hill * fade;
+    };
+    return samples.every((u, index) => {
+      const v = samples[(index + 2) % samples.length];
+      const x = Math.round(u * resolution), z = Math.round(v * resolution);
+      return Math.abs((Number(heights[z * (resolution + 1) + x]) || 0) - legacyHeightAt(x / resolution, z / resolution)) < 1e-4;
+    });
+  }
+  async makeDecorativeChunkHilly(chunk, definition, replaceGenerated = false) {
+  const resolution = this.world.terrain?.resolution ?? 50;
+  const width = resolution + 1;
+  const count = width * width;
+  const size = this.world.chunkSize;
+
+  chunk.terrain ??= {};
+  chunk.terrain.heights ??= [];
+
+  while (chunk.terrain.heights.length < count) {
+    chunk.terrain.heights.push(0);
+  }
+
+  const heights = chunk.terrain.heights;
+
+  // Do not overwrite manually edited terrain unless explicitly requested.
+  if (
+    !replaceGenerated &&
+    heights.some(height => Math.abs(Number(height) || 0) > 1e-6)
+  ) {
+    return false;
+  }
+
+  const cx = definition.x;
+  const cz = definition.z;
+
+  const decoration =
+    this.getChunkDecoration(cx, cz);
+
+  const edges = decoration?.edges ?? [false, false, false, false];
+  const outerEdges =
+    decoration?.outerEdges ?? [false, false, false, false];
+
+  /*
+      Direction convention:
+
+      0 = x - 1   LEFT
+      1 = x + 1   RIGHT
+      2 = z + 1   FORWARD
+      3 = z - 1   BACK
+  */
+
+  // --------------------------------------------------
+  // Cardinal neighbours
+  // --------------------------------------------------
+
+  const neighbours = await Promise.all([
+    edges[0]
+      ? this.chunkStore.load(cx - 1, cz)
+      : null,
+
+    edges[1]
+      ? this.chunkStore.load(cx + 1, cz)
+      : null,
+
+    edges[2]
+      ? this.chunkStore.load(cx, cz + 1)
+      : null,
+
+    edges[3]
+      ? this.chunkStore.load(cx, cz - 1)
+      : null
+  ]);
+
+  // --------------------------------------------------
+  // Terrain validation
+  // --------------------------------------------------
+
+  const hasValidTerrain = neighbour => {
+    return (
+      neighbour &&
+      Array.isArray(neighbour.terrain?.heights) &&
+      neighbour.terrain.heights.length >= count
+    );
+  };
+
+  const getHeight = (neighbour, index) => {
+    if (!hasValidTerrain(neighbour)) {
+      return null;
+    }
+
+    const value =
+      Number(neighbour.terrain.heights[index]);
+
+    if (!Number.isFinite(value)) {
+      return null;
+    }
+
+    return value;
+  };
+
+  const validNeighbours =
+    neighbours.map(hasValidTerrain);
+
+  // --------------------------------------------------
+  // Detect diagonal playable corners
+  // --------------------------------------------------
+  //
+  // Example:
+  //
+  // decorative | decorative
+  // ------------+------------
+  // decorative | playable
+  //
+  // The top-left decorative chunk has no direct playable
+  // neighbour, but its corner still touches playable terrain.
+  // --------------------------------------------------
+
+  const leftDecoration =
+    this.getChunkDecoration(cx - 1, cz) ?? {};
+
+  const rightDecoration =
+    this.getChunkDecoration(cx + 1, cz) ?? {};
+
+  const forwardDecoration =
+    this.getChunkDecoration(cx, cz + 1) ?? {};
+
+  const backDecoration =
+    this.getChunkDecoration(cx, cz - 1) ?? {};
+
+  const leftEdges =
+    leftDecoration.edges ?? [false, false, false, false];
+
+  const rightEdges =
+    rightDecoration.edges ?? [false, false, false, false];
+
+  const forwardEdges =
+    forwardDecoration.edges ?? [false, false, false, false];
+
+  const backEdges =
+    backDecoration.edges ?? [false, false, false, false];
+
+  /*
+      Corner order:
+
+      0 = x-, z-
+      1 = x+, z-
+      2 = x-, z+
+      3 = x+, z+
+  */
+
+  const cornerJoins = [
+    // x-, z-
+    !!(
+      leftEdges[3] ||
+      backEdges[0]
+    ),
+
+    // x+, z-
+    !!(
+      rightEdges[3] ||
+      backEdges[1]
+    ),
+
+    // x-, z+
+    !!(
+      leftEdges[2] ||
+      forwardEdges[0]
+    ),
+
+    // x+, z+
+    !!(
+      rightEdges[2] ||
+      forwardEdges[1]
+    )
+  ];
+
+  // --------------------------------------------------
+  // Diagonal neighbours
+  // --------------------------------------------------
+
+  const diagonalNeighbours =
+    await Promise.all([
+      cornerJoins[0]
+        ? this.chunkStore.load(cx - 1, cz - 1)
+        : null,
+
+      cornerJoins[1]
+        ? this.chunkStore.load(cx + 1, cz - 1)
+        : null,
+
+      cornerJoins[2]
+        ? this.chunkStore.load(cx - 1, cz + 1)
+        : null,
+
+      cornerJoins[3]
+        ? this.chunkStore.load(cx + 1, cz + 1)
+        : null
+    ]);
+
+  // --------------------------------------------------
+  // Exact diagonal corner heights
+  // --------------------------------------------------
+
+  const cornerHeights = [
+    // Our x-,z- touches diagonal x+,z+
+    getHeight(
+      diagonalNeighbours[0],
+      resolution * width + resolution
+    ),
+
+    // Our x+,z- touches diagonal x-,z+
+    getHeight(
+      diagonalNeighbours[1],
+      resolution * width
+    ),
+
+    // Our x-,z+ touches diagonal x+,z-
+    getHeight(
+      diagonalNeighbours[2],
+      resolution
+    ),
+
+    // Our x+,z+ touches diagonal x-,z-
+    getHeight(
+      diagonalNeighbours[3],
+      0
+    )
+  ];
+
+  // --------------------------------------------------
+  // Helpers
+  // --------------------------------------------------
+
+  const smoothEdge = distance =>
+    THREE.MathUtils.smoothstep(
+      distance,
+      0,
+      0.28
+    );
+
+  const waterFloor = Math.max(
+    0,
+    (Number(this.world.water?.level) || 0) + 0.25
+  );
+
+  // --------------------------------------------------
+  // Generate terrain
+  // --------------------------------------------------
+
+  for (let z = 0; z <= resolution; z++) {
+    for (let x = 0; x <= resolution; x++) {
+
+      const index =
+        z * width + x;
+
+      const u =
+        x / resolution;
+
+      const v =
+        z / resolution;
+
+      const worldX =
+        (cx + u) * size;
+
+      const worldZ =
+        (cz + v) * size;
+
+      // ----------------------------------------------
+      // Rolling hills
+      // ----------------------------------------------
+
+            const rollingHill =
+        1.8 +
+        1.11 *
+          Math.sin(
+            worldX * 0.075 +
+            worldZ * 0.042
+          ) +
+        1.7 *
+          Math.sin(
+            worldX * 0.17 -
+            worldZ * 0.11 +
+            2.3
+          );
+ +
+        1.4 *
+          Math.sin(
+            worldX * 0.22 -
+            worldZ * 0.22 +
+            2.3
+          );
+
+ +
+        1.6 *
+          Math.sin(
+            worldX * 0.44 -
+            worldZ * 0.32 +
+            2.3
+          );
+
+      // ----------------------------------------------
+      // Outer world ridge
+      // ----------------------------------------------
+
+      const outerRise =
+        Math.max(
+
+          // LEFT
+          outerEdges[0]
+            ? THREE.MathUtils.smoothstep(
+                1 - u,
+                0.12,
+                0.92
+              )
+            : 0,
+
+          // RIGHT
+          outerEdges[1]
+            ? THREE.MathUtils.smoothstep(
+                u,
+                0.12,
+                0.92
+              )
+            : 0,
+
+          // Z+
+          outerEdges[2]
+            ? THREE.MathUtils.smoothstep(
+                v,
+                0.12,
+                0.92
+              )
+            : 0,
+
+          // Z-
+          outerEdges[3]
+            ? THREE.MathUtils.smoothstep(
+                1 - v,
+                0.12,
+                0.92
+              )
+            : 0
+        );
+
+      const ridgeHeight =
+        waterFloor + 2.5;
+
+      const generatedHeight =
+        waterFloor +
+        rollingHill * (1 - outerRise) +
+        (ridgeHeight - waterFloor) *
+          outerRise;
+
+      // ----------------------------------------------
+      // Gather edge influences
+      // ----------------------------------------------
+
+      const edgeSamples = [];
+
+      // LEFT
+      //
+      // current x=0
+      // neighbour x=resolution
+      if (validNeighbours[0]) {
+
+        const influence =
+          1 - smoothEdge(u);
+
+        const neighbourIndex =
+          z * width + resolution;
+
+        const h =
+          getHeight(
+            neighbours[0],
+            neighbourIndex
+          );
+
+        if (
+          h !== null &&
+          influence > 0
+        ) {
+          edgeSamples.push({
+            influence,
+            height: h
+          });
+        }
+      }
+
+      // RIGHT
+      //
+      // current x=resolution
+      // neighbour x=0
+      if (validNeighbours[1]) {
+
+        const influence =
+          1 - smoothEdge(1 - u);
+
+        const neighbourIndex =
+          z * width;
+
+        const h =
+          getHeight(
+            neighbours[1],
+            neighbourIndex
+          );
+
+        if (
+          h !== null &&
+          influence > 0
+        ) {
+          edgeSamples.push({
+            influence,
+            height: h
+          });
+        }
+      }
+
+      // Z+
+      //
+      // current z=resolution
+      // neighbour z=0
+      if (validNeighbours[2]) {
+
+        const influence =
+          1 - smoothEdge(1 - v);
+
+        const neighbourIndex =
+          x;
+
+        const h =
+          getHeight(
+            neighbours[2],
+            neighbourIndex
+          );
+
+        if (
+          h !== null &&
+          influence > 0
+        ) {
+          edgeSamples.push({
+            influence,
+            height: h
+          });
+        }
+      }
+
+      // Z-
+      //
+      // current z=0
+      // neighbour z=resolution
+      if (validNeighbours[3]) {
+
+        const influence =
+          1 - smoothEdge(v);
+
+        const neighbourIndex =
+          resolution * width + x;
+
+        const h =
+          getHeight(
+            neighbours[3],
+            neighbourIndex
+          );
+
+        if (
+          h !== null &&
+          influence > 0
+        ) {
+          edgeSamples.push({
+            influence,
+            height: h
+          });
+        }
+      }
+
+      // ----------------------------------------------
+      // Diagonal corner influence
+      // ----------------------------------------------
+
+      const addCornerSample = (
+        cornerU,
+        cornerV,
+        height
+      ) => {
+
+        if (height === null) {
+          return;
+        }
+
+        const distance =
+          Math.hypot(
+            u - cornerU,
+            v - cornerV
+          );
+
+        // Same approximate width as the normal
+        // playable-edge transition.
+        const influence =
+          1 -
+          THREE.MathUtils.smoothstep(
+            distance,
+            0,
+            0.28
+          );
+
+        if (influence <= 0) {
+          return;
+        }
+
+        edgeSamples.push({
+          influence,
+          height
+        });
+      };
+
+      // x-, z-
+      if (cornerJoins[0]) {
+        addCornerSample(
+          0,
+          0,
+          cornerHeights[0]
+        );
+      }
+
+      // x+, z-
+      if (cornerJoins[1]) {
+        addCornerSample(
+          1,
+          0,
+          cornerHeights[1]
+        );
+      }
+
+      // x-, z+
+      if (cornerJoins[2]) {
+        addCornerSample(
+          0,
+          1,
+          cornerHeights[2]
+        );
+      }
+
+      // x+, z+
+      if (cornerJoins[3]) {
+        addCornerSample(
+          1,
+          1,
+          cornerHeights[3]
+        );
+      }
+
+      // ----------------------------------------------
+      // Blend
+      // ----------------------------------------------
+
+      if (edgeSamples.length === 0) {
+
+        heights[index] =
+          generatedHeight;
+
+      } else {
+
+        let totalWeight = 0;
+        let weightedHeight = 0;
+        let edgeInfluence = 0;
+
+        for (const sample of edgeSamples) {
+
+          totalWeight +=
+            sample.influence;
+
+          weightedHeight +=
+            sample.height *
+            sample.influence;
+
+          // Important:
+          // max instead of multiplying fades.
+          //
+          // Multiplication causes deep holes where
+          // two edges meet.
+          edgeInfluence =
+            Math.max(
+              edgeInfluence,
+              sample.influence
+            );
+        }
+
+        const sharedHeight =
+          totalWeight > 0
+            ? weightedHeight /
+              totalWeight
+            : generatedHeight;
+
+        heights[index] =
+          THREE.MathUtils.lerp(
+            generatedHeight,
+            sharedHeight,
+            edgeInfluence
+          );
+      }
+    }
+  }
+
+  // --------------------------------------------------
+  // Exact cardinal seams
+  // --------------------------------------------------
+
+  const copyEdge = (
+    targetIndex,
+    neighbour,
+    sourceIndex
+  ) => {
+
+    const value =
+      getHeight(
+        neighbour,
+        sourceIndex
+      );
+
+    if (value === null) {
+      return;
+    }
+
+    heights[targetIndex] =
+      value;
+  };
+
+  // LEFT
+  if (validNeighbours[0]) {
+    for (
+      let z = 0;
+      z <= resolution;
+      z++
+    ) {
+
+      copyEdge(
+        z * width,
+        neighbours[0],
+        z * width + resolution
+      );
+    }
+  }
+
+  // RIGHT
+  if (validNeighbours[1]) {
+    for (
+      let z = 0;
+      z <= resolution;
+      z++
+    ) {
+
+      copyEdge(
+        z * width + resolution,
+        neighbours[1],
+        z * width
+      );
+    }
+  }
+
+  // Z+
+  if (validNeighbours[2]) {
+    for (
+      let x = 0;
+      x <= resolution;
+      x++
+    ) {
+
+      copyEdge(
+        resolution * width + x,
+        neighbours[2],
+        x
+      );
+    }
+  }
+
+  // Z-
+  if (validNeighbours[3]) {
+    for (
+      let x = 0;
+      x <= resolution;
+      x++
+    ) {
+
+      copyEdge(
+        x,
+        neighbours[3],
+        resolution * width + x
+      );
+    }
+  }
+
+  // --------------------------------------------------
+  // Exact diagonal corners
+  // --------------------------------------------------
+  //
+  // A terrain vertex at a chunk corner is shared
+  // between FOUR chunks.
+  //
+  // The cardinal seam pass above cannot guarantee
+  // correctness if playable terrain only touches
+  // diagonally.
+  // --------------------------------------------------
+
+  // x-, z-
+  if (
+    cornerJoins[0] &&
+    cornerHeights[0] !== null
+  ) {
+    heights[0] =
+      cornerHeights[0];
+  }
+
+  // x+, z-
+  if (
+    cornerJoins[1] &&
+    cornerHeights[1] !== null
+  ) {
+    heights[resolution] =
+      cornerHeights[1];
+  }
+
+  // x-, z+
+  if (
+    cornerJoins[2] &&
+    cornerHeights[2] !== null
+  ) {
+    heights[
+      resolution * width
+    ] = cornerHeights[2];
+  }
+
+  // x+, z+
+  if (
+    cornerJoins[3] &&
+    cornerHeights[3] !== null
+  ) {
+    heights[
+      resolution * width +
+      resolution
+    ] = cornerHeights[3];
+  }
+
+  // New generator version.
+  chunk.terrain.decorativeHillsVersion = 8;
+
+  // --------------------------------------------------
+  // Update currently loaded terrain mesh
+  // --------------------------------------------------
+
+  const tile =
+    this.streamedTerrain.getTileAt({
+      x: (cx + 0.5) * size,
+      z: (cz + 0.5) * size
+    });
+
+  if (tile?.chunk === chunk) {
+
+    const geometry =
+      tile.mesh.geometry;
+
+    const positions =
+      geometry.getAttribute(
+        "position"
+      );
+
+    for (
+      let index = 0;
+      index < count;
+      index++
+    ) {
+
+      positions.setY(
+        index,
+        heights[index]
+      );
+    }
+
+    positions.needsUpdate = true;
+
+    // Use surrounding loaded chunks when calculating edge normals. This keeps
+    // terrain lighting continuous across the decorative chunk seam.
+    this.streamedTerrain.refreshNormalsAround(cx, cz);
+
+    this.water.applyChunk(
+      chunk,
+      this.world.terrain
+    );
+  }
+
+  this.chunkStore.markDirty(chunk);
+
+  return true;
+}
   getChunkHeight(chunk, worldX, worldZ) {
     const resolution = this.world.terrain?.resolution ?? 50;
     const heights = chunk.terrain?.heights ?? [];

@@ -208,15 +208,15 @@ export class Editor {
     this.setStatus(`Trimmed ${removed} empty interior ${removed === 1 ? "chunk" : "chunks"}`);
   }
   async paintDecorativeChunks() {
-    if (!window.confirm("Paint base grass on every decorative chunk? Existing painted grass is left unchanged.")) return;
-    const result = await this.mapLoader.paintDecorativeChunks();
+    if (!window.confirm("Create dry rolling hills and outer mountain ridges, then paint decorative grass? Existing sculpted terrain and painted grass are left unchanged. Hills made by the previous version will be repaired.")) return;
+    const result = await this.mapLoader.paintDecorativeChunks(this.camera);
     if (!result.painted) {
       this.setStatus(result.skipped ? "Decorative chunks already have painted grass" : "No decorative chunks to paint");
       return;
     }
     this.markDirty();
     this.tree.render();
-    this.setStatus(`Painted grass on ${result.painted} decorative ${result.painted === 1 ? "chunk" : "chunks"}${result.skipped ? `; kept ${result.skipped} existing` : ""}`);
+    this.setStatus(`Made ${result.hilled} decorative ${result.hilled === 1 ? "chunk" : "chunks"} hilly and painted grass on ${result.painted}${result.skipped ? `; kept ${result.skipped} existing` : ""}`);
   }
   changeWaterLevel() {
     const water = this.mapLoader.world.water;
@@ -245,6 +245,18 @@ export class Editor {
   }
   startGrassPaint() { this.setTerrainMode("grass"); }
   startGrassErase() { this.setTerrainMode("eraseGrass"); }
+  async chooseStandardGroundTexture() {
+    const file = await this.pickTerrainTextureFile();
+    if (!file) return;
+    const terrain = this.mapLoader.world.terrain;
+    const src = `assets/${file.name}`;
+    // This is sampled below every paint mask. Existing masks are never
+    // allocated, reset, or edited, so painted texture layers stay intact.
+    terrain.baseTexture = { src, scale: terrain.baseTexture?.scale ?? 16 };
+    this.mapLoader.terrain.loadTextureFile(file, src, terrain.baseTexture.scale);
+    this.markDirty();
+    this.setStatus(`Standard ground texture set: ${file.name}. Painted texture layers are unchanged; copy it to NextWorld/assets before playing.`);
+  }
   async chooseTerrainTexture() {
     const file = await this.pickTerrainTextureFile();
     if (!file) return;

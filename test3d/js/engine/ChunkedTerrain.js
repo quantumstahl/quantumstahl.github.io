@@ -129,7 +129,45 @@ const decorativeOuterEdges =
     mesh.userData.chunk = chunk;
     this.root.add(mesh);
     this.tiles.set(key, { chunk, mesh });
+    // BufferGeometry only derives normals from triangles in its own mesh.
+    // Refresh this tile and its loaded neighbours with shared height samples
+    // so a continuous terrain surface does not get a dark lighting seam at
+    // chunk borders.
+    this.refreshNormalsAround(x, z);
     return mesh;
+  }
+
+  refreshNormalsAround(chunkX, chunkZ) {
+    for (let offsetZ = -1; offsetZ <= 1; offsetZ++) {
+      for (let offsetX = -1; offsetX <= 1; offsetX++) {
+        this.refreshTileNormals(chunkX + offsetX, chunkZ + offsetZ);
+      }
+    }
+  }
+
+  refreshTileNormals(chunkX, chunkZ) {
+    const tile = this.tiles.get(this.key(chunkX, chunkZ));
+    if (!tile) return;
+    const resolution = this.config?.resolution ?? 50;
+    const width = resolution + 1;
+    const step = this.chunkSize / resolution;
+    const normal = tile.mesh.geometry.getAttribute("normal");
+    if (!normal) return;
+    const originX = chunkX * this.chunkSize;
+    const originZ = chunkZ * this.chunkSize;
+    const heightAt = (x, z) => this.getHeightAt({ x, z });
+
+    for (let z = 0; z <= resolution; z++) {
+      for (let x = 0; x <= resolution; x++) {
+        const worldX = originX + x * step;
+        const worldZ = originZ + z * step;
+        const slopeX = (heightAt(worldX + step, worldZ) - heightAt(worldX - step, worldZ)) / (2 * step);
+        const slopeZ = (heightAt(worldX, worldZ + step) - heightAt(worldX, worldZ - step)) / (2 * step);
+        const inverseLength = 1 / Math.hypot(slopeX, 1, slopeZ);
+        normal.setXYZ(z * width + x, -slopeX * inverseLength, inverseLength, -slopeZ * inverseLength);
+      }
+    }
+    normal.needsUpdate = true;
   }
 
 setChunkDecorative(
@@ -385,13 +423,18 @@ setChunkDecorative(
         uniform float terrainMapScale${i};
     `
 ).join("\n");
+      const baseUniforms = `
+        uniform sampler2D terrainBaseMap;
+        uniform float terrainBaseMapScale;
+        uniform float terrainHasBaseMap;
+      `;
       const assignments = `${Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `vTerrainTextureMask${i} = terrainTextureMask${i};`).join("\n")}\nvTerrainDecorative = terrainDecorative; vTerrainDecorativeEdges = terrainDecorativeEdges; vTerrainDecorativeCorners = terrainDecorativeCorners;\nvec4 terrainOuterEdges = step(vec4(0.5), mod(terrainDecorativeOuterEdges, 2.0));\nvec4 terrainOuterCorners = step(vec4(1.5), terrainDecorativeOuterEdges);\nfloat terrainOuterDistance = 1000.0;\nif (terrainOuterEdges.x > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, uv.x, 0.12);\nif (terrainOuterEdges.y > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, 1.0 - uv.x, 0.12);\nif (terrainOuterEdges.z > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, uv.y, 0.12);\nif (terrainOuterEdges.w > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, 1.0 - uv.y, 0.12);\nif (terrainOuterCorners.x > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, length(uv - vec2(0.0, 0.0)), 0.12);\nif (terrainOuterCorners.y > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, length(uv - vec2(1.0, 0.0)), 0.12);\nif (terrainOuterCorners.z > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, length(uv - vec2(0.0, 1.0)), 0.12);\nif (terrainOuterCorners.w > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, length(uv - vec2(1.0, 1.0)), 0.12);\nvTerrainOuterBackgroundFade = (1.0 - smoothstep(0.0, 0.30, terrainOuterDistance)) * step(0.5, terrainDecorative);`;
       const samples = Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `float terrainMask${i} = vTerrainTextureMask${i}; if (terrainMask${i} > 0.0001) { terrainWeight += terrainMask${i}; terrainPaint += texture2D(terrainMap${i}, vTerrainUv * terrainMapScale${i}).rgb * terrainMask${i}; }`).join("\n");
       shader.vertexShader = shader.vertexShader
         .replace("#include <common>", `#include <common>\nvarying vec2 vTerrainUv;\nfloat smoothTerrainMin(float a, float b, float k) { float h = max(k - abs(a - b), 0.0) / k; return min(a, b) - h * h * k * 0.25; }\n${attributes}`)
         .replace("#include <begin_vertex>", `vTerrainUv = uv;\n${assignments}\n#include <begin_vertex>`);
       shader.fragmentShader = shader.fragmentShader
-        .replace("#include <common>", `#include <common>\nvarying vec2 vTerrainUv;\n${varyings}\n${uniforms}`)
+        .replace("#include <common>", `#include <common>\nvarying vec2 vTerrainUv;\n${varyings}\n${uniforms}\n${baseUniforms}`)
 .replace("#include <color_fragment>", `
 #include <color_fragment>
 
@@ -523,8 +566,14 @@ float terrainOuterBackgroundFade = vTerrainOuterBackgroundFade;
 // Terrain + texture first, tint afterwards
 // --------------------------------------------------
 
+vec3 standardTerrainColor = mix(
+    diffuseColor.rgb,
+    texture2D(terrainBaseMap, vTerrainUv * terrainBaseMapScale).rgb,
+    terrainHasBaseMap
+);
+
 vec3 finalTerrainColor =
-    diffuseColor.rgb *
+    standardTerrainColor *
     max(0.0, 1.0 - terrainWeight)
     + terrainPaint;
 
@@ -539,6 +588,9 @@ diffuseColor.rgb =
         shader.uniforms[`terrainMap${index}`] = { value: material.userData.terrainTextures?.[index] ?? this.placeholderTexture };
         shader.uniforms[`terrainMapScale${index}`] = { value: material.userData.terrainTextureScales?.[index] ?? 1 };
       }
+      shader.uniforms.terrainBaseMap = { value: material.userData.terrainBaseTexture ?? this.placeholderTexture };
+      shader.uniforms.terrainBaseMapScale = { value: material.userData.terrainBaseTextureScale ?? 1 };
+      shader.uniforms.terrainHasBaseMap = { value: material.userData.terrainBaseTexture ? 1 : 0 };
       material.userData.terrainShader = shader;
     };
     material.customProgramCacheKey = () => "next-world-chunked-terrain-textures-v14";
@@ -553,7 +605,8 @@ diffuseColor.rgb =
   }
 
   loadTextures(layers = []) {
-    for (const layer of layers.slice(0, MAX_TEXTURE_LAYERS)) if (layer?.src && !this.textures.has(layer.src)) {
+    const sources = [this.config?.baseTexture, ...layers.slice(0, MAX_TEXTURE_LAYERS)];
+    for (const layer of sources) if (layer?.src && !this.textures.has(layer.src)) {
       this.textureLoader.load(layer.src, texture => {
         this.textures.set(layer.src, this.configureTexture(texture, layer.scale));
         this.applyTextures();
@@ -575,11 +628,17 @@ diffuseColor.rgb =
     if (!this.material) return;
     this.material.userData.terrainTextures = Array.from({ length: MAX_TEXTURE_LAYERS }, (_, index) => this.textures.get(layers[index]?.src) ?? this.placeholderTexture);
     this.material.userData.terrainTextureScales = Array.from({ length: MAX_TEXTURE_LAYERS }, (_, index) => layers[index]?.scale ?? 1);
+    const baseTexture = this.config?.baseTexture;
+    this.material.userData.terrainBaseTexture = baseTexture?.src ? this.textures.get(baseTexture.src) ?? null : null;
+    this.material.userData.terrainBaseTextureScale = baseTexture?.scale ?? 1;
     const shader = this.material.userData.terrainShader;
     if (!shader) { this.material.needsUpdate = true; return; }
     for (let index = 0; index < MAX_TEXTURE_LAYERS; index++) {
       shader.uniforms[`terrainMap${index}`].value = this.material.userData.terrainTextures[index];
       shader.uniforms[`terrainMapScale${index}`].value = this.material.userData.terrainTextureScales[index];
     }
+    shader.uniforms.terrainBaseMap.value = this.material.userData.terrainBaseTexture ?? this.placeholderTexture;
+    shader.uniforms.terrainBaseMapScale.value = this.material.userData.terrainBaseTextureScale;
+    shader.uniforms.terrainHasBaseMap.value = this.material.userData.terrainBaseTexture ? 1 : 0;
   }
 }

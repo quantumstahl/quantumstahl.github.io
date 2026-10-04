@@ -20,7 +20,10 @@ export class Grass {
     // Far grass is a broad procedural surface, so 2 m cells retain the
     // appearance while reducing its streamed geometry substantially.
     this.farGrassCellSize = 2;
-    this.farGrassOpacity = 0.80;
+    // Keep the low-detail surface above small terrain interpolation errors on
+    // hills. This is a vertical offset only: it does not add any geometry.
+    this.farGrassSurfaceOffset = 0.20;
+    this.farGrassOpacity = 1.0;
 
     this.farGrassMesh = null;
     this.farGrassMaterial = this.createFarGrassMaterial();
@@ -39,7 +42,7 @@ export class Grass {
 
     // Börja försiktigt på mobil.
     this.farGrassPointsPerFrame = 8000;
-    this.farGrassCellsPerFrame = 100;
+    this.farGrassCellsPerFrame = 1000;
   }
   createFarGrassMaterial() {
 
@@ -286,8 +289,8 @@ grassColor.rgb *= macroTint;
                 // Finish far grass before the terrain's own fog reaches the
                 // horizon. Keeping both fades on precisely the same boundary
                 // leaves a thin, view-dependent green seam at the skyline.
-                float farGrassFogNear = max(0.0, uFogNear - 20.0);
-                float farGrassFogFar = max(farGrassFogNear + 0.001, uFogFar - 4.0);
+                float farGrassFogNear = uFogNear-1.0;
+                float farGrassFogFar = uFogNear;
                 float skyFade = smoothstep(farGrassFogNear, farGrassFogFar, vFogDepth);
                 float backgroundFade = max(skyFade, vOuterBackgroundFade);
                 grassColor = mix(grassColor, backgroundColor, backgroundFade);
@@ -333,12 +336,8 @@ grassColor.rgb *= macroTint;
         `
     });
     
-    material.userData.addBackgroundFade = (backgroundTexture, fog) => {
-      material.uniforms.uBackgroundTexture.value = backgroundTexture;
-      material.uniforms.uFogNear.value = fog?.near ?? 50;
-      material.uniforms.uFogFar.value = fog?.far ?? 70;
-      return material.uniforms;
-    };
+   material.uniforms.uFogNear.value = this.scene.fog.far;
+      material.uniforms.uFogFar.value = this.scene.fog.far;
     return material;
 }
 rebuildFarGrass() {
@@ -464,7 +463,7 @@ rebuildFarGrass() {
 
         // Lite ovanför marken för att undvika z-fighting.
 
-        const offsetY = 0.025;
+        const offsetY = this.farGrassSurfaceOffset;
 
 
         const y00 =
@@ -1200,7 +1199,7 @@ createMaterial() {
     // grid and the shared far-grass mesh when a stream callback reports the
     // same chunk grass data again.
     const signature = chunks
-      .map(chunk => `${chunk.x},${chunk.z}:${chunk.grass?.points?.length ?? 0}:${chunk._decorativeOuterEdges?.join("") ?? ""}:${chunk._decorativeOuterCorners?.join("") ?? ""}`)
+      .map(chunk => `${chunk.x},${chunk.z}:${chunk.grass?.points?.length ?? 0}:${chunk.grass?.revision ?? 0}:${chunk._decorativeOuterEdges?.join("") ?? ""}:${chunk._decorativeOuterCorners?.join("") ?? ""}`)
       .sort()
       .join("|");
     if (signature === this.chunkGrassSignature) return;
@@ -1923,7 +1922,7 @@ processFarGrassRebuild() {
 
 
         const offsetY =
-            0.025;
+            this.farGrassSurfaceOffset;
 
 
         const y00 =

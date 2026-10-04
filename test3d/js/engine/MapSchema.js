@@ -37,6 +37,13 @@ export function createChunkedWorldManifest(data = {}) {
       enabled: data.terrain?.enabled ?? true,
       resolution: Math.max(2, Math.min(100, Number(data.terrain?.resolution) || 50)),
       color: data.terrain?.color ?? 0x638450,
+      // Kept separate from painted splat layers so it can cover the entire
+      // world without changing any per-chunk texture masks.
+      baseTexture: data.terrain?.baseTexture?.src ? {
+        src: String(data.terrain.baseTexture.src),
+       // scale: Math.max(1, Math.min(200, Number(data.terrain.baseTexture.scale) || 16))
+        scale: 4
+      } : null,
       textures: data.terrain?.textures ?? [],
       activeTexture: Number(data.terrain?.activeTexture) || 0
     },
@@ -115,6 +122,10 @@ export class WorldMap {
       size: data.terrain?.size ?? 200,
       segments: terrainSegments,
       color: data.terrain?.color ?? 0x638450,
+      baseTexture: data.terrain?.baseTexture?.src ? {
+        src: String(data.terrain.baseTexture.src),
+        scale: Math.max(1, Math.min(200, Number(data.terrain.baseTexture.scale) || 16))
+      } : null,
       heights: Array.from({ length: terrainVertexCount }, (_, index) => Number(savedHeights[sourceIndexFor(index)]) || 0),
       // One compact colour per terrain vertex.  This is deliberately map data
       // rather than an image file, so painted ground works in both editor and game.
