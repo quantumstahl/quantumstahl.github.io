@@ -5,11 +5,6 @@
   "chunkRadius": 2,
   "chunks": [
     {
-      "x": 0,
-      "z": 0,
-      "decorative": false
-    },
-    {
       "x": -2,
       "z": -2,
       "decorative": true
@@ -17,7 +12,7 @@
     {
       "x": -1,
       "z": -2,
-      "decorative": true
+      "decorative": false
     },
     {
       "x": 0,
@@ -27,12 +22,12 @@
     {
       "x": 1,
       "z": -2,
-      "decorative": true
+      "decorative": false
     },
     {
       "x": 2,
       "z": -2,
-      "decorative": true
+      "decorative": false
     },
     {
       "x": -2,
@@ -57,7 +52,7 @@
     {
       "x": 2,
       "z": -1,
-      "decorative": true
+      "decorative": false
     },
     {
       "x": -2,
@@ -70,6 +65,11 @@
       "decorative": false
     },
     {
+      "x": 0,
+      "z": 0,
+      "decorative": false
+    },
+    {
       "x": 1,
       "z": 0,
       "decorative": false
@@ -77,7 +77,7 @@
     {
       "x": 2,
       "z": 0,
-      "decorative": true
+      "decorative": false
     },
     {
       "x": -2,
@@ -102,7 +102,7 @@
     {
       "x": 2,
       "z": 1,
-      "decorative": true
+      "decorative": false
     },
     {
       "x": -2,
@@ -127,6 +127,11 @@
     {
       "x": 2,
       "z": 2,
+      "decorative": true
+    },
+    {
+      "x": -2,
+      "z": -3,
       "decorative": true
     },
     {
@@ -137,7 +142,7 @@
     {
       "x": 0,
       "z": -3,
-      "decorative": false
+      "decorative": true
     },
     {
       "x": 1,
@@ -145,48 +150,38 @@
       "decorative": true
     },
     {
-      "x": -1,
-      "z": -4,
+      "x": 2,
+      "z": -3,
       "decorative": true
     },
     {
-      "x": 0,
-      "z": -4,
-      "decorative": false
-    },
-    {
-      "x": 1,
-      "z": -4,
+      "x": 3,
+      "z": -2,
       "decorative": true
     },
     {
-      "x": -1,
-      "z": -5,
+      "x": 3,
+      "z": -1,
       "decorative": true
     },
     {
-      "x": 0,
-      "z": -5,
-      "decorative": false
-    },
-    {
-      "x": 1,
-      "z": -5,
+      "x": 3,
+      "z": 0,
       "decorative": true
     },
     {
-      "x": -1,
-      "z": -6,
+      "x": 3,
+      "z": 1,
       "decorative": true
     },
     {
-      "x": 0,
-      "z": -6,
+      "x": 3,
+      "z": 2,
       "decorative": true
     },
     {
-      "x": 1,
-      "z": -6,
+      "x": 3,
+      "z": -3,
       "decorative": true
     }
   ],
@@ -203,12 +198,7 @@
     "enabled": true,
     "resolution": 50,
     "color": 6521936,
-    "textures": [
-      {
-        "src": "assets/path2.png",
-        "scale": 16
-      }
-    ],
+    "textures": [],
     "activeTexture": 0,
     "chunkSize": 50
   },
@@ -224,7 +214,7 @@
   },
   "layers": [
     {
-      "id": "38840d26-c87b-43b8-b6c0-3b442c1a4c65",
+      "id": "c7927f29-fe4b-4f64-a55f-92fa5de142e8",
       "name": "Objects",
       "visible": true,
       "assetTypes": [

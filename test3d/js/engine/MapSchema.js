@@ -3,6 +3,21 @@ const newId = () => globalThis.crypto?.randomUUID?.() ?? Math.random().toString(
 export const WORLD_CHUNK_SIZE = 50;
 export const WORLD_CHUNK_RADIUS = 2;
 
+const createStarterChunks = () => {
+  const chunks = [];
+  for (let z = -WORLD_CHUNK_RADIUS; z <= WORLD_CHUNK_RADIUS; z++) {
+    for (let x = -WORLD_CHUNK_RADIUS; x <= WORLD_CHUNK_RADIUS; x++) {
+      chunks.push({
+        x,
+        z,
+        // The outer ring is scenery; the 3x3 centre is initially playable.
+        decorative: Math.abs(x) === WORLD_CHUNK_RADIUS || Math.abs(z) === WORLD_CHUNK_RADIUS
+      });
+    }
+  }
+  return chunks;
+};
+
 // Version 2 manifests intentionally contain no per-vertex terrain or placed
 // object arrays. Those live in chunks/x_z.json and are fetched on demand.
 export function isChunkedWorld(data) { return data?.version === 2 && Array.isArray(data?.chunks); }
@@ -15,7 +30,7 @@ export function createChunkedWorldManifest(data = {}) {
     chunkRadius: WORLD_CHUNK_RADIUS,
     chunks: Array.isArray(data.chunks) && data.chunks.length
       ? data.chunks.map(chunk => ({ x: Number(chunk.x) || 0, z: Number(chunk.z) || 0, decorative: Boolean(chunk.decorative) }))
-      : [{ x: 0, z: 0, decorative: true }],
+      : createStarterChunks(),
     editor: { showGrid: data.editor?.showGrid ?? true, autoCreateChunks: data.editor?.autoCreateChunks ?? true },
     sky: data.sky ?? { mode: "day", timeOfDay: 0.25, dayDuration: 360 },
     terrain: {

@@ -11,6 +11,7 @@ export class MapFileManager {
   async openWorkspace() {
     if (!window.showDirectoryPicker) throw new Error("This browser cannot open a chunked map workspace.");
     const directoryHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+    this.assertMapRoot(directoryHandle);
     const manifestHandle = await directoryHandle.getFileHandle("world.json");
     const text = await (await manifestHandle.getFile()).text();
     const world = text.trim() ? deserializeWorld(JSON.parse(text)) : createDefaultWorld();
@@ -20,7 +21,16 @@ export class MapFileManager {
   async chooseWorkspaceDirectory() {
     if (!window.showDirectoryPicker) throw new Error("This browser cannot choose a folder for a chunked map.");
     this.directoryHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+    this.assertMapRoot(this.directoryHandle);
     return this.directoryHandle;
+  }
+  assertMapRoot(directoryHandle) {
+    // A v2 workspace layout is <map root>/world.json and
+    // <map root>/chunks/x_z.json. Selecting the chunks folder itself creates
+    // chunks/chunks and leaves the game reading the old map data.
+    if (directoryHandle?.name?.toLowerCase() === "chunks") {
+      throw new Error("Choose the map folder that contains world.json and the chunks folder, not the chunks folder itself.");
+    }
   }
   async save(world) {
     if (!this.fileHandle) return this.saveAs(world);

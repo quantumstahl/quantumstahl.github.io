@@ -154,7 +154,10 @@ export class AssetTree {
     const trim = document.createElement("button");
     trim.textContent = "Trim empty chunks";
     trim.addEventListener("click", () => { this.closeContextMenu(); this.editor.trimEmptyChunks().catch(error => console.error("Could not trim chunks", error)); });
-    menu.append(grid, chunks, origin, trim);
+    const paintDecorativeGrass = document.createElement("button");
+    paintDecorativeGrass.textContent = "Paint decorative grass";
+    paintDecorativeGrass.addEventListener("click", () => { this.closeContextMenu(); this.editor.paintDecorativeChunks().catch(error => console.error("Could not paint decorative grass", error)); });
+    menu.append(grid, chunks, origin, trim, paintDecorativeGrass);
     menu.style.left = `${Math.min(event.clientX, window.innerWidth - 210)}px`;
     menu.style.top = `${Math.min(event.clientY, window.innerHeight - 50)}px`;
     document.body.append(menu); this.contextMenu = menu;

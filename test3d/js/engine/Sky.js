@@ -178,53 +178,83 @@ addBackgroundFadeToMaterial(material, backgroundTexture = this.backgroundTarget.
         `
         );
 
-     shader.fragmentShader = shader.fragmentShader.replace(
-  `#include <fog_fragment>`,
-  /* glsl */ `
-  #ifdef USE_FOG
+   const hasTerrainOuterFade =
+    material.userData.terrainOuterBackgroundFade === true;
 
-    #ifdef FOG_EXP2
-
-      float fogFactor =
+const terrainOuterFadeCode =
+    hasTerrainOuterFade
+        ? `
+    backgroundFadeFactor =
         1.0 -
-        exp(
-          -fogDensity *
-          fogDensity *
-          vFogDepth *
-          vFogDepth
-        );
+        (1.0 - backgroundFadeFactor) *
+        (1.0 - vTerrainOuterBackgroundFade);
+        `
+        : "";
 
-    #else
+shader.fragmentShader = shader.fragmentShader.replace(
+    `#include <fog_fragment>`,
+    /* glsl */ `
+    float backgroundFadeFactor = 0.0;
 
-      float fogFactor =
-        smoothstep(
-          fogNear,
-          fogFar,
-          vFogDepth
-        );
+    #ifdef USE_FOG
+
+        #ifdef FOG_EXP2
+
+            float fogFactor =
+                1.0 -
+                exp(
+                    -fogDensity *
+                    fogDensity *
+                    vFogDepth *
+                    vFogDepth
+                );
+
+        #else
+
+            float fogFactor =
+                smoothstep(
+                    fogNear,
+                    fogFar,
+                    vFogDepth
+                );
+
+        #endif
+
+        backgroundFadeFactor = fogFactor;
 
     #endif
 
-    // Every fogged material, including terrain and far grass, must blend to
-    // the same captured sky. A separate fogColor-to-sky transition creates a
-    // second horizontal band before the clouded horizon.
-    vec2 vCoords = vClipPosition.xy / vClipPosition.w;
-    vCoords = vCoords * 0.5 + 0.5;
-    vec3 fogTarget = texture2D(uBackgroundTexture, vCoords).rgb;
 
-    gl_FragColor.rgb =
-      mix(
-        gl_FragColor.rgb,
-        fogTarget,
-        fogFactor
-      );
+    ${terrainOuterFadeCode}
 
-  #endif
-  `
+
+    if (backgroundFadeFactor > 0.0001) {
+
+        vec2 vCoords =
+            vClipPosition.xy /
+            vClipPosition.w;
+
+        vCoords =
+            vCoords * 0.5 + 0.5;
+
+        vec3 backgroundTarget =
+            texture2D(
+                uBackgroundTexture,
+                vCoords
+            ).rgb;
+
+        gl_FragColor.rgb =
+            mix(
+                gl_FragColor.rgb,
+                backgroundTarget,
+                backgroundFadeFactor
+            );
+    }
+    `
 );
         };
 
-        material.customProgramCacheKey = () => `${previousProgramKey}|background-fade-v2`;
+        material.customProgramCacheKey = () => `${previousProgramKey}|background-fade-v3`;
         material.userData.backgroundFadeAdded = true;
         material.userData.backgroundFadeUniforms = uniforms;
         material.needsUpdate = true;

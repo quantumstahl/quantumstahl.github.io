@@ -17,7 +17,9 @@ export class Grass {
     this.grassGrid = new Map();
     this.gridCellSize = 5;
     this.gridDirty = true;
-    this.farGrassCellSize = 1;
+    // Far grass is a broad procedural surface, so 2 m cells retain the
+    // appearance while reducing its streamed geometry substantially.
+    this.farGrassCellSize = 2;
     this.farGrassOpacity = 0.80;
 
     this.farGrassMesh = null;
@@ -25,8 +27,19 @@ export class Grass {
 
     this.farGrassNeedsRebuild = true;
     this.farGrassRebuildTimer = 0;
+    this.chunkGrassSignature = "";
 
     this.environmentsun=true;
+    this.pendingGrassGridBuild = null;
+
+    this.grassBuildPointsPerFrame = 5000;
+    this.grassBuildCellsPerFrame = 12;
+
+    this.farGrassBuildJob = null;
+
+    // Börja försiktigt på mobil.
+    this.farGrassPointsPerFrame = 8000;
+    this.farGrassCellsPerFrame = 100;
   }
   createFarGrassMaterial() {
 
@@ -79,9 +92,11 @@ export class Grass {
 
             varying vec3 vWorldPosition;
             varying float vCoverage;
+            varying float vOuterBackgroundFade;
             varying vec4 vClipPosition;
             varying float vFogDepth;
             attribute float coverage;
+            attribute float outerBackgroundFade;
 
             void main() {
 
@@ -90,6 +105,7 @@ export class Grass {
 
                 vWorldPosition = worldPosition.xyz;
                 vCoverage = coverage;
+                vOuterBackgroundFade = outerBackgroundFade;
 
                 vec4 viewPosition = viewMatrix * worldPosition;
                 gl_Position = projectionMatrix * viewPosition;
@@ -114,6 +130,7 @@ export class Grass {
 
             varying vec3 vWorldPosition;
             varying float vCoverage;
+            varying float vOuterBackgroundFade;
             varying vec4 vClipPosition;
             varying float vFogDepth;
 
@@ -266,8 +283,14 @@ grassColor.rgb *= macroTint;
                 // of fading its alpha toward the older blue fog colour.
                 vec2 backgroundUv = vClipPosition.xy / vClipPosition.w * 0.5 + 0.5;
                 vec3 backgroundColor = texture2D(uBackgroundTexture, backgroundUv).rgb;
-                float skyFade = smoothstep(uFogNear, uFogFar, vFogDepth);
-                grassColor = mix(grassColor, backgroundColor, skyFade);
+                // Finish far grass before the terrain's own fog reaches the
+                // horizon. Keeping both fades on precisely the same boundary
+                // leaves a thin, view-dependent green seam at the skyline.
+                float farGrassFogNear = max(0.0, uFogNear - 20.0);
+                float farGrassFogFar = max(farGrassFogNear + 0.001, uFogFar - 4.0);
+                float skyFade = smoothstep(farGrassFogNear, farGrassFogFar, vFogDepth);
+                float backgroundFade = max(skyFade, vOuterBackgroundFade);
+                grassColor = mix(grassColor, backgroundColor, backgroundFade);
 
 
                 // Börja visa markgräset lite innan
@@ -291,7 +314,8 @@ grassColor.rgb *= macroTint;
                     nearFade *
                     farFade *
                     uOpacity *
-                    smoothstep(0.0, 1.0, vCoverage);
+                    smoothstep(0.0, 1.0, vCoverage) *
+                    (1.0 - backgroundFade);
 
 
                 if (alpha < 0.01) {
@@ -345,6 +369,7 @@ rebuildFarGrass() {
 
     const cells =
         new Set();
+    const cellOuterFades = new Map();
 
 
     for (const blade of this.config.points) {
@@ -359,9 +384,9 @@ rebuildFarGrass() {
                 blade.z / cellSize
             );
 
-        cells.add(
-            `${cellX},${cellZ}`
-        );
+        const key = `${cellX},${cellZ}`;
+        cells.add(key);
+        cellOuterFades.set(key, Math.max(cellOuterFades.get(key) ?? 0, blade._farOuterFade ?? 0));
     }
 
     // Include a one-cell border around the painted cells. Coverage values at
@@ -393,9 +418,20 @@ rebuildFarGrass() {
         return occupied / 4;
     };
 
+    const vertexOuterFade = (vertexX, vertexZ) => {
+        let fade = 0;
+        for (let offsetX = -1; offsetX <= 0; offsetX++) {
+            for (let offsetZ = -1; offsetZ <= 0; offsetZ++) {
+                fade = Math.max(fade, cellOuterFades.get(`${vertexX + offsetX},${vertexZ + offsetZ}`) ?? 0);
+            }
+        }
+        return fade;
+    };
+
 
     const positions = [];
     const coverage = [];
+    const outerBackgroundFade = [];
     const indices = [];
 
     let vertexIndex = 0;
@@ -482,6 +518,12 @@ rebuildFarGrass() {
             vertexCoverage(cellX + 1, cellZ + 1),
             vertexCoverage(cellX, cellZ + 1)
         );
+        outerBackgroundFade.push(
+            vertexOuterFade(cellX, cellZ),
+            vertexOuterFade(cellX + 1, cellZ),
+            vertexOuterFade(cellX + 1, cellZ + 1),
+            vertexOuterFade(cellX, cellZ + 1)
+        );
 
 
         // Winding uppåt.
@@ -520,6 +562,10 @@ rebuildFarGrass() {
     geometry.setAttribute(
         "coverage",
         new THREE.Float32BufferAttribute(coverage, 1)
+    );
+    geometry.setAttribute(
+        "outerBackgroundFade",
+        new THREE.Float32BufferAttribute(outerBackgroundFade, 1)
     );
 
 
@@ -1129,8 +1175,8 @@ createMaterial() {
     this.config = config;
     this.terrain = terrain;
     this.farGrassNeedsRebuild = true;
-
-    this.rebuildFarGrass();
+    // The streamed far-grass job is advanced from update() in small slices.
+    // Do not call the legacy synchronous builder here.
     this.root.visible = Boolean(config?.enabled);
 
     this.cacheGroundHeights();
@@ -1144,15 +1190,294 @@ createMaterial() {
     this.chunkedConfig = config;
     this.config = { ...config, points: [] };
     this.terrain = terrain;
+    this.chunkGrassSignature = "";
     this.setChunkedChunks(chunks);
     this.root.visible = Boolean(config?.enabled);
   }
   setChunkedChunks(chunks = []) {
     if (!this.chunkedConfig) return;
-    this.config.points = chunks.flatMap(chunk => chunk.grass?.points ?? []);
+    // The renderer is already one shared InstancedMesh. Avoid rebuilding its
+    // grid and the shared far-grass mesh when a stream callback reports the
+    // same chunk grass data again.
+    const signature = chunks
+      .map(chunk => `${chunk.x},${chunk.z}:${chunk.grass?.points?.length ?? 0}:${chunk._decorativeOuterEdges?.join("") ?? ""}:${chunk._decorativeOuterCorners?.join("") ?? ""}`)
+      .sort()
+      .join("|");
+    if (signature === this.chunkGrassSignature) return;
+    this.chunkGrassSignature = signature;
+    this.config.points = chunks.flatMap(chunk =>
+      (chunk.grass?.points ?? []).map(point => ({
+        ...point,
+        // Only the static far-grass surface reads this value. Near instanced
+        // blades retain their original material and do not fade at the edge.
+        _farOuterFade: this.getFarOuterFade(chunk, point)
+      }))
+    );
     this.farGrassNeedsRebuild = true;
-    this.gridDirty = true;
+    this.queueGrassGridRebuild();
     this.dirty = true;
+  }
+  queueGrassGridRebuild() {
+        this.pendingGrassGridBuild = {
+            points: this.config?.points ?? [],
+            pointIndex: 0,
+            grid: new Map(),
+
+            cells: null,
+            cellIndex: 0,
+
+            phase: "points"
+        };
+    }
+    processGrassGridRebuild() {
+    const job = this.pendingGrassGridBuild;
+
+    if (!job) return;
+
+    const cellSize = this.gridCellSize;
+
+
+    // ----------------------------------------
+    // PHASE 1
+    // Lägg punkter i grid över flera frames
+    // ----------------------------------------
+
+    if (job.phase === "points") {
+
+        const end = Math.min(
+            job.pointIndex + this.grassBuildPointsPerFrame,
+            job.points.length
+        );
+
+        for (; job.pointIndex < end; job.pointIndex++) {
+
+            const blade = job.points[job.pointIndex];
+
+            const cellX =
+                Math.floor(blade.x / cellSize);
+
+            const cellZ =
+                Math.floor(blade.z / cellSize);
+
+
+            let column = job.grid.get(cellX);
+
+            if (!column) {
+                column = new Map();
+                job.grid.set(cellX, column);
+            }
+
+
+            let cell = column.get(cellZ);
+
+            if (!cell) {
+
+                cell = {
+                    blades: [],
+                    matrices: null,
+                    box: null,
+                    minY: Infinity,
+                    maxY: -Infinity
+                };
+
+                column.set(cellZ, cell);
+            }
+
+
+            cell.blades.push(blade);
+
+            const y =
+                blade.y ?? 0;
+
+            const grassHeight =
+                0.7 *
+                blade.scale *
+                (blade.height ?? 1);
+
+
+            cell.minY =
+                Math.min(cell.minY, y);
+
+            cell.maxY =
+                Math.max(
+                    cell.maxY,
+                    y + grassHeight
+                );
+        }
+
+
+        if (job.pointIndex >= job.points.length) {
+
+            job.cells = [];
+
+            for (const [cellX, column] of job.grid) {
+
+                for (const [cellZ, cell] of column) {
+
+                    job.cells.push({
+                        cellX,
+                        cellZ,
+                        cell
+                    });
+
+                }
+            }
+
+            job.phase = "cells";
+        }
+
+        return;
+    }
+
+
+    // ----------------------------------------
+    // PHASE 2
+    // Bygg matrices några celler per frame
+    // ----------------------------------------
+
+    const end = Math.min(
+        job.cellIndex + this.grassBuildCellsPerFrame,
+        job.cells.length
+    );
+
+
+    for (; job.cellIndex < end; job.cellIndex++) {
+
+        const {
+            cellX,
+            cellZ,
+            cell
+        } = job.cells[job.cellIndex];
+
+
+        const count =
+            cell.blades.length;
+
+
+        cell.matrices =
+            new Float32Array(
+                count * 16
+            );
+
+
+        let offset = 0;
+
+
+        for (const blade of cell.blades) {
+
+            const y =
+                blade.y ?? 0;
+
+
+            this.position.set(
+                blade.x,
+                y,
+                blade.z
+            );
+
+
+            this.rotation.setFromAxisAngle(
+                THREE.Object3D.DEFAULT_UP,
+                blade.rotation
+            );
+
+
+            this.scale.set(
+                blade.scale,
+                blade.scale * (blade.height ?? 1),
+                blade.scale
+            );
+
+
+            this.matrix.compose(
+                this.position,
+                this.rotation,
+                this.scale
+            );
+
+
+            cell.matrices.set(
+                this.matrix.elements,
+                offset
+            );
+
+
+            offset += 16;
+        }
+
+
+        const minX =
+            cellX * cellSize;
+
+        const minZ =
+            cellZ * cellSize;
+
+
+        cell.minX = minX;
+        cell.maxX = minX + cellSize;
+
+        cell.minZ = minZ;
+        cell.maxZ = minZ + cellSize;
+
+
+        cell.box =
+            new THREE.Box3(
+
+                new THREE.Vector3(
+                    cell.minX - 1,
+                    cell.minY - 0.2,
+                    cell.minZ - 1
+                ),
+
+                new THREE.Vector3(
+                    cell.maxX + 1,
+                    cell.maxY + 1,
+                    cell.maxZ + 1
+                )
+
+            );
+    }
+
+
+    // ----------------------------------------
+    // KLAR
+    // Swap först när hela nya gridet är klart
+    // ----------------------------------------
+
+    if (job.cellIndex >= job.cells.length) {
+
+        this.grassGrid =
+            job.grid;
+
+        this.pendingGrassGridBuild =
+            null;
+
+        this.gridDirty =
+            false;
+
+        this.dirty =
+            true;
+    }
+}
+  getFarOuterFade(chunk, point) {
+    if (!chunk._decorative) return 0;
+    const edges = chunk._decorativeOuterEdges ?? [0, 0, 0, 0];
+    const corners = chunk._decorativeOuterCorners ?? [0, 0, 0, 0];
+    if (!edges.some(Boolean) && !corners.some(Boolean)) return 0;
+
+    const size = this.terrain?.chunkSize ?? 50;
+    const u = (point.x - chunk.x * size) / size;
+    const v = (point.z - chunk.z * size) / size;
+    let distance = Infinity;
+    if (edges[0]) distance = Math.min(distance, u);
+    if (edges[1]) distance = Math.min(distance, 1 - u);
+    if (edges[2]) distance = Math.min(distance, 1 - v);
+    if (edges[3]) distance = Math.min(distance, v);
+    if (corners[0]) distance = Math.min(distance, Math.hypot(u, 1 - v));
+    if (corners[1]) distance = Math.min(distance, Math.hypot(1 - u, 1 - v));
+    if (corners[2]) distance = Math.min(distance, Math.hypot(u, v));
+    if (corners[3]) distance = Math.min(distance, Math.hypot(1 - u, v));
+    return 1 - THREE.MathUtils.smoothstep(distance, 0, 0.30);
   }
   paintChunked(point, radius, getChunkAt, chunks) {
     if (!this.chunkedConfig?.enabled || radius <= 0) return false;
@@ -1336,11 +1661,501 @@ createMaterial() {
     this.dirty = true;
     return true;
   }
-update(delta, camera) {
+  startFarGrassRebuild() {
 
+    this.farGrassNeedsRebuild = false;
+    this.farGrassRebuildTimer = 0;
+
+    if (
+        !this.config?.enabled ||
+        !this.terrain ||
+        !this.config.points?.length
+    ) {
+        if (this.farGrassMesh) {
+            this.farGrassMesh.visible = false;
+        }
+
+        this.farGrassBuildJob = null;
+        return;
+    }
+
+    this.farGrassBuildJob = {
+
+        // Viktigt:
+        // använd snapshot så config kan ändras medan bygget pågår.
+        points: this.config.points.slice(),
+
+        pointIndex: 0,
+
+        cells: new Set(),
+        cellOuterFades: new Map(),
+
+        renderCells: null,
+        renderCellArray: null,
+        renderCellIndex: 0,
+        sourceCellArray: null,
+        sourceCellIndex: 0,
+
+        positions: [],
+        coverage: [],
+        outerBackgroundFade: [],
+        indices: [],
+
+        vertexIndex: 0,
+
+        phase: "points"
+    };
+}
+processFarGrassRebuild() {
+
+    const job = this.farGrassBuildJob;
+
+    if (!job) return;
+
+
+    const cellSize = this.farGrassCellSize;
+
+
+    // ==========================================================
+    // PHASE 1
+    // Läs gräspunkter över flera frames.
+    // ==========================================================
+
+    if (job.phase === "points") {
+
+        const end = Math.min(
+            job.pointIndex + this.farGrassPointsPerFrame,
+            job.points.length
+        );
+
+
+        for (
+            ;
+            job.pointIndex < end;
+            job.pointIndex++
+        ) {
+
+            const blade =
+                job.points[job.pointIndex];
+
+
+            const cellX =
+                Math.floor(
+                    blade.x / cellSize
+                );
+
+            const cellZ =
+                Math.floor(
+                    blade.z / cellSize
+                );
+
+
+            const key =
+                `${cellX},${cellZ}`;
+
+
+            job.cells.add(key);
+
+
+            job.cellOuterFades.set(
+                key,
+                Math.max(
+                    job.cellOuterFades.get(key) ?? 0,
+                    blade._farOuterFade ?? 0
+                )
+            );
+        }
+
+
+        if (job.pointIndex >= job.points.length) {
+            job.renderCells = new Set();
+            job.sourceCellArray = [...job.cells];
+            job.phase = "expand";
+        }
+
+
+        return;
+    }
+
+    // Expanding every occupied cell into its 3x3 soft-edge border used to
+    // happen in one frame. Spread it across the same build budget.
+    if (job.phase === "expand") {
+        const end = Math.min(
+            job.sourceCellIndex + this.farGrassCellsPerFrame,
+            job.sourceCellArray.length
+        );
+        for (; job.sourceCellIndex < end; job.sourceCellIndex++) {
+            const [cellX, cellZ] = job.sourceCellArray[job.sourceCellIndex].split(",").map(Number);
+            for (let offsetX = -1; offsetX <= 1; offsetX++) {
+                for (let offsetZ = -1; offsetZ <= 1; offsetZ++) {
+                    job.renderCells.add(`${cellX + offsetX},${cellZ + offsetZ}`);
+                }
+            }
+        }
+        if (job.sourceCellIndex < job.sourceCellArray.length) return;
+        job.renderCellArray = [...job.renderCells];
+        job.phase = "geometry";
+        return;
+    }
+
+
+    // ==========================================================
+    // Helpers
+    // ==========================================================
+
+    const vertexCoverage =
+        (vertexX, vertexZ) => {
+
+            let occupied = 0;
+
+
+            for (
+                let offsetX = -1;
+                offsetX <= 0;
+                offsetX++
+            ) {
+
+                for (
+                    let offsetZ = -1;
+                    offsetZ <= 0;
+                    offsetZ++
+                ) {
+
+                    if (
+                        job.cells.has(
+                            `${vertexX + offsetX},${vertexZ + offsetZ}`
+                        )
+                    ) {
+
+                        occupied++;
+                    }
+                }
+            }
+
+
+            return occupied / 4;
+        };
+
+
+    const vertexOuterFade =
+        (vertexX, vertexZ) => {
+
+            let fade = 0;
+
+
+            for (
+                let offsetX = -1;
+                offsetX <= 0;
+                offsetX++
+            ) {
+
+                for (
+                    let offsetZ = -1;
+                    offsetZ <= 0;
+                    offsetZ++
+                ) {
+
+                    fade =
+                        Math.max(
+                            fade,
+
+                            job.cellOuterFades.get(
+                                `${vertexX + offsetX},${vertexZ + offsetZ}`
+                            ) ?? 0
+                        );
+                }
+            }
+
+
+            return fade;
+        };
+
+
+    // ==========================================================
+    // PHASE 2
+    // Bygg några markceller per frame.
+    // ==========================================================
+
+    const end =
+        Math.min(
+
+            job.renderCellIndex +
+            this.farGrassCellsPerFrame,
+
+            job.renderCellArray.length
+        );
+
+
+    for (
+        ;
+        job.renderCellIndex < end;
+        job.renderCellIndex++
+    ) {
+
+        const key =
+            job.renderCellArray[
+                job.renderCellIndex
+            ];
+
+
+        const parts =
+            key.split(",");
+
+
+        const cellX =
+            Number(parts[0]);
+
+        const cellZ =
+            Number(parts[1]);
+
+
+        const x0 =
+            cellX * cellSize;
+
+        const z0 =
+            cellZ * cellSize;
+
+        const x1 =
+            x0 + cellSize;
+
+        const z1 =
+            z0 + cellSize;
+
+
+        const offsetY =
+            0.025;
+
+
+        const y00 =
+            (
+                this.terrain.getHeightAt({
+                    x: x0,
+                    z: z0
+                }) ?? 0
+            ) + offsetY;
+
+
+        const y10 =
+            (
+                this.terrain.getHeightAt({
+                    x: x1,
+                    z: z0
+                }) ?? 0
+            ) + offsetY;
+
+
+        const y11 =
+            (
+                this.terrain.getHeightAt({
+                    x: x1,
+                    z: z1
+                }) ?? 0
+            ) + offsetY;
+
+
+        const y01 =
+            (
+                this.terrain.getHeightAt({
+                    x: x0,
+                    z: z1
+                }) ?? 0
+            ) + offsetY;
+
+
+        job.positions.push(
+
+            x0, y00, z0,
+            x1, y10, z0,
+            x1, y11, z1,
+            x0, y01, z1
+
+        );
+
+
+        job.coverage.push(
+
+            vertexCoverage(
+                cellX,
+                cellZ
+            ),
+
+            vertexCoverage(
+                cellX + 1,
+                cellZ
+            ),
+
+            vertexCoverage(
+                cellX + 1,
+                cellZ + 1
+            ),
+
+            vertexCoverage(
+                cellX,
+                cellZ + 1
+            )
+
+        );
+
+
+        job.outerBackgroundFade.push(
+
+            vertexOuterFade(
+                cellX,
+                cellZ
+            ),
+
+            vertexOuterFade(
+                cellX + 1,
+                cellZ
+            ),
+
+            vertexOuterFade(
+                cellX + 1,
+                cellZ + 1
+            ),
+
+            vertexOuterFade(
+                cellX,
+                cellZ + 1
+            )
+
+        );
+
+
+        job.indices.push(
+
+            job.vertexIndex,
+            job.vertexIndex + 2,
+            job.vertexIndex + 1,
+
+            job.vertexIndex,
+            job.vertexIndex + 3,
+            job.vertexIndex + 2
+
+        );
+
+
+        job.vertexIndex += 4;
+    }
+
+
+    if (
+        job.renderCellIndex <
+        job.renderCellArray.length
+    ) {
+        return;
+    }
+
+
+    // ==========================================================
+    // PHASE 3
+    // Geometry klar.
+    // Gör bara själva swapen nu.
+    // ==========================================================
+
+    const geometry =
+        new THREE.BufferGeometry();
+
+
+    geometry.setAttribute(
+
+        "position",
+
+        new THREE.Float32BufferAttribute(
+            job.positions,
+            3
+        )
+
+    );
+
+
+    geometry.setAttribute(
+
+        "coverage",
+
+        new THREE.Float32BufferAttribute(
+            job.coverage,
+            1
+        )
+
+    );
+
+
+    geometry.setAttribute(
+
+        "outerBackgroundFade",
+
+        new THREE.Float32BufferAttribute(
+            job.outerBackgroundFade,
+            1
+        )
+
+    );
+
+
+    geometry.setIndex(
+        job.indices
+    );
+
+
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+
+
+    if (!this.farGrassMesh) {
+
+        this.farGrassMesh =
+            new THREE.Mesh(
+                geometry,
+                this.farGrassMaterial
+            );
+
+
+        this.farGrassMesh.name =
+            "Far grass ground shader";
+
+
+        this.farGrassMesh.castShadow =
+            false;
+
+        this.farGrassMesh.receiveShadow =
+            false;
+
+
+        this.root.add(
+            this.farGrassMesh
+        );
+
+    } else {
+
+        const oldGeometry =
+            this.farGrassMesh.geometry;
+
+
+        this.farGrassMesh.geometry =
+            geometry;
+
+        this.farGrassMesh.visible =
+            true;
+
+
+        // dispose först EFTER swap
+        oldGeometry?.dispose();
+    }
+
+
+    this.farGrassBuildJob =
+        null;
+
+
+    // Om chunks ändrades medan vi byggde:
+    // nästa rebuild startar sedan automatiskt.
+}
+update(delta, camera) {
+    
     if (!this.config?.enabled || !camera || !this.mesh)
         return;
-
+    this.processGrassGridRebuild();
     // Wind animation runs every frame.
     const shader = this.material.userData.grassShader;
 
@@ -1357,14 +2172,17 @@ update(delta, camera) {
 
     if (this.farGrassNeedsRebuild) {
 
-        this.farGrassRebuildTimer += delta;
+    this.farGrassRebuildTimer += delta;
 
-        if (this.farGrassRebuildTimer > 0.12) {
-
-            this.rebuildFarGrass();
-        }
-
+    if (
+        this.farGrassRebuildTimer > 0.12 &&
+        !this.farGrassBuildJob
+    ) {
+        this.startFarGrassRebuild();
     }
+}
+
+this.processFarGrassRebuild();
     camera.getWorldDirection(this.cameraDirection);
 
     const cameraStill =
@@ -1403,9 +2221,6 @@ update(delta, camera) {
     let visibleCount = 0;
 
 
-if (this.gridDirty) {
-    this.buildGrassGrid();
-}
 
 
 

@@ -46,6 +46,10 @@ export class MapLoader {
       onChanged: () => {
         this.refreshBatches();
         this.refreshFakeShadows();
+        // ChunkSystem finishes a whole window change before this callback.
+        // Rebuilding the grass grid per entering tile caused five identical
+        // full rebuilds whenever the camera crossed one chunk boundary.
+        this.refreshChunkedGrass();
       }
     });
   }
@@ -110,6 +114,7 @@ export class MapLoader {
       this.streamedTerrain.applyManifest(this.world.terrain);
       this.water.beginChunked(this.world.water);
       this.grass.applyChunked(this.world.grass, this.streamedTerrain);
+      this.groundMist.applyChunks(this.streamedTerrain.meshes);
     } else {
       this.terrain = this.monolithicTerrain;
       this.terrain.apply(this.world.terrain);
@@ -153,11 +158,12 @@ export class MapLoader {
       chunk._decorative = decoration.decorative;
       chunk._decorativeEdges = decoration.edges;
       chunk._decorativeCorners = decoration.corners;
+      chunk._decorativeOuterEdges = decoration.outerEdges;
+      chunk._decorativeOuterCorners = decoration.outerCorners;
       objects.terrainChunk = chunk;
       this.streamedTerrain.loadChunk(chunk);
       this.water.applyChunk(chunk, this.world.terrain);
       objects.waterChunk = chunk;
-      this.refreshChunkedGrass();
       for (const record of chunk.objects ?? []) {
         const layer = this.world.layers.find(item => item.id === record.layerId);
         const type = layer?.assetTypes.find(item => item.id === record.typeId);
@@ -183,7 +189,6 @@ export class MapLoader {
   unloadChunk(objects) {
     if (objects.terrainChunk) this.streamedTerrain.unloadChunk(objects.terrainChunk.x, objects.terrainChunk.z);
     if (objects.waterChunk) this.water.removeChunk(objects.waterChunk.x, objects.waterChunk.z);
-    if (objects.terrainChunk) this.refreshChunkedGrass();
     for (const object of objects) {
       // Do not unload the player with its authored spawn chunk. It is moved
       // independently by PlayerController and must survive world streaming.
@@ -445,6 +450,68 @@ export class MapLoader {
     this.chunks.refresh(camera);
     return removed.length;
   }
+  async paintDecorativeChunks() {
+    if (!this.chunkStore || this.mode !== "editor") return { painted: 0, skipped: 0 };
+
+    this.calculateChunkDecorativeFlags();
+    const targets = this.world.chunks.filter(chunk => chunk.decorative);
+    const size = this.world.chunkSize;
+    const density = Math.max(8000, Math.round((this.world.grass?.density ?? 2) * 6000));
+    const random = seed => {
+      const value = Math.sin(seed) * 43758.5453123;
+      return value - Math.floor(value);
+    };
+    let painted = 0;
+    let skipped = 0;
+
+    for (const definition of targets) {
+      const chunk = await this.chunkStore.load(definition.x, definition.z);
+      chunk.grass ??= { points: [] };
+      chunk.grass.points ??= [];
+      // This command creates base cover once. Re-running it must not pile
+      // hundreds more blades onto chunks the user has already painted.
+      if (chunk.grass.points.length) {
+        skipped++;
+        continue;
+      }
+
+      const seed = definition.x * 73856093 + definition.z * 19349663;
+      for (let index = 0; index < density; index++) {
+        const x = definition.x * size + random(seed + index * 17.13) * size;
+        const z = definition.z * size + random(seed + index * 31.79 + 0.5) * size;
+        chunk.grass.points.push({
+          x,
+          z,
+          y: this.getChunkHeight(chunk, x, z),
+          scale: 0.55 + random(seed + index * 47.17) * 0.35,
+          height: 0.55 + random(seed + index * 61.43) * 0.35,
+          rotation: random(seed + index * 73.91) * Math.PI * 2
+        });
+      }
+      this.chunkStore.markDirty(chunk);
+      painted++;
+    }
+
+    this.refreshChunkedGrass();
+    return { painted, skipped };
+  }
+  getChunkHeight(chunk, worldX, worldZ) {
+    const resolution = this.world.terrain?.resolution ?? 50;
+    const heights = chunk.terrain?.heights ?? [];
+    if (heights.length < (resolution + 1) ** 2) return 0;
+    const size = this.world.chunkSize;
+    const localX = THREE.MathUtils.clamp((worldX - chunk.x * size) / size * resolution, 0, resolution);
+    const localZ = THREE.MathUtils.clamp((worldZ - chunk.z * size) / size * resolution, 0, resolution);
+    const x0 = Math.floor(localX), z0 = Math.floor(localZ);
+    const x1 = Math.min(resolution, x0 + 1), z1 = Math.min(resolution, z0 + 1);
+    const tx = localX - x0, tz = localZ - z0;
+    const valueAt = (x, z) => Number(heights[z * (resolution + 1) + x]) || 0;
+    return THREE.MathUtils.lerp(
+      THREE.MathUtils.lerp(valueAt(x0, z0), valueAt(x1, z0), tx),
+      THREE.MathUtils.lerp(valueAt(x0, z1), valueAt(x1, z1), tx),
+      tz
+    );
+  }
   markActiveChunksDirty() { if (this.chunkStore) for (const chunk of this.activeTerrainChunks()) this.chunkStore.markDirty(chunk); }
   getChunkBounds() {
     if (!this.chunkStore || !this.world.chunks?.length) {
@@ -476,7 +543,7 @@ export class MapLoader {
     }
     for (const { chunk } of this.streamedTerrain.tiles.values()) {
       const decoration = this.getChunkDecoration(chunk.x, chunk.z);
-      this.streamedTerrain.setChunkDecorative(chunk, decoration.decorative, decoration.edges, decoration.corners);
+      this.streamedTerrain.setChunkDecorative(chunk, decoration.decorative, decoration.edges, decoration.corners, decoration.outerEdges, decoration.outerCorners);
     }
   }
   getChunkDecoration(x, z) {
@@ -487,6 +554,7 @@ export class MapLoader {
       const neighbour = chunks.get(`${x + offsetX},${z + offsetZ}`);
       return Boolean(neighbour && !neighbour.decorative);
     };
+    const exists = (offsetX, offsetZ) => chunks.has(`${x + offsetX},${z + offsetZ}`);
     // PlaneGeometry's UV Y axis is reversed after the terrain's X rotation:
     // UV-bottom faces world +Z, while UV-top faces world -Z.
     const edges = decorative ? [isPlayable(-1, 0), isPlayable(1, 0), isPlayable(0, 1), isPlayable(0, -1)].map(Number) : [0, 0, 0, 0];
@@ -494,8 +562,29 @@ export class MapLoader {
     // adjacent chunks still decorative. Ordinary corners keep no round mark.
     const softCorner = (offsetX, offsetZ) => isPlayable(offsetX, offsetZ) && !isPlayable(offsetX, 0) && !isPlayable(0, offsetZ);
     // UV corners are: world (-X,+Z), (+X,+Z), (-X,-Z), (+X,-Z).
+
+
+    
     const corners = decorative ? [softCorner(-1, 1), softCorner(1, 1), softCorner(-1, -1), softCorner(1, -1)].map(Number) : [0, 0, 0, 0];
-    return { decorative, edges, corners };
+
+    const outerEdges = decorative
+        ? [
+            !exists(-1, 0), // left
+            !exists( 1, 0), // right
+            !exists( 0, 1), // bottom / +Z
+            !exists( 0,-1)  // top / -Z
+          ].map(Number)
+        : [0, 0, 0, 0];
+
+    // A chunk can meet the world exterior only diagonally, between two chunks
+    // that still exist on its cardinal sides. Flag that corner so the sky fade
+    // rounds into the gap instead of ending in a pointed V.
+    const outerCorner = (offsetX, offsetZ) => !exists(offsetX, offsetZ) && exists(offsetX, 0) && exists(0, offsetZ);
+    const outerCorners = decorative
+      ? [outerCorner(-1, 1), outerCorner(1, 1), outerCorner(-1, -1), outerCorner(1, -1)].map(Number)
+      : [0, 0, 0, 0];
+
+    return { decorative, edges, corners, outerEdges, outerCorners };
   }
   constrainToGameplayChunks(position, previousPosition, padding = 0.05) {
     if (!this.world.chunks?.length) {
@@ -560,11 +649,10 @@ export class MapLoader {
     this.grass.setSunDirection(sun);
     this.grass.setEnvironmentTint(this.environment.GrassTint, this.environment.sunsun);
     this.grass.update(delta, camera);
-    if (!this.chunkStore) {
-      this.groundMist.apply(this.terrain.mesh);
-      this.groundMist.setHorizonColors(this.environment, this.environment.timeOfDay);
-      this.groundMist.update(delta, camera);
-    }
+    if (this.chunkStore) this.groundMist.applyChunks(this.streamedTerrain.meshes);
+    else this.groundMist.apply(this.terrain.mesh);
+    this.groundMist.setHorizonColors(this.environment, this.environment.timeOfDay);
+    this.groundMist.update(delta, camera);
     this.fakeShadows.update(this.terrain, delta);
   }
   refreshWater() {

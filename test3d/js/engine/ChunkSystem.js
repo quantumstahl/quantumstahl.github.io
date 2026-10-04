@@ -62,17 +62,32 @@ export class ChunkSystem {
       changed = true;
     }
 
-    const loads = [];
-    for (const key of wanted) {
-      if (this.active.has(key) || this.loading.has(key)) continue;
+    const keysToLoad = [...wanted].filter(key => !this.active.has(key) && !this.loading.has(key));
+    const results = [];
+    // The initial window can load together. Later, spread a newly entering
+    // column over frames so JSON parsing, terrain construction and asset
+    // setup do not all land in the same movement frame.
+    const spreadLoads = this.active.size > 0;
+    if (!spreadLoads) {
+      const loads = keysToLoad.map(key => {
+        const promise = this.load(key).finally(() => this.loading.delete(key));
+        this.loading.set(key, promise);
+        return promise;
+      });
+      if (loads.length) changed ||= (await Promise.all(loads)).some(Boolean);
+      if (changed) this.onChanged();
+      return;
+    }
+    for (let index = 0; index < keysToLoad.length; index++) {
+      const key = keysToLoad[index];
       const promise = this.load(key).finally(() => this.loading.delete(key));
       this.loading.set(key, promise);
-      loads.push(promise);
+      results.push(await promise);
+      if (spreadLoads && index < keysToLoad.length - 1) {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+      }
     }
-    if (loads.length) {
-      const results = await Promise.all(loads);
-      changed ||= results.some(Boolean);
-    }
+    if (results.length) changed ||= results.some(Boolean);
     if (changed) this.onChanged();
   }
 

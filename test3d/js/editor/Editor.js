@@ -207,6 +207,17 @@ export class Editor {
     this.markDirty(); this.tree.render();
     this.setStatus(`Trimmed ${removed} empty interior ${removed === 1 ? "chunk" : "chunks"}`);
   }
+  async paintDecorativeChunks() {
+    if (!window.confirm("Paint base grass on every decorative chunk? Existing painted grass is left unchanged.")) return;
+    const result = await this.mapLoader.paintDecorativeChunks();
+    if (!result.painted) {
+      this.setStatus(result.skipped ? "Decorative chunks already have painted grass" : "No decorative chunks to paint");
+      return;
+    }
+    this.markDirty();
+    this.tree.render();
+    this.setStatus(`Painted grass on ${result.painted} decorative ${result.painted === 1 ? "chunk" : "chunks"}${result.skipped ? `; kept ${result.skipped} existing` : ""}`);
+  }
   changeWaterLevel() {
     const water = this.mapLoader.world.water;
     const value = window.prompt("Water level (metres)?", String(water.level));

@@ -23,6 +23,7 @@ export class GroundMist {
     this.mistSegments = 32;
     this.time = 0;
     this.mesh = null;
+    this.chunkProxies = new Map();
     this.sourceGeometry = null;
     this.sourcePositionVersion = -1;
     this.material = this.createMaterial();
@@ -102,6 +103,7 @@ export class GroundMist {
   }
 
   apply(terrainMesh) {
+    this.clearChunkProxies();
     if (!terrainMesh) {
       this.mesh?.removeFromParent();
       return;
@@ -116,6 +118,45 @@ export class GroundMist {
       if (!this.mesh.parent) this.scene.add(this.mesh);
     }
     this.updateProxyGeometry(terrainMesh.geometry);
+  }
+
+  applyChunks(terrainMeshes = []) {
+    this.mesh?.removeFromParent();
+    const wanted = new Set();
+    for (const terrainMesh of terrainMeshes) {
+      const chunk = terrainMesh.userData.chunk;
+      if (!chunk) continue;
+      const key = `${chunk.x},${chunk.z}`;
+      wanted.add(key);
+      let record = this.chunkProxies.get(key);
+      if (!record) {
+        const state = { sourceGeometry: null, sourcePositionVersion: -1 };
+        const mesh = new THREE.Mesh(this.createProxyGeometry(terrainMesh.geometry, state), this.material);
+        mesh.name = `GroundMist ${key}`;
+        mesh.renderOrder = 1;
+        mesh.frustumCulled = terrainMesh.frustumCulled;
+        this.scene.add(mesh);
+        record = { mesh, state };
+        this.chunkProxies.set(key, record);
+      }
+      record.mesh.position.copy(terrainMesh.position);
+      this.updateProxyGeometry(terrainMesh.geometry, record.mesh.geometry, record.state);
+      if (!record.mesh.parent) this.scene.add(record.mesh);
+    }
+    for (const [key, record] of this.chunkProxies) {
+      if (wanted.has(key)) continue;
+      record.mesh.removeFromParent();
+      record.mesh.geometry.dispose();
+      this.chunkProxies.delete(key);
+    }
+  }
+
+  clearChunkProxies() {
+    for (const record of this.chunkProxies.values()) {
+      record.mesh.removeFromParent();
+      record.mesh.geometry.dispose();
+    }
+    this.chunkProxies.clear();
   }
 
   // Preserve the pale mist, with enough of the active horizon palette to tie
@@ -163,22 +204,22 @@ export class GroundMist {
     this.mistColor.lerpColors(this.baseMistColor, horizonColor, this.horizonTintStrength);
   }
 
-  createProxyGeometry(sourceGeometry) {
+  createProxyGeometry(sourceGeometry, state = this) {
     const geometry = new THREE.PlaneGeometry(1, 1, this.mistSegments, this.mistSegments);
     geometry.rotateX(-Math.PI / 2);
-    this.sourceGeometry = null;
-    this.sourcePositionVersion = -1;
-    this.updateProxyGeometry(sourceGeometry, geometry);
+    state.sourceGeometry = null;
+    state.sourcePositionVersion = -1;
+    this.updateProxyGeometry(sourceGeometry, geometry, state);
     return geometry;
   }
 
-  updateProxyGeometry(sourceGeometry, proxyGeometry = this.mesh?.geometry) {
+  updateProxyGeometry(sourceGeometry, proxyGeometry = this.mesh?.geometry, state = this) {
     const source = sourceGeometry?.getAttribute("position");
     const target = proxyGeometry?.getAttribute("position");
     if (!source || !target) return;
     const sourceSegments = Math.round(Math.sqrt(source.count)) - 1;
     if (sourceSegments < 1 || source.count !== (sourceSegments + 1) ** 2) return;
-    if (this.sourceGeometry === sourceGeometry && this.sourcePositionVersion === source.version) return;
+    if (state.sourceGeometry === sourceGeometry && state.sourcePositionVersion === source.version) return;
 
     const proxySegments = this.mistSegments;
     for (let z = 0; z <= proxySegments; z++) {
@@ -199,8 +240,8 @@ export class GroundMist {
     }
     target.needsUpdate = true;
     proxyGeometry.computeBoundingSphere();
-    this.sourceGeometry = sourceGeometry;
-    this.sourcePositionVersion = source.version;
+    state.sourceGeometry = sourceGeometry;
+    state.sourcePositionVersion = source.version;
   }
 
   update(delta, camera) {
