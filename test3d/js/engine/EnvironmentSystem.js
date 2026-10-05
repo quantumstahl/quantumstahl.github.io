@@ -15,7 +15,8 @@ export class EnvironmentSystem {
     this.dayDuration = 360;
     this.timeScale = 10;
     this.sunDistance = 200;
-    this.sunIntensity = 2;
+    this.sunIntensity = 0.5;
+    this.moonIntensity = 0.5;
     this.sunDirection = new THREE.Vector3();
     this.moonDirection = new THREE.Vector3();
     this.fogColor = new THREE.Color();
@@ -28,9 +29,11 @@ export class EnvironmentSystem {
     this.dawnHorizonColor = new THREE.Color(1.0, 0.38, 0.14);
     this.duskHorizonColor = new THREE.Color(0.48, 0.17, 0.62);
     this.fogHorizonColor = new THREE.Color();
-    this.nightHemisphereColor = new THREE.Color(0x1b2945);
+    this.nightHemisphereColor = new THREE.Color(0xffffff);
     this.dayHemisphereColor = new THREE.Color(0xffffff);
-    this.hemisphereGroundColor = new THREE.Color(0x1b2534);
+    this.hemisphereGroundColor = new THREE.Color(0x000000);
+    this.nightHemisphereIntensity = 2.2;
+    this.dayHemisphereIntensity = 3.2;
     this.GrassTint = new THREE.Color(0.00, 0.00, 0.09);
     this.savedGrasstint= new THREE.Color(0.00, 0.00, 0.09);
     this.NoGrasstint= new THREE.Color(0.00, 0.00, 0.00);
@@ -86,23 +89,39 @@ export class EnvironmentSystem {
     // The sun travels toward negative X after noon, making this horizon band
     // sunset only; sunrise retains the cool twilight treatment.
     const sunset = twilight * THREE.MathUtils.smoothstep(-0.15, 0.55, -this.sunDirection.x);
-    // Fog must meet the sky at the actual horizon colour. Select directly
-    // from the four time-of-day palettes rather than fading through the
-    // blue day/night fog colours, which produced a visible horizon stripe at
-    // dawn and dusk.
-    const horizonPhase = this.timeOfDay * 4;
-    const horizonIndex = Math.floor(horizonPhase);
-    const horizonPalette = [
-      this.nightHorizonColor,
-      this.dawnHorizonColor,
-      this.dayHorizonColor,
-      this.duskHorizonColor,
-      this.nightHorizonColor
-    ];
-    this.fogHorizonColor.copy(horizonPalette[horizonIndex]).lerp(
-      horizonPalette[horizonIndex + 1],
-      horizonPhase - horizonIndex
-    );
+    // Keep the horizon in lockstep with the daylight ramp. Dawn and dusk
+    // now occupy tight windows around the sun crossing the horizon (.25 and
+    // .75), rather than bleeding across half of the day cycle.
+    const horizonTime = this.timeOfDay;
+    if (horizonTime < 0.20 || horizonTime >= 0.85) {
+      this.fogHorizonColor.copy(this.nightHorizonColor);
+    } else if (horizonTime < 0.25) {
+      this.fogHorizonColor.lerpColors(
+        this.nightHorizonColor,
+        this.dawnHorizonColor,
+        THREE.MathUtils.smoothstep(horizonTime, 0.20, 0.25)
+      );
+    } else if (horizonTime < 0.32) {
+      this.fogHorizonColor.lerpColors(
+        this.dawnHorizonColor,
+        this.dayHorizonColor,
+        THREE.MathUtils.smoothstep(horizonTime, 0.25, 0.32)
+      );
+    } else if (horizonTime < 0.73) {
+      this.fogHorizonColor.copy(this.dayHorizonColor);
+    } else if (horizonTime < 0.80) {
+      this.fogHorizonColor.lerpColors(
+        this.dayHorizonColor,
+        this.duskHorizonColor,
+        THREE.MathUtils.smoothstep(horizonTime, 0.73, 0.80)
+      );
+    } else {
+      this.fogHorizonColor.lerpColors(
+        this.duskHorizonColor,
+        this.nightHorizonColor,
+        THREE.MathUtils.smoothstep(horizonTime, 0.80, 0.85)
+      );
+    }
     this.fogColor.copy(this.fogHorizonColor);
     this.GrassTint.lerpColors(this.savedGrasstint, this.NoGrasstint, daylight);
     this.sunsun=daylight.valueOf();
@@ -118,11 +137,16 @@ export class EnvironmentSystem {
       this.sun.updateMatrixWorld();
     }
     this.moon.position.copy(this.moonDirection).multiplyScalar(this.sunDistance);
-    this.moon.intensity = 2.5 * moonlight;
+    // Moonlight should reveal the terrain without reading as a second sun.
+    this.moon.intensity = this.moonIntensity * moonlight;
     this.moon.visible = moonlight > 0.001;
     this.moon.updateMatrixWorld();
     if (this.hemisphere) {
-      this.hemisphere.intensity = THREE.MathUtils.lerp(1.5, 1.5, daylight);
+      this.hemisphere.intensity = THREE.MathUtils.lerp(
+        this.nightHemisphereIntensity,
+        this.dayHemisphereIntensity,
+        daylight
+      );
       this.hemisphere.color.lerpColors(this.nightHemisphereColor, this.dayHemisphereColor, daylight);
       this.hemisphere.groundColor.copy(this.hemisphereGroundColor);
     }

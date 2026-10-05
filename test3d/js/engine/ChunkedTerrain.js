@@ -427,6 +427,8 @@ setChunkDecorative(
         uniform sampler2D terrainBaseMap;
         uniform float terrainBaseMapScale;
         uniform float terrainHasBaseMap;
+        uniform vec3 terrainHorizonColor;
+        uniform float terrainHorizonTintStrength;
       `;
       const assignments = `${Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `vTerrainTextureMask${i} = terrainTextureMask${i};`).join("\n")}\nvTerrainDecorative = terrainDecorative; vTerrainDecorativeEdges = terrainDecorativeEdges; vTerrainDecorativeCorners = terrainDecorativeCorners;\nvec4 terrainOuterEdges = step(vec4(0.5), mod(terrainDecorativeOuterEdges, 2.0));\nvec4 terrainOuterCorners = step(vec4(1.5), terrainDecorativeOuterEdges);\nfloat terrainOuterDistance = 1000.0;\nif (terrainOuterEdges.x > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, uv.x, 0.12);\nif (terrainOuterEdges.y > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, 1.0 - uv.x, 0.12);\nif (terrainOuterEdges.z > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, uv.y, 0.12);\nif (terrainOuterEdges.w > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, 1.0 - uv.y, 0.12);\nif (terrainOuterCorners.x > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, length(uv - vec2(0.0, 0.0)), 0.12);\nif (terrainOuterCorners.y > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, length(uv - vec2(1.0, 0.0)), 0.12);\nif (terrainOuterCorners.z > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, length(uv - vec2(0.0, 1.0)), 0.12);\nif (terrainOuterCorners.w > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, length(uv - vec2(1.0, 1.0)), 0.12);\nvTerrainOuterBackgroundFade = (1.0 - smoothstep(0.0, 0.30, terrainOuterDistance)) * step(0.5, terrainDecorative);`;
       const samples = Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `float terrainMask${i} = vTerrainTextureMask${i}; if (terrainMask${i} > 0.0001) { terrainWeight += terrainMask${i}; terrainPaint += texture2D(terrainMap${i}, vTerrainUv * terrainMapScale${i}).rgb * terrainMask${i}; }`).join("\n");
@@ -572,6 +574,15 @@ vec3 standardTerrainColor = mix(
     terrainHasBaseMap
 );
 
+// Tint only the standard ground surface. Normalising the horizon colour keeps
+// its brightest channel at full value, so the palette shifts the texture's
+// hue without making daylight terrain unnecessarily darker.
+vec3 horizonTint = terrainHorizonColor / max(
+    max(terrainHorizonColor.r, terrainHorizonColor.g),
+    max(terrainHorizonColor.b, 1.0000)
+);
+standardTerrainColor *= mix(vec3(1.0,0.5,0.0), horizonTint, terrainHorizonTintStrength);
+
 vec3 finalTerrainColor =
     standardTerrainColor *
     max(0.0, 1.0 - terrainWeight)
@@ -591,9 +602,22 @@ diffuseColor.rgb =
       shader.uniforms.terrainBaseMap = { value: material.userData.terrainBaseTexture ?? this.placeholderTexture };
       shader.uniforms.terrainBaseMapScale = { value: material.userData.terrainBaseTextureScale ?? 1 };
       shader.uniforms.terrainHasBaseMap = { value: material.userData.terrainBaseTexture ? 1 : 0 };
+      shader.uniforms.terrainHorizonColor = { value: material.userData.terrainHorizonColor ?? new THREE.Color(1, 1, 1) };
+      shader.uniforms.terrainHorizonTintStrength = { value: material.userData.terrainHorizonTintStrength ?? 0.45 };
       material.userData.terrainShader = shader;
     };
-    material.customProgramCacheKey = () => "next-world-chunked-terrain-textures-v14";
+    material.customProgramCacheKey = () => "next-world-chunked-terrain-textures-v15";
+  }
+
+  setHorizonTint(color, strength = 0.65) {
+    if (!this.material || !color) return;
+    const tint = this.material.userData.terrainHorizonColor ??= new THREE.Color();
+    tint.copy(color);
+    this.material.userData.terrainHorizonTintStrength = strength;
+    const shader = this.material.userData.terrainShader;
+    if (!shader) return;
+    shader.uniforms.terrainHorizonColor.value.copy(tint);
+    shader.uniforms.terrainHorizonTintStrength.value = strength;
   }
 
   configureTexture(texture, scale) {

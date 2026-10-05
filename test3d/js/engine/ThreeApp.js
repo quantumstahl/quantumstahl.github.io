@@ -24,7 +24,8 @@ export class ThreeApp {
     this.resize();
   }
   addDefaultLighting() {
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 1.5));
+    // HemisphereLight takes sky colour, ground colour, then intensity.
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x1b2534, 1.5));
     const sun = new THREE.DirectionalLight(0xffffff, 2);
     sun.position.set(15, 40, 200); sun.castShadow = true;
     const shadowSize = this.mobileProfile ? 1024 : 2048;

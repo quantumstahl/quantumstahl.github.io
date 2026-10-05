@@ -20,6 +20,11 @@ export class GroundMist {
     this.horizonTintStrength = 0.80;
     this.mistNearFadeStart = 25;
     this.mistNearFadeEnd = 35;
+    // Mist is thickest in low ground and thins progressively up a hill.
+    // These world-space elevations keep the base of the current terrain
+    // misty while fading it out near the tops of its roughly 4m hills.
+    this.mistElevationFadeStart = 0.5;
+    this.mistElevationFadeEnd = 2.0;
     this.mistSegments = 32;
     this.time = 0;
     this.mesh = null;
@@ -43,6 +48,8 @@ export class GroundMist {
       mistCameraPosition: { value: new THREE.Vector3() },
       mistNearFadeStart: { value: this.mistNearFadeStart },
       mistNearFadeEnd: { value: this.mistNearFadeEnd },
+      mistElevationFadeStart: { value: this.mistElevationFadeStart },
+      mistElevationFadeEnd: { value: this.mistElevationFadeEnd },
       mistFadeStart: { value: 30 },
       mistFadeEnd: { value: 50 }
     };
@@ -73,6 +80,8 @@ export class GroundMist {
         uniform vec3 mistCameraPosition;
         uniform float mistNearFadeStart;
         uniform float mistNearFadeEnd;
+        uniform float mistElevationFadeStart;
+        uniform float mistElevationFadeEnd;
         uniform float mistFadeStart;
         uniform float mistFadeEnd;
         varying vec3 vMistWorldPosition;
@@ -96,7 +105,12 @@ export class GroundMist {
           float cameraDistance = distance(vMistWorldPosition.xz, mistCameraPosition.xz);
           float nearFade = smoothstep(mistNearFadeStart, mistNearFadeEnd, cameraDistance);
           float farFade = 1.0 - smoothstep(mistFadeStart, mistFadeEnd, cameraDistance);
-          gl_FragColor = vec4(mistColor, alpha * mistOpacity * nearFade * farFade);
+          float elevationFade = 1.0 - smoothstep(
+            mistElevationFadeStart,
+            mistElevationFadeEnd,
+            vMistWorldPosition.y
+          );
+          gl_FragColor = vec4(mistColor, alpha * mistOpacity * nearFade * farFade * elevationFade);
         }
       `
     });
@@ -259,6 +273,8 @@ export class GroundMist {
     if (camera) uniforms.mistCameraPosition.value.copy(camera.position);
     uniforms.mistNearFadeStart.value = this.mistNearFadeStart;
     uniforms.mistNearFadeEnd.value = this.mistNearFadeEnd;
+    uniforms.mistElevationFadeStart.value = this.mistElevationFadeStart;
+    uniforms.mistElevationFadeEnd.value = this.mistElevationFadeEnd;
     // Fade out before scene fog begins, without changing the fog itself.
     const fogFar = this.scene.fog?.far ?? 70;
     const fogNear = this.scene.fog?.near ?? 70;

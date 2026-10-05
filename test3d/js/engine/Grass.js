@@ -289,8 +289,8 @@ grassColor.rgb *= macroTint;
                 // Finish far grass before the terrain's own fog reaches the
                 // horizon. Keeping both fades on precisely the same boundary
                 // leaves a thin, view-dependent green seam at the skyline.
-                float farGrassFogNear = uFogNear-1.0;
-                float farGrassFogFar = uFogNear;
+                float farGrassFogNear = uFogNear;
+                float farGrassFogFar = uFogFar;
                 float skyFade = smoothstep(farGrassFogNear, farGrassFogFar, vFogDepth);
                 float backgroundFade = max(skyFade, vOuterBackgroundFade);
                 grassColor = mix(grassColor, backgroundColor, backgroundFade);

@@ -131,7 +131,7 @@
     }
   ],
   "editor": {
-    "showGrid": true,
+    "showGrid": false,
     "autoCreateChunks": false
   },
   "sky": {
@@ -144,7 +144,7 @@
     "resolution": 50,
     "color": 6521936,
     "baseTexture": {
-      "src": "assets/grasyfield2.png",
+      "src": "assets/gragras3.png",
       "scale": 4
     },
     "textures": [],

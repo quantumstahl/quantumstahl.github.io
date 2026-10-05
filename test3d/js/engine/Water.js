@@ -4,8 +4,9 @@ import * as THREE from "three";
 // with inexpensive procedural waves. No external normal map is required.
 export class Water {
   constructor(scene) { this.scene = scene; this.mesh = null; this.material = null; this.sunPosition = new THREE.Vector3(); this.sunTargetPosition = new THREE.Vector3(); this.chunkRoot = null; this.chunkMeshes = new Map(); this.chunkConfig = null; }
-  setSunDirection(sun) {
+  setSunDirection(sun, reflectionStrength = 1) {
     if (!this.material || !sun?.isDirectionalLight || !sun.target) return false;
+    this.material.uniforms.uSunReflectionStrength.value = THREE.MathUtils.clamp(reflectionStrength, 0, 1);
     sun.updateWorldMatrix(true, false); sun.target.updateWorldMatrix(true, false);
     sun.getWorldPosition(this.sunPosition); sun.target.getWorldPosition(this.sunTargetPosition);
     const direction = this.sunPosition.sub(this.sunTargetPosition);
@@ -50,7 +51,10 @@ createMaterial(config) {
           24,
           10
         ).normalize()
-      }
+      },
+      // The procedural highlight is sunlight only; it must disappear after
+      // sunset instead of making water look glossy under a dark sky.
+      uSunReflectionStrength: { value: 1 }
     },
 
 
@@ -129,6 +133,7 @@ createMaterial(config) {
     fragmentShader: /* glsl */`
 
       uniform float uTime;
+      uniform float uSunReflectionStrength;
 
       uniform vec3 uColor;
       uniform float uOpacity;
@@ -428,7 +433,8 @@ createMaterial(config) {
             0.48
           ) *
           sunGlow *
-          0.20;
+          0.20 *
+          uSunReflectionStrength;
 
 
         color +=
@@ -438,7 +444,8 @@ createMaterial(config) {
             0.75
           ) *
           sunSparkle *
-          0.65;
+          0.65 *
+          uSunReflectionStrength;
 
 
         // --------------------------------------------

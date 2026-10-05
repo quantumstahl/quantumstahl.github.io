@@ -22,12 +22,12 @@ export class Clouds {
   }
 
   createMesh() {
-    const material = new THREE.ShaderMaterial({
+    const material =  new THREE.ShaderMaterial({
       transparent: true,
       depthWrite: false,
       // Clouds are a distant sky layer. Do not let terrain beyond the fog
       // horizon cut into this dome through the depth buffer.
-      depthTest: false,
+       depthTest: true,
       side: THREE.BackSide,
       uniforms: {
         uTime: { value: 0 },
@@ -169,7 +169,11 @@ cloudColor *= 1.95;
         -0.3,
         0.3
       );
-      mesh.scale.setScalar(this.horizonRadius);
+      const cloudDepthRadius = Math.min(
+   Math.min(this.horizonRadius, fogFar * 0.98)
+);
+
+mesh.scale.setScalar(cloudDepthRadius);
       material.uniforms.uCameraHeight.value = Math.max(camera.position.y, 0.01);
     };
     return mesh;

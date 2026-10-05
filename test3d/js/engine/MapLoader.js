@@ -122,7 +122,7 @@ export class MapLoader {
       this.water.apply(this.world.water, this.world.terrain);
       await this.grass.apply(this.world.grass, this.terrain);
     }
-    this.water.setSunDirection(this.sky.findDirectionalLight());
+    this.water.setSunDirection(this.sky.findDirectionalLight(), this.environment.sunsun);
     this.sky.addBackgroundFadeToMaterial(this.chunkStore ? this.streamedTerrain.material : this.terrain.mesh?.material);
     if (this.chunkStore) this.sky.addBackgroundFadeToMaterial(this.water.material);
     if (this.chunkStore) this.sky.addBackgroundFadeToMaterial(this.grass.farGrassMaterial);
@@ -1495,8 +1495,11 @@ export class MapLoader {
     this.chunks?.update(camera);
     this.environment.update(delta, camera);
     const sun = this.environment.sun;
+    // Give the unpainted/base ground texture the same time-of-day hue as the
+    // horizon. Painted terrain remains readable and is left untouched.
+    if (this.chunkStore) this.streamedTerrain.setHorizonTint(this.environment.fogHorizonColor);
     this.water.update(delta, camera);
-    this.water.setSunDirection(sun);
+    this.water.setSunDirection(sun, this.environment.sunsun);
     this.grass.setSunDirection(sun);
     this.grass.setEnvironmentTint(this.environment.GrassTint, this.environment.sunsun);
     this.grass.update(delta, camera);
