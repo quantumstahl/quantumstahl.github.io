@@ -13,8 +13,8 @@ const app = new ThreeApp(document.querySelector("#gameCanvas"),isMobile.any());
 // background when it is created, while the fog remains visible on terrain.
 app.scene.background = new THREE.Color(0x8fb3d9);
 app.scene.fog = new THREE.Fog(0x8fb3d9, 90, 190);
-app.scene.fog.near = 90;
-app.scene.fog.far = 95;
+app.scene.fog.near = 70;
+app.scene.fog.far = 75;
 app.addDefaultLighting();
 app.camera.position.set(12, 10, 16); app.camera.lookAt(0, 0, 0);
 

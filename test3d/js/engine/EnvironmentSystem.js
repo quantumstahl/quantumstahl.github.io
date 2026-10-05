@@ -24,8 +24,8 @@ export class EnvironmentSystem {
     this.dayFogColor = new THREE.Color(0x9ec9f2);
     // Match the procedural sky at its horizon, including its dedicated
     // dawn/dusk palette. This is intentionally separate from scene fog.
-    this.nightHorizonColor = new THREE.Color(0.035, 0.065, 0.14);
-    this.dayHorizonColor = new THREE.Color(0.66, 0.85, 1.0);
+    this.nightHorizonColor = new THREE.Color(0.2, 0.1, 0.4);
+    this.dayHorizonColor = new THREE.Color(1.00, 1.00, 1.0);
     this.dawnHorizonColor = new THREE.Color(1.0, 0.38, 0.14);
     this.duskHorizonColor = new THREE.Color(0.48, 0.17, 0.62);
     this.fogHorizonColor = new THREE.Color();
