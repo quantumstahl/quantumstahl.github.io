@@ -7,7 +7,7 @@ export class GroundMist {
     this.scene = scene;
     this.mistHeightOffset = 1.0;
     // Deliberately strong defaults for the first visual pass.
-    this.mistOpacity = 0.45;
+    this.mistOpacity = 0.25;
     this.mistNoiseScale = 0.12;
     this.mistNoiseScale2 = 0.45;
     this.mistThreshold = 0.4;
