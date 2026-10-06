@@ -143,10 +143,7 @@
     "enabled": true,
     "resolution": 50,
     "color": 6521936,
-    "baseTexture": {
-      "src": "assets/gragras3.png",
-      "scale": 4
-    },
+    "baseTexture": null,
     "textures": [],
     "activeTexture": 0,
     "chunkSize": 50
@@ -163,7 +160,7 @@
   },
   "layers": [
     {
-      "id": "cc6290ff-00b6-4328-a971-dec8bd8689ed",
+      "id": "4e4fa590-6ed1-4d9d-ad71-cff8530d2194",
       "name": "Objects",
       "visible": true,
       "assetTypes": [
@@ -174,8 +171,8 @@
           "shape": null,
           "collision": "solid",
           "render": {
-            "castShadow": false,
-            "shadowMode": "fake",
+            "castShadow": true,
+            "shadowMode": "real",
             "receiveShadow": true,
             "instanced": true
           },

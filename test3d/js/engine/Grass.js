@@ -23,7 +23,7 @@ export class Grass {
     // Keep the low-detail surface above small terrain interpolation errors on
     // hills. This is a vertical offset only: it does not add any geometry.
     this.farGrassSurfaceOffset = 0.20;
-    this.farGrassOpacity = 1.0;
+    this.farGrassOpacity = 0.5;
 
     this.farGrassMesh = null;
     this.farGrassMaterial = this.createFarGrassMaterial();
@@ -193,7 +193,12 @@ float vnoise(vec2 p) {
         f.y
     );
 }
-
+vec2 hash22(vec2 p) {
+    return vec2(
+        hash(p),
+        hash(p + vec2(37.17, 91.53))
+    );
+}
             void main() {
 
 
@@ -231,10 +236,10 @@ float grassNoise =
 
 
 
-vec3 darkGrass  = vec3(0.141, 0.325, 0.129);
+vec3 darkGrass  = vec3(0.141, 0.325, 0.129)/2.0;
 
 
-vec3 lightGrass = vec3(0.467, 0.702, 0.251);
+vec3 lightGrass = vec3(0.467, 0.702, 0.251)/2.0;
 
 vec3 grassColor = mix(darkGrass, lightGrass, grassNoise);
 
@@ -336,7 +341,7 @@ grassColor.rgb *= macroTint;
         `
     });
     
-   material.uniforms.uFogNear.value = this.scene.fog.far;
+   material.uniforms.uFogNear.value = this.scene.fog.near;
       material.uniforms.uFogFar.value = this.scene.fog.far;
     return material;
 }
@@ -614,8 +619,8 @@ createBladeGeometry() {
 
     const blades = 30;
 
-    const baseColor = new THREE.Color(0x245321);
-    const tipColor  = new THREE.Color(0x6c973f);
+    const baseColor = new THREE.Color(0x1D421B);
+    const tipColor  = new THREE.Color(0x587A33);
     for (let blade = 0; blade < blades; blade++) {
 
         const angle = blade * 2.39996;

@@ -157,11 +157,7 @@ export class AssetTree {
     const paintDecorativeGrass = document.createElement("button");
     paintDecorativeGrass.textContent = "Make hilly decorative grass";
     paintDecorativeGrass.addEventListener("click", () => { this.closeContextMenu(); this.editor.paintDecorativeChunks().catch(error => console.error("Could not paint decorative grass", error)); });
-    const standardTexture = document.createElement("button");
-    standardTexture.textContent = "Set standard ground texture…";
-    standardTexture.title = "Sets the base texture everywhere without changing painted texture layers";
-    standardTexture.addEventListener("click", () => { this.closeContextMenu(); this.editor.chooseStandardGroundTexture().catch(error => console.error("Could not set standard ground texture", error)); });
-    menu.append(grid, chunks, origin, trim, paintDecorativeGrass, standardTexture);
+    menu.append(grid, chunks, origin, trim, paintDecorativeGrass);
     menu.style.left = `${Math.min(event.clientX, window.innerWidth - 210)}px`;
     menu.style.top = `${Math.min(event.clientY, window.innerHeight - 50)}px`;
     document.body.append(menu); this.contextMenu = menu;

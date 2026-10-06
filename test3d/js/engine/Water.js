@@ -4,7 +4,7 @@ import * as THREE from "three";
 // with inexpensive procedural waves. No external normal map is required.
 export class Water {
   constructor(scene) { this.scene = scene; this.mesh = null; this.material = null; this.sunPosition = new THREE.Vector3(); this.sunTargetPosition = new THREE.Vector3(); this.chunkRoot = null; this.chunkMeshes = new Map(); this.chunkConfig = null; }
-  setSunDirection(sun, reflectionStrength = 1) {
+  setSunDirection(sun, reflectionStrength = 1, tint) {
     if (!this.material || !sun?.isDirectionalLight || !sun.target) return false;
     this.material.uniforms.uSunReflectionStrength.value = THREE.MathUtils.clamp(reflectionStrength, 0, 1);
     sun.updateWorldMatrix(true, false); sun.target.updateWorldMatrix(true, false);
@@ -12,6 +12,8 @@ export class Water {
     const direction = this.sunPosition.sub(this.sunTargetPosition);
     if (direction.lengthSq() < 1e-8) return false;
     this.material.uniforms.uSunDirection.value.copy(direction.normalize());
+    this.tint=tint;
+    this.material.uniforms.utint.value=this.tint;
     return true;
   }
 createMaterial(config) {
@@ -54,7 +56,8 @@ createMaterial(config) {
       },
       // The procedural highlight is sunlight only; it must disappear after
       // sunset instead of making water look glossy under a dark sky.
-      uSunReflectionStrength: { value: 1 }
+      uSunReflectionStrength: { value: 1 },
+      utint:{ value: 0 }
     },
 
 
@@ -134,6 +137,7 @@ createMaterial(config) {
 
       uniform float uTime;
       uniform float uSunReflectionStrength;
+      uniform vec3 utint;
 
       uniform vec3 uColor;
       uniform float uOpacity;
@@ -463,6 +467,16 @@ createMaterial(config) {
         color +=
           vec3(0.025, 0.035, 0.045) *
           detail;
+
+
+color.rgb = (utint)/2.0+color.rgb;
+                color.r *= ((-1.00+uSunReflectionStrength)*0.2)+1.0;;
+         
+                  color.rgb *=0.3;
+                    color.rgb *=((-1.00+uSunReflectionStrength)*0.3)+1.0;
+
+
+
 
         #ifdef USE_BACKGROUND_FADE
           vec2 backgroundUv = vClipPosition.xy / vClipPosition.w * 0.5 + 0.5;

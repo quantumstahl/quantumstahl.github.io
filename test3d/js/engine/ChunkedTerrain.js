@@ -17,6 +17,9 @@ export class ChunkedTerrain {
     this.textureLoader = new THREE.TextureLoader();
     this.textures = new Map();
     this.placeholderTexture = new THREE.Texture();
+    this.time = 0;
+    this.sun= 0.84375;
+    this.tint=new THREE.Color(0.00, 0.00, 0.00);
   }
 
   key(x, z) { return `${x},${z}`; }
@@ -25,12 +28,12 @@ export class ChunkedTerrain {
     this.config = config;
     this.chunkSize = config.chunkSize ?? this.chunkSize;
     this.material?.dispose();
-    this.material = new THREE.MeshStandardMaterial({
+    this.material = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       vertexColors: true,
-      roughness: 1,
-      metalness: 0,
-      fog: true
+ 
+
+        toneMapped :false
     });
     // Sky.addBackgroundFadeToMaterial uses this marker to blend the terrain's
     // outer-edge fade with the captured sky background.
@@ -286,7 +289,16 @@ setChunkDecorative(
   getTileAt(point) {
     return this.tiles.get(this.key(Math.floor(point.x / this.chunkSize), Math.floor(point.z / this.chunkSize))) ?? null;
   }
-
+  updatesun(tint,sun){
+    this.sun=sun;
+    this.tint=tint;
+    const shader = this.material.userData.terrainShader;
+    if (shader) {
+      shader.uniforms.usun.value = this.sun;
+      shader.uniforms.utint.value = this.tint;
+    }
+    
+  }
   getHeightAt(point) {
     const tile = this.getTileAt(point);
     if (!tile) return 0;
@@ -429,6 +441,11 @@ setChunkDecorative(
         uniform float terrainHasBaseMap;
         uniform vec3 terrainHorizonColor;
         uniform float terrainHorizonTintStrength;
+        uniform float uTime;
+        uniform vec3 uLightGrass;
+        uniform vec3 uDarkGrass;
+        uniform float usun;
+        uniform vec3 utint;
       `;
       const assignments = `${Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `vTerrainTextureMask${i} = terrainTextureMask${i};`).join("\n")}\nvTerrainDecorative = terrainDecorative; vTerrainDecorativeEdges = terrainDecorativeEdges; vTerrainDecorativeCorners = terrainDecorativeCorners;\nvec4 terrainOuterEdges = step(vec4(0.5), mod(terrainDecorativeOuterEdges, 2.0));\nvec4 terrainOuterCorners = step(vec4(1.5), terrainDecorativeOuterEdges);\nfloat terrainOuterDistance = 1000.0;\nif (terrainOuterEdges.x > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, uv.x, 0.12);\nif (terrainOuterEdges.y > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, 1.0 - uv.x, 0.12);\nif (terrainOuterEdges.z > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, uv.y, 0.12);\nif (terrainOuterEdges.w > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, 1.0 - uv.y, 0.12);\nif (terrainOuterCorners.x > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, length(uv - vec2(0.0, 0.0)), 0.12);\nif (terrainOuterCorners.y > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, length(uv - vec2(1.0, 0.0)), 0.12);\nif (terrainOuterCorners.z > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, length(uv - vec2(0.0, 1.0)), 0.12);\nif (terrainOuterCorners.w > 0.5) terrainOuterDistance = smoothTerrainMin(terrainOuterDistance, length(uv - vec2(1.0, 1.0)), 0.12);\nvTerrainOuterBackgroundFade = (1.0 - smoothstep(0.0, 0.30, terrainOuterDistance)) * step(0.5, terrainDecorative);`;
       const samples = Array.from({ length: MAX_TEXTURE_LAYERS }, (_, i) => `float terrainMask${i} = vTerrainTextureMask${i}; if (terrainMask${i} > 0.0001) { terrainWeight += terrainMask${i}; terrainPaint += texture2D(terrainMap${i}, vTerrainUv * terrainMapScale${i}).rgb * terrainMask${i}; }`).join("\n");
@@ -436,7 +453,113 @@ setChunkDecorative(
         .replace("#include <common>", `#include <common>\nvarying vec2 vTerrainUv;\nvarying vec3 vWorldPosition;\nfloat smoothTerrainMin(float a, float b, float k) { float h = max(k - abs(a - b), 0.0) / k; return min(a, b) - h * h * k * 0.25; }\n${attributes}`)
         .replace("#include <begin_vertex>", `vTerrainUv = uv;\n${assignments}\n#include <begin_vertex>\nvWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;`);
       shader.fragmentShader = shader.fragmentShader
-        .replace("#include <common>", `#include <common>\nvarying vec2 vTerrainUv;\n${varyings}\n${uniforms}\n${baseUniforms}\nfloat terrainHash21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }\nfloat vnoise(vec2 p) { vec2 cell = floor(p); vec2 local = fract(p); local = local * local * (3.0 - 2.0 * local); float a = terrainHash21(cell); float b = terrainHash21(cell + vec2(1.0, 0.0)); float c = terrainHash21(cell + vec2(0.0, 1.0)); float d = terrainHash21(cell + vec2(1.0, 1.0)); return mix(mix(a, b, local.x), mix(c, d, local.x), local.y); }`)
+        .replace("#include <common>", `#include <common>\nvarying vec2 vTerrainUv;\n${varyings}\n${uniforms}\n${baseUniforms}\nfloat terrainHash21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }\nfloat vnoise(vec2 p) { vec2 cell = floor(p); vec2 local = fract(p); local = local * local * (3.0 - 2.0 * local); float a = terrainHash21(cell); float b = terrainHash21(cell + vec2(1.0, 0.0)); float c = terrainHash21(cell + vec2(0.0, 1.0)); float d = terrainHash21(cell + vec2(1.0, 1.0)); return mix(mix(a, b, local.x), mix(c, d, local.x), local.y); }    \n
+  float hash(vec2 p) {
+
+                return fract(
+                    sin(
+                        dot(
+                            p,
+                            vec2(127.1, 311.7)
+                        )
+                    ) * 43758.5453
+                );
+            }
+
+
+\n
+vec2 hash22(vec2 p) {
+    return vec2(
+        hash(p),
+        hash(p + vec2(37.17, 91.53))
+    );
+
+}\n
+
+            float noise(vec2 p) {
+
+                vec2 i = floor(p);
+                vec2 f = fract(p);
+
+                f = f * f * (3.0 - 2.0 * f);
+
+                float a = hash(i);
+                float b = hash(i + vec2(1.0, 0.0));
+                float c = hash(i + vec2(0.0, 1.0));
+                float d = hash(i + vec2(1.0, 1.0));
+
+                return mix(
+                    mix(a, b, f.x),
+                    mix(c, d, f.x),
+                    f.y
+                );
+            }
+            float hash21(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+
+\n
+
+
+float roundStones(vec2 p) {
+    vec2 cell = floor(p);
+    vec2 local = fract(p);
+
+    float stone = 0.0;
+
+    // Kolla grannceller så stenar får gå över cellgränser
+    for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+
+            vec2 neighbour = vec2(float(x), float(y));
+            vec2 id = cell + neighbour;
+
+            // Slumpad position inne i cellen
+            vec2 center =
+                neighbour +
+                hash22(id) * 0.7 +
+                0.15;
+
+            vec2 delta = local - center;
+
+            float wobble =
+    noise((id + delta) * 3.0) * 0.96;
+
+float dist =
+    length(delta) + wobble;
+
+            // Slumpad stenstorlek
+            float radius =
+                mix(0.12, 0.30, hash(id + 17.3));
+
+            float s =
+                1.0 - smoothstep(
+                    radius - 0.03,
+                    radius + 0.03,
+                    dist
+                );
+
+            stone = max(stone, s);
+        }
+    }
+
+    return stone;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+`)
 .replace("#include <color_fragment>", `
 #include <color_fragment>
 
@@ -571,54 +694,77 @@ float terrainOuterBackgroundFade = vTerrainOuterBackgroundFade;
 
 
 
-vec3 grass1 = texture2D(terrainBaseMap, vTerrainUv*4.0,1.0).rgb;
 
-
-vec3 grassColor = grass1;
-
-grassColor=mix(grassColor,vec3(0.15, 0.2, 0.05),0.20);
 
 vec2 wp = vWorldPosition.xz;
 
-// Stor, långsam variation
-float macro1 = vnoise(wp * 0.5);
+float d = distance(vWorldPosition.xz, cameraPosition.xz);
 
-// Lite mindre fläckar
-float macro2 = vnoise(wp * 0.1);
+float patches = vnoise(vWorldPosition.xz * 0.15);
+float mid     = vnoise(vWorldPosition.xz * 1.3);
+float fine    = vnoise(vWorldPosition.xz * 10.0);
 
-float macro3 = vnoise(wp * 1.01);
-
-// Väldigt försiktigt!
-float variation =
-    (macro1 - 0.7) * 0.1 +
-    (macro2 - 0.7) * 0.1;
-
-grassColor *= 0.8 + variation;
+// Minska de små detaljerna långt bort
+//fine = mix(1.0, fine, smoothstep(50.0, 0.0, d));
 
 
-vec3 standardTerrainColor = mix(
-    diffuseColor.rgb,
-    grassColor,
-    terrainHasBaseMap
-);
+float grassNoise =
+      patches * 0.40
+    + mid     * 0.40
+    + fine    * 0.40;
+
+
+
+    float wave =
+        sin(wp.x * 0.18 + uTime * 1.4) *
+        sin(wp.y * 0.11 + uTime * 1.1);
+
+    wave = wave * 0.5 + 0.5;
+
+   // grassNoise += (wave - 0.5) * 0.5;
+  
+
+
+vec3 darkGrass  = vec3(0.141, 0.325, 0.129);
+
+
+vec3 lightGrass = vec3(0.467, 0.702, 0.251);
+
+vec3 grassColor = mix(uLightGrass, uDarkGrass, grassNoise);
+
+float stone=roundStones(vWorldPosition.xz * 5.0)+roundStones(vWorldPosition.xz * 3.5);
+
+grassColor = mix(grassColor, vec3(0.15, 0.15, 0.15), stone);
+
+
+
+
+
+
+
+
+
+
 
 // Tint only the standard ground surface. Normalising the horizon colour keeps
 // its brightest channel at full value, so the palette shifts the texture's
 // hue without making daylight terrain unnecessarily darker.
-vec3 horizonTint = terrainHorizonColor / max(
-    max(terrainHorizonColor.r, terrainHorizonColor.g),
-    max(terrainHorizonColor.b, 0.5)
-);
-standardTerrainColor *= mix(vec3(1.0,1.0,1.0), horizonTint, terrainHorizonTintStrength);
+vec3 horizonTint = terrainHorizonColor;
 
-vec3 finalTerrainColor =
-    standardTerrainColor *
-    max(0.0, 1.0 - terrainWeight)
-    + terrainPaint;
 
-diffuseColor.rgb =
-    finalTerrainColor *
-    terrainTint;
+
+                grassColor.rgb = (utint)/2.0+grassColor.rgb;
+                grassColor.r *= ((-1.00+usun)*0.2)+1.0;;
+         
+                  grassColor.rgb *=0.3;
+                    grassColor.rgb *=((-1.00+usun)*0.3)+1.0;
+
+
+
+
+
+
+diffuseColor.rgb =grassColor;
 `);
 
 
@@ -632,12 +778,27 @@ diffuseColor.rgb =
       shader.uniforms.terrainHasBaseMap = { value: material.userData.terrainBaseTexture ? 1 : 0 };
       shader.uniforms.terrainHorizonColor = { value: material.userData.terrainHorizonColor ?? new THREE.Color(1, 1, 1) };
       shader.uniforms.terrainHorizonTintStrength = { value: material.userData.terrainHorizonTintStrength ?? 0.45 };
+      shader.uniforms.uTime = { value: material.userData.terrainTime ?? 0 };
+      shader.uniforms.uLightGrass = {
+    value: new THREE.Color("#644d2c")
+        };
+
+        shader.uniforms.uDarkGrass = {
+             value: new THREE.Color("#332817")
+        };
+        shader.uniforms.usun = { value: this.sun };
+         shader.uniforms.utint = { value: this.tint };
+
+        
       material.userData.terrainShader = shader;
+
+
+
     };
     material.customProgramCacheKey = () => "next-world-chunked-terrain-textures-v16";
   }
 
-  setHorizonTint(color, strength = 0.8) {
+  setHorizonTint(color, strength = 0.85) {
     if (!this.material || !color) return;
     const tint = this.material.userData.terrainHorizonColor ??= new THREE.Color();
     tint.copy(color);
@@ -646,6 +807,14 @@ diffuseColor.rgb =
     if (!shader) return;
     shader.uniforms.terrainHorizonColor.value.copy(tint);
     shader.uniforms.terrainHorizonTintStrength.value = strength;
+  }
+
+  update(delta) {
+    this.time += delta;
+    if (!this.material) return;
+    this.material.userData.terrainTime = this.time;
+    const shader = this.material.userData.terrainShader;
+    if (shader) shader.uniforms.uTime.value = this.time;
   }
 
   configureTexture(texture, scale) {
@@ -681,14 +850,19 @@ diffuseColor.rgb =
     this.material.userData.terrainTextures = Array.from({ length: MAX_TEXTURE_LAYERS }, (_, index) => this.textures.get(layers[index]?.src) ?? this.placeholderTexture);
     this.material.userData.terrainTextureScales = Array.from({ length: MAX_TEXTURE_LAYERS }, (_, index) => layers[index]?.scale ?? 1);
     const baseTexture = this.config?.baseTexture;
+    
     this.material.userData.terrainBaseTexture = baseTexture?.src ? this.textures.get(baseTexture.src) ?? null : null;
     this.material.userData.terrainBaseTextureScale = baseTexture?.scale ?? 1;
+
     const shader = this.material.userData.terrainShader;
     if (!shader) { this.material.needsUpdate = true; return; }
     for (let index = 0; index < MAX_TEXTURE_LAYERS; index++) {
       shader.uniforms[`terrainMap${index}`].value = this.material.userData.terrainTextures[index];
       shader.uniforms[`terrainMapScale${index}`].value = this.material.userData.terrainTextureScales[index];
     }
+  
+   
+    
     shader.uniforms.terrainBaseMap.value = this.material.userData.terrainBaseTexture ?? this.placeholderTexture;
     shader.uniforms.terrainBaseMapScale.value = this.material.userData.terrainBaseTextureScale;
     shader.uniforms.terrainHasBaseMap.value = this.material.userData.terrainBaseTexture ? 1 : 0;

@@ -5,13 +5,13 @@ import * as THREE from "three";
 export class GroundMist {
   constructor(scene) {
     this.scene = scene;
-    this.mistHeightOffset = 1.0;
+    this.mistHeightOffset = 0.5;
     // Deliberately strong defaults for the first visual pass.
-    this.mistOpacity = 0.25;
+    this.mistOpacity = 0.5;
     this.mistNoiseScale = 0.12;
     this.mistNoiseScale2 = 0.45;
     this.mistThreshold = 0.4;
-    this.mistSoftness = 0.14;
+    this.mistSoftness = 0.8;
     this.mistSpeed = 1.0;
     this.baseMistColor = new THREE.Color(0xdbeaf2);
     this.mistColor = this.baseMistColor.clone();
@@ -19,11 +19,11 @@ export class GroundMist {
     // saturated orange or violet band in the distant fade.
     this.horizonTintStrength = 0.80;
     this.mistNearFadeStart = 25;
-    this.mistNearFadeEnd = 35;
+    this.mistNearFadeEnd = 55;
     // Mist is thickest in low ground and thins progressively up a hill.
     // These world-space elevations keep the base of the current terrain
     // misty while fading it out near the tops of its roughly 4m hills.
-    this.mistElevationFadeStart = 0.5;
+    this.mistElevationFadeStart = 1.0;
     this.mistElevationFadeEnd = 2.0;
     this.mistSegments = 32;
     this.time = 0;
@@ -99,8 +99,8 @@ export class GroundMist {
           vec2 drift = vec2(mistTime * mistSpeed, mistTime * mistSpeed * 0.61);
           vec2 worldXZ = vMistWorldPosition.xz + drift;
           float n1 = noise(worldXZ * mistNoiseScale);
-          float n2 = noise(worldXZ * mistNoiseScale2 + 19.7);
-          float density = n1 * 0.7 + n2 * 0.3;
+          float n2 = noise(worldXZ * mistNoiseScale2 + 0.0);
+          float density = n1 * 0.3 + n2 * 0.2;
           float alpha = smoothstep(mistThreshold - mistSoftness, mistThreshold + mistSoftness, density);
           float cameraDistance = distance(vMistWorldPosition.xz, mistCameraPosition.xz);
           float nearFade = smoothstep(mistNearFadeStart, mistNearFadeEnd, cameraDistance);

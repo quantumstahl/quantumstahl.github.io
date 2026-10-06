@@ -1498,10 +1498,12 @@ export class MapLoader {
     // Give the unpainted/base ground texture the same time-of-day hue as the
     // horizon. Painted terrain remains readable and is left untouched.
     if (this.chunkStore) this.streamedTerrain.setHorizonTint(this.environment.fogHorizonColor);
+    if (this.chunkStore) this.streamedTerrain.update(delta);
     this.water.update(delta, camera);
-    this.water.setSunDirection(sun, this.environment.sunsun);
+    this.water.setSunDirection(sun, this.environment.sunsun,this.environment.GrassTint);
     this.grass.setSunDirection(sun);
     this.grass.setEnvironmentTint(this.environment.GrassTint, this.environment.sunsun);
+    this.streamedTerrain.updatesun(this.environment.GrassTint,this.environment.sunsun);
     this.grass.update(delta, camera);
     if (this.chunkStore) this.groundMist.applyChunks(this.streamedTerrain.meshes);
     else this.groundMist.apply(this.terrain.mesh);

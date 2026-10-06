@@ -543,7 +543,7 @@ float sunDisc = smoothstep(
     float starMask =
         smoothstep(
             0.00,
-            0.01,
+            0.05,
             y
         );
 
