@@ -143,7 +143,10 @@
     "enabled": true,
     "resolution": 50,
     "color": 6521936,
-    "baseTexture": null,
+    "baseTexture": {
+      "src": "assets/dirtland.png",
+      "scale": 16
+    },
     "textures": [],
     "activeTexture": 0,
     "chunkSize": 50

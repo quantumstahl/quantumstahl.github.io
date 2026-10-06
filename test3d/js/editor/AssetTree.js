@@ -142,6 +142,10 @@ export class AssetTree {
     this.closeContextMenu();
     const menu = document.createElement("div");
     menu.className = "tree-context-menu";
+    const baseTexture = document.createElement("button");
+    baseTexture.textContent = "Load base terrain texture…";
+    baseTexture.title = "Sets the texture below all painted terrain layers";
+    baseTexture.addEventListener("click", () => { this.closeContextMenu(); this.editor.chooseStandardGroundTexture(); });
     const grid = document.createElement("button");
     grid.textContent = world.editor.showGrid ? "Hide grid" : "Show grid";
     grid.addEventListener("click", () => { this.closeContextMenu(); this.editor.toggleGrid(); });
@@ -157,7 +161,7 @@ export class AssetTree {
     const paintDecorativeGrass = document.createElement("button");
     paintDecorativeGrass.textContent = "Make hilly decorative grass";
     paintDecorativeGrass.addEventListener("click", () => { this.closeContextMenu(); this.editor.paintDecorativeChunks().catch(error => console.error("Could not paint decorative grass", error)); });
-    menu.append(grid, chunks, origin, trim, paintDecorativeGrass);
+    menu.append(baseTexture, grid, chunks, origin, trim, paintDecorativeGrass);
     menu.style.left = `${Math.min(event.clientX, window.innerWidth - 210)}px`;
     menu.style.top = `${Math.min(event.clientY, window.innerHeight - 50)}px`;
     document.body.append(menu); this.contextMenu = menu;

@@ -16,7 +16,7 @@ export class EnvironmentSystem {
     this.timeScale = 10;
     this.sunDistance = 100;
     this.sunIntensity = 2.0;
-    this.moonIntensity = 0.5;
+    this.moonIntensity = 1.0;
     this.sunDirection = new THREE.Vector3();
     this.moonDirection = new THREE.Vector3();
     this.fogColor = new THREE.Color();
@@ -24,18 +24,18 @@ export class EnvironmentSystem {
     this.dayFogColor = new THREE.Color(0xffffff);
     // Match the procedural sky at its horizon, including its dedicated
     // dawn/dusk palette. This is intentionally separate from scene fog.
-    this.nightHorizonColor = new THREE.Color(0.2, 0.1, 0.4);
+    this.nightHorizonColor = new THREE.Color(7.0, 7.0, 1.0);
     this.dayHorizonColor = new THREE.Color(1.00, 1.00, 1.0);
-    this.dawnHorizonColor = new THREE.Color(1.0, 0.38, 0.14);
-    this.duskHorizonColor = new THREE.Color(0.48, 0.17, 0.62);
+    this.dawnHorizonColor = new THREE.Color(8.0, 8.0, 1.0);
+    this.duskHorizonColor = new THREE.Color(7.0, 7.0, 1.0);
     this.fogHorizonColor = new THREE.Color();
     this.nightHemisphereColor = new THREE.Color(0xffffff);
     this.dayHemisphereColor = new THREE.Color(0xffffff);
     this.hemisphereGroundColor = new THREE.Color(0xffffff);
-    this.nightHemisphereIntensity = 2.0;
-    this.dayHemisphereIntensity = 2.0;
-    this.GrassTint = new THREE.Color(0.00, 0.00, 0.07);
-    this.savedGrasstint= new THREE.Color(0.00, 0.00, 0.07);
+    this.nightHemisphereIntensity = 0.9;
+    this.dayHemisphereIntensity = 0.9;
+    this.GrassTint = new THREE.Color(0.00, 0.00, 0.15);
+    this.savedGrasstint= new THREE.Color(0.00, 0.00, 0.15);
     this.NoGrasstint= new THREE.Color(0.00, 0.00, 0.00);
     this.sun = sky.findDirectionalLight();
     this.moon = new THREE.DirectionalLight(0xaec8ff, 0);

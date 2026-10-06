@@ -254,7 +254,7 @@ export class Editor {
     // allocated, reset, or edited, so painted texture layers stay intact.
     terrain.baseTexture = { src, scale: terrain.baseTexture?.scale ?? 16 };
     this.mapLoader.terrain.loadTextureFile(file, src, terrain.baseTexture.scale);
-    this.markDirty();
+    this.markDirty(); this.tree.render();
     this.setStatus(`Standard ground texture set: ${file.name}. Painted texture layers are unchanged; copy it to NextWorld/assets before playing.`);
   }
   async chooseTerrainTexture() {
@@ -306,7 +306,7 @@ export class Editor {
   syncTerrainTexturePicker() { const picker = document.querySelector("#terrainTextureSelect"), scaleInput = document.querySelector("#terrainTextureScale"), removeButton = document.querySelector("#terrainRemoveTextureButton"), terrain = this.mapLoader.world.terrain; if (!picker) return; picker.replaceChildren(); if (!terrain.textures.length) picker.add(new Option("No texture layers", "")); terrain.textures.forEach((layer, index) => picker.add(new Option(`${index + 1}: ${layer.src.split("/").pop()}`, String(index), false, index === terrain.activeTexture))); picker.disabled = terrain.textures.length === 0; if (scaleInput) { scaleInput.disabled = terrain.textures.length === 0; scaleInput.value = String(terrain.textures[terrain.activeTexture]?.scale ?? 16); } if (removeButton) removeButton.disabled = terrain.textures.length === 0; }
   pickTerrainTextureFile() {
     return new Promise(resolve => {
-      const input = document.createElement("input"); input.type = "file"; input.accept = "image/png";
+      const input = document.createElement("input"); input.type = "file"; input.accept = "image/*";
       input.addEventListener("change", () => resolve(input.files?.[0] ?? null), { once: true }); input.click();
     });
   }

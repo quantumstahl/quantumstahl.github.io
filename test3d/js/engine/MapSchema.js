@@ -41,8 +41,7 @@ export function createChunkedWorldManifest(data = {}) {
       // world without changing any per-chunk texture masks.
       baseTexture: data.terrain?.baseTexture?.src ? {
         src: String(data.terrain.baseTexture.src),
-       // scale: Math.max(1, Math.min(200, Number(data.terrain.baseTexture.scale) || 16))
-        scale: 4
+        scale: Math.max(1, Math.min(200, Number(data.terrain.baseTexture.scale) || 16))
       } : null,
       textures: data.terrain?.textures ?? [],
       activeTexture: Number(data.terrain?.activeTexture) || 0

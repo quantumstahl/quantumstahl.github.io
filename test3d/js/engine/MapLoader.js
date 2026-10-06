@@ -79,7 +79,7 @@ export class MapLoader {
         name: legacy.name,
         editor: legacy.editor,
         sky: legacy.sky,
-        terrain: { enabled: legacy.terrain.enabled, color: legacy.terrain.color, textures: legacy.terrain.textures, activeTexture: legacy.terrain.activeTexture },
+        terrain: { enabled: legacy.terrain.enabled, color: legacy.terrain.color, baseTexture: legacy.terrain.baseTexture, textures: legacy.terrain.textures, activeTexture: legacy.terrain.activeTexture },
         water: legacy.water,
         grass: { enabled: legacy.grass.enabled, density: legacy.grass.density },
         layers: legacy.layers.map(layer => ({ ...layer, assetTypes: layer.assetTypes.map(({ instances, ...type }) => type) })),

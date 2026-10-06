@@ -23,7 +23,7 @@ export class Grass {
     // Keep the low-detail surface above small terrain interpolation errors on
     // hills. This is a vertical offset only: it does not add any geometry.
     this.farGrassSurfaceOffset = 0.20;
-    this.farGrassOpacity = 0.5;
+    this.farGrassOpacity = 0.8;
 
     this.farGrassMesh = null;
     this.farGrassMaterial = this.createFarGrassMaterial();
@@ -193,12 +193,7 @@ float vnoise(vec2 p) {
         f.y
     );
 }
-vec2 hash22(vec2 p) {
-    return vec2(
-        hash(p),
-        hash(p + vec2(37.17, 91.53))
-    );
-}
+
             void main() {
 
 
@@ -236,12 +231,13 @@ float grassNoise =
 
 
 
-vec3 darkGrass  = vec3(0.141, 0.325, 0.129)/2.0;
+vec3 darkGrass  = vec3(0.141, 0.325, 0.129);
 
 
-vec3 lightGrass = vec3(0.467, 0.702, 0.251)/2.0;
+vec3 lightGrass = vec3(0.467, 0.702, 0.251);
 
 vec3 grassColor = mix(darkGrass, lightGrass, grassNoise);
+
 
 float grassLOD = smoothstep(2500.0, 55.0, d);
 
@@ -340,9 +336,18 @@ grassColor.rgb *= macroTint;
 
         `
     });
-    
-   material.uniforms.uFogNear.value = this.scene.fog.near;
-      material.uniforms.uFogFar.value = this.scene.fog.far;
+
+    // Sky.addBackgroundFadeToMaterial delegates custom shaders through this
+    // hook. The far-grass shader already has the required uniforms and blends
+    // to the captured sky itself, so no shader recompilation is needed.
+    material.userData.addBackgroundFade = (backgroundTexture, fog) => {
+      if (!backgroundTexture) return material.uniforms;
+      material.uniforms.uBackgroundTexture.value = backgroundTexture;
+      material.uniforms.uFogNear.value = fog?.near ?? 50;
+      material.uniforms.uFogFar.value = fog?.far ?? 70;
+      return material.uniforms;
+    };
+
     return material;
 }
 rebuildFarGrass() {
@@ -619,8 +624,8 @@ createBladeGeometry() {
 
     const blades = 30;
 
-    const baseColor = new THREE.Color(0x1D421B);
-    const tipColor  = new THREE.Color(0x587A33);
+    const baseColor = new THREE.Color(0x245321);
+    const tipColor  = new THREE.Color(0x6c973f);
     for (let blade = 0; blade < blades; blade++) {
 
         const angle = blade * 2.39996;
@@ -637,7 +642,7 @@ createBladeGeometry() {
             0.40 + (blade % 30) * 0.04;
 
         const baseWidth =
-            0.010 + (blade % 7) * 0.003;
+            0.010 + (blade % 30) * 0.003;
 
         const lean =
             0.05 + (blade % 20) * 0.012;

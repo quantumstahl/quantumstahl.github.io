@@ -7,11 +7,11 @@ export class GroundMist {
     this.scene = scene;
     this.mistHeightOffset = 0.5;
     // Deliberately strong defaults for the first visual pass.
-    this.mistOpacity = 0.5;
+    this.mistOpacity = 1.0;
     this.mistNoiseScale = 0.12;
     this.mistNoiseScale2 = 0.45;
     this.mistThreshold = 0.4;
-    this.mistSoftness = 0.8;
+    this.mistSoftness = 0.9;
     this.mistSpeed = 1.0;
     this.baseMistColor = new THREE.Color(0xdbeaf2);
     this.mistColor = this.baseMistColor.clone();
@@ -100,7 +100,7 @@ export class GroundMist {
           vec2 worldXZ = vMistWorldPosition.xz + drift;
           float n1 = noise(worldXZ * mistNoiseScale);
           float n2 = noise(worldXZ * mistNoiseScale2 + 0.0);
-          float density = n1 * 0.3 + n2 * 0.2;
+          float density = n1 * 0.02 + n2 * 0.01;
           float alpha = smoothstep(mistThreshold - mistSoftness, mistThreshold + mistSoftness, density);
           float cameraDistance = distance(vMistWorldPosition.xz, mistCameraPosition.xz);
           float nearFade = smoothstep(mistNearFadeStart, mistNearFadeEnd, cameraDistance);

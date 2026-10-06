@@ -442,8 +442,7 @@ setChunkDecorative(
         uniform vec3 terrainHorizonColor;
         uniform float terrainHorizonTintStrength;
         uniform float uTime;
-        uniform vec3 uLightGrass;
-        uniform vec3 uDarkGrass;
+
         uniform float usun;
         uniform vec3 utint;
       `;
@@ -453,8 +452,8 @@ setChunkDecorative(
         .replace("#include <common>", `#include <common>\nvarying vec2 vTerrainUv;\nvarying vec3 vWorldPosition;\nfloat smoothTerrainMin(float a, float b, float k) { float h = max(k - abs(a - b), 0.0) / k; return min(a, b) - h * h * k * 0.25; }\n${attributes}`)
         .replace("#include <begin_vertex>", `vTerrainUv = uv;\n${assignments}\n#include <begin_vertex>\nvWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;`);
       shader.fragmentShader = shader.fragmentShader
-        .replace("#include <common>", `#include <common>\nvarying vec2 vTerrainUv;\n${varyings}\n${uniforms}\n${baseUniforms}\nfloat terrainHash21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }\nfloat vnoise(vec2 p) { vec2 cell = floor(p); vec2 local = fract(p); local = local * local * (3.0 - 2.0 * local); float a = terrainHash21(cell); float b = terrainHash21(cell + vec2(1.0, 0.0)); float c = terrainHash21(cell + vec2(0.0, 1.0)); float d = terrainHash21(cell + vec2(1.0, 1.0)); return mix(mix(a, b, local.x), mix(c, d, local.x), local.y); }    \n
-  float hash(vec2 p) {
+        .replace("#include <common>", `#include <common>\nvarying vec2 vTerrainUv;\n${varyings}\n${uniforms}\n${baseUniforms}\nfloat terrainHash21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }\nfloat vnoise(vec2 p) { vec2 cell = floor(p); vec2 local = fract(p); local = local * local * (3.0 - 2.0 * local); float a = terrainHash21(cell); float b = terrainHash21(cell + vec2(1.0, 0.0)); float c = terrainHash21(cell + vec2(0.0, 1.0)); float d = terrainHash21(cell + vec2(1.0, 1.0)); return mix(mix(a, b, local.x), mix(c, d, local.x), local.y); }  
+float hash(vec2 p) {
 
                 return fract(
                     sin(
@@ -466,15 +465,6 @@ setChunkDecorative(
                 );
             }
 
-
-\n
-vec2 hash22(vec2 p) {
-    return vec2(
-        hash(p),
-        hash(p + vec2(37.17, 91.53))
-    );
-
-}\n
 
             float noise(vec2 p) {
 
@@ -494,65 +484,6 @@ vec2 hash22(vec2 p) {
                     f.y
                 );
             }
-            float hash21(vec2 p) {
-    p = fract(p * vec2(123.34, 456.21));
-    p += dot(p, p + 45.32);
-    return fract(p.x * p.y);
-}
-
-\n
-
-
-float roundStones(vec2 p) {
-    vec2 cell = floor(p);
-    vec2 local = fract(p);
-
-    float stone = 0.0;
-
-    // Kolla grannceller så stenar får gå över cellgränser
-    for (int y = -1; y <= 1; y++) {
-        for (int x = -1; x <= 1; x++) {
-
-            vec2 neighbour = vec2(float(x), float(y));
-            vec2 id = cell + neighbour;
-
-            // Slumpad position inne i cellen
-            vec2 center =
-                neighbour +
-                hash22(id) * 0.7 +
-                0.15;
-
-            vec2 delta = local - center;
-
-            float wobble =
-    noise((id + delta) * 3.0) * 0.96;
-
-float dist =
-    length(delta) + wobble;
-
-            // Slumpad stenstorlek
-            float radius =
-                mix(0.12, 0.30, hash(id + 17.3));
-
-            float s =
-                1.0 - smoothstep(
-                    radius - 0.03,
-                    radius + 0.03,
-                    dist
-                );
-
-            stone = max(stone, s);
-        }
-    }
-
-    return stone;
-}
-
-
-
-
-
-
 
 
 
@@ -562,6 +493,12 @@ float dist =
 `)
 .replace("#include <color_fragment>", `
 #include <color_fragment>
+
+
+vec2 uv = vTerrainUv * terrainBaseMapScale;
+
+
+vec3 terrainBaseColor = texture2D(terrainBaseMap, uv).rgb;
 
 float terrainWeight = 0.0;
 vec3 terrainPaint = vec3(0.0);
@@ -693,78 +630,32 @@ float terrainOuterBackgroundFade = vTerrainOuterBackgroundFade;
 
 
 
+float broad = noise(vWorldPosition.xz * 0.018);
+float mid   = noise(vWorldPosition.xz * 0.07);
+float small   = noise(vWorldPosition.xz * 0.5);
+float variation =
+    (broad - 0.5) * 0.6 +
+    (mid   - 0.5) * 0.6 +
+    (small   - 0.5) * 0.1
+    ;
+
+terrainBaseColor *= 1.0 + variation;
+
+
+vec3 finalTerrainColor =
+    ((terrainBaseColor+utint/1.5)) * max(0.0, 1.0 - terrainWeight)
+    + terrainPaint;
+
+   
+                       
+                    finalTerrainColor *=((-1.00+usun)*0.80)+1.0;
 
 
 
-vec2 wp = vWorldPosition.xz;
-
-float d = distance(vWorldPosition.xz, cameraPosition.xz);
-
-float patches = vnoise(vWorldPosition.xz * 0.15);
-float mid     = vnoise(vWorldPosition.xz * 1.3);
-float fine    = vnoise(vWorldPosition.xz * 10.0);
-
-// Minska de små detaljerna långt bort
-//fine = mix(1.0, fine, smoothstep(50.0, 0.0, d));
-
-
-float grassNoise =
-      patches * 0.40
-    + mid     * 0.40
-    + fine    * 0.40;
+diffuseColor.rgb = (finalTerrainColor * terrainTint);
 
 
 
-    float wave =
-        sin(wp.x * 0.18 + uTime * 1.4) *
-        sin(wp.y * 0.11 + uTime * 1.1);
-
-    wave = wave * 0.5 + 0.5;
-
-   // grassNoise += (wave - 0.5) * 0.5;
-  
-
-
-vec3 darkGrass  = vec3(0.141, 0.325, 0.129);
-
-
-vec3 lightGrass = vec3(0.467, 0.702, 0.251);
-
-vec3 grassColor = mix(uLightGrass, uDarkGrass, grassNoise);
-
-float stone=roundStones(vWorldPosition.xz * 5.0)+roundStones(vWorldPosition.xz * 3.5);
-
-grassColor = mix(grassColor, vec3(0.15, 0.15, 0.15), stone);
-
-
-
-
-
-
-
-
-
-
-
-// Tint only the standard ground surface. Normalising the horizon colour keeps
-// its brightest channel at full value, so the palette shifts the texture's
-// hue without making daylight terrain unnecessarily darker.
-vec3 horizonTint = terrainHorizonColor;
-
-
-
-                grassColor.rgb = (utint)/2.0+grassColor.rgb;
-                grassColor.r *= ((-1.00+usun)*0.2)+1.0;;
-         
-                  grassColor.rgb *=0.3;
-                    grassColor.rgb *=((-1.00+usun)*0.3)+1.0;
-
-
-
-
-
-
-diffuseColor.rgb =grassColor;
 `);
 
 
@@ -779,13 +670,7 @@ diffuseColor.rgb =grassColor;
       shader.uniforms.terrainHorizonColor = { value: material.userData.terrainHorizonColor ?? new THREE.Color(1, 1, 1) };
       shader.uniforms.terrainHorizonTintStrength = { value: material.userData.terrainHorizonTintStrength ?? 0.45 };
       shader.uniforms.uTime = { value: material.userData.terrainTime ?? 0 };
-      shader.uniforms.uLightGrass = {
-    value: new THREE.Color("#644d2c")
-        };
 
-        shader.uniforms.uDarkGrass = {
-             value: new THREE.Color("#332817")
-        };
         shader.uniforms.usun = { value: this.sun };
          shader.uniforms.utint = { value: this.tint };
 
