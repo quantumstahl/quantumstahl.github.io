@@ -1,111 +1,83 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-    <title>MaxPaint3D</title>
-    <meta name="viewport" content="user-scalable=no, shrink-to-fit=no viewport-fit=cover">
-    <meta charset="utf-8">
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.186.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.186.0/examples/jsm/"
-            }
-        }
-    </script>
-    <script type="module" src="three-bootstrap.js"></script>
-    <script data-classic-src="MaxPaint3D.js"></script>
-    <script data-classic-src="EditorCamera.js"></script>
-    <script data-classic-src="EditorRenderer.js"></script>
-    <script data-classic-src="InputManager.js"></script>
-    <script data-classic-src="ToolManager.js"></script>
-    <script data-classic-src="SelectTool.js"></script>
-    <script data-classic-src="MoveTool.js"></script>
-    <script data-classic-src="joy.js"></script>
-    <script data-classic-src="UI.js"></script>
-    <script data-classic-src="RotateTool.js"></script>
-    <script data-classic-src="ScaleTool.js"></script>
-    <script data-classic-src="UniformScale.js"></script>
-    <script data-classic-src="GroupTool.js"></script>
-    <script data-classic-src="SubgroupTool.js"></script>
-    <script data-classic-src="PivotTool.js"></script>
-    <script data-classic-src="AnimRotateTool.js"></script>
-    <script data-classic-src="SelectSubgroupTool.js"></script>
-    <script data-classic-src="AniMoveTool.js"></script>
-    <script data-classic-src="AniScaleTool.js"></script>
-    <script data-classic-src="gif.js"></script>
-    <script data-classic-src="gif.worker.js"></script>
-    <script data-classic-src="PrimSelectTool.js"></script>
-    <script data-classic-src="FacePaintTool.js"></script>
-    
-    <style> 
-html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    background: black;
-}
-
-#myCanvas2 {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    display: block;
-}
-
-#myCanvas {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    display: block;
-    background: transparent;
-    pointer-events: auto;
-  
-}
-#loadFileInput {
-    position: fixed;
-    z-index: 10001;
-
-    opacity: 0;
-    pointer-events: auto;
-
-    /* viktigt på iPhone */
-    display: block;
-}
-#styleColorInput {
-    position: fixed;
-    left: 8px;
-    top: 8px;
-    width: 44px;
-    height: 44px;
-    opacity: 0.01;
-    z-index: 9999;
-}
-    </style> 
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MaxPaint3D V4</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">
+    { "imports": {
+      "three": "https://unpkg.com/three@0.186.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.186.0/examples/jsm/"
+    } }
+  </script>
 </head>
 <body>
-    <canvas id="myCanvas2" width="10" height="10" style="border:0px solid black"></canvas>
-    <canvas id="myCanvas" width="10" height="10" style="border:0px solid black"></canvas>
+  <header class="editor-bar">
+    <strong>MaxPaint3D <span>V4</span></strong>
+    <div class="toolbar" aria-label="File actions">
+      <button id="newButton" title="New project">New</button>
+      <button id="openButton" title="Open a MaxPaint project">Open</button>
+      <button id="saveButton" title="Save project">Save</button>
+      <button id="exportButton" title="Export selected scene as GLB">Export GLB</button>
+    </div>
+    <i></i>
+    <div class="toolbar" aria-label="Editing tools">
+      <button data-tool="select" class="is-active">Select</button>
+      <button data-tool="translate">Move</button>
+      <button data-tool="rotate">Rotate</button>
+      <button data-tool="scale">Scale</button>
+      <button data-tool="paint" title="Paint an individual face">Paint Face</button>
+      <button data-tool="paintPrimitive" title="Paint an individual primitive">Paint Primitive</button>
+      <button id="frameButton" title="Frame selected object (F)">Frame</button>
+      <label id="paintControls" class="paint-controls" hidden>Paint color <input id="paintColor" type="color" value="#f4d35e"></label>
+    </div>
+    <i></i>
+    <div class="toolbar">
+      <button id="undoButton" title="Undo (Ctrl+Z)">Undo</button>
+      <button id="redoButton" title="Redo (Ctrl+Shift+Z)">Redo</button>
+      <button id="duplicateButton" title="Duplicate selected object (Ctrl+D)">Duplicate</button>
+      <button id="groupButton" title="Group selected objects (Ctrl+G)">Group</button>
+      <button id="ungroupButton" title="Ungroup the selected group (Ctrl+Shift+G)">Ungroup</button>
+      <button id="resetButton" title="Undo the last transform-gizmo change">Reset gizmo</button>
+      <button id="deleteButton" class="danger" title="Delete selected object (Delete)">Delete</button>
+    </div>
+    <i></i>
+    <div class="toolbar snap-tools" aria-label="Snapping">
+      <button id="snapButton" title="Toggle transform snapping">Snap</button>
+      <label>Step <select id="snapStep"><option value="0.25">0.25</option><option value="0.5">0.5</option><option value="1" selected>1</option><option value="2">2</option></select></label>
+    </div>
+    <output id="status">Untitled project</output>
+  </header>
 
-   
-    <input id="loadFileInput" type="file" accept=".mp3d,application/json">
-    <input id="styleColorInput" type="color">
-    <input id="textureFileInput" type="file" accept="image/*" >
+  <aside class="panel outliner-panel">
+    <div class="panel-title">Scene <button id="addMenuButton" title="Add primitive">+ Add</button></div>
+    <div id="addMenu" class="add-menu" hidden>
+      <button data-primitive="cube">Cube</button><button data-primitive="sphere">Sphere</button>
+      <button data-primitive="cylinder">Cylinder</button><button data-primitive="cone">Cone</button>
+      <button data-primitive="plane">Plane</button>
+      <label class="resolution-control">Detail <select id="primitiveResolution"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></label>
+    </div>
+    <div id="outliner" class="outliner"></div>
+  </aside>
 
-    <script type="text/plain" data-startup>
-        const isMobile = {Android: function() { return navigator.userAgent.match(/Android/i); },BlackBerry: function() { return navigator.userAgent.match(/BlackBerry/i); },iOS: function() { return navigator.userAgent.match(/iPhone|iPod/i); },Opera: function() { return navigator.userAgent.match(/Opera Mini/i); },Windows: function() { return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i); },any: function() {return (isMobile.Android() ||isMobile.BlackBerry() ||isMobile.iOS() ||isMobile.Opera() ||isMobile.Windows() ||(navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints &&navigator.maxTouchPoints > 1));}};
-        function mobileAndTabletCheck() { return isMobile.any(); }
-        
-        if (!mobileAndTabletCheck()) {
-            document.getElementById("loadFileInput").style.display = "none";
-        }
-        
-        const canvas = document.getElementById("myCanvas2");
-        const canvas2 = document.getElementById("myCanvas");
-        const ctx = canvas2.getContext("2d");
+  <main id="viewport"><canvas id="canvas"></canvas></main>
 
-        const app = new MaxPaint3D(canvas, canvas2);
-        app.init();
-    </script>
+  <aside class="panel inspector-panel">
+    <div class="panel-title">Inspector</div>
+    <div id="emptyInspector" class="empty-state">Select an object to edit it.</div>
+    <form id="inspector" hidden>
+      <label>Name<input id="objectName" type="text"></label>
+      <fieldset><legend>Transform</legend>
+        <div class="axis-grid"><span>Position</span><label>X<input data-property="position.x" type="number" step="0.1"></label><label>Y<input data-property="position.y" type="number" step="0.1"></label><label>Z<input data-property="position.z" type="number" step="0.1"></label></div>
+        <div class="axis-grid"><span>Rotation</span><label>X<input data-property="rotation.x" type="number" step="1"></label><label>Y<input data-property="rotation.y" type="number" step="1"></label><label>Z<input data-property="rotation.z" type="number" step="1"></label></div>
+        <div class="axis-grid"><span>Scale</span><label>X<input data-property="scale.x" type="number" min="0.01" step="0.1"></label><label>Y<input data-property="scale.y" type="number" min="0.01" step="0.1"></label><label>Z<input data-property="scale.z" type="number" min="0.01" step="0.1"></label></div>
+      </fieldset>
+      <fieldset id="materialFields"><legend>Material</legend><label>Color<input id="objectColor" type="color"></label><label>Roughness<input id="objectRoughness" type="range" min="0" max="1" step="0.05"></label><label>Opacity<input id="objectOpacity" type="range" min="0.05" max="1" step="0.05" value="1"></label><label class="check-label"><input id="flatShading" type="checkbox"> Flat shading</label><label>Texture<input id="textureInput" type="file" accept="image/*"></label><span id="textureName" class="texture-name">No texture</span><button id="clearTextureButton" type="button">Remove texture</button></fieldset>
+      <fieldset id="animationFields"><legend>Animation</legend><label class="timeline-label">Time <output id="animationTime">0.0s</output><input id="timeline" type="range" min="0" max="2" step="0.1" value="0"></label><label>Duration <input id="animationDuration" type="number" min="0.1" max="60" step="0.1" value="2"></label><div class="animation-actions"><button id="keyframeButton" type="button">Set keyframe</button><button id="playButton" type="button">Play</button><button id="clearAnimationButton" type="button">Clear</button></div><span id="keyframeSummary" class="texture-name">No keyframes</span></fieldset>
+    </form>
+  </aside>
+  <input id="fileInput" type="file" accept=".mp3d,.json,application/json" hidden>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
