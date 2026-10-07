@@ -144,7 +144,7 @@
     "resolution": 50,
     "color": 6521936,
     "baseTexture": {
-      "src": "assets/dirtland.png",
+      "src": "assets/dirtland4.png",
       "scale": 16
     },
     "textures": [],

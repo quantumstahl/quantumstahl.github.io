@@ -485,6 +485,11 @@ float hash(vec2 p) {
                 );
             }
 
+            mat2 rot2(float a) {
+    float s = sin(a);
+    float c = cos(a);
+    return mat2(c, -s, s, c);
+}
 
 
 
@@ -495,10 +500,27 @@ float hash(vec2 p) {
 #include <color_fragment>
 
 
+
+
 vec2 uv = vTerrainUv * terrainBaseMapScale;
 
 
-vec3 terrainBaseColor = texture2D(terrainBaseMap, uv).rgb;
+
+vec3 terrainBaseColor = terrainHasBaseMap > 0.5
+    ? texture2D(terrainBaseMap, uv/2.0).rgb
+    : diffuseColor.rgb;
+
+
+
+
+
+
+
+
+
+
+
+
 
 float terrainWeight = 0.0;
 vec3 terrainPaint = vec3(0.0);
