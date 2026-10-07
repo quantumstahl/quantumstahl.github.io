@@ -163,7 +163,7 @@
   },
   "layers": [
     {
-      "id": "4e4fa590-6ed1-4d9d-ad71-cff8530d2194",
+      "id": "4b8e597d-6070-44fd-996c-c3eb0a449536",
       "name": "Objects",
       "visible": true,
       "assetTypes": [
@@ -174,8 +174,8 @@
           "shape": null,
           "collision": "solid",
           "render": {
-            "castShadow": true,
-            "shadowMode": "real",
+            "castShadow": false,
+            "shadowMode": "fake",
             "receiveShadow": true,
             "instanced": true
           },

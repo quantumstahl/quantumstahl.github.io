@@ -17,6 +17,10 @@ export class ChunkedTerrain {
     this.textureLoader = new THREE.TextureLoader();
     this.textures = new Map();
     this.placeholderTexture = new THREE.Texture();
+    this.cliffTexture = this.textureLoader.load("assets/rockrock.png");
+    this.cliffTexture.colorSpace = THREE.SRGBColorSpace;
+    this.cliffTexture.wrapS = this.cliffTexture.wrapT = THREE.RepeatWrapping;
+    this.cliffTexture.anisotropy = 8;
     this.time = 0;
     this.sun= 0.84375;
     this.tint=new THREE.Color(0.00, 0.00, 0.00);
@@ -31,7 +35,7 @@ export class ChunkedTerrain {
     this.material = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       vertexColors: true,
- 
+      
 
         toneMapped :false
     });
@@ -132,12 +136,178 @@ const decorativeOuterEdges =
     mesh.userData.chunk = chunk;
     this.root.add(mesh);
     this.tiles.set(key, { chunk, mesh });
+   // this.updateCliffWall(chunk);
     // BufferGeometry only derives normals from triangles in its own mesh.
     // Refresh this tile and its loaded neighbours with shared height samples
     // so a continuous terrain surface does not get a dark lighting seam at
     // chunk borders.
     this.refreshNormalsAround(x, z);
     return mesh;
+  }
+
+  updateCliffWall(chunk) {
+    const tile = this.tiles.get(this.key(chunk.x, chunk.z));
+    if (!tile) return null;
+    const oldWall = tile.mesh.userData.cliffWall;
+    if (oldWall) {
+      oldWall.removeFromParent();
+      oldWall.geometry.dispose();
+      oldWall.material.dispose();
+      tile.mesh.userData.cliffWall = null;
+    }
+
+    const bottoms = chunk.terrain?.cliffEdges ?? [];
+    const diagonalCorners = chunk._decorativeCorners ?? [0, 0, 0, 0];
+    const hasCliffEdges = bottoms.some(edge => edge?.some(Number.isFinite));
+    if (!hasCliffEdges && !diagonalCorners.some(Boolean)) return null;
+
+    const resolution = this.config?.resolution ?? 50;
+    const width = resolution + 1;
+    const cliffApron = 1.25;
+    const terrainPositions = tile.mesh.geometry.getAttribute("position");
+    const terrainHeightAt = (localX, localZ) => {
+      const step = this.chunkSize / resolution;
+      const gridX = THREE.MathUtils.clamp((localX + this.chunkSize * .5) / step, 0, resolution);
+      const gridZ = THREE.MathUtils.clamp((localZ + this.chunkSize * .5) / step, 0, resolution);
+      const x0 = Math.floor(gridX), z0 = Math.floor(gridZ);
+      const x1 = Math.min(resolution, x0 + 1), z1 = Math.min(resolution, z0 + 1);
+      const tx = gridX - x0, tz = gridZ - z0;
+      const heightAt = (x, z) => terrainPositions.getY(z * width + x);
+      return THREE.MathUtils.lerp(
+        THREE.MathUtils.lerp(heightAt(x0, z0), heightAt(x1, z0), tx),
+        THREE.MathUtils.lerp(heightAt(x0, z1), heightAt(x1, z1), tx),
+        tz
+      );
+    };
+    const vertices = [], uvs = [];
+    const addQuad = (bottomA, bottomB, topIndexA, topIndexB) => {
+      const ax = terrainPositions.getX(topIndexA), az = terrainPositions.getZ(topIndexA), topA = terrainPositions.getY(topIndexA);
+      const bx = terrainPositions.getX(topIndexB), bz = terrainPositions.getZ(topIndexB), topB = terrainPositions.getY(topIndexB);
+      vertices.push(ax, bottomA, az, bx, bottomB, bz, bx, topB, bz, ax, bottomA, az, bx, topB, bz, ax, topA, az);
+      const useX = Math.abs(bx - ax) >= Math.abs(bz - az);
+      const uA = (useX ? ax : az) * 0.35, uB = (useX ? bx : bz) * 0.35;
+      const vBottomA = bottomA * 0.35, vBottomB = bottomB * 0.35, vTopA = topA * 0.35, vTopB = topB * 0.35;
+      uvs.push(uA, vBottomA, uB, vBottomB, uB, vTopB, uA, vBottomA, uB, vTopB, uA, vTopA);
+    };
+    const addTopCap = (topIndexA, topIndexB, offsetX, offsetZ) => {
+      const ax = terrainPositions.getX(topIndexA), az = terrainPositions.getZ(topIndexA), topA = terrainPositions.getY(topIndexA);
+      const bx = terrainPositions.getX(topIndexB), bz = terrainPositions.getZ(topIndexB), topB = terrainPositions.getY(topIndexB);
+      vertices.push(ax, topA, az, bx, topB, bz, bx + offsetX, topB, bz + offsetZ, ax, topA, az, bx + offsetX, topB, bz + offsetZ, ax + offsetX, topA, az + offsetZ);
+      const useX = Math.abs(bx - ax) >= Math.abs(bz - az);
+      const uA = (useX ? ax : az) * 0.35, uB = (useX ? bx : bz) * 0.35;
+      uvs.push(uA, 0, uB, 0, uB, cliffApron * 0.35, uA, 0, uB, cliffApron * 0.35, uA, cliffApron * 0.35);
+      // Close the decorative-side edge of the cap down to the actual terrain
+      // surface, so the wider ledge never appears to float above the ground.
+      const innerAx = ax + offsetX, innerAz = az + offsetZ;
+      const innerBx = bx + offsetX, innerBz = bz + offsetZ;
+      const groundA = terrainHeightAt(innerAx, innerAz), groundB = terrainHeightAt(innerBx, innerBz);
+      vertices.push(innerAx, groundA, innerAz, innerBx, groundB, innerBz, innerBx, topB, innerBz, innerAx, groundA, innerAz, innerBx, topB, innerBz, innerAx, topA, innerAz);
+      uvs.push(uA, groundA * 0.35, uB, groundB * 0.35, uB, topB * 0.35, uA, groundA * 0.35, uB, topB * 0.35, uA, topA * 0.35);
+    };
+    const addEdge = (edge, indexAt, capOffsetX, capOffsetZ) => {
+      const values = bottoms[edge];
+      if (!Array.isArray(values)) return;
+      for (let step = 0; step < resolution; step++) {
+        // `null` marks a non-cliff chunk edge. Do not coerce it to zero,
+        // otherwise every decorative-to-decorative seam becomes a wall.
+        if (!Number.isFinite(values[step]) || !Number.isFinite(values[step + 1])) continue;
+        const bottomA = Number(values[step]), bottomB = Number(values[step + 1]);
+        addQuad(bottomA, bottomB, indexAt(step), indexAt(step + 1));
+        addTopCap(indexAt(step), indexAt(step + 1), capOffsetX, capOffsetZ);
+      }
+    };
+    // The face stays vertical at the playable boundary. Only the rocky crest
+    // widens inward, creating a natural bare ledge before the grass starts.
+    addEdge(0, z => z * width, cliffApron, 0);
+    addEdge(1, z => z * width + resolution, -cliffApron, 0);
+    addEdge(2, x => resolution * width + x, 0, -cliffApron);
+    addEdge(3, x => x, 0, cliffApron);
+    // At a playable-chunk corner, the two perpendicular cap strips leave a
+    // triangular opening on their decorative-side backs. Bridge it with a
+    // rock cap and a rear face down to the local terrain.
+    const addCorner = (edgeA, sampleA, offsetAX, offsetAZ, edgeB, sampleB, offsetBX, offsetBZ, topIndex) => {
+      if (!Number.isFinite(bottoms[edgeA]?.[sampleA]) || !Number.isFinite(bottoms[edgeB]?.[sampleB])) return;
+      const x = terrainPositions.getX(topIndex), z = terrainPositions.getZ(topIndex), top = terrainPositions.getY(topIndex);
+      const ax = x + offsetAX, az = z + offsetAZ, bx = x + offsetBX, bz = z + offsetBZ;
+      const cx = x + offsetAX + offsetBX, cz = z + offsetAZ + offsetBZ;
+      const base = (Number(bottoms[edgeA][sampleA]) + Number(bottoms[edgeB][sampleB])) * .5;
+      const groundA = terrainHeightAt(ax, az), groundB = terrainHeightAt(bx, bz), groundC = terrainHeightAt(cx, cz);
+      const pushQuad = (a, b, c, d) => {
+        vertices.push(...a, ...b, ...c, ...a, ...c, ...d);
+        uvs.push(0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1);
+      };
+      const topO = [x, top, z], topA = [ax, top, az], topB = [bx, top, bz], topC = [cx, top, cz];
+      const bottomO = [x, base, z], bottomA = [ax, groundA, az], bottomB = [bx, groundB, bz], bottomC = [cx, groundC, cz];
+      // Solid four-sided cap: it overlaps the strips slightly, but prevents
+      // any diagonal hole where the two cliff backs meet.
+      pushQuad(topO, topA, topC, topB);
+      pushQuad(topA, bottomA, bottomC, topC);
+      pushQuad(topB, topC, bottomC, bottomB);
+      pushQuad(topO, bottomO, bottomA, topA);
+      pushQuad(topO, topB, bottomB, bottomO);
+      pushQuad(bottomO, bottomB, bottomC, bottomA);
+    };
+    // The diagonal decorative tile owns the final connector where two wall
+    // chunks meet around a playable corner. Build a solid rock corner there.
+    const heightInTile = (chunkX, chunkZ, index) => {
+      const neighbour = this.tiles.get(this.key(chunkX, chunkZ));
+      return neighbour ? neighbour.mesh.geometry.getAttribute("position").getY(index) : null;
+    };
+    const addDiagonalCorner = (flag, topIndex, offsetAX, offsetAZ, offsetBX, offsetBZ, sources) => {
+      if (!diagonalCorners[flag]) return;
+      const top = Math.max(...sources.map(([x, z, index]) => heightInTile(chunk.x + x, chunk.z + z, index)).filter(Number.isFinite));
+      if (!Number.isFinite(top)) return;
+      // This connector has to overlap the two 1.25m wall caps from its
+      // diagonal tile. A wider single owner avoids both the corner gap and
+      // the z-fighting caused by two independent corner caps.
+      offsetAX *= 2.0; offsetAZ *= 2.0; offsetBX *= 2.0; offsetBZ *= 2.0;
+      const x = terrainPositions.getX(topIndex), z = terrainPositions.getZ(topIndex);
+      const ax = x + offsetAX, az = z + offsetAZ, bx = x + offsetBX, bz = z + offsetBZ, cx = x + offsetAX + offsetBX, cz = z + offsetAZ + offsetBZ;
+      const pushQuad = (a, b, c, d) => {
+        vertices.push(...a, ...b, ...c, ...a, ...c, ...d);
+        uvs.push(0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1);
+      };
+      const topO = [x, top, z], topA = [ax, top, az], topB = [bx, top, bz], topC = [cx, top, cz];
+      const bottomO = [x, terrainHeightAt(x, z), z], bottomA = [ax, terrainHeightAt(ax, az), az], bottomB = [bx, terrainHeightAt(bx, bz), bz], bottomC = [cx, terrainHeightAt(cx, cz), cz];
+      pushQuad(topO, topA, topC, topB);
+      pushQuad(topA, bottomA, bottomC, topC);
+      pushQuad(topB, topC, bottomC, bottomB);
+      pushQuad(topO, bottomO, bottomA, topA);
+      pushQuad(topO, topB, bottomB, bottomO);
+      pushQuad(bottomO, bottomB, bottomC, bottomA);
+    };
+    addDiagonalCorner(0, resolution * width, cliffApron, 0, 0, -cliffApron, [[-1, 0, resolution * width + resolution], [0, 1, 0]]);
+    addDiagonalCorner(1, resolution * width + resolution, -cliffApron, 0, 0, -cliffApron, [[1, 0, resolution * width], [0, 1, resolution]]);
+    addDiagonalCorner(2, 0, cliffApron, 0, 0, cliffApron, [[-1, 0, resolution], [0, -1, resolution * width]]);
+    addDiagonalCorner(3, resolution, -cliffApron, 0, 0, cliffApron, [[1, 0, 0], [0, -1, resolution * width + resolution]]);
+    if (!vertices.length) return null;
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.computeVertexNormals();
+    // Basic material keeps the rock face readable even under the night sky,
+    // where a Lambert wall with no direct light would render nearly black.
+    const material = new THREE.MeshBasicMaterial({ map: this.cliffTexture, color: 0xffffff, side: THREE.DoubleSide, fog: true, toneMapped: false });
+    const cliffUniforms = { usun: { value: this.sun }, utint: { value: this.tint.clone() } };
+    material.onBeforeCompile = shader => {
+      shader.uniforms.usun = cliffUniforms.usun;
+      shader.uniforms.utint = cliffUniforms.utint;
+      shader.fragmentShader = shader.fragmentShader
+        .replace("#include <common>", "#include <common>\nuniform float usun;\nuniform vec3 utint;")
+        // Map sampling happens before this chunk, so the adjustment affects
+        // the rock texture exactly as it affects terrainBaseColor.
+        .replace("#include <alphamap_fragment>", "diffuseColor.rgb = (diffuseColor.rgb + utint / 1.5) * (((-1.0 + usun) * 0.80) + 1.0);\n#include <alphamap_fragment>");
+      material.userData.cliffShader = shader;
+    };
+    material.customProgramCacheKey = () => "next-world-cliff-tint-v1";
+    material.userData.cliffUniforms = cliffUniforms;
+    const wall = new THREE.Mesh(geometry, material);
+    wall.name = "Decorative cliff wall";
+    wall.receiveShadow = true;
+    tile.mesh.add(wall);
+    tile.mesh.userData.cliffWall = wall;
+    return wall;
   }
 
   refreshNormalsAround(chunkX, chunkZ) {
@@ -270,13 +440,20 @@ setChunkDecorative(
     const key = this.key(x, z);
     const tile = this.tiles.get(key);
     if (!tile) return;
+    const wall = tile.mesh.userData.cliffWall;
+    wall?.geometry.dispose();
+    wall?.material.dispose();
     tile.mesh.removeFromParent();
     tile.mesh.geometry.dispose();
     this.tiles.delete(key);
   }
 
   clear() {
-    for (const tile of this.tiles.values()) tile.mesh.geometry.dispose();
+    for (const tile of this.tiles.values()) {
+      tile.mesh.userData.cliffWall?.geometry.dispose();
+      tile.mesh.userData.cliffWall?.material.dispose();
+      tile.mesh.geometry.dispose();
+    }
     this.tiles.clear();
     this.root.clear();
   }
@@ -296,6 +473,12 @@ setChunkDecorative(
     if (shader) {
       shader.uniforms.usun.value = this.sun;
       shader.uniforms.utint.value = this.tint;
+    }
+    for (const { mesh } of this.tiles.values()) {
+      const cliffUniforms = mesh.userData.cliffWall?.material.userData.cliffUniforms;
+      if (!cliffUniforms) continue;
+      cliffUniforms.usun.value = this.sun;
+      cliffUniforms.utint.value.copy(this.tint);
     }
     
   }

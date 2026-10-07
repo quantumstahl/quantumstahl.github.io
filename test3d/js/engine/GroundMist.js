@@ -60,11 +60,14 @@ export class GroundMist {
       depthTest: true,
       vertexShader: `
         varying vec3 vMistWorldPosition;
+        attribute float mistCliffFade;
+        varying float vMistCliffFade;
         uniform float mistHeightOffset;
         void main() {
           vec4 worldPosition = modelMatrix * vec4(position, 1.0);
           worldPosition.y += mistHeightOffset;
           vMistWorldPosition = worldPosition.xyz;
+          vMistCliffFade = mistCliffFade;
           gl_Position = projectionMatrix * viewMatrix * worldPosition;
         }
       `,
@@ -85,6 +88,7 @@ export class GroundMist {
         uniform float mistFadeStart;
         uniform float mistFadeEnd;
         varying vec3 vMistWorldPosition;
+        varying float vMistCliffFade;
 
         float hash(vec2 p) {
           return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -110,7 +114,7 @@ export class GroundMist {
             mistElevationFadeEnd,
             vMistWorldPosition.y
           );
-          gl_FragColor = vec4(mistColor, alpha * mistOpacity * nearFade * farFade * elevationFade);
+          gl_FragColor = vec4(mistColor, alpha * mistOpacity * nearFade * farFade * elevationFade * vMistCliffFade);
         }
       `
     });
@@ -137,6 +141,24 @@ export class GroundMist {
   applyChunks(terrainMeshes = []) {
     this.mesh?.removeFromParent();
     const wanted = new Set();
+    // A flat mist proxy intersects a vertical cliff like a horizontal cut.
+    // Mark playable chunk edges facing generated walls so their proxy can end
+    // just before the rock instead.
+    const cliffEdgesByPlayableChunk = new Map();
+    const markCliffEdge = (x, z, edge) => {
+      const key = `${x},${z}`;
+      const edges = cliffEdgesByPlayableChunk.get(key) ?? [0, 0, 0, 0];
+      edges[edge] = 1;
+      cliffEdgesByPlayableChunk.set(key, edges);
+    };
+    for (const terrainMesh of terrainMeshes) {
+      const chunk = terrainMesh.userData.chunk;
+      const cliffEdges = chunk?.terrain?.cliffEdges ?? [];
+      if (cliffEdges[0]?.some(Number.isFinite)) markCliffEdge(chunk.x - 1, chunk.z, 1);
+      if (cliffEdges[1]?.some(Number.isFinite)) markCliffEdge(chunk.x + 1, chunk.z, 0);
+      if (cliffEdges[2]?.some(Number.isFinite)) markCliffEdge(chunk.x, chunk.z + 1, 3);
+      if (cliffEdges[3]?.some(Number.isFinite)) markCliffEdge(chunk.x, chunk.z - 1, 2);
+    }
     for (const terrainMesh of terrainMeshes) {
       const chunk = terrainMesh.userData.chunk;
       if (!chunk) continue;
@@ -144,7 +166,7 @@ export class GroundMist {
       wanted.add(key);
       let record = this.chunkProxies.get(key);
       if (!record) {
-        const state = { sourceGeometry: null, sourcePositionVersion: -1 };
+        const state = { sourceGeometry: null, sourcePositionVersion: -1, mistInsetEdges: [0, 0, 0, 0], mistInsetSignature: "" };
         const mesh = new THREE.Mesh(this.createProxyGeometry(terrainMesh.geometry, state), this.material);
         mesh.name = `GroundMist ${key}`;
         mesh.renderOrder = 1;
@@ -153,6 +175,7 @@ export class GroundMist {
         record = { mesh, state };
         this.chunkProxies.set(key, record);
       }
+      record.state.mistInsetEdges = cliffEdgesByPlayableChunk.get(key) ?? [0, 0, 0, 0];
       record.mesh.position.copy(terrainMesh.position);
       this.updateProxyGeometry(terrainMesh.geometry, record.mesh.geometry, record.state);
       if (!record.mesh.parent) this.scene.add(record.mesh);
@@ -221,6 +244,7 @@ export class GroundMist {
   createProxyGeometry(sourceGeometry, state = this) {
     const geometry = new THREE.PlaneGeometry(1, 1, this.mistSegments, this.mistSegments);
     geometry.rotateX(-Math.PI / 2);
+    geometry.setAttribute("mistCliffFade", new THREE.BufferAttribute(new Float32Array((this.mistSegments + 1) ** 2).fill(1), 1));
     state.sourceGeometry = null;
     state.sourcePositionVersion = -1;
     this.updateProxyGeometry(sourceGeometry, geometry, state);
@@ -230,12 +254,18 @@ export class GroundMist {
   updateProxyGeometry(sourceGeometry, proxyGeometry = this.mesh?.geometry, state = this) {
     const source = sourceGeometry?.getAttribute("position");
     const target = proxyGeometry?.getAttribute("position");
-    if (!source || !target) return;
+    const cliffFade = proxyGeometry?.getAttribute("mistCliffFade");
+    if (!source || !target || !cliffFade) return;
     const sourceSegments = Math.round(Math.sqrt(source.count)) - 1;
     if (sourceSegments < 1 || source.count !== (sourceSegments + 1) ** 2) return;
-    if (state.sourceGeometry === sourceGeometry && state.sourcePositionVersion === source.version) return;
+    const insetSignature = (state.mistInsetEdges ?? []).join("");
+    if (state.sourceGeometry === sourceGeometry && state.sourcePositionVersion === source.version && state.mistInsetSignature === insetSignature) return;
 
     const proxySegments = this.mistSegments;
+    const sourceMinX = Math.min(source.getX(0), source.getX(sourceSegments));
+    const sourceMaxX = Math.max(source.getX(0), source.getX(sourceSegments));
+    const sourceMinZ = Math.min(source.getZ(0), source.getZ(sourceSegments * (sourceSegments + 1)));
+    const sourceMaxZ = Math.max(source.getZ(0), source.getZ(sourceSegments * (sourceSegments + 1)));
     for (let z = 0; z <= proxySegments; z++) {
       const sourceZ = z / proxySegments * sourceSegments;
       const z0 = Math.floor(sourceZ), z1 = Math.min(sourceSegments, z0 + 1), tz = sourceZ - z0;
@@ -249,13 +279,35 @@ export class GroundMist {
           const d = source.getComponent(z1 * (sourceSegments + 1) + x1, component);
           return THREE.MathUtils.lerp(THREE.MathUtils.lerp(a, b, tx), THREE.MathUtils.lerp(c, d, tx), tz);
         };
-        target.setXYZ(z * (proxySegments + 1) + x, sample(0), sample(1), sample(2));
+        const edges = state.mistInsetEdges ?? [0, 0, 0, 0];
+        const insetWidth = 1.35;
+        const fadeX = 1 - THREE.MathUtils.smoothstep(x, 0, 2);
+        const fadeZ = 1 - THREE.MathUtils.smoothstep(z, 0, 2);
+        const fadeRight = 1 - THREE.MathUtils.smoothstep(proxySegments - x, 0, 2);
+        const fadeForward = 1 - THREE.MathUtils.smoothstep(proxySegments - z, 0, 2);
+        const localX = sample(0), localZ = sample(2);
+        const cliffDistance = Math.min(
+          edges[0] ? localX - sourceMinX : Infinity,
+          edges[1] ? sourceMaxX - localX : Infinity,
+          edges[3] ? localZ - sourceMinZ : Infinity,
+          edges[2] ? sourceMaxZ - localZ : Infinity
+        );
+        // No mist for the first 2m beside rock; fade it in over the next metre.
+        cliffFade.setX(z * (proxySegments + 1) + x, Number.isFinite(cliffDistance) ? THREE.MathUtils.smoothstep(cliffDistance, 2, 3) : 1);
+        target.setXYZ(
+          z * (proxySegments + 1) + x,
+          localX + edges[0] * insetWidth * fadeX - edges[1] * insetWidth * fadeRight,
+          sample(1),
+          localZ + edges[3] * insetWidth * fadeZ - edges[2] * insetWidth * fadeForward
+        );
       }
     }
     target.needsUpdate = true;
+    cliffFade.needsUpdate = true;
     proxyGeometry.computeBoundingSphere();
     state.sourceGeometry = sourceGeometry;
     state.sourcePositionVersion = source.version;
+    state.mistInsetSignature = insetSignature;
   }
 
   update(delta, camera) {

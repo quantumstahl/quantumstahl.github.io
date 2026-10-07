@@ -5,7 +5,7 @@ import * as THREE from "three";
 export class PlayerController {
   constructor({ mapLoader, input, camera, joystick = null }) {
     this.mapLoader = mapLoader; this.input = input; this.camera = camera; this.joystick = joystick; this.player = null;
-    this.speed = 14.2; this.cameraYaw = Math.PI; this.cameraDistance = 6; this.cameraHeight = 3; this.groundOffset = 0; this.targetPlayerHeight = 0;
+    this.speed = 14.2; this.cameraYaw = Math.PI; this.cameraDistance = 6; this.cameraHeight = 3; this.groundOffset = 0; this.targetPlayerHeight = 0; this.collisionRadius = .05;
      this.cameraForward = new THREE.Vector3(); this.cameraRight = new THREE.Vector3(); this.move = new THREE.Vector3(); this.previousPosition = new THREE.Vector3(); this.cameraTarget = new THREE.Vector3(); this.desiredCameraTarget = new THREE.Vector3(); this.cameraPosition = new THREE.Vector3();
   }
   attach() {
@@ -17,6 +17,11 @@ export class PlayerController {
     // The cat is authored in a streamed map chunk, but becomes a persistent
     // runtime player once control begins. Its source chunk may unload later.
     this.mapLoader.playerObject = this.player;
+    // Movement uses the model origin, so reserve enough room for the visible
+    // body as well as the origin when it meets a cliff wall.
+    this.player.updateWorldMatrix(true, true);
+    const bounds = new THREE.Box3().setFromObject(this.player);
+    this.collisionRadius = Math.max(.60, (bounds.max.x - bounds.min.x) * .5, (bounds.max.z - bounds.min.z) * .5) + .06;
     this.groundOffset = this.player.position.y - this.mapLoader.terrain.getHeightAt(this.player.position);
     this.targetPlayerHeight = this.player.position.y;
     this.cameraYaw = this.player.rotation.y;
@@ -39,7 +44,7 @@ export class PlayerController {
       this.move.copy(this.cameraRight).multiplyScalar(x).addScaledVector(this.cameraForward, z).normalize();
       this.previousPosition.copy(this.player.position);
       this.player.position.addScaledVector(this.move, this.speed * Math.min(1, Math.hypot(x, z)) * delta);
-      this.mapLoader.constrainToGameplayChunks(this.player.position, this.previousPosition);
+      this.mapLoader.constrainToGameplayChunks(this.player.position, this.previousPosition, this.collisionRadius);
       const targetHeading = Math.atan2(-this.move.x, -this.move.z);
       this.player.rotation.y = this.lerpAngle(this.player.rotation.y, targetHeading, 1 - Math.exp(-11 * delta));
     }

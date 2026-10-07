@@ -161,7 +161,16 @@ export class MapLoader {
       chunk._decorativeOuterEdges = decoration.outerEdges;
       chunk._decorativeOuterCorners = decoration.outerCorners;
       objects.terrainChunk = chunk;
-      this.streamedTerrain.loadChunk(chunk);
+      const terrainMesh = this.streamedTerrain.loadChunk(chunk);
+      // A diagonal decorative tile builds the rock connector between two
+      // adjacent wall chunks. Refresh this small neighbourhood as tiles stream
+      // in, so the connector appears once both source walls are available.
+      for (let offsetZ = -1; offsetZ <= 1; offsetZ++) for (let offsetX = -1; offsetX <= 1; offsetX++) {
+        const nearby = this.streamedTerrain.getTileAt({ x: (x + offsetX + .5) * this.world.chunkSize, z: (z + offsetZ + .5) * this.world.chunkSize });
+        const wall = nearby && this.streamedTerrain.updateCliffWall(nearby.chunk);
+        if (wall) this.sky.addBackgroundFadeToMaterial(wall.material);
+      }
+      if (terrainMesh.userData.cliffWall) this.sky.addBackgroundFadeToMaterial(terrainMesh.userData.cliffWall.material);
       this.water.applyChunk(chunk, this.world.terrain);
       objects.waterChunk = chunk;
       for (const record of chunk.objects ?? []) {
@@ -488,7 +497,10 @@ export class MapLoader {
       chunk.grass ??= { points: [] };
       chunk.grass.points ??= [];
       const hillVersion = Number(chunk.terrain?.decorativeHillsVersion) || 0;
-      const refreshGeneratedHills = (hillVersion > 0 && hillVersion < 8) || this.hasLegacyDecorativeHills(chunk, definition);
+      // Version 13 widens the bare cliff buffer. Re-running the editor action
+      // upgrades previous generated borders and removes their far-grass source
+      // points as well as the visible near blades.
+      const refreshGeneratedHills = (hillVersion > 0 && hillVersion < 13) || this.hasLegacyDecorativeHills(chunk, definition);
       // This command creates base cover once. Re-running it must not pile
       // hundreds more blades onto chunks the user has already painted. The
       // previous auto-hill profile is the sole exception: repair it in place.
@@ -508,6 +520,24 @@ export class MapLoader {
         for (const blade of chunk.grass.points) blade.y = this.getChunkHeight(chunk, blade.x, blade.z);
         chunk.grass.revision = (Number(chunk.grass.revision) || 0) + 1;
       }
+      // The cliff face and its crest are deliberately bare. Far grass expands
+      // its source cells by one 2 m cell, so the source points need a wider
+      // exclusion zone than the visible rock cap itself.
+      const cliffEdges = this.getChunkDecoration(definition.x, definition.z).edges;
+      const cliffGrassClearance = 2.0;
+      const isOnCliff = (x, z) => Math.min(
+        cliffEdges[0] ? x - definition.x * size : Infinity,
+        cliffEdges[1] ? (definition.x + 1) * size - x : Infinity,
+        cliffEdges[2] ? (definition.z + 1) * size - z : Infinity,
+        cliffEdges[3] ? z - definition.z * size : Infinity
+      ) < cliffGrassClearance;
+      if (changedHills) {
+        const previousCount = chunk.grass.points.length;
+        chunk.grass.points = chunk.grass.points.filter(point => !isOnCliff(point.x, point.z));
+        if (chunk.grass.points.length !== previousCount) {
+          chunk.grass.revision = (Number(chunk.grass.revision) || 0) + 1;
+        }
+      }
       if (chunk.grass.points.length) {
         this.chunkStore.markDirty(chunk);
         skipped++;
@@ -518,6 +548,7 @@ export class MapLoader {
       for (let index = 0; index < density; index++) {
         const x = definition.x * size + random(seed + index * 17.13) * size;
         const z = definition.z * size + random(seed + index * 31.79 + 0.5) * size;
+        if (isOnCliff(x, z)) continue;
         chunk.grass.points.push({
           x,
           z,
@@ -1295,8 +1326,39 @@ export class MapLoader {
     ] = cornerHeights[3];
   }
 
+  // Turn playable borders into actual vertical cliffs rather than raising an
+  // interior row (which only makes a triangular ramp). The height arrays on
+  // the decorative mesh carry the cliff top; ChunkedTerrain draws the wall
+  // down to these saved playable-edge heights as separate geometry.
+  const cliffEdges = Array.from({ length: 4 }, () => Array(width).fill(null));
+  const cliffHeight = (worldX, worldZ) => THREE.MathUtils.clamp(
+    1.7
+    + 0.18 * Math.sin(worldX * 0.24 + worldZ * 0.17)
+    + 0.08 * Math.sin(worldX * 0.53 - worldZ * 0.36 + 1.6),
+    1.4,
+    2.0
+  );
+  const raiseCliffEdge = (edge, edgeIndex, vertex, height, worldX, worldZ) => {
+    if (height === null) return;
+    cliffEdges[edge][edgeIndex] = height;
+    heights[vertex] = Math.max(heights[vertex], height + cliffHeight(worldX, worldZ));
+  };
+  if (validNeighbours[0]) for (let z = 0; z <= resolution; z++) {
+    raiseCliffEdge(0, z, z * width, getHeight(neighbours[0], z * width + resolution), cx * size, (cz + z / resolution) * size);
+  }
+  if (validNeighbours[1]) for (let z = 0; z <= resolution; z++) {
+    raiseCliffEdge(1, z, z * width + resolution, getHeight(neighbours[1], z * width), (cx + 1) * size, (cz + z / resolution) * size);
+  }
+  if (validNeighbours[2]) for (let x = 0; x <= resolution; x++) {
+    raiseCliffEdge(2, x, resolution * width + x, getHeight(neighbours[2], x), (cx + x / resolution) * size, (cz + 1) * size);
+  }
+  if (validNeighbours[3]) for (let x = 0; x <= resolution; x++) {
+    raiseCliffEdge(3, x, x, getHeight(neighbours[3], resolution * width + x), (cx + x / resolution) * size, cz * size);
+  }
+  chunk.terrain.cliffEdges = cliffEdges;
+
   // New generator version.
-  chunk.terrain.decorativeHillsVersion = 8;
+  chunk.terrain.decorativeHillsVersion = 13;
 
   // --------------------------------------------------
   // Update currently loaded terrain mesh
@@ -1335,6 +1397,8 @@ export class MapLoader {
     // Use surrounding loaded chunks when calculating edge normals. This keeps
     // terrain lighting continuous across the decorative chunk seam.
     this.streamedTerrain.refreshNormalsAround(cx, cz);
+    const cliffWall = this.streamedTerrain.updateCliffWall(chunk);
+    if (cliffWall) this.sky.addBackgroundFadeToMaterial(cliffWall.material);
 
     this.water.applyChunk(
       chunk,
@@ -1453,14 +1517,24 @@ export class MapLoader {
         return Boolean(chunksByKey.get(`${cx},${cz}`) && !chunksByKey.get(`${cx},${cz}`).decorative);
     };
 
-    // Try X movement first
-    if (!isGameplayChunk(position.x, previousPosition.z)) {
-        position.x = previousPosition.x;
+    // Test the leading edge of the player rather than its centre. This keeps
+    // the whole cat outside the cliff and avoids the move-then-snap jitter.
+    const directionX = Math.sign(position.x - previousPosition.x);
+    const wallClearance = padding;
+    if (directionX && !isGameplayChunk(position.x + directionX * wallClearance, previousPosition.z)) {
+        const direction = directionX;
+        const chunkX = Math.floor(previousPosition.x / chunkSize);
+        const wallX = direction > 0 ? (chunkX + 1) * chunkSize : chunkX * chunkSize;
+        position.x = wallX - direction * wallClearance;
     }
 
-    // Then Z
-    if (!isGameplayChunk(position.x, position.z)) {
-        position.z = previousPosition.z;
+    // Then Z, using the same leading-edge test for a cliff running along X.
+    const directionZ = Math.sign(position.z - previousPosition.z);
+    if (directionZ && !isGameplayChunk(position.x, position.z + directionZ * wallClearance)) {
+        const direction = directionZ;
+        const chunkZ = Math.floor(previousPosition.z / chunkSize);
+        const wallZ = direction > 0 ? (chunkZ + 1) * chunkSize : chunkZ * chunkSize;
+        position.z = wallZ - direction * wallClearance;
     }
 
     return position;
