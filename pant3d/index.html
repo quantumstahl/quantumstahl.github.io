@@ -25,6 +25,7 @@
     <i></i>
     <div class="toolbar" aria-label="Editing tools">
       <button data-tool="select" class="is-active">Select</button>
+      <button id="selectSubgroupButton" data-tool="selectSubgroup" title="Select the subgroup under the clicked primitive">Select sub</button>
       <button data-tool="translate">Move</button>
       <button data-tool="rotate">Rotate</button>
       <button data-tool="scale">Scale</button>
@@ -57,6 +58,7 @@
       <button data-primitive="plane">Plane</button>
       <label class="resolution-control">Detail <select id="primitiveResolution"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></label>
     </div>
+    <output id="exportStats" class="export-stats">GLB estimate: 0 triangles · 0 draw calls</output>
     <div id="outliner" class="outliner"></div>
   </aside>
 
