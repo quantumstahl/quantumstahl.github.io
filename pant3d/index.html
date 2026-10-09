@@ -26,6 +26,13 @@
     <div class="toolbar" aria-label="Editing tools">
       <button data-tool="select" class="is-active">Select</button>
       <button id="selectSubgroupButton" data-tool="selectSubgroup" title="Select the subgroup under the clicked primitive">Select sub</button>
+      <button data-tool="vertex" title="Edit primitive vertices">Vertex</button>
+      <button data-tool="edge" title="Select an edge and edit its end vertices">Edge</button>
+      <button data-tool="face" title="Select and edit a primitive face">Face</button>
+      <label id="extrudeControls" hidden>Extrude <input id="extrudeDistance" type="number" value="0.25" min="-10" max="10" step="0.05"><button id="extrudeFaceButton" type="button" title="Extrude the selected face">Apply</button></label>
+      <button id="deleteFaceButton" type="button" title="Remove the selected face" hidden>Delete Face</button>
+      <button id="duplicateFaceButton" type="button" title="Create an independent copy of the selected face" hidden>Duplicate Face</button>
+      <span id="componentTransformControls" hidden><button type="button" data-component-transform="translate">V Move</button><button type="button" data-component-transform="rotate">V Rotate</button><button type="button" data-component-transform="scale">V Scale</button></span>
       <button data-tool="translate">Move</button>
       <button data-tool="rotate">Rotate</button>
       <button data-tool="scale">Scale</button>
