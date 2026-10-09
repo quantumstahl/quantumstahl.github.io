@@ -26,18 +26,13 @@
     <div class="toolbar" aria-label="Editing tools">
       <button data-tool="select" class="is-active">Select</button>
       <button id="selectSubgroupButton" data-tool="selectSubgroup" title="Select the subgroup under the clicked primitive">Select sub</button>
-      <button data-tool="vertex" title="Edit primitive vertices">Vertex</button>
-      <button data-tool="edge" title="Select an edge and edit its end vertices">Edge</button>
-      <button data-tool="face" title="Select and edit a primitive face">Face</button>
-      <label id="extrudeControls" hidden>Extrude <input id="extrudeDistance" type="number" value="0.25" min="-10" max="10" step="0.05"><button id="extrudeFaceButton" type="button" title="Extrude the selected face">Apply</button></label>
-      <button id="deleteFaceButton" type="button" title="Remove the selected face" hidden>Delete Face</button>
-      <button id="duplicateFaceButton" type="button" title="Create an independent copy of the selected face" hidden>Duplicate Face</button>
-      <span id="componentTransformControls" hidden><button type="button" data-component-transform="translate">V Move</button><button type="button" data-component-transform="rotate">V Rotate</button><button type="button" data-component-transform="scale">V Scale</button></span>
+      <button id="meshEditButton" type="button" title="Enter vertex, edge, and face editing">Mesh edit</button>
       <button data-tool="translate">Move</button>
       <button data-tool="rotate">Rotate</button>
       <button data-tool="scale">Scale</button>
       <button data-tool="paint" title="Paint an individual face">Paint Face</button>
       <button data-tool="paintPrimitive" title="Paint an individual primitive">Paint Primitive</button>
+      <button data-tool="faceTexture" title="Place the chosen texture on one face">Face Texture</button>
       <button id="frameButton" title="Frame selected object (F)">Frame</button>
       <label id="paintControls" class="paint-controls" hidden>Paint color <input id="paintColor" type="color" value="#f4d35e"></label>
     </div>
@@ -57,6 +52,96 @@
     <output id="status">Untitled project</output>
   </header>
 
+  <section id="vertexToolbar" hidden aria-label="Mesh editing tools">
+    <div id="vertexModeRow">
+      <strong>Mesh edit</strong>
+      <button data-tool="vertex" title="Edit primitive vertices">Vertex</button>
+      <button data-tool="edge" title="Select an edge and edit its end vertices">Edge</button>
+      <button data-tool="face" title="Select and edit a primitive face">Face</button>
+      <i aria-hidden="true"></i>
+      <span id="componentTransformControls" hidden><button type="button" data-component-transform="translate">Move</button><button type="button" data-component-transform="rotate">Rotate</button><button type="button" data-component-transform="scale">Scale</button></span>
+    </div>
+    <div id="vertexActionRow">
+      <div id="meshQuickRow"></div>
+      <div id="meshMenuRow">
+        <details class="mesh-menu"><summary>Selection</summary><div id="meshSelectionMenu" class="mesh-menu-content"></div></details>
+        <details class="mesh-menu"><summary>Geometry</summary><div id="meshGeometryMenu" class="mesh-menu-content"></div></details>
+        <details class="mesh-menu"><summary>Transform</summary><div id="meshTransformMenu" class="mesh-menu-content"></div></details>
+        <details class="mesh-menu"><summary>Symmetry</summary><div id="meshSymmetryMenu" class="mesh-menu-content"></div></details>
+        <details class="mesh-menu"><summary>Cleanup</summary><div id="meshCleanupMenu" class="mesh-menu-content"></div></details>
+      </div>
+      <span id="selectAllControls" hidden><button id="selectAllComponentsButton" type="button" title="Select every component in the current mesh edit mode">Select All</button><button id="selectNoComponentsButton" type="button" title="Clear the current component selection">Select None</button></span>
+      <button id="invertSelectionButton" type="button" title="Invert the current component selection" hidden>Invert</button>
+      <button id="checkerSelectButton" type="button" title="Keep alternating items from the current component selection" hidden>Checker</button>
+      <button id="selectLinkedButton" type="button" title="Select all connected components from the current selection" hidden>Select Linked</button>
+      <button id="transformSpaceButton" type="button" title="Switch mesh gizmo movement between world and local axes" hidden>World Axes</button>
+      <button id="vertexXRayButton" type="button" title="Show mesh edit vertices and edges through the selected primitive" hidden>X-Ray</button>
+      <label id="splitEdgeControls" hidden>Split <input id="splitEdgeFactor" type="number" value="0.5" min="0.01" max="0.99" step="0.01"><button id="splitEdgeButton" type="button" title="Insert a vertex at this position along the selected edge">Apply</button></label>
+      <button id="loopCutButton" type="button" title="Split every edge in the selected edge ring" hidden>Loop Cut</button>
+      <button id="collapseEdgeButton" type="button" title="Merge the selected edge to its midpoint and remove degenerate faces" hidden>Collapse</button>
+      <button id="flipEdgeButton" type="button" title="Swap an internal triangle edge to the opposite diagonal" hidden>Flip Edge</button>
+      <button id="deleteEdgeButton" type="button" title="Delete the faces using the selected edge or edge selection" hidden>Delete Edges</button>
+      <label id="edgeBevelControls" hidden>Edge Bevel <input id="edgeBevelAmount" type="number" value="0.15" min="0.01" max="0.95" step="0.01"><button id="edgeBevelButton" type="button" title="Bevel the selected internal or open boundary edge">Apply</button></label>
+      <label id="edgeExtrudeControls" hidden>Edge Ext <input id="edgeExtrudeDistance" type="number" value="0.25" min="-10" max="10" step="0.05"><button id="edgeExtrudeButton" type="button" title="Extrude the selected boundary edge">Apply</button></label>
+      <label id="edgeLengthControls" hidden>Length <input id="edgeLength" type="number" value="1" min="0.001" max="1000" step="0.05"><button id="edgeLengthButton" type="button" title="Set the selected edge length around its center">Apply</button></label>
+      <button id="selectEdgeRingButton" type="button" title="Select parallel connected edges around the current surface" hidden>Edge Ring</button>
+      <button id="selectEdgeLoopButton" type="button" title="Select connected collinear edges from the current edge" hidden>Edge Loop</button>
+      <button id="straightenEdgeLoopButton" type="button" title="Straighten an open selected edge loop between its endpoints" hidden>Straighten</button>
+      <button id="selectParallelEdgesButton" type="button" title="Select all edges parallel to the active edge" hidden>Select Parallel</button>
+      <button id="selectSimilarEdgesButton" type="button" title="Select all edges with the same length as the active edge" hidden>Select Similar</button>
+      <label id="selectSharpControls" hidden>Sharp <input id="sharpAngle" type="number" value="30" min="0" max="180" step="1"><button id="selectSharpEdgesButton" type="button" title="Select edges at or sharper than this angle, plus open boundaries">Apply</button></label>
+      <button id="selectNonManifoldButton" type="button" title="Select edges that are not shared by exactly two faces" hidden>Non-Manifold</button>
+      <button id="selectBoundaryLoopButton" type="button" title="Select only the open boundary loop containing the active edge" hidden>Boundary Loop</button>
+      <button id="selectInteriorEdgesButton" type="button" title="Select edges shared by exactly two faces" hidden>Select Interior</button>
+      <button id="selectBoundaryButton" type="button" title="Select all open boundary edges on this primitive" hidden>Select Boundary</button>
+      <button id="bridgeEdgesButton" type="button" title="Connect two selected boundary loops, or two Ctrl-selected boundary edges" hidden>Bridge</button>
+      <button id="fillHoleButton" type="button" title="Fill the boundary loop containing the selected edge" hidden>Fill Hole</button>
+      <label id="extrudeControls" hidden>Extrude <input id="extrudeDistance" type="number" value="0.25" min="-10" max="10" step="0.05"><button id="extrudeFaceButton" type="button" title="Extrude the selected face">Apply</button></label>
+      <button id="extrudeRegionButton" type="button" title="Extrude selected coplanar faces together as one region" hidden>Extrude Region</button>
+      <label id="insetControls" hidden>Inset <input id="insetAmount" type="number" value="0.2" min="0.01" max="0.95" step="0.05"><button id="insetFaceButton" type="button" title="Inset the selected face">Apply</button></label>
+      <button id="insetRegionButton" type="button" title="Inset selected coplanar faces together as one region" hidden>Inset Region</button>
+      <button id="deleteFaceButton" type="button" title="Remove the selected face" hidden>Delete Face</button>
+      <button id="duplicateFaceButton" type="button" title="Create an independent copy of the selected face" hidden>Duplicate Face</button>
+      <button id="separateFaceButton" type="button" title="Split the selected face into its own primitive" hidden>Separate Face</button>
+      <button id="subdivideFaceButton" type="button" title="Split the selected face into smaller editable faces" hidden>Subdivide</button>
+      <button id="triangulateFacesButton" type="button" title="Expose coplanar triangles as individual editable faces" hidden>Triangulate</button>
+      <button id="mergeCoplanarButton" type="button" title="Merge coplanar triangle faces back into larger editable faces" hidden>Merge Coplanar</button>
+      <button id="selectSimilarFacesButton" type="button" title="Select faces with the same surface direction as the active face" hidden>Select Similar</button>
+      <button id="selectSimilarAreaButton" type="button" title="Select faces with the same surface area as the active face" hidden>Similar Area</button>
+      <button id="pokeFaceButton" type="button" title="Insert a center vertex into the selected face" hidden>Poke</button>
+      <button id="flipFaceButton" type="button" title="Reverse the selected face normal" hidden>Flip Face</button>
+      <label id="bevelControls" hidden>Bevel <input id="bevelInset" type="number" value="0.15" min="0.01" max="0.95" step="0.05"> H <input id="bevelHeight" type="number" value="0.15" min="-10" max="10" step="0.05"><button id="bevelFaceButton" type="button" title="Create a beveled cap from the selected face">Apply</button></label>
+      <button id="bevelRegionButton" type="button" title="Bevel selected coplanar faces together as one region" hidden>Bevel Region</button>
+      <button id="createFaceButton" type="button" title="Create a face from 3 or more selected vertices, in selection order" hidden>Create Face</button>
+      <button id="connectVerticesButton" type="button" title="Split the editable face between two selected non-adjacent vertices" hidden>Connect</button>
+      <label id="vertexExtrudeControls" hidden>V Ext <input id="vertexExtrudeDistance" type="number" value="0.25" min="-10" max="10" step="0.05"><button id="vertexExtrudeButton" type="button" title="Extrude one selected internal vertex along its averaged normal">Apply</button></label>
+      <button id="selectPathButton" type="button" title="Select the shortest connected vertex path between two selected vertices" hidden>Select Path</button>
+      <button id="selectSimilarValenceButton" type="button" title="Select vertices with the same number of connected edges as the active vertex" hidden>Similar Valence</button>
+      <label id="vertexBevelControls" hidden>V Bevel <input id="vertexBevelAmount" type="number" value="0.15" min="0.01" max="0.95" step="0.01"><button id="vertexBevelButton" type="button" title="Bevel one selected vertex">Apply</button></label>
+      <button id="dissolveVertexButton" type="button" title="Remove one selected vertex and rebuild its surrounding surface" hidden>Dissolve Vertex</button>
+      <button id="weldVerticesButton" type="button" title="Merge selected vertices at their shared center" hidden>Weld</button>
+      <label id="mergeDistanceControls" hidden>Merge <input id="mergeDistance" type="number" value="0.05" min="0.001" max="10" step="0.01"><button id="mergeDistanceButton" type="button" title="Merge selected vertices within this distance">Apply</button></label>
+      <span id="selectionGrowControls" hidden><button id="growSelectionButton" type="button" title="Add connected vertices to the current selection">Grow</button><button id="shrinkSelectionButton" type="button" title="Keep only fully surrounded selected vertices">Shrink</button></span>
+      <span id="alignVerticesControls" hidden><button type="button" data-align-axis="x" title="Align selected vertices on X">Align X</button><button type="button" data-align-axis="y" title="Align selected vertices on Y">Align Y</button><button type="button" data-align-axis="z" title="Align selected vertices on Z">Align Z</button></span>
+      <span id="mirrorVerticesControls" hidden><button type="button" data-mirror-axis="x" title="Mirror selected vertices across local X">Mirror X</button><button type="button" data-mirror-axis="y" title="Mirror selected vertices across local Y">Mirror Y</button><button type="button" data-mirror-axis="z" title="Mirror selected vertices across local Z">Mirror Z</button></span>
+      <button id="snapVerticesButton" type="button" title="Snap selected vertices to the current grid step" hidden>Snap Verts</button>
+      <label id="softSelectionControls" hidden><input id="softSelectionEnabled" type="checkbox"> Soft <input id="softSelectionRadius" type="number" value="1" min="0.05" max="100" step="0.05" title="Soft-selection radius"></label>
+      <label id="pushPullControls" hidden>Push/Pull <input id="pushPullAmount" type="number" value="0.1" min="-10" max="10" step="0.05"><button id="pushPullButton" type="button" title="Move selected components along their averaged surface normals">Apply</button></label>
+      <button id="makePlanarButton" type="button" title="Flatten selected components onto their averaged local plane" hidden>Make Planar</button>
+      <label id="randomizeControls" hidden>Random <input id="randomizeAmount" type="number" value="0.1" min="0.001" max="10" step="0.01"><button id="randomizeButton" type="button" title="Randomly offset selected components in local space">Apply</button></label>
+      <label id="toSphereControls" hidden>To Sphere <input id="toSphereAmount" type="number" value="1" min="0" max="1" step="0.05"><button id="toSphereButton" type="button" title="Round selected components toward a common sphere">Apply</button></label>
+      <button id="toCircleButton" type="button" title="Round selected vertices into a circle on their averaged local plane" hidden>To Circle</button>
+      <button id="relaxVerticesButton" type="button" title="Smooth selected vertices toward their connected neighbors" hidden>Relax</button>
+      <button id="checkMeshButton" type="button" title="Report mesh topology problems and geometry totals" hidden>Check Mesh</button>
+      <button id="selectDegenerateButton" type="button" title="Select vertices belonging to zero-area or collapsed triangles" hidden>Select Degenerate</button>
+      <button id="selectPolesButton" type="button" title="Select vertices whose connected edge count is not four" hidden>Select Poles</button>
+      <button id="cleanMeshButton" type="button" title="Remove duplicate and degenerate triangles" hidden>Clean Mesh</button>
+      <button id="subdivideMeshButton" type="button" title="Subdivide every triangle in the editable primitive" hidden>Subdivide Mesh</button>
+      <button id="recalculateNormalsButton" type="button" title="Recalculate shading normals for the editable primitive" hidden>Recalc Normals</button>
+      <button id="deleteVerticesButton" type="button" title="Remove faces connected to selected vertices" hidden>Delete Verts</button>
+    </div>
+  </section>
+
   <aside class="panel outliner-panel">
     <div class="panel-title">Scene <div class="scene-actions"><button id="groupButton" title="Group selected objects (Ctrl+G)">Group</button><button id="ungroupButton" title="Ungroup the selected group (Ctrl+Shift+G)">Ungroup</button><button id="addMenuButton" title="Add primitive">+ Add</button></div></div>
     <div id="addMenu" class="add-menu" hidden>
@@ -74,6 +159,18 @@
   <aside class="panel inspector-panel">
     <div class="panel-title">Inspector</div>
     <div id="emptyInspector" class="empty-state">Select an object to edit it.</div>
+    <section id="faceTexturePanel" class="face-texture-panel" hidden>
+      <h2>▧ Face Texture</h2>
+      <div class="texture-preview"><img id="faceTexturePreview" alt="Selected texture preview" hidden><span id="faceTexturePlaceholder">▧<br>Texture preview</span></div>
+      <div class="texture-file-actions"><label for="faceTextureInput">Choose Texture</label><button id="clearFaceTextureChoice" type="button" title="Clear selected texture">⌫</button></div>
+      <input id="faceTextureInput" type="file" accept="image/*" hidden>
+      <h3>UV Transform</h3>
+      <label class="texture-slider">Scale <output id="faceTextureScaleValue">1.00</output><input id="faceTextureScaleRange" type="range" min="0.05" max="8" step="0.05" value="1"><input id="faceTextureScale" type="number" min="0.05" max="100" step="0.05" value="1"></label>
+      <label class="texture-slider">Rotation <output id="faceTextureRotationValue">0°</output><input id="faceTextureRotationRange" type="range" min="-180" max="180" step="1" value="0"><input id="faceTextureRotation" type="number" min="-360" max="360" step="1" value="0"></label>
+      <div class="texture-offset"><span>Offset</span><label>X<input id="faceTextureOffsetX" type="number" step="0.05" value="0"></label><label>Y<input id="faceTextureOffsetY" type="number" step="0.05" value="0"></label></div>
+      <button id="placeFaceTextureButton" class="texture-place" type="button">Place on Face</button>
+       <div class="texture-edit-actions"><button id="replaceFaceTextureButton" type="button">Replace</button><button id="removeFaceTextureButton" type="button">Remove</button></div>
+    </section>
     <form id="inspector" hidden>
       <label>Name<input id="objectName" type="text"></label>
       <fieldset><legend>Transform</legend>
@@ -86,6 +183,6 @@
   </aside>
   <section id="animationDock" hidden aria-label="Animation timeline"><strong>Animation</strong><select id="animationSelect" aria-label="Saved animation"></select><input id="animationName" aria-label="Animation name" value="Animation 1"><button id="newAnimationButton" type="button">New</button><button id="saveAnimationButton" type="button">Save</button><button id="deleteAnimationButton" type="button">Delete</button><label class="timeline-label">Time <output id="animationTime">0.0s</output><input id="timeline" type="range" min="0" max="2" step="0.1" value="0"></label><label>Duration <input id="animationDuration" type="number" min="0.1" max="60" step="0.1" value="2"></label><label>Preview <select id="playbackMode" aria-label="Animation playback mode"><option value="loop">Loop</option><option value="pingpong">Ping-pong</option></select></label><div class="animation-actions"><button id="keyframeButton" type="button">Set keyframe</button><button id="playButton" type="button">Play</button><button id="clearAnimationButton" type="button">Clear keys</button></div><span id="keyframeSummary" class="texture-name">No keyframes</span></section>
   <input id="fileInput" type="file" accept=".mp3d,.json,application/json" hidden>
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=mesh-tools-5"></script>
 </body>
 </html>
