@@ -113,6 +113,15 @@
       <label id="bevelControls" hidden>Bevel <input id="bevelInset" type="number" value="0.15" min="0.01" max="0.95" step="0.05"> H <input id="bevelHeight" type="number" value="0.15" min="-10" max="10" step="0.05"><button id="bevelFaceButton" type="button" title="Create a beveled cap from the selected face">Apply</button></label>
       <button id="bevelRegionButton" type="button" title="Bevel selected coplanar faces together as one region" hidden>Bevel Region</button>
       <button id="createFaceButton" type="button" title="Create a face from 3 or more selected vertices, in selection order" hidden>Create Face</button>
+      <button id="duplicateArrayButton" type="button" title="Duplicate selected mesh geometry in the direction of a clicked face" hidden>Duplicate Array</button>
+      <span id="duplicateArrayControls" hidden>
+        <label>Count <input id="duplicateArrayCount" type="number" value="3" min="1" max="100" step="1"></label>
+        <label>Gap <input id="duplicateArrayGap" type="number" value="0.2" min="0" max="100" step="0.05"></label>
+        <label><input id="duplicateArrayIncludeOriginal" type="checkbox" checked> Original</label>
+        <button id="duplicateArrayReverse" type="button" title="Reverse the picked face direction">Reverse</button>
+        <button id="duplicateArrayApply" type="button" disabled>Apply ↵</button>
+        <button id="duplicateArrayCancel" type="button">Cancel Esc</button>
+      </span>
       <button id="connectVerticesButton" type="button" title="Split the editable face between two selected non-adjacent vertices" hidden>Connect</button>
       <label id="vertexExtrudeControls" hidden>V Ext <input id="vertexExtrudeDistance" type="number" value="0.25" min="-10" max="10" step="0.05"><button id="vertexExtrudeButton" type="button" title="Extrude one selected internal vertex along its averaged normal">Apply</button></label>
       <button id="selectPathButton" type="button" title="Select the shortest connected vertex path between two selected vertices" hidden>Select Path</button>
