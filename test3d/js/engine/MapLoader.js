@@ -100,8 +100,40 @@ export class MapLoader {
         this.chunkStore.markDirty(chunk);
       }
     }
+    // Chunk manifests keep asset definitions but intentionally omit their
+    // instance arrays. Rebuild that editor-facing index from every chunk so
+    // the asset tree represents the complete map, not only the streamed 5x5
+    // window around the camera.
+    if (this.chunkStore) await this.indexChunkedObjects();
     await this.rebuild();
     return this.world;
+  }
+
+  async indexChunkedObjects() {
+    for (const layer of this.world.layers) {
+      for (const type of layer.assetTypes) type.instances = [];
+    }
+    for (const coordinate of this.world.chunks ?? []) {
+      const chunk = await this.chunkStore.load(coordinate.x, coordinate.z);
+      for (const record of chunk.objects ?? []) {
+        const layer = this.world.layers.find(item => item.id === record.layerId);
+        const type = layer?.assetTypes.find(item => item.id === record.typeId);
+        if (!type || !record.data) continue;
+        record.chunkX ??= chunk.x;
+        record.chunkZ ??= chunk.z;
+        // Older duplicate commands appended " copy" repeatedly. Keep object
+        // labels clean now that instances are identified by their stable id.
+        const cleanName = typeof record.data.name === "string"
+          ? record.data.name.replace(/(?:\s+copy)+$/i, "")
+          : "";
+        if (cleanName && cleanName !== record.data.name) {
+          record.data.name = cleanName;
+          this.chunkStore.markDirty(chunk);
+        }
+        record.data._chunkRecord = record;
+        type.instances.push(record.data);
+      }
+    }
   }
 
   async rebuild() {
@@ -347,12 +379,26 @@ export class MapLoader {
     if (this.selectedObject === object) this.selectedObject = null;
     this.refreshFakeShadows();
   }
-  removeType(type) {
+  async removeType(type) {
+    const layer = this.world.layers.find(item => item.assetTypes.includes(type));
     const sources = this.objects.filter(object => object.userData.assetType === type);
     this.batcher.removeType(type, sources);
     sources.forEach(object => object.removeFromParent());
     this.objects = this.objects.filter(object => object.userData.assetType !== type);
     if (this.selectedObject?.userData.assetType === type) this.selectedObject = null;
+    // Objects outside the streamed window do not have scene instances, but
+    // their chunk records must be removed too or they return on a later load.
+    if (this.chunkStore) {
+      for (const coordinate of this.world.chunks ?? []) {
+        const chunk = await this.chunkStore.load(coordinate.x, coordinate.z);
+        const before = chunk.objects?.length ?? 0;
+        chunk.objects = (chunk.objects ?? []).filter(record =>
+          record.layerId !== layer?.id || record.typeId !== type.id
+        );
+        if (chunk.objects.length !== before) this.chunkStore.markDirty(chunk);
+      }
+    }
+    type.instances = [];
     this.refreshFakeShadows();
   }
   setTypeShadowMode(type, mode) {
@@ -1553,6 +1599,7 @@ export class MapLoader {
       : cameraClearance;
   }
   refreshChunkedGrass() { if (this.chunkStore) this.grass.setChunkedChunks(this.activeTerrainChunks()); }
+  setGrassPainting(active) { this.grass.setFarGrassEditing(active); }
   paintGrass(point, radius) {
     if (!this.chunkStore) return this.grass.paint(this.world.grass, this.terrain, point, radius);
     const chunks = this.activeTerrainChunks();

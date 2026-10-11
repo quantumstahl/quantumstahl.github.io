@@ -128,6 +128,11 @@
       "x": 2,
       "z": 2,
       "decorative": true
+    },
+    {
+      "x": 0,
+      "z": -3,
+      "decorative": true
     }
   ],
   "editor": {
@@ -174,8 +179,40 @@
           "shape": null,
           "collision": "solid",
           "render": {
-            "castShadow": false,
-            "shadowMode": "fake",
+            "castShadow": true,
+            "shadowMode": "real",
+            "receiveShadow": true,
+            "instanced": true
+          },
+          "editor": {
+            "visible": true
+          }
+        },
+        {
+          "id": "stol",
+          "name": "stol",
+          "glb": "assets/stol.glb",
+          "shape": null,
+          "collision": "solid",
+          "render": {
+            "castShadow": true,
+            "shadowMode": "real",
+            "receiveShadow": true,
+            "instanced": true
+          },
+          "editor": {
+            "visible": true
+          }
+        },
+        {
+          "id": "tr-d2",
+          "name": "träd2",
+          "glb": "assets/träd2.glb",
+          "shape": null,
+          "collision": "solid",
+          "render": {
+            "castShadow": true,
+            "shadowMode": "real",
             "receiveShadow": true,
             "instanced": true
           },

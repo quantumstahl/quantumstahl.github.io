@@ -67,6 +67,7 @@ export class Editor {
   }
   setTool(name) {
     if (this.activeTool === "brush" && name !== "brush") this.brushTool.exit();
+    if (this.activeTool === "terrain" && name !== "terrain") this.mapLoader.setGrassPainting(false);
     this.activeTool = name;
     if (name === "brush") this.brushTool.enter();
     document.querySelector("#selectToolButton")?.classList.toggle("is-active", name === "select");
@@ -360,7 +361,7 @@ export class Editor {
     const type = source.userData.assetType;
     if (!data || !type) return;
     const copy = new MapObject({
-      name: data.name ? `${data.name} copy` : type.name,
+      name: type.name,
       position: { x: data.position.x + 1, y: data.position.y, z: data.position.z + 1 },
       rotation: { ...data.rotation },
       scale: { ...data.scale },
@@ -377,7 +378,7 @@ export class Editor {
       this.duplicateBusy = false;
     }
   }
-  removeAssetType(type) {
+  async removeAssetType(type) {
     const layer = this.findLayerForType(type);
     if (!layer) return;
     const count = type.instances.length;
@@ -385,7 +386,7 @@ export class Editor {
     const confirmed = window.confirm(`Remove ${kind} asset "${type.name}" from this map?\n\nThis removes the asset type and its ${count} placed ${count === 1 ? "instance" : "instances"}.`);
     if (!confirmed) return;
     if (this.selected?.userData.assetType === type) this.setSelected(null);
-    this.mapLoader.removeType(type);
+    await this.mapLoader.removeType(type);
     layer.assetTypes = layer.assetTypes.filter(item => item !== type);
     if (this.brushType === type) this.brushType = null;
     this.markDirty(); this.tree.render();

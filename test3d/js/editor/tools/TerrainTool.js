@@ -11,6 +11,8 @@ export class TerrainTool {
   }
   update(delta) {
     const { input } = this.editor;
+    const isGrassMode = this.editor.terrainMode === "grass" || this.editor.terrainMode === "eraseGrass";
+    this.editor.mapLoader.setGrassPainting(isGrassMode && input.pointer.primaryDown && !input.pointer.secondaryDown);
     const step = delta * (input.down("shift") ? 12 : 3);
     if (input.down("q")) this.setRadius(this.radius - step);
     if (input.down("e")) this.setRadius(this.radius + step);
@@ -26,7 +28,9 @@ export class TerrainTool {
       return;
     }
     if (this.editor.terrainMode === "grass" || this.editor.terrainMode === "eraseGrass") {
-      if (!this.lastGrassPoint || hit.point.distanceToSquared(this.lastGrassPoint) >= Math.max(.4, this.radius * .45) ** 2) {
+      // Closer dabs make a dragged stroke continuous. Incremental grass-cell
+      // updates keep this responsive even on maps with many painted chunks.
+      if (!this.lastGrassPoint || hit.point.distanceToSquared(this.lastGrassPoint) >= Math.max(.25, this.radius * .22) ** 2) {
         const changed = this.editor.terrainMode === "grass" ? this.editor.mapLoader.paintGrass(hit.point, this.radius) : this.editor.mapLoader.eraseGrass(hit.point, this.radius);
         if (changed) this.editor.markDirty();
         this.lastGrassPoint = hit.point.clone();

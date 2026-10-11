@@ -17,19 +17,24 @@ export class Grass {
     this.grassGrid = new Map();
     this.gridCellSize = 5;
     this.gridDirty = true;
-    // Far grass is a broad procedural surface, so 2 m cells retain the
-    // appearance while reducing its streamed geometry substantially.
-    this.farGrassCellSize = 2;
+    // Far grass is a shader-driven distant surface. Three-metre cells keep
+    // its soft coverage intact while producing far less rebuild geometry.
+    this.farGrassCellSize = 3;
     // Keep the low-detail surface above small terrain interpolation errors on
     // hills. This is a vertical offset only: it does not add any geometry.
     this.farGrassSurfaceOffset = 0.20;
     this.farGrassOpacity = 0.8;
 
     this.farGrassMesh = null;
+    // A small, live surface for the current paint stroke. The complete far
+    // surface is still built asynchronously after the stroke ends.
+    this.farGrassPreviewMesh = null;
+    this.farGrassPreviewCells = new Map();
     this.farGrassMaterial = this.createFarGrassMaterial();
 
     this.farGrassNeedsRebuild = true;
     this.farGrassRebuildTimer = 0;
+    this.farGrassEditing = false;
     this.chunkGrassSignature = "";
 
     this.environmentsun=true;
@@ -1208,10 +1213,7 @@ createMaterial() {
     // The renderer is already one shared InstancedMesh. Avoid rebuilding its
     // grid and the shared far-grass mesh when a stream callback reports the
     // same chunk grass data again.
-    const signature = chunks
-      .map(chunk => `${chunk.x},${chunk.z}:${chunk.grass?.points?.length ?? 0}:${chunk.grass?.revision ?? 0}:${chunk._decorativeOuterEdges?.join("") ?? ""}:${chunk._decorativeOuterCorners?.join("") ?? ""}`)
-      .sort()
-      .join("|");
+    const signature = this.getChunkGrassSignature(chunks);
     if (signature === this.chunkGrassSignature) return;
     this.chunkGrassSignature = signature;
     this.config.points = chunks.flatMap(chunk =>
@@ -1225,6 +1227,12 @@ createMaterial() {
     this.farGrassNeedsRebuild = true;
     this.queueGrassGridRebuild();
     this.dirty = true;
+  }
+  getChunkGrassSignature(chunks) {
+    return chunks
+      .map(chunk => `${chunk.x},${chunk.z}:${chunk.grass?.points?.length ?? 0}:${chunk.grass?.revision ?? 0}:${chunk._decorativeOuterEdges?.join("") ?? ""}:${chunk._decorativeOuterCorners?.join("") ?? ""}`)
+      .sort()
+      .join("|");
   }
   queueGrassGridRebuild() {
         this.pendingGrassGridBuild = {
@@ -1488,9 +1496,158 @@ createMaterial() {
     if (corners[3]) distance = Math.min(distance, Math.hypot(1 - u, v));
     return 1 - THREE.MathUtils.smoothstep(distance, 0, 0.30);
   }
+  isNearGrassPoint(point, padding = 0) {
+    // The card-blade mesh is only populated around the camera. A far paint
+    // stroke still belongs in the grid for later visits, but must not force a
+    // full visible-instance upload on every dab.
+    if (!Number.isFinite(this.lastCamera.x) || !Number.isFinite(this.lastCamera.z)) return true;
+    const range = this.radius + padding + this.gridCellSize;
+    return (point.x - this.lastCamera.x) ** 2 + (point.z - this.lastCamera.z) ** 2 <= range ** 2;
+  }
+  setFarGrassEditing(active) {
+    this.farGrassEditing = Boolean(active);
+    // A slow drag may not cross the next dab-spacing threshold for several
+    // frames. Reset here, rather than only in paintChunked(), so a far-grass
+    // build cannot steal time midway through that stroke.
+    if (this.farGrassEditing) this.farGrassRebuildTimer = 0;
+  }
+  eraseFarGrassLive(point, radius) {
+    const geometry = this.farGrassMesh?.geometry;
+    const cellIndex = geometry?.userData?.farGrassCellIndex;
+    const coverage = geometry?.getAttribute("coverage");
+    const outerFade = geometry?.getAttribute("outerBackgroundFade");
+    if (!cellIndex || !coverage || !outerFade) return;
+    const cellSize = this.farGrassCellSize;
+    // Keep the complete committed source-cell map. Restricting it to the
+    // brush neighbourhood made coverage at that artificial boundary collapse
+    // into a visible square.
+    const sourceCells = geometry.userData.farGrassSourceCells;
+    if (!sourceCells) return;
+    const minCellX = Math.floor((point.x - radius) / cellSize);
+    const maxCellX = Math.floor((point.x + radius) / cellSize);
+    const minCellZ = Math.floor((point.z - radius) / cellSize);
+    const maxCellZ = Math.floor((point.z + radius) / cellSize);
+    for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
+      for (let cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) sourceCells.delete(`${cellX},${cellZ}`);
+    }
+    for (const blade of this.config?.points ?? []) {
+      const cellX = Math.floor(blade.x / cellSize);
+      const cellZ = Math.floor(blade.z / cellSize);
+      if (cellX < minCellX || cellX > maxCellX || cellZ < minCellZ || cellZ > maxCellZ) continue;
+      const key = `${cellX},${cellZ}`;
+      sourceCells.set(key, Math.max(sourceCells.get(key) ?? 0, blade._farOuterFade ?? 0));
+    }
+    const coverageAt = (vertexX, vertexZ) => {
+      let count = 0;
+      for (let offsetX = -1; offsetX <= 0; offsetX++) {
+        for (let offsetZ = -1; offsetZ <= 0; offsetZ++) count += sourceCells.has(`${vertexX + offsetX},${vertexZ + offsetZ}`);
+      }
+      return count / 4;
+    };
+    const fadeAt = (vertexX, vertexZ) => {
+      let fade = 0;
+      for (let offsetX = -1; offsetX <= 0; offsetX++) {
+        for (let offsetZ = -1; offsetZ <= 0; offsetZ++) fade = Math.max(fade, sourceCells.get(`${vertexX + offsetX},${vertexZ + offsetZ}`) ?? 0);
+      }
+      return fade;
+    };
+    let changed = false;
+    for (let cellX = minCellX - 1; cellX <= maxCellX + 1; cellX++) {
+      const column = cellIndex.get(cellX);
+      if (!column) continue;
+      for (let cellZ = minCellZ - 1; cellZ <= maxCellZ + 1; cellZ++) {
+        const vertex = column.get(cellZ);
+        if (vertex === undefined) continue;
+        coverage.setX(vertex, coverageAt(cellX, cellZ));
+        coverage.setX(vertex + 1, coverageAt(cellX + 1, cellZ));
+        coverage.setX(vertex + 2, coverageAt(cellX + 1, cellZ + 1));
+        coverage.setX(vertex + 3, coverageAt(cellX, cellZ + 1));
+        outerFade.setX(vertex, fadeAt(cellX, cellZ));
+        outerFade.setX(vertex + 1, fadeAt(cellX + 1, cellZ));
+        outerFade.setX(vertex + 2, fadeAt(cellX + 1, cellZ + 1));
+        outerFade.setX(vertex + 3, fadeAt(cellX, cellZ + 1));
+        changed = true;
+      }
+    }
+    if (changed) { coverage.needsUpdate = true; outerFade.needsUpdate = true; }
+  }
+  addFarGrassPreview(paintedBlades) {
+    if (!this.terrain || !paintedBlades.length) return;
+    const cellSize = this.farGrassCellSize;
+    for (const { blade, chunk } of paintedBlades) {
+      const cellX = Math.floor(blade.x / cellSize);
+      const cellZ = Math.floor(blade.z / cellSize);
+      const key = `${cellX},${cellZ}`;
+      this.farGrassPreviewCells.set(key, Math.max(
+        this.farGrassPreviewCells.get(key) ?? 0,
+        this.getFarOuterFade(chunk, blade)
+      ));
+    }
+
+    const occupied = new Set(this.farGrassPreviewCells.keys());
+    const renderCells = new Set();
+    for (const key of occupied) {
+      const [cellX, cellZ] = key.split(",").map(Number);
+      for (let offsetX = -1; offsetX <= 1; offsetX++) {
+        for (let offsetZ = -1; offsetZ <= 1; offsetZ++) renderCells.add(`${cellX + offsetX},${cellZ + offsetZ}`);
+      }
+    }
+    const coverageAt = (vertexX, vertexZ) => {
+      let count = 0;
+      for (let offsetX = -1; offsetX <= 0; offsetX++) {
+        for (let offsetZ = -1; offsetZ <= 0; offsetZ++) count += occupied.has(`${vertexX + offsetX},${vertexZ + offsetZ}`);
+      }
+      return count / 4;
+    };
+    const fadeAt = (vertexX, vertexZ) => {
+      let fade = 0;
+      for (let offsetX = -1; offsetX <= 0; offsetX++) {
+        for (let offsetZ = -1; offsetZ <= 0; offsetZ++) fade = Math.max(fade, this.farGrassPreviewCells.get(`${vertexX + offsetX},${vertexZ + offsetZ}`) ?? 0);
+      }
+      return fade;
+    };
+    const positions = [], coverage = [], outerBackgroundFade = [], indices = [];
+    let vertexIndex = 0;
+    for (const key of renderCells) {
+      const [cellX, cellZ] = key.split(",").map(Number);
+      const x0 = cellX * cellSize, z0 = cellZ * cellSize;
+      const x1 = x0 + cellSize, z1 = z0 + cellSize;
+      // Lift the preview imperceptibly above the committed surface so both
+      // can coexist while its asynchronous rebuild is pending.
+      const offset = this.farGrassSurfaceOffset + 0.012;
+      positions.push(
+        x0, (this.terrain.getHeightAt({ x: x0, z: z0 }) ?? 0) + offset, z0,
+        x1, (this.terrain.getHeightAt({ x: x1, z: z0 }) ?? 0) + offset, z0,
+        x1, (this.terrain.getHeightAt({ x: x1, z: z1 }) ?? 0) + offset, z1,
+        x0, (this.terrain.getHeightAt({ x: x0, z: z1 }) ?? 0) + offset, z1
+      );
+      coverage.push(coverageAt(cellX, cellZ), coverageAt(cellX + 1, cellZ), coverageAt(cellX + 1, cellZ + 1), coverageAt(cellX, cellZ + 1));
+      outerBackgroundFade.push(fadeAt(cellX, cellZ), fadeAt(cellX + 1, cellZ), fadeAt(cellX + 1, cellZ + 1), fadeAt(cellX, cellZ + 1));
+      indices.push(vertexIndex, vertexIndex + 2, vertexIndex + 1, vertexIndex, vertexIndex + 3, vertexIndex + 2);
+      vertexIndex += 4;
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute("coverage", new THREE.Float32BufferAttribute(coverage, 1));
+    geometry.setAttribute("outerBackgroundFade", new THREE.Float32BufferAttribute(outerBackgroundFade, 1));
+    geometry.setIndex(indices);
+    geometry.computeBoundingSphere();
+    if (!this.farGrassPreviewMesh) {
+      this.farGrassPreviewMesh = new THREE.Mesh(geometry, this.farGrassMaterial);
+      this.farGrassPreviewMesh.name = "Live far grass paint preview";
+      this.farGrassPreviewMesh.frustumCulled = false;
+      this.root.add(this.farGrassPreviewMesh);
+    } else {
+      const oldGeometry = this.farGrassPreviewMesh.geometry;
+      this.farGrassPreviewMesh.geometry = geometry;
+      this.farGrassPreviewMesh.visible = true;
+      oldGeometry.dispose();
+    }
+  }
   paintChunked(point, radius, getChunkAt, chunks) {
     if (!this.chunkedConfig?.enabled || radius <= 0) return false;
     const count = Math.max(3, Math.round(radius * radius * this.chunkedConfig.density));
+    const paintedBlades = [];
     for (let index = 0; index < count; index++) {
       const angle = Math.random() * Math.PI * 2;
       const distance = Math.sqrt(Math.random()) * radius;
@@ -1500,15 +1657,48 @@ createMaterial() {
       if (!chunk) continue;
       chunk.grass ??= { points: [] };
       chunk.grass.points ??= [];
-      chunk.grass.points.push({
+      const blade = {
         x, z,
         y: this.terrain?.getHeightAt({ x, z }) ?? 0,
         scale: 0.7 + Math.random() * 0.6,
         height: 0.75 + Math.random() * 0.35,
         rotation: Math.random() * Math.PI * 2
-      });
+      };
+      chunk.grass.points.push(blade);
+      paintedBlades.push({ blade, chunk });
     }
-    this.setChunkedChunks(chunks);
+
+    // Painting used to call setChunkedChunks for every brush dab. That copies
+    // all active chunks and queues a complete grid rebuild, which makes dense
+    // maps feel progressively slower. Update only the cells this dab touched;
+    // full rebuilds remain reserved for streaming or an in-progress initial
+    // build, where the authoritative chunk snapshot is required.
+    if (this.gridDirty) {
+      this.setChunkedChunks(chunks);
+      return true;
+    }
+
+    const changedCells = new Map();
+    let needsNearGrassRefresh = false;
+    for (const { blade, chunk } of paintedBlades) {
+      const renderBlade = { ...blade, _farOuterFade: this.getFarOuterFade(chunk, blade) };
+      this.config.points.push(renderBlade);
+      const cellX = Math.floor(renderBlade.x / this.gridCellSize);
+      const cellZ = Math.floor(renderBlade.z / this.gridCellSize);
+      const cell = this.getOrCreateGrassCell(cellX, cellZ);
+      cell.blades.push(renderBlade);
+      changedCells.set(`${cellX},${cellZ}`, { cellX, cellZ, cell });
+      needsNearGrassRefresh ||= this.isNearGrassPoint(renderBlade);
+    }
+    for (const { cellX, cellZ, cell } of changedCells.values()) this.rebuildGrassCell(cellX, cellZ, cell);
+    this.addFarGrassPreview(paintedBlades);
+    this.chunkGrassSignature = this.getChunkGrassSignature(chunks);
+    this.farGrassNeedsRebuild = true;
+    // Far grass is a complete low-detail surface. Do not start rebuilding it
+    // between dabs in a long editor stroke; the near grass above is already
+    // current and the far surface can catch up when the user pauses.
+    this.farGrassRebuildTimer = 0;
+    this.dirty ||= needsNearGrassRefresh;
     return true;
   }
   eraseChunked(point, radius, chunks) {
@@ -1519,7 +1709,42 @@ createMaterial() {
       const kept = points.filter(blade => (blade.x - point.x) ** 2 + (blade.z - point.z) ** 2 > radiusSq);
       if (kept.length !== points.length) { chunk.grass.points = kept; changed = true; }
     }
-    if (changed) this.setChunkedChunks(chunks);
+    if (!changed) return false;
+    // Keep the renderer-side point list in sync before calculating the live
+    // far-grass coverage update below.
+    this.config.points = this.config.points.filter(blade =>
+      (blade.x - point.x) ** 2 + (blade.z - point.z) ** 2 > radiusSq
+    );
+    this.eraseFarGrassLive(point, radius);
+    if (this.gridDirty) {
+      this.setChunkedChunks(chunks);
+      return true;
+    }
+
+    // Match the local update used by painting, rather than rebuilding every
+    // active chunk after each erase dab.
+    const minCellX = Math.floor((point.x - radius) / this.gridCellSize);
+    const maxCellX = Math.floor((point.x + radius) / this.gridCellSize);
+    const minCellZ = Math.floor((point.z - radius) / this.gridCellSize);
+    const maxCellZ = Math.floor((point.z + radius) / this.gridCellSize);
+    for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
+      const column = this.grassGrid.get(cellX);
+      if (!column) continue;
+      for (let cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
+        const cell = column.get(cellZ);
+        if (!cell) continue;
+        cell.blades = cell.blades.filter(blade =>
+          (blade.x - point.x) ** 2 + (blade.z - point.z) ** 2 > radiusSq
+        );
+        if (cell.blades.length) this.rebuildGrassCell(cellX, cellZ, cell);
+        else column.delete(cellZ);
+      }
+      if (column.size === 0) this.grassGrid.delete(cellX);
+    }
+    this.chunkGrassSignature = this.getChunkGrassSignature(chunks);
+    this.farGrassNeedsRebuild = true;
+    this.farGrassRebuildTimer = 0;
+    this.dirty ||= this.isNearGrassPoint(point, radius);
     return changed;
   }
   setSunDirection(sun) {
@@ -2106,6 +2331,21 @@ processFarGrassRebuild() {
         job.indices
     );
 
+    // Keep a sparse cell-to-vertex lookup so erasing can clear only its
+    // nearby far-grass cells live, rather than rebuilding this full mesh.
+    const farGrassCellIndex = new Map();
+    job.renderCellArray.forEach((key, index) => {
+        const [cellX, cellZ] = key.split(",").map(Number);
+        let column = farGrassCellIndex.get(cellX);
+        if (!column) {
+            column = new Map();
+            farGrassCellIndex.set(cellX, column);
+        }
+        column.set(cellZ, index * 4);
+    });
+    geometry.userData.farGrassCellIndex = farGrassCellIndex;
+    geometry.userData.farGrassSourceCells = new Map(job.cellOuterFades);
+
 
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
@@ -2152,7 +2392,12 @@ processFarGrassRebuild() {
         oldGeometry?.dispose();
     }
 
-
+    // The committed surface now contains the live-stroke cells, so remove the
+    // temporary preview without a visible hand-off.
+    if (this.farGrassPreviewMesh) {
+        this.farGrassPreviewMesh.visible = false;
+        this.farGrassPreviewCells.clear();
+    }
     this.farGrassBuildJob =
         null;
 
@@ -2179,19 +2424,22 @@ update(delta, camera) {
     // Uppdatera distant-grass efter paint/erase.
     // Vänta lite så vi inte bygger om meshen för varje penselpunkt.
 
-    if (this.farGrassNeedsRebuild) {
+    if (this.farGrassNeedsRebuild && !this.farGrassEditing) {
 
     this.farGrassRebuildTimer += delta;
 
     if (
-        this.farGrassRebuildTimer > 0.12 &&
+        // Batch distant-grass geometry until the brush has been idle briefly.
+        // Rebuilding it for every dab is especially costly when painting a
+        // large area seen from far away.
+        this.farGrassRebuildTimer > 0.28 &&
         !this.farGrassBuildJob
     ) {
         this.startFarGrassRebuild();
     }
 }
 
-this.processFarGrassRebuild();
+if (!this.farGrassEditing) this.processFarGrassRebuild();
     camera.getWorldDirection(this.cameraDirection);
 
     const cameraStill =
