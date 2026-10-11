@@ -14,6 +14,7 @@ export class ChunkedTerrain {
     this.tiles = new Map();
     this.config = null;
     this.material = null;
+    this.shadowMaterial = null;
     this.textureLoader = new THREE.TextureLoader();
     this.textures = new Map();
     this.placeholderTexture = new THREE.Texture();
@@ -32,6 +33,7 @@ export class ChunkedTerrain {
     this.config = config;
     this.chunkSize = config.chunkSize ?? this.chunkSize;
     this.material?.dispose();
+    this.shadowMaterial?.dispose();
     this.material = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       vertexColors: true,
@@ -39,6 +41,7 @@ export class ChunkedTerrain {
 
         toneMapped :false
     });
+    this.shadowMaterial = new THREE.ShadowMaterial({ opacity: .48, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
     // Sky.addBackgroundFadeToMaterial uses this marker to blend the terrain's
     // outer-edge fade with the captured sky background.
     this.material.userData.terrainOuterBackgroundFade = true;
@@ -133,6 +136,11 @@ const decorativeOuterEdges =
     mesh.name = `Terrain ${x},${z}`;
     mesh.position.set(x * this.chunkSize + this.chunkSize * .5, 0, z * this.chunkSize + this.chunkSize * .5);
     mesh.receiveShadow = true;
+    const shadowOverlay = new THREE.Mesh(geometry, this.shadowMaterial);
+    shadowOverlay.name = `Terrain real shadow receiver ${x},${z}`;
+    shadowOverlay.receiveShadow = true;
+    shadowOverlay.renderOrder = 1;
+    mesh.add(shadowOverlay);
     mesh.userData.chunk = chunk;
     this.root.add(mesh);
     this.tiles.set(key, { chunk, mesh });

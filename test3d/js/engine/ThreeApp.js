@@ -13,9 +13,8 @@ export class ThreeApp {
     this.targetFPS = 60;
     this.renderer.setPixelRatio(1);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = this.mobileProfile ? THREE.BasicShadowMap : THREE.PCFShadowMap;
+    this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;
     this.performanceInfo = new PerformanceInfo(this.renderer);
     this.clock = new THREE.Clock();
     this.running = false;
@@ -26,15 +25,15 @@ export class ThreeApp {
   addDefaultLighting() {
     // HemisphereLight takes sky colour, ground colour, then intensity.
 
-    const sun = new THREE.DirectionalLight(0xffffff, 2);
-    sun.position.set(15, 40, 200); sun.castShadow = true;
+    const sun = new THREE.DirectionalLight(0xffffff, 3);
+    sun.position.set(18,28,16); sun.castShadow = true;
     const shadowSize = this.mobileProfile ? 1024 : 2048;
     sun.shadow.mapSize.set(shadowSize, shadowSize); sun.shadow.camera.left = sun.shadow.camera.bottom = -40; sun.shadow.camera.right = sun.shadow.camera.top = 40;
     sun.shadow.camera.near = 1;
     sun.shadow.camera.far = 250;
     sun.shadow.bias = -0.001;
     sun.shadow.normalBias = 0.04;
-    this.scene.add(new THREE.HemisphereLight(0xdcc8ee, 0xF1CD6C, 2.5));
+    this.scene.add(new THREE.HemisphereLight(0xe9f5ff,0x24382b,1.5));
 
     this.scene.add(sun);
 

@@ -32,7 +32,7 @@ export class MapLoader {
     this.fakeShadows = new FakeShadows(scene);
     this.groundMist = new GroundMist(scene);
     this.sky = new Sky(scene);
-    this.environment = new EnvironmentSystem({ scene, sky: this.sky });
+    this.environment = new EnvironmentSystem({ scene, sky: this.sky, assets });
     this.selectedObject = null;
     // Both play mode and the editor use the same active 5x5 object window.
     // The editor retains the map data for authoring, but only nearby scene
@@ -1614,6 +1614,7 @@ export class MapLoader {
   }
   update(delta, camera) {
     this.chunks?.update(camera);
+    this.assets.update(delta);
     this.environment.update(delta, camera);
     const sun = this.environment.sun;
     // Give the unpainted/base ground texture the same time-of-day hue as the

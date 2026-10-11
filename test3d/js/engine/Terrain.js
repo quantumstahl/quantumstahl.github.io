@@ -11,10 +11,13 @@ export class Terrain {
     if (!config?.enabled) { this.mesh?.removeFromParent(); return; }
     const signature = `${config.size}:${config.segments}:${config.color}`;
     if (this.signature !== signature || !this.mesh) {
-      this.mesh?.removeFromParent(); this.mesh?.geometry.dispose(); this.mesh?.material.dispose();
+      this.mesh?.removeFromParent(); this.mesh?.geometry.dispose(); this.mesh?.material.dispose(); this.mesh?.userData.shadowOverlay?.material.dispose();
        const geometry = new THREE.PlaneGeometry(config.size, config.size, config.segments, config.segments); geometry.rotateX(-Math.PI / 2);
       const material = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, roughness: 1, metalness: 0, fog: true }); this.configureTextureBlend(material);
-      this.mesh = new THREE.Mesh(geometry, material); this.mesh.name = "Terrain"; this.mesh.receiveShadow = true; this.mesh.userData.isTerrain = true; this.scene.add(this.mesh); this.signature = signature;
+      this.mesh = new THREE.Mesh(geometry, material); this.mesh.name = "Terrain"; this.mesh.receiveShadow = true; this.mesh.userData.isTerrain = true;
+      const shadowMaterial = new THREE.ShadowMaterial({ opacity: .48, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+      const shadowOverlay = new THREE.Mesh(geometry, shadowMaterial); shadowOverlay.name = "Terrain real shadow receiver"; shadowOverlay.receiveShadow = true; shadowOverlay.renderOrder = 1; this.mesh.add(shadowOverlay); this.mesh.userData.shadowOverlay = shadowOverlay;
+      this.scene.add(this.mesh); this.signature = signature;
     }
     this.config = config; this.updateHeights(config); this.updateColors(config); this.updateTextureMasks(config); this.loadTextures(config.textures);
   }

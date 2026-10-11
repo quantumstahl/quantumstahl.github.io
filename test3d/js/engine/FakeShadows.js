@@ -1,7 +1,6 @@
 import * as THREE from "three";
 
-// Soft contact shadows for asset types that should avoid costly shadow-map
-// rendering. All fake shadows share one alpha texture and one InstancedMesh.
+// Soft contact-shadow overlays for asset types explicitly set to fake shadows.
 export class FakeShadows {
   constructor(scene) {
     this.scene = scene; this.root = new THREE.Group(); this.root.name = "Fake contact shadows";
@@ -48,7 +47,7 @@ export class FakeShadows {
     }
     this.entries = entries;
     if (!entries.length) { this.root.removeFromParent(); return; }
-    this.mesh = new THREE.InstancedMesh(this.geometry, this.material, entries.length); this.mesh.name = "Instanced fake contact shadows"; this.mesh.castShadow = false; this.mesh.receiveShadow = false; this.mesh.frustumCulled = false; this.mesh.renderOrder = -1;
+    this.mesh = new THREE.InstancedMesh(this.geometry, this.material, entries.length); this.mesh.name = "Instanced ground shadows"; this.mesh.castShadow = false; this.mesh.receiveShadow = false; this.mesh.frustumCulled = false; this.mesh.renderOrder = 1;
     entries.forEach((entry, index) => this.setMatrix(index, entry, terrain, 0));
     this.mesh.instanceMatrix.needsUpdate = true; this.root.add(this.mesh); this.scene.add(this.root);
   }

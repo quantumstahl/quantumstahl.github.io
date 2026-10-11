@@ -4,19 +4,23 @@ import { Clouds } from "./Clouds.js";
 // Central time and lighting controller. Sky continues to own rendering its
 // procedural dome and background texture; this class only supplies its state.
 export class EnvironmentSystem {
-  constructor({ scene, sky }) {
+  constructor({ scene, sky, assets = null }) {
     this.scene = scene;
     this.sky = sky;
+    this.assets = assets;
     // EnvironmentSystem owns all time-driven atmosphere layers. Clouds do
     // their own camera following in the render hook, so callers need not pass
     // camera state through the world update path.
     this.clouds = new Clouds(scene);
     this.timeOfDay = 0.25; // 0 = midnight, .25 = sunrise, .5 = noon.
     this.dayDuration = 360;
-    this.timeScale = 1;
+    this.timeScale = 10;
     this.sunDistance = 100;
-    this.sunIntensity = 2.0;
-    this.moonIntensity = 1.0;
+    // Match the authoring preview's readable direct/ambient balance. The
+    // stronger sky fill prevents low-poly foliage from turning nearly black
+    // on faces turned away from the sun.
+    this.sunIntensity = 3.0;
+    this.moonIntensity = 0.0;
     this.sunDirection = new THREE.Vector3();
     this.moonDirection = new THREE.Vector3();
     this.fogColor = new THREE.Color();
@@ -29,22 +33,17 @@ export class EnvironmentSystem {
     this.dawnHorizonColor = new THREE.Color(8.0, 8.0, 1.0);
     this.duskHorizonColor = new THREE.Color(7.0, 7.0, 1.0);
     this.fogHorizonColor = new THREE.Color();
-    this.nightHemisphereColor = new THREE.Color(0xffffff);
-    this.dayHemisphereColor = new THREE.Color(0xffffff);
-    this.hemisphereGroundColor = new THREE.Color(0xffffff);
-    this.nightHemisphereIntensity = 0.9;
-    this.dayHemisphereIntensity = 0.9;
+
     this.GrassTint = new THREE.Color(0.00, 0.00, 0.15);
     this.savedGrasstint= new THREE.Color(0.00, 0.00, 0.15);
     this.NoGrasstint= new THREE.Color(0.00, 0.00, 0.00);
     this.sun = sky.findDirectionalLight();
-    this.moon = new THREE.DirectionalLight(0xaec8ff, 0);
+    this.moon = new THREE.DirectionalLight(0xbbbbff, 0);
     this.moon.name = "Moonlight";
     this.moon.castShadow = false;
     this.scene.add(this.moon);
-    this.hemisphere = null;
     this.sunsun=0.84375;
-    scene.traverse(item => { if (!this.hemisphere && item.isHemisphereLight) this.hemisphere = item; });
+    
   }
 
   apply(config = {}) {
@@ -141,15 +140,7 @@ export class EnvironmentSystem {
     this.moon.intensity = this.moonIntensity * moonlight;
     this.moon.visible = moonlight > 0.001;
     this.moon.updateMatrixWorld();
-    if (this.hemisphere) {
-      this.hemisphere.intensity = THREE.MathUtils.lerp(
-        this.nightHemisphereIntensity,
-        this.dayHemisphereIntensity,
-        daylight
-      );
-      this.hemisphere.color.lerpColors(this.nightHemisphereColor, this.dayHemisphereColor, daylight);
-      this.hemisphere.groundColor.copy(this.hemisphereGroundColor);
-    }
+
 
     this.clouds.setEnvironment({ daylight, sunset, sunDirection: this.sunDirection });
     this.clouds.update(delta);
@@ -163,5 +154,6 @@ export class EnvironmentSystem {
       moonDirection: this.moonDirection,
       fogColor: this.fogColor
     });
+    this.assets?.setEnvironment({ nightAmount: 1 - daylight });
   }
 }

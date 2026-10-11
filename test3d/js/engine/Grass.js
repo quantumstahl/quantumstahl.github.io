@@ -11,7 +11,7 @@ export class Grass {
     this.environmentTint = new THREE.Color(0.00, 0.00, 0.00);
     this.textureend=scene.fog.far+200;
     this.matrix = new THREE.Matrix4(); this.position = new THREE.Vector3(); this.rotation = new THREE.Quaternion(); this.scale = new THREE.Vector3(); this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity); this.lastCameraDirection = new THREE.Vector3(); this.cameraDirection = new THREE.Vector3(); this.viewPoint = new THREE.Vector3(); this.viewProjection = new THREE.Matrix4(); this.frustum = new THREE.Frustum(); this.hasCameraDirection = false; this.dirty = true; this.sunDirection = new THREE.Vector3(.4, .8, .2).normalize(); this.sunPosition = new THREE.Vector3(); this.sunTargetPosition = new THREE.Vector3(); this.sunBacklight = 1; this.backlightCameraPosition = new THREE.Vector3();
-    this.geometry = this.createBladeGeometry(); this.material = this.createMaterial(); 
+    this.geometry = this.createBladeGeometry(); this.material = this.createMaterial();
     this.grassSphere = new THREE.Sphere();
     this.createMesh();
     this.grassGrid = new Map();
@@ -56,8 +56,18 @@ export class Grass {
         transparent: true,
         depthWrite: false,
         depthTest: true,
+        // Let this custom material receive the directional light's shadow map.
+        // It still has no light response of its own; the shader below only
+        // uses the map to darken its existing day/night grass colour.
+        lights: true,
 
-        uniforms: {
+        // ShaderMaterial does not add light/shadow uniforms automatically.
+        // Merge them explicitly so the renderer can bind the sun's map.
+        uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.lights, {
+            // Far grass is a transparent layer over the terrain. Let the
+            // terrain's real shadow show through it instead of sampling the
+            // same directional shadow map again at the raised grass surface.
+            receiveShadow: { value: false },
 
             uFadeStart: {
                 value: this.fadeStart
@@ -94,7 +104,7 @@ export class Grass {
               value: this.scene.fog?.far ?? 70
             }
 
-        },
+        }]),
 
         vertexShader: `
 
@@ -105,11 +115,14 @@ export class Grass {
             varying float vFogDepth;
             attribute float coverage;
             attribute float outerBackgroundFade;
+            #include <shadowmap_pars_vertex>
 
             void main() {
 
                 vec4 worldPosition =
                     modelMatrix * vec4(position, 1.0);
+
+                #include <shadowmap_vertex>
 
                 vWorldPosition = worldPosition.xyz;
                 vCoverage = coverage;
@@ -124,6 +137,12 @@ export class Grass {
         `,
 
         fragmentShader: `
+
+            #include <common>
+            #include <packing>
+            #include <shadowmap_pars_fragment>
+            uniform bool receiveShadow;
+            #include <shadowmask_pars_fragment>
 
             uniform float uFadeStart;
             uniform float uFadeEnd;
@@ -270,6 +289,23 @@ grassColor.rgb *= macroTint;
                 
                     grassColor.rgb *=((-1.00+uEnvironmentSun)*0.70)+1.0;
 
+                // Preserve the authored grass colour and use the real shadow
+                // map only as a soft darkening factor. This avoids the dense,
+                // double-rendered black overlay from the previous approach.
+                float grassShadow = 1.0;
+                #if NUM_DIR_LIGHT_SHADOWS > 0
+                    DirectionalLightShadow grassDirectionalLight = directionalLightShadows[0];
+                    grassShadow = receiveShadow ? getShadow(
+                        directionalShadowMap[0],
+                        grassDirectionalLight.shadowMapSize,
+                        grassDirectionalLight.shadowIntensity,
+                        grassDirectionalLight.shadowBias,
+                        grassDirectionalLight.shadowRadius,
+                        vDirectionalShadowCoord[0]
+                    ) : 1.0;
+                #endif
+                grassColor *= mix(0.58, 1.0, grassShadow);
+
 
 
 
@@ -370,7 +406,6 @@ rebuildFarGrass() {
         if (this.farGrassMesh) {
             this.farGrassMesh.visible = false;
         }
-
         return;
     }
 
@@ -937,9 +972,12 @@ cacheGroundHeights() {
 }
 createMaterial() {
 
-    const material = new THREE.MeshBasicMaterial({
+    // Lambert supplies Three's supported shadow receiver uniforms. Its final
+    // lighting result is replaced below, leaving only the shadow mask.
+    const material = new THREE.MeshLambertMaterial({
         vertexColors: true,
-        side: THREE.DoubleSide
+        side: THREE.DoubleSide,
+        color: 0xffffff
     });
 
     material.onBeforeCompile = shader => {
@@ -1134,6 +1172,13 @@ createMaterial() {
                     projectionMatrix *
                     mvPosition;
                 `
+            )
+            .replace(
+                "#include <worldpos_vertex>",
+                `
+                // Use the wind/trample-adjusted blade position for shadows.
+                vec4 worldPosition = grassWorldPosition;
+                `
             );
 
         shader.fragmentShader = shader.fragmentShader
@@ -1171,6 +1216,28 @@ createMaterial() {
                 float towardSun = smoothstep(0.52, 0.94, dot(viewToBlade, uSunDirection));
                 float tipGlow = smoothstep(0.48, 0.95, vBladeTip) * towardSun * uSunBacklight;
                 diffuseColor.rgb += vec3(0.21, 0.075, 0.018) * tipGlow;
+                vec3 unlitGrassColor = diffuseColor.rgb;
+                `
+            )
+            .replace(
+                "#include <opaque_fragment>",
+                `
+                // Keep authored day/night colour. Read the renderer's real
+                // directional shadow map directly, but never its sunlight.
+                float grassShadow = 1.0;
+                #if NUM_DIR_LIGHT_SHADOWS > 0
+                    DirectionalLightShadow grassDirectionalLight = directionalLightShadows[0];
+                    grassShadow = receiveShadow ? getShadow(
+                        directionalShadowMap[0],
+                        grassDirectionalLight.shadowMapSize,
+                        grassDirectionalLight.shadowIntensity,
+                        grassDirectionalLight.shadowBias,
+                        grassDirectionalLight.shadowRadius,
+                        vDirectionalShadowCoord[0]
+                    ) : 1.0;
+                #endif
+                outgoingLight = unlitGrassColor * mix(0.58, 1.0, grassShadow);
+                #include <opaque_fragment>
                 `
             );
 
@@ -1179,7 +1246,7 @@ createMaterial() {
 
 
     material.customProgramCacheKey = () =>
-        "next-world-grass-height-lod-trample-backlight-environment-v7";
+        "next-world-grass-height-lod-trample-backlight-environment-unlit-shadow-receiver-v10";
 
 
     return material;
@@ -1908,7 +1975,6 @@ createMaterial() {
         if (this.farGrassMesh) {
             this.farGrassMesh.visible = false;
         }
-
         this.farGrassBuildJob = null;
         return;
     }
@@ -2643,11 +2709,12 @@ createMesh() {
 
     this.mesh.name = "Near-camera procedural grass";
     this.mesh.castShadow = false;
-    this.mesh.receiveShadow = false;
+    this.mesh.receiveShadow = true;
     this.mesh.frustumCulled = false;
 
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 
     this.root.add(this.mesh);
+
 }
 }
