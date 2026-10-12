@@ -152,13 +152,15 @@
   </section>
 
   <aside class="panel outliner-panel">
-    <div class="panel-title">Scene <div class="scene-actions"><button id="groupButton" title="Group selected objects (Ctrl+G)">Group</button><button id="ungroupButton" title="Ungroup the selected group (Ctrl+Shift+G)">Ungroup</button><button id="addMenuButton" title="Add primitive">+ Add</button></div></div>
+    <div class="panel-title">Scene <div class="scene-actions"><button id="groupButton" title="Group selected objects (Ctrl+G)">Group</button><button id="ungroupButton" title="Ungroup the selected group (Ctrl+Shift+G)">Ungroup</button><button id="addLeavesButton" title="Create a leafy canopy on the selected model">+ Leaves</button><button id="addMenuButton" title="Add primitive">+ Add</button></div></div>
     <div id="addMenu" class="add-menu" hidden>
       <button data-primitive="cube">Cube</button><button data-primitive="sphere">Sphere</button>
       <button data-primitive="cylinder">Cylinder</button><button data-primitive="cone">Cone</button>
       <button data-primitive="plane">Plane</button>
       <label class="resolution-control">Detail <select id="primitiveResolution"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></label>
     </div>
+    <label class="leaf-wind-control">Leaf wind <input id="leafWindStrength" type="number" min="0" max="5" step="0.05" value="0.35" title="Wind strength applied to every generated leaf"></label>
+    <label class="leaf-texture-control">Leaf texture <input id="leafTextureInput" type="file" accept="image/*" title="One texture applied to every generated leaf"><span id="leafTextureName" class="texture-name">No leaf texture</span></label>
     <output id="exportStats" class="export-stats">GLB estimate: 0 triangles · 0 draw calls</output>
     <div id="outliner" class="outliner"></div>
   </aside>

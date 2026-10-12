@@ -40,7 +40,15 @@ export class EnvironmentSystem {
     this.sun = sky.findDirectionalLight();
     this.moon = new THREE.DirectionalLight(0xbbbbff, 0);
     this.moon.name = "Moonlight";
-    this.moon.castShadow = false;
+    this.moon.castShadow = true;
+
+    const shadowSize = this.mobileProfile ? 1024 : 2048;
+    this.moon.shadow.mapSize.set(shadowSize, shadowSize); this.moon.shadow.camera.left = this.moon.shadow.camera.bottom = -40; this.moon.shadow.camera.right = this.moon.shadow.camera.top = 40;
+    this.moon.shadow.camera.near = 1;
+    this.moon.shadow.camera.far = 250;
+    this.moon.shadow.bias = -0.001;
+    this.moon.shadow.normalBias = 0.04;
+
     this.scene.add(this.moon);
     this.sunsun=0.84375;
     
