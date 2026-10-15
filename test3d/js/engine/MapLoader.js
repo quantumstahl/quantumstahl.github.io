@@ -276,7 +276,17 @@ export class MapLoader {
       object.receiveShadow = false;
     } else {
       object = await this.assets.createInstance(type.glb);
-      if (object) object = this.centerGLBPivot(object);
+      if (object) {
+        const keepsAuthoredPivot = object.userData.hasSkinnedMeshes || object.userData.animations?.length;
+        if (keepsAuthoredPivot) {
+          // Characters exported from MaxPaint carry an explicit skeleton and
+          // animation pivots. Recentering their visual bounds moves the model
+          // away from its authored root and makes editor moves appear broken.
+          // They also cannot use the static InstancedMesh batcher.
+          type.render.instanced = false;
+          object.userData.keepAuthoredPivot = true;
+        } else object = this.centerGLBPivot(object);
+      }
     }
     if (!object) return null;
     object.name = data.name || type.name;
@@ -441,27 +451,40 @@ export class MapLoader {
     if (!this.chunkStore) return true;
     const [x, z] = key.split(",").map(Number);
     if (this.chunkStore.has(x, z)) return true;
-    // A complete decorative perimeter is the authored end of the world. Do
-    // not render temporary flat editor chunks beyond it: they appear as a
-    // checkerboard hole after the mountain border and make the ridge fall off.
-    const authored = this.world.chunks ?? [];
-    if (authored.length) {
-      const minX = Math.min(...authored.map(chunk => chunk.x));
-      const maxX = Math.max(...authored.map(chunk => chunk.x));
-      const minZ = Math.min(...authored.map(chunk => chunk.z));
-      const maxZ = Math.max(...authored.map(chunk => chunk.z));
-      if (x < minX || x > maxX || z < minZ || z > maxZ) {
-        const boundary = authored.find(chunk =>
-          chunk.x === THREE.MathUtils.clamp(x, minX, maxX) &&
-          chunk.z === THREE.MathUtils.clamp(z, minZ, maxZ)
-        );
-        if (boundary?.decorative) return false;
+    if (this.mode !== "editor" || !this.world.editor.autoCreateChunks) return false;
+    return !this.isDecorativeChunkMoat(x, z) && this.isConnectedToMainLand(x, z);
+  }
+  isDecorativeChunkMoat(x, z) {
+    // Keep a complete one-chunk gap, including corners, around each explicit
+    // decorative chunk. This is the reserved visual boundary around land.
+    return this.world.chunks.some(chunk => chunk.decorative &&
+      Math.abs(chunk.x - x) <= 1 && Math.abs(chunk.z - z) <= 1
+    );
+  }
+  isConnectedToMainLand(x, z) {
+    const definitions = new Map(this.world.chunks.map(chunk => [`${chunk.x},${chunk.z}`, chunk]));
+    const normalKnownChunk = (cx, cz) => {
+      const definition = definitions.get(`${cx},${cz}`);
+      return definition ? !definition.decorative : this.chunkStore.cache.has(WorldChunkStore.key(cx, cz));
+    };
+    // The origin component is the main land. Cached automatic tiles may
+    // extend it while the editor is open, but a camera jump cannot create a
+    // disconnected island because there is no route back to this component.
+    if (!normalKnownChunk(0, 0)) return false;
+    const queue = [[0, 0]], visited = new Set(["0,0"]);
+    const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    while (queue.length) {
+      const [cx, cz] = queue.shift();
+      for (const [dx, dz] of directions) {
+        const nx = cx + dx, nz = cz + dz;
+        if (nx === x && nz === z) return true;
+        const neighbourKey = `${nx},${nz}`;
+        if (visited.has(neighbourKey) || !normalKnownChunk(nx, nz) || this.isDecorativeChunkMoat(nx, nz)) continue;
+        visited.add(neighbourKey);
+        queue.push([nx, nz]);
       }
     }
-    // Game mode never creates terrain that was not authored. In the editor,
-    // the toggle permits creating new tiles while still allowing boundary
-    // work with only the manifest's existing chunk coordinates loaded.
-    return this.chunkStore.has(x, z) || (this.mode === "editor" && this.world.editor.autoCreateChunks);
+    return false;
   }
   setAutoCreateChunks(enabled, camera) {
     if (!this.chunkStore || this.mode !== "editor") return;
@@ -485,8 +508,8 @@ export class MapLoader {
         if (!this.world.chunks.some(item => item.x === chunk.x && item.z === chunk.z)) this.world.chunks.push({ x: chunk.x, z: chunk.z });
         this.chunkStore.markDirty(chunk);
       }
-      this.calculateChunkDecorativeFlags();
     }
+    this.calculateChunkDecorativeFlags();
     this.chunks.refresh(camera);
   }
   async trimEmptyChunks(camera) {
@@ -523,11 +546,55 @@ export class MapLoader {
     this.chunks.refresh(camera);
     return removed.length;
   }
+  async setChunkDecorative(x, z, decorative, camera) {
+    if (!this.chunkStore || this.mode !== "editor") return false;
+    const chunk = await this.chunkStore.load(x, z);
+    let definition = this.world.chunks.find(item => item.x === x && item.z === z);
+    if (!definition) {
+      definition = { x, z, decorative: Boolean(decorative) };
+      this.world.chunks.push(definition);
+    } else {
+      definition.decorative = Boolean(decorative);
+    }
+    this.chunkStore.cache.set(WorldChunkStore.key(x, z), chunk);
+    this.chunkStore.markDirty(chunk);
+    this.calculateChunkDecorativeFlags();
+    this.chunks.refresh(camera);
+    return true;
+  }
+  async deleteChunk(x, z, camera) {
+    if (!this.chunkStore || this.mode !== "editor") return false;
+    const index = this.world.chunks.findIndex(item => item.x === x && item.z === z);
+    if (index < 0) return false;
+    const chunk = await this.chunkStore.load(x, z);
+    for (const record of chunk.objects ?? []) {
+      const type = this.world.layers.find(layer => layer.id === record.layerId)
+        ?.assetTypes.find(item => item.id === record.typeId);
+      if (type && record.data) type.instances = type.instances.filter(item => item !== record.data);
+    }
+    const key = this.chunks.key(x, z);
+    const active = this.chunks.active.get(key);
+    if (active) {
+      this.chunks.active.delete(key);
+      this.unloadChunk(active);
+    }
+    await this.chunkStore.remove(x, z);
+    this.world.chunks.splice(index, 1);
+    this.chunkStore.manifest.chunks = this.world.chunks;
+    this.calculateChunkDecorativeFlags();
+    this.chunks.refresh(camera);
+    return true;
+  }
   async paintDecorativeChunks(camera = null) {
     if (!this.chunkStore || this.mode !== "editor") return { painted: 0, hilled: 0, skipped: 0 };
 
     this.calculateChunkDecorativeFlags();
     const targets = this.world.chunks.filter(chunk => chunk.decorative);
+    // Once the current generator has painted a decorative chunk, a later run
+    // is an explicit full rebuild. This makes changed decorative boundaries
+    // deterministic: every ridge and grass field is regenerated together.
+    const rebuildAll = (await Promise.all(targets.map(definition => this.chunkStore.load(definition.x, definition.z))))
+      .some(chunk => (Number(chunk.terrain?.decorativeHillsVersion) || 0) >= 13);
     const size = this.world.chunkSize;
     const density = Math.max(8000, Math.round((this.world.grass?.density ?? 2) * 6000));
     const random = seed => {
@@ -546,13 +613,18 @@ export class MapLoader {
       // Version 13 widens the bare cliff buffer. Re-running the editor action
       // upgrades previous generated borders and removes their far-grass source
       // points as well as the visible near blades.
-      const refreshGeneratedHills = (hillVersion > 0 && hillVersion < 13) || this.hasLegacyDecorativeHills(chunk, definition);
+      const refreshGeneratedHills = rebuildAll || (hillVersion > 0 && hillVersion < 13) || this.hasLegacyDecorativeHills(chunk, definition);
       // This command creates base cover once. Re-running it must not pile
       // hundreds more blades onto chunks the user has already painted. The
       // previous auto-hill profile is the sole exception: repair it in place.
       if (chunk.grass.points.length && !refreshGeneratedHills) {
         skipped++;
         continue;
+      }
+
+      if (rebuildAll && chunk.grass.points.length) {
+        chunk.grass.points = [];
+        chunk.grass.revision = (Number(chunk.grass.revision) || 0) + 1;
       }
 
       // Add terrain before sampling grass height. Only untouched, flat tiles
@@ -1496,15 +1568,10 @@ export class MapLoader {
   }
   calculateChunkDecorativeFlags() {
     if (!this.chunkStore || !this.world.chunks?.length) return;
-    const keys = new Set(this.world.chunks.map(chunk => `${chunk.x},${chunk.z}`));
-    for (const chunk of this.world.chunks) {
-      chunk.decorative = ![-1, 0, 1].every(dz => [-1, 0, 1].every(dx =>
-        (dx === 0 && dz === 0) || keys.has(`${chunk.x + dx},${chunk.z + dz}`)
-      ));
-    }
     for (const { chunk } of this.streamedTerrain.tiles.values()) {
       const decoration = this.getChunkDecoration(chunk.x, chunk.z);
       this.streamedTerrain.setChunkDecorative(chunk, decoration.decorative, decoration.edges, decoration.corners, decoration.outerEdges, decoration.outerCorners);
+      this.streamedTerrain.updateCliffWall(chunk);
     }
   }
   getChunkDecoration(x, z) {

@@ -128,16 +128,21 @@
       "x": 2,
       "z": 2,
       "decorative": true
-    },
-    {
-      "x": 0,
-      "z": -3,
-      "decorative": true
     }
   ],
   "editor": {
-    "showGrid": false,
-    "autoCreateChunks": false
+    "showGrid": true,
+    "autoCreateChunks": false,
+    "camera": {
+      "target": {
+        "x": 3.9215022215845208,
+        "y": 0,
+        "z": 77.64982800187859
+      },
+      "yaw": -1.8733334350585944,
+      "pitch": 0.019999694824218137,
+      "distance": 65.1334795448973
+    }
   },
   "sky": {
     "mode": "day",
@@ -168,37 +173,21 @@
   },
   "layers": [
     {
-      "id": "4b8e597d-6070-44fd-996c-c3eb0a449536",
+      "id": "5f50b1f0-c998-4702-9023-a1b19837d4d8",
       "name": "Objects",
       "visible": true,
       "assetTypes": [
         {
-          "id": "cat",
-          "name": "cat",
-          "glb": "assets/cat.glb",
+          "id": "horse",
+          "name": "horse",
+          "glb": "assets/horse.glb",
           "shape": null,
           "collision": "solid",
           "render": {
             "castShadow": false,
             "shadowMode": "fake",
             "receiveShadow": true,
-            "instanced": true
-          },
-          "editor": {
-            "visible": true
-          }
-        },
-        {
-          "id": "stol",
-          "name": "stol",
-          "glb": "assets/stol.glb",
-          "shape": null,
-          "collision": "solid",
-          "render": {
-            "castShadow": false,
-            "shadowMode": "fake",
-            "receiveShadow": true,
-            "instanced": true
+            "instanced": false
           },
           "editor": {
             "visible": true
@@ -213,6 +202,22 @@
           "render": {
             "castShadow": true,
             "shadowMode": "real",
+            "receiveShadow": true,
+            "instanced": true
+          },
+          "editor": {
+            "visible": true
+          }
+        },
+        {
+          "id": "box",
+          "name": "Box",
+          "glb": null,
+          "shape": "box",
+          "collision": "solid",
+          "render": {
+            "castShadow": false,
+            "shadowMode": "none",
             "receiveShadow": true,
             "instanced": true
           },

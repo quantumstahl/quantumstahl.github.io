@@ -164,6 +164,10 @@ const decorativeOuterEdges =
       tile.mesh.userData.cliffWall = null;
     }
 
+    // Cliff walls belong to the fixed decorative perimeter. An editor that
+    // creates chunks automatically has no exterior boundary to render.
+    if (!chunk._decorative) return null;
+
     const bottoms = chunk.terrain?.cliffEdges ?? [];
     const diagonalCorners = chunk._decorativeCorners ?? [0, 0, 0, 0];
     const hasCliffEdges = bottoms.some(edge => edge?.some(Number.isFinite));
@@ -509,6 +513,7 @@ setChunkDecorative(
 
   sculpt(point, radius, amount, mode, flattenHeight = 0) {
     let changed = false;
+    const changedTileKeys = new Set();
     const resolution = this.config?.resolution ?? 50;
     const spacing = this.chunkSize / resolution;
     for (const tile of this.tiles.values()) {
@@ -519,6 +524,7 @@ setChunkDecorative(
       const positions = mesh.geometry.getAttribute("position");
       const heights = chunk.terrain.heights;
       const before = mode === "smooth" ? heights.slice() : null;
+      let tileChanged = false;
       for (let z = 0; z <= resolution; z++) for (let x = 0; x <= resolution; x++) {
         const index = z * (resolution + 1) + x;
         const distance = Math.hypot(originX + x * spacing - point.x, originZ + z * spacing - point.z);
@@ -531,13 +537,72 @@ setChunkDecorative(
         } else heights[index] += amount * weight;
         positions.setY(index, heights[index]);
         changed = true;
+        tileChanged = true;
       }
-      if (changed) {
+      if (tileChanged) {
         positions.needsUpdate = true;
-        mesh.geometry.computeVertexNormals();
+        changedTileKeys.add(this.key(chunk.x, chunk.z));
       }
     }
+    if (changed) this.synchronizeSharedEdgeHeights(changedTileKeys);
     return changed;
+  }
+
+  synchronizeSharedEdgeHeights(changedTileKeys) {
+    const resolution = this.config?.resolution ?? 50;
+    const width = resolution + 1;
+    const sharedVertices = new Map();
+    const targetVertexKeys = new Set();
+    const nearbyTileKeys = new Set();
+
+    for (const key of changedTileKeys) {
+      const [chunkX, chunkZ] = key.split(",").map(Number);
+      for (let offsetZ = -1; offsetZ <= 1; offsetZ++) for (let offsetX = -1; offsetX <= 1; offsetX++) {
+        nearbyTileKeys.add(this.key(chunkX + offsetX, chunkZ + offsetZ));
+      }
+      for (let index = 0; index <= resolution; index++) {
+        targetVertexKeys.add(`${chunkX * resolution + index},${chunkZ * resolution}`);
+        targetVertexKeys.add(`${chunkX * resolution + index},${(chunkZ + 1) * resolution}`);
+        targetVertexKeys.add(`${chunkX * resolution},${chunkZ * resolution + index}`);
+        targetVertexKeys.add(`${(chunkX + 1) * resolution},${chunkZ * resolution + index}`);
+      }
+    }
+
+    // A world-space terrain vertex can be stored by two chunks (or four at a
+    // corner). Reconcile every loaded shared vertex in one pass, rather than
+    // copying one edge after another and leaving a corner out of sync.
+    for (const key of nearbyTileKeys) {
+      const tile = this.tiles.get(key);
+      if (!tile) continue;
+      const { chunk, mesh } = tile;
+      const heights = chunk.terrain.heights;
+      for (let z = 0; z <= resolution; z++) for (let x = 0; x <= resolution; x++) {
+        if (x !== 0 && x !== resolution && z !== 0 && z !== resolution) continue;
+        const key = `${chunk.x * resolution + x},${chunk.z * resolution + z}`;
+        if (!targetVertexKeys.has(key)) continue;
+        const index = z * width + x;
+        const records = sharedVertices.get(key) ?? [];
+        records.push({ heights, positions: mesh.geometry.getAttribute("position"), index, chunkX: chunk.x, chunkZ: chunk.z });
+        sharedVertices.set(key, records);
+      }
+    }
+
+    for (const records of sharedVertices.values()) {
+      if (records.length < 2) continue;
+      const height = records.reduce((sum, record) => sum + (Number(record.heights[record.index]) || 0), 0) / records.length;
+      for (const record of records) {
+        record.heights[record.index] = height;
+        record.positions.setY(record.index, height);
+        record.positions.needsUpdate = true;
+      }
+    }
+    // Each tile's normals are rebuilt at most once. The former implementation
+    // refreshed the same 3x3 area for every shared edge, which made sculpting
+    // progressively slower as more chunks streamed in.
+    for (const key of nearbyTileKeys) {
+      const [x, z] = key.split(",").map(Number);
+      this.refreshTileNormals(x, z);
+    }
   }
 
   paint(point, radius, colorHex, strength) {

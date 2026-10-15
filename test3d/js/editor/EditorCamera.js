@@ -27,4 +27,23 @@ export class EditorCamera {
     this.camera.position.set(this.target.x + Math.sin(this.yaw) * horizontal, this.target.y + Math.sin(this.pitch) * this.distance, this.target.z + Math.cos(this.yaw) * horizontal);
     this.camera.lookAt(this.target);
   }
+  getState() {
+    return {
+      target: { x: this.target.x, y: this.target.y, z: this.target.z },
+      yaw: this.yaw,
+      pitch: this.pitch,
+      distance: this.distance
+    };
+  }
+  restoreState(state) {
+    const target = state?.target;
+    const values = [target?.x, target?.y, target?.z, state?.yaw, state?.pitch, state?.distance];
+    if (!values.every(Number.isFinite)) return false;
+    this.target.set(target.x, target.y, target.z);
+    this.yaw = state.yaw;
+    this.pitch = THREE.MathUtils.clamp(state.pitch, -.2, Math.PI / 2 - .05);
+    this.distance = THREE.MathUtils.clamp(state.distance, 2, 120);
+    this.updateCamera();
+    return true;
+  }
 }

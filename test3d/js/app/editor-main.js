@@ -32,7 +32,7 @@ document.querySelector("#openButton").addEventListener("click", async () => {
   try { await editor.loadWorkspace(await editor.files.openWorkspace()); editor.setStatus("Chunked map workspace opened"); } catch (error) { if (error.name !== "AbortError") console.error(error); }
 });
 document.querySelector("#saveButton").addEventListener("click", async () => {
-  try { const bytes = editor.mapLoader.chunkStore ? await editor.files.saveWorkspace(editor.mapLoader.world, editor.mapLoader.chunkStore) : await editor.files.saveAs(editor.mapLoader.world); editor.dirty = false; editor.setStatus(`Saved ${bytes} bytes`); } catch (error) {
+  try { editor.saveCameraView(); const bytes = editor.mapLoader.chunkStore ? await editor.files.saveWorkspace(editor.mapLoader.world, editor.mapLoader.chunkStore) : await editor.files.saveAs(editor.mapLoader.world); editor.dirty = false; editor.setStatus(`Saved ${bytes} bytes`); } catch (error) {
     if (error.name === "AbortError") return;
     console.error(error);
      if (editor.mapLoader.chunkStore) editor.setStatus(`Save failed: ${error.message}`);
@@ -40,6 +40,8 @@ document.querySelector("#saveButton").addEventListener("click", async () => {
   }
 });
 document.querySelector("#selectToolButton").addEventListener("click", () => editor.setTool("select"));
+document.querySelector("#chunkToolButton").addEventListener("click", () => editor.setChunkToolAction("decorate"));
+document.querySelector("#deleteChunkToolButton").addEventListener("click", () => editor.setChunkToolAction("delete"));
 document.querySelector("#moveToolButton").addEventListener("click", () => editor.setTool("move"));
 document.querySelector("#rotateToolButton").addEventListener("click", () => editor.setTool("rotate"));
 document.querySelector("#scaleToolButton").addEventListener("click", () => editor.setTool("scale"));

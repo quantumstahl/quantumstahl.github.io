@@ -3,8 +3,9 @@ import * as THREE from "three";
 // Runtime-only control for the cat map instance. Map transforms remain the
 // spawn point; movement is intentionally not written back into the editor map.
 export class PlayerController {
-  constructor({ mapLoader, input, camera, joystick = null }) {
+  constructor({ mapLoader, input, camera, joystick = null, initialCameraView = null }) {
     this.mapLoader = mapLoader; this.input = input; this.camera = camera; this.joystick = joystick; this.player = null;
+    this.initialCameraView = initialCameraView;
     this.speed = 14.2; this.cameraYaw = Math.PI; this.cameraDistance = 6; this.cameraHeight = 3; this.groundOffset = 0; this.targetPlayerHeight = 0; this.collisionRadius = .05;
      this.cameraForward = new THREE.Vector3(); this.cameraRight = new THREE.Vector3(); this.move = new THREE.Vector3(); this.previousPosition = new THREE.Vector3(); this.cameraTarget = new THREE.Vector3(); this.desiredCameraTarget = new THREE.Vector3(); this.cameraPosition = new THREE.Vector3();
   }
@@ -29,7 +30,8 @@ export class PlayerController {
     this.player.traverse(node => { if (!animations.length && node.userData.animations?.length) animations = node.userData.animations; });
     const clip = THREE.AnimationClip.findByName(animations, "Animation 1") ?? animations[0];
     if (clip) { this.mixer = new THREE.AnimationMixer(this.player); this.walkAction = this.mixer.clipAction(clip); this.walkAction.setLoop(THREE.LoopRepeat, Infinity); this.walkAction.reset().play(); this.walkAction.paused = true; this.mixer.update(0); }
-    this.snapCameraToPlayer();
+    this.showingInitialView = this.applyInitialCameraView();
+    if (!this.showingInitialView) this.snapCameraToPlayer();
     return true;
   }
   update(delta) {
@@ -38,6 +40,14 @@ export class PlayerController {
     const x = THREE.MathUtils.clamp((this.input.down("d") || this.input.down("arrowright") ? 1 : 0) - (this.input.down("a") || this.input.down("arrowleft") ? 1 : 0) + stick.x, -1, 1);
     const z = THREE.MathUtils.clamp((this.input.down("w") || this.input.down("arrowup") ? 1 : 0) - (this.input.down("s") || this.input.down("arrowdown") ? 1 : 0) + stick.y, -1, 1);
     const moving = Boolean(x || z);
+    // Keep the authored editor view on screen until the player begins moving.
+    // That lets index.html open with exactly the composition saved in the editor.
+    if (this.showingInitialView && !moving) {
+      this.setWalkAnimation(false); this.mixer?.update(delta);
+      this.mapLoader.grass.setTramplePosition(this.player.position);
+      return;
+    }
+    this.showingInitialView = false;
     if (moving) {
       this.camera.getWorldDirection(this.cameraForward); this.cameraForward.y = 0; this.cameraForward.normalize();
       this.cameraRight.crossVectors(this.cameraForward, THREE.Object3D.DEFAULT_UP).normalize();
@@ -73,5 +83,16 @@ export class PlayerController {
   }
   lerpAngle(from, to, amount) { let difference = to - from; while (difference > Math.PI) difference -= Math.PI * 2; while (difference < -Math.PI) difference += Math.PI * 2; return from + difference * amount; }
   setWalkAnimation(moving) { if (!this.walkAction || this.walkAction.paused === !moving) return; this.walkAction.enabled = true; this.walkAction.paused = !moving; if (moving) this.walkAction.setEffectiveWeight(1).play(); }
+  applyInitialCameraView() {
+    const state = this.initialCameraView, target = state?.target;
+    const values = [target?.x, target?.y, target?.z, state?.yaw, state?.pitch, state?.distance];
+    if (!values.every(Number.isFinite)) return false;
+    const pitch = THREE.MathUtils.clamp(state.pitch, -.2, Math.PI / 2 - .05);
+    const distance = THREE.MathUtils.clamp(state.distance, 2, 120);
+    const horizontal = Math.cos(pitch) * distance;
+    this.camera.position.set(target.x + Math.sin(state.yaw) * horizontal, target.y + Math.sin(pitch) * distance, target.z + Math.cos(state.yaw) * horizontal);
+    this.camera.lookAt(target.x, target.y, target.z);
+    return true;
+  }
   snapCameraToPlayer() { if (!this.player) return; this.cameraTarget.copy(this.player.position).add(new THREE.Vector3(0, 1.15, 0)); this.desiredCameraTarget.copy(this.cameraTarget); this.camera.position.set(this.cameraTarget.x + Math.sin(this.cameraYaw) * this.cameraDistance, this.cameraTarget.y + this.cameraHeight, this.cameraTarget.z + Math.cos(this.cameraYaw) * this.cameraDistance); this.camera.lookAt(this.cameraTarget); }
 }

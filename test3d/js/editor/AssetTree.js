@@ -133,7 +133,15 @@ export class AssetTree {
     const water = document.createElement("button");
     water.textContent = "Change water level…";
     water.addEventListener("click", () => { this.closeContextMenu(); this.editor.changeWaterLevel(); });
-    menu.append(water);
+    const coordinate = this.editor.chunkAtCameraTarget();
+    const definition = this.editor.mapLoader.world.chunks.find(chunk => chunk.x === coordinate.x && chunk.z === coordinate.z);
+    const decorative = document.createElement("button");
+    decorative.textContent = `${definition?.decorative ? "Make normal" : "Make decorative"} chunk ${coordinate.x}, ${coordinate.z}`;
+    decorative.addEventListener("click", () => { this.closeContextMenu(); this.editor.setCameraTargetChunkDecorative(!definition?.decorative).catch(error => console.error("Could not update chunk", error)); });
+    const removeChunk = document.createElement("button");
+    removeChunk.textContent = `Delete chunk ${coordinate.x}, ${coordinate.z}…`;
+    removeChunk.addEventListener("click", () => { this.closeContextMenu(); this.editor.deleteCameraTargetChunk().catch(error => console.error("Could not delete chunk", error)); });
+    menu.append(water, decorative, removeChunk);
     menu.style.left = `${Math.min(event.clientX, window.innerWidth - 210)}px`;
     menu.style.top = `${Math.min(event.clientY, window.innerHeight - 50)}px`;
     document.body.append(menu); this.contextMenu = menu;

@@ -284,10 +284,10 @@ grassColor.rgb *= macroTint;
 
                     vec3 savecolor =grassColor.rgb;
                  grassColor.rgb-=grassColor.rgb;
-                grassColor.rgb += uEnvironmentTint+savecolor;
+                grassColor.rgb += uEnvironmentTint*1.5+savecolor;
 
                 
-                    grassColor.rgb *=((-1.00+uEnvironmentSun)*0.70)+1.0;
+                    grassColor.rgb *=((-1.00+uEnvironmentSun)*0.40)+1.0;
 
                 // Preserve the authored grass colour and use the real shadow
                 // map only as a soft darkening factor. This avoids the dense,
@@ -679,7 +679,7 @@ createBladeGeometry() {
         const cz = Math.sin(angle) * radial;
 
         const height =
-            0.40 + (blade % 30) * 0.04;
+            0.40 + (blade % 10) * 0.04;
 
         const baseWidth =
             0.010 + (blade % 30) * 0.003;
@@ -1714,6 +1714,8 @@ createMaterial() {
   paintChunked(point, radius, getChunkAt, chunks) {
     if (!this.chunkedConfig?.enabled || radius <= 0) return false;
     const count = Math.max(3, Math.round(radius * radius * this.chunkedConfig.density));
+    const maxPerCell = this.maximumBladesPerCell(this.chunkedConfig.density);
+    const occupancy = this.getGrassCellOccupancy(chunks.flatMap(chunk => chunk.grass?.points ?? []));
     const paintedBlades = [];
     for (let index = 0; index < count; index++) {
       const angle = Math.random() * Math.PI * 2;
@@ -1724,6 +1726,8 @@ createMaterial() {
       if (!chunk) continue;
       chunk.grass ??= { points: [] };
       chunk.grass.points ??= [];
+      const cellKey = this.grassCellKey(x, z);
+      if ((occupancy.get(cellKey) ?? 0) >= maxPerCell) continue;
       const blade = {
         x, z,
         y: this.terrain?.getHeightAt({ x, z }) ?? 0,
@@ -1732,8 +1736,11 @@ createMaterial() {
         rotation: Math.random() * Math.PI * 2
       };
       chunk.grass.points.push(blade);
+      occupancy.set(cellKey, (occupancy.get(cellKey) ?? 0) + 1);
       paintedBlades.push({ blade, chunk });
     }
+
+    if (!paintedBlades.length) return false;
 
     // Painting used to call setChunkedChunks for every brush dab. That copies
     // all active chunks and queues a complete grid rebuild, which makes dense
@@ -1870,6 +1877,8 @@ createMaterial() {
       );
 
       const paintedBlades = [];
+      const maxPerCell = this.maximumBladesPerCell(config.density);
+      const occupancy = this.getGrassCellOccupancy(config.points);
 
       for (let i = 0; i < count; i++) {
 
@@ -1884,6 +1893,9 @@ createMaterial() {
               z
           }) ?? 0;
 
+          const cellKey = this.grassCellKey(x, z);
+          if ((occupancy.get(cellKey) ?? 0) >= maxPerCell) continue;
+
           const blade = {
               x,
               y,
@@ -1895,8 +1907,11 @@ createMaterial() {
           };
 
           config.points.push(blade);
+          occupancy.set(cellKey, (occupancy.get(cellKey) ?? 0) + 1);
           paintedBlades.push(blade);
       }
+
+      if (!paintedBlades.length) return false;
 
       this.config = config;
       this.terrain = terrain;
@@ -1922,6 +1937,22 @@ createMaterial() {
       this.dirty = true;
 
       return true;
+  }
+  grassCellKey(x, z) {
+    return `${Math.floor(x / this.gridCellSize)},${Math.floor(z / this.gridCellSize)}`;
+  }
+  maximumBladesPerCell(density) {
+    // Density is blades per square metre; cap one 5m render cell at that
+    // density so repeated brush strokes fill gaps instead of stacking layers.
+    return Math.max(1, Math.round((Number(density) || 0.25) * this.gridCellSize ** 2));
+  }
+  getGrassCellOccupancy(points = []) {
+    const occupancy = new Map();
+    for (const blade of points) {
+      const key = this.grassCellKey(blade.x, blade.z);
+      occupancy.set(key, (occupancy.get(key) ?? 0) + 1);
+    }
+    return occupancy;
   }
   erase(config, point, radius) {
     if (!config?.enabled || radius <= 0) return false;

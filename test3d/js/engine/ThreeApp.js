@@ -33,7 +33,7 @@ export class ThreeApp {
     sun.shadow.camera.far = 250;
     sun.shadow.bias = -0.001;
     sun.shadow.normalBias = 0.04;
-    this.scene.add(new THREE.HemisphereLight(0xe9f5ff,0x24382b,1.5));
+    this.scene.add(new THREE.HemisphereLight(0xe9f5ff,0x24382b,2.0));
 
     this.scene.add(sun);
 

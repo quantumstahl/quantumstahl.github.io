@@ -10,8 +10,9 @@ const createStarterChunks = () => {
       chunks.push({
         x,
         z,
-        // The outer ring is scenery; the 3x3 centre is initially playable.
-        decorative: Math.abs(x) === WORLD_CHUNK_RADIUS || Math.abs(z) === WORLD_CHUNK_RADIUS
+        // Decoration is an explicit editor choice, never inferred from a
+        // chunk's position in the map.
+        decorative: false
       });
     }
   }
@@ -31,7 +32,7 @@ export function createChunkedWorldManifest(data = {}) {
     chunks: Array.isArray(data.chunks) && data.chunks.length
       ? data.chunks.map(chunk => ({ x: Number(chunk.x) || 0, z: Number(chunk.z) || 0, decorative: Boolean(chunk.decorative) }))
       : createStarterChunks(),
-    editor: { showGrid: data.editor?.showGrid ?? true, autoCreateChunks: data.editor?.autoCreateChunks ?? true },
+    editor: { showGrid: data.editor?.showGrid ?? true, autoCreateChunks: data.editor?.autoCreateChunks ?? true, camera: data.editor?.camera ?? null },
     sky: data.sky ?? { mode: "day", timeOfDay: 0.25, dayDuration: 360 },
     terrain: {
       enabled: data.terrain?.enabled ?? true,
@@ -47,7 +48,7 @@ export function createChunkedWorldManifest(data = {}) {
       activeTexture: Number(data.terrain?.activeTexture) || 0
     },
     water: data.water ?? { enabled: true, level: -0.5, color: 0x3b86c4, opacity: 0.72 },
-    grass: data.grass ?? { enabled: true, density: 2.5 },
+    grass: data.grass ?? { enabled: true, density: 5.0 },
     layers: (data.layers ?? []).map(layer => new MapLayer(layer))
   };
 }
@@ -91,7 +92,7 @@ export class WorldMap {
   constructor(data = {}) {
     this.version = 1;
     this.name = data.name ?? "Untitled World";
-    this.editor = { showGrid: data.editor?.showGrid ?? true, autoCreateChunks: data.editor?.autoCreateChunks ?? true };
+    this.editor = { showGrid: data.editor?.showGrid ?? true, autoCreateChunks: data.editor?.autoCreateChunks ?? true, camera: data.editor?.camera ?? null };
     const savedTimeOfDay = Number(data.sky?.timeOfDay);
     const savedDayDuration = Number(data.sky?.dayDuration);
     this.sky = {

@@ -13,6 +13,7 @@ import { ScaleTool } from "./tools/ScaleTool.js";
 import { StackTool } from "./tools/StackTool.js";
 import { BrushTool } from "./tools/BrushTool.js";
 import { TerrainTool } from "./tools/TerrainTool.js";
+import { ChunkTool } from "./tools/ChunkTool.js";
 
 export class Editor {
   constructor(app) {
@@ -30,7 +31,9 @@ export class Editor {
     this.stackTool = new StackTool(this);
     this.brushTool = new BrushTool(this);
     this.terrainTool = new TerrainTool(this);
+    this.chunkTool = new ChunkTool(this);
     this.activeTool = "select";
+    this.chunkAction = "decorate";
     this.terrainMode = "raise";
     this.brushType = null;
     this.selected = null;
@@ -41,9 +44,16 @@ export class Editor {
     this.tree = new AssetTree(this, document.querySelector("#assetTree"));
     window.addEventListener("keydown", event => this.onKeyDown(event));
   }
-  async load(url) { await this.mapLoader.load(url); this.mapLoader.calculateChunkDecorativeFlags(); this.syncWorldEditorSettings(); this.syncTerrainTexturePicker(); this.tree.render(); }
-  async loadWorld(world) { await this.mapLoader.loadData(world); this.mapLoader.calculateChunkDecorativeFlags(); this.syncWorldEditorSettings(); this.syncTerrainTexturePicker(); this.setSelected(null); this.tree.render(); }
-  async loadWorkspace({ world, directoryHandle }) { await this.mapLoader.loadData(world, null, directoryHandle); this.mapLoader.calculateChunkDecorativeFlags(); this.syncWorldEditorSettings(); this.syncTerrainTexturePicker(); this.setSelected(null); this.tree.render(); }
+  async load(url) { await this.mapLoader.load(url); this.finishLoadingWorld(); }
+  async loadWorld(world) { await this.mapLoader.loadData(world); this.finishLoadingWorld(); }
+  async loadWorkspace({ world, directoryHandle }) { await this.mapLoader.loadData(world, null, directoryHandle); this.finishLoadingWorld(); }
+  finishLoadingWorld() {
+    this.mapLoader.calculateChunkDecorativeFlags();
+    this.cameraController.restoreState(this.mapLoader.world.editor.camera);
+    this.mapLoader.chunks?.refresh(this.camera);
+    this.syncWorldEditorSettings(); this.syncTerrainTexturePicker(); this.setSelected(null); this.tree.render();
+  }
+  saveCameraView() { this.mapLoader.world.editor.camera = this.cameraController.getState(); }
   setSelected(object) {
     this.selected = object;
     this.mapLoader.setSelected(object);
@@ -63,6 +73,7 @@ export class Editor {
     if (this.activeTool === "stack") this.stackTool.update(delta);
     if (this.activeTool === "brush") this.brushTool.update(delta);
     if (this.activeTool === "terrain") this.terrainTool.update(delta);
+    if (this.activeTool === "chunk") this.chunkTool.update();
     this.input.endFrame();
   }
   setTool(name) {
@@ -76,8 +87,14 @@ export class Editor {
     document.querySelector("#scaleToolButton")?.classList.toggle("is-active", name === "scale");
     document.querySelector("#stackToolButton")?.classList.toggle("is-active", name === "stack");
     document.querySelector("#brushToolButton")?.classList.toggle("is-active", name === "brush");
-    const instructions = { select: "Select tool: click an object", move: "Move tool: drag the selected object", rotate: "Rotate tool: horizontal drag or Q / E", scale: "Scale tool: vertical drag or Q / E; R resets", stack: "Stack tool: click a support surface", brush: this.brushType ? `Brush tool: painting ${this.brushType.name}` : "Brush tool: choose an asset type in the tree", terrain: this.terrainMode === "texture" ? "Texture paint: drag to paint the selected layer; Q / E radius" : this.terrainMode === "grass" ? "Grass paint: drag to scatter grass; Q / E radius" : this.terrainMode === "eraseGrass" ? "Grass erase: drag to remove grass; Q / E radius" : `Terrain ${this.terrainMode}: drag to sculpt; Q / E radius` };
+    document.querySelector("#chunkToolButton")?.classList.toggle("is-active", name === "chunk" && this.chunkAction === "decorate");
+    document.querySelector("#deleteChunkToolButton")?.classList.toggle("is-active", name === "chunk" && this.chunkAction === "delete");
+    const instructions = { select: "Select tool: click an object", move: "Move tool: drag the selected object", rotate: "Rotate tool: horizontal drag or Q / E", scale: "Scale tool: vertical drag or Q / E; R resets", stack: "Stack tool: click a support surface", brush: this.brushType ? `Brush tool: painting ${this.brushType.name}` : "Brush tool: choose an asset type in the tree", chunk: this.chunkAction === "delete" ? "Delete Chunk: click a chunk to delete it" : "Chunk: click a chunk to toggle decorative terrain", terrain: this.terrainMode === "texture" ? "Texture paint: drag to paint the selected layer; Q / E radius" : this.terrainMode === "grass" ? "Grass paint: drag to scatter grass; Q / E radius" : this.terrainMode === "eraseGrass" ? "Grass erase: drag to remove grass; Q / E radius" : `Terrain ${this.terrainMode}: drag to sculpt; Q / E radius` };
     this.setStatus(instructions[name] ?? "Tool selected");
+  }
+  setChunkToolAction(action) {
+    this.chunkAction = action === "delete" ? "delete" : "decorate";
+    this.setTool("chunk");
   }
   previewTransform() { if (this.selected) this.selectionBox.setFromObject(this.selected); }
   commitTransform() {
@@ -195,6 +212,46 @@ export class Editor {
     this.markDirty(); this.tree.render();
     this.setStatus(`Automatic chunk creation ${settings.autoCreateChunks ? "enabled" : "disabled"}`);
   }
+  chunkAtCameraTarget() {
+    const size = this.mapLoader.world.chunkSize ?? 50;
+    return { x: Math.floor(this.cameraController.target.x / size), z: Math.floor(this.cameraController.target.z / size) };
+  }
+  async setCameraTargetChunkDecorative(decorative) {
+    const { x, z } = this.chunkAtCameraTarget();
+    await this.mapLoader.setChunkDecorative(x, z, decorative, this.camera);
+    this.markDirty(); this.tree.render();
+    this.setStatus(`Chunk ${x}, ${z} is now ${decorative ? "decorative" : "normal"}`);
+  }
+  chunkAtPoint(point) {
+    const size = this.mapLoader.world.chunkSize ?? 50;
+    return { x: Math.floor(point.x / size), z: Math.floor(point.z / size) };
+  }
+  async toggleChunkDecorativeAtPoint(point) {
+    const { x, z } = this.chunkAtPoint(point);
+    const definition = this.mapLoader.world.chunks.find(chunk => chunk.x === x && chunk.z === z);
+    const decorative = !definition?.decorative;
+    await this.mapLoader.setChunkDecorative(x, z, decorative, this.camera);
+    this.markDirty(); this.tree.render();
+    this.setStatus(`Chunk ${x}, ${z} is now ${decorative ? "decorative" : "normal"}`);
+  }
+  async deleteChunkAtPoint(point) {
+    const { x, z } = this.chunkAtPoint(point);
+    const definition = this.mapLoader.world.chunks.find(chunk => chunk.x === x && chunk.z === z);
+    if (!definition) { this.setStatus(`Chunk ${x}, ${z} is only an automatic preview and has no saved data to delete`); return; }
+    if (!window.confirm(`Delete chunk ${x}, ${z} and all terrain, grass, and objects stored in it?`)) return;
+    await this.mapLoader.deleteChunk(x, z, this.camera);
+    this.setSelected(null); this.markDirty(); this.tree.render();
+    this.setStatus(`Deleted chunk ${x}, ${z}`);
+  }
+  async deleteCameraTargetChunk() {
+    const { x, z } = this.chunkAtCameraTarget();
+    const definition = this.mapLoader.world.chunks.find(chunk => chunk.x === x && chunk.z === z);
+    if (!definition) { this.setStatus(`Chunk ${x}, ${z} is only an automatic preview and has no saved data to delete`); return; }
+    if (!window.confirm(`Delete chunk ${x}, ${z} and all terrain, grass, and objects stored in it?`)) return;
+    await this.mapLoader.deleteChunk(x, z, this.camera);
+    this.setSelected(null); this.markDirty(); this.tree.render();
+    this.setStatus(`Deleted chunk ${x}, ${z}`);
+  }
   teleportToOrigin() {
     this.cameraController.target.set(0, 0, 0);
     this.cameraController.updateCamera();
@@ -209,7 +266,7 @@ export class Editor {
     this.setStatus(`Trimmed ${removed} empty interior ${removed === 1 ? "chunk" : "chunks"}`);
   }
   async paintDecorativeChunks() {
-    if (!window.confirm("Create dry rolling hills and outer mountain ridges, then paint decorative grass? Existing sculpted terrain and painted grass are left unchanged. Hills made by the previous version will be repaired.")) return;
+    if (!window.confirm("Create decorative hills and grass? Running this again rebuilds every decorative chunk so ridges and grass match the current boundaries.")) return;
     const result = await this.mapLoader.paintDecorativeChunks(this.camera);
     if (!result.painted) {
       this.setStatus(result.skipped ? "Decorative chunks already have painted grass" : "No decorative chunks to paint");

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 
 // Adapted from CatAdventure: cache source GLBs, then clone a fresh scene per map object.
 export class AssetManager {
@@ -29,7 +30,9 @@ export class AssetManager {
       this.cache.set(path, this.loader.loadAsync(source).then(gltf => {
         const scene = gltf.scene;
         scene.userData.animations = gltf.animations ?? [];
+        scene.userData.hasSkinnedMeshes = false;
         scene.traverse(object => {
+          if (object.isSkinnedMesh) scene.userData.hasSkinnedMeshes = true;
           if (object.isMesh) {
             object.castShadow = true;
             object.receiveShadow = true;
@@ -248,7 +251,11 @@ gl_FragColor.rgb *=(((-uTreeNightAmount)*0.20)+1.0);
   async createInstance(path, { cloneMaterials = false } = {}) {
     const source = await this.loadGLB(path);
     if (!source) return null;
-    const instance = source.clone(true);
+    // Object3D.clone shares Skeleton instances. That is fine for static
+    // assets, but makes every horse/character reference the cached source
+    // bones instead of its own clone. SkeletonUtils reconnects each skinned
+    // mesh to the cloned bone hierarchy.
+    const instance = source.userData.hasSkinnedMeshes ? cloneSkinned(source) : source.clone(true);
     instance.userData.animations = source.userData.animations;
     if (cloneMaterials) instance.traverse(object => {
       if (object.isMesh && object.material) {
