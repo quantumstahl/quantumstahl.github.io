@@ -69,7 +69,10 @@ class AssetManager {
         const original = await this.loadGLB(path);
         if (!original) return null;
 
-        const clone = original.clone(true);
+        // Object3D.clone() leaves a SkinnedMesh pointing at the source
+        // skeleton. SkeletonUtils rebuilds the bone/skeleton links so each
+        // spawned GLB can render and animate independently (bug.glb included).
+        const clone = THREE.SkeletonUtils.clone(original);
         
         clone.userData.animations = original.userData.animations || [];
         // Viktigt om modellen har material som annars delas mellan instanser

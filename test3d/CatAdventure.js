@@ -2772,6 +2772,10 @@ class CatAdventureFakeShadows {
         const type = object.userData.assetType || {};
         const typeId = String(type.id || type.name || "").toLowerCase();
         const footprint = config.footprints[typeId];
+        let followsSkinnedBounds = false;
+        object.traverse(child => {
+            followsSkinnedBounds ||= child.isSkinnedMesh;
+        });
         const groundY = (this.game.ground?.position.y ?? this.worldPosition.y) + config.verticalOffset;
         this.offsetVector.set(
             (this.bounds.min.x + this.bounds.max.x) * 0.5 - this.worldPosition.x,
@@ -2789,7 +2793,10 @@ class CatAdventureFakeShadows {
             x: (this.bounds.min.x + this.bounds.max.x) * 0.5,
             z: (this.bounds.min.z + this.bounds.max.z) * 0.5,
             localCenterX: this.offsetVector.x,
-            localCenterZ: this.offsetVector.z
+            localCenterZ: this.offsetVector.z,
+            // Bone animation can move a skinned model well away from its root.
+            // Re-read its posed bounds instead of reusing an offset from load.
+            followsSkinnedBounds
         };
     }
 
@@ -2800,14 +2807,26 @@ class CatAdventureFakeShadows {
             !!this.game.touching(this.game.player, "water", "solid", "down");
         const hidden = dynamic && (!entry.object.parent || entry.object.userData.squished || catIsInWater);
         if (dynamic) {
+            let shadowX, shadowZ;
             entry.object.getWorldPosition(this.worldPosition);
             entry.object.getWorldQuaternion(this.worldQuaternion);
-            this.offsetVector.set(entry.localCenterX, 0, entry.localCenterZ)
-                .applyQuaternion(this.worldQuaternion);
+            if (entry.followsSkinnedBounds) {
+                // A SkinnedMesh's geometry-space bounds come from its bind
+                // pose and may be offset from the visible character. The map
+                // object's origin is the authoritative gameplay position, so
+                // use it directly for the contact shadow.
+                shadowX = this.worldPosition.x;
+                shadowZ = this.worldPosition.z;
+            } else {
+                this.offsetVector.set(entry.localCenterX, 0, entry.localCenterZ)
+                    .applyQuaternion(this.worldQuaternion);
+                shadowX = this.worldPosition.x + this.offsetVector.x;
+                shadowZ = this.worldPosition.z + this.offsetVector.z;
+            }
             this.dummy.position.set(
-                this.worldPosition.x + this.offsetVector.x,
+                shadowX,
                 entry.groundY,
-                this.worldPosition.z + this.offsetVector.z
+                shadowZ
             );
             const yaw = Math.atan2(
                 2 * (this.worldQuaternion.w * this.worldQuaternion.y + this.worldQuaternion.x * this.worldQuaternion.z),

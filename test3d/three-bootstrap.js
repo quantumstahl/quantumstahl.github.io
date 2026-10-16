@@ -19,16 +19,17 @@ const THREE_VERSION = "0.186.0";
 const threeUrl = `https://unpkg.com/three@${THREE_VERSION}/build/three.module.js`;
 const addonsUrl = `https://unpkg.com/three@${THREE_VERSION}/examples/jsm/`;
 
-const [three, { GLTFLoader }, { GLTFExporter }, { EffectComposer }, { RenderPass }, { BokehPass }] = await Promise.all([
+const [three, { GLTFLoader }, { GLTFExporter }, SkeletonUtils, { EffectComposer }, { RenderPass }, { BokehPass }] = await Promise.all([
     import(threeUrl),
     import(`${addonsUrl}loaders/GLTFLoader.js`),
     import(`${addonsUrl}exporters/GLTFExporter.js`),
+    import(`${addonsUrl}utils/SkeletonUtils.js`),
     import(`${addonsUrl}postprocessing/EffectComposer.js`),
     import(`${addonsUrl}postprocessing/RenderPass.js`),
     import(`${addonsUrl}postprocessing/BokehPass.js`)
 ]);
 
-window.THREE = { ...three, GLTFLoader, GLTFExporter, EffectComposer, RenderPass, BokehPass };
+window.THREE = { ...three, GLTFLoader, GLTFExporter, SkeletonUtils, EffectComposer, RenderPass, BokehPass };
 
 function loadClassicScript(src) {
     return new Promise((resolve, reject) => {
