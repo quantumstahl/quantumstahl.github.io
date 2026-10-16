@@ -33,7 +33,7 @@ class AssetManager {
                 path,
                 (gltf) => {
                     const scene = gltf.scene;
-      
+
                     scene.userData.animations = gltf.animations || [];
 
                     scene.traverse((obj) => {

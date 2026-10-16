@@ -45,6 +45,7 @@ class CatAdventure {
         this.moveSpeed = 0.07;
         this.turnSpeed = 0.04;
         this.mixers = [];
+        this.spinningCoins = [];
         this.animatedObjects = [];
         this.cameraYaw = 0;
         this.cameraDistance = 6;
@@ -324,6 +325,7 @@ class CatAdventure {
 
     }
     debugPerformance() {
+        return;
         this.fpsFrames++;
         
         const now = performance.now();
@@ -610,6 +612,10 @@ class CatAdventure {
             const name = type.name || type.id || "";
             const typeId = String(type.id || type.name || "").toLowerCase();
             const glb = String(type.glb || "").toLowerCase();
+            // Tree foliage looks much cleaner without its own shadow map:
+            // a tree can still receive shadows cast by the rest of the scene,
+            // but it no longer casts onto itself.
+            const disablesSelfShadow = /(?:^|\/)tree\.glb$/i.test(glb);
             const usesFakeShadow = this.fakeShadowConfig?.enabled &&
                 (this.fakeShadowConfig.staticTypes.has(typeId) || this.fakeShadowConfig.dynamicTypes.has(typeId));
             const noShadowSurface = /^(path|water|tracks)$/i.test(name) ||
@@ -621,7 +627,10 @@ class CatAdventure {
                 // Paths and water should neither darken nearby scenery nor
                 // have other objects' shadows projected onto their surfaces.
                 mesh.castShadow = usesShadows;
+               
                 mesh.receiveShadow = usesShadows2;
+
+                 if(disablesSelfShadow)mesh.receiveShadow=false;
             });
         }
     }
@@ -738,6 +747,7 @@ class CatAdventure {
         this.updateSpiderQuest(deltaSeconds);
         this.updateBugAI(deltaSeconds);
         this.updateHeartDrops(deltaSeconds);
+        this.updateCoinSpins(deltaSeconds);
         this.grass?.update(deltaSeconds);
         this.water?.update(deltaSeconds);
         this.treeWind?.update(deltaSeconds);
@@ -928,6 +938,7 @@ class CatAdventure {
         if (rebuildBatches) this.clearRenderBatches();
         this.scene.remove(mesh);
         this.mapObjects = this.mapObjects.filter(mapObject => mapObject !== mesh);
+        this.spinningCoins = this.spinningCoins.filter(coin => coin !== mesh);
         this.fakeShadows?.update();
         if (rebuildBatches) this.buildRenderBatches();
     }
@@ -1541,7 +1552,7 @@ class CatAdventure {
             const name = (type?.name || "").toLowerCase();
 
             if(id.includes("coin") || name.includes("coin")){
-                this.setupObjectAnimation(obj, "Animation 1", true);
+                this.setupCoinSpin(obj);
             }
             else if(id.includes("gate") || name.includes("gate")){
                 this.setupObjectAnimation(obj, "Animation 1", false);
@@ -1554,6 +1565,44 @@ class CatAdventure {
                 this.setupObjectAnimation(obj, "Animation 1", false);
             }
             
+        }
+    }
+
+    setupCoinSpin(coin) {
+        // Coins used to spend a mixer on the exported "Animation 1" clip.
+        // Their presentation only needs a simple upright rotation, which is
+        // cheaper and keeps the animation independent of the GLB export.
+        coin.userData.animations = [];
+        coin.userData.skipRenderBatch = true;
+
+        // coin.glb's root is not centred on its six visible mesh nodes. A
+        // rotation on `coin` therefore makes the model orbit its map origin.
+        // Reparent its visuals under a pivot at their actual bounds centre so
+        // the coin turns in place instead.
+        coin.updateMatrixWorld(true);
+        const center = new THREE.Box3().setFromObject(coin).getCenter(new THREE.Vector3());
+        coin.worldToLocal(center);
+        const pivot = new THREE.Group();
+        pivot.name = "Coin spin pivot";
+        pivot.position.copy(center);
+        coin.add(pivot);
+        for (const child of [...coin.children]) {
+            if (child !== pivot) pivot.attach(child);
+        }
+
+        coin.userData.coinSpin = {
+            pivot,
+            phase: (coin.position.x * 0.61 + coin.position.z * 1.17) % (Math.PI * 2)
+        };
+        this.spinningCoins.push(coin);
+    }
+
+    updateCoinSpins(deltaSeconds) {
+        for (const coin of this.spinningCoins) {
+            const spin = coin.userData.coinSpin;
+            if (!spin) continue;
+            spin.phase = (spin.phase + deltaSeconds * 2.8) % (Math.PI * 2);
+            spin.pivot.rotation.y = spin.phase;
         }
     }
 
@@ -3888,7 +3937,6 @@ class CatAdventureGrass {
         this.frustum = new THREE.Frustum();
         this.viewProjectionMatrix = new THREE.Matrix4();
         this.grassBounds = new THREE.Sphere(new THREE.Vector3(), 0.9);
-          this.refreshTimer = 0;
           this.windTime = 0;
         this.nearDistance = 20;
         this.farDistance = 500;
@@ -4183,12 +4231,10 @@ class CatAdventureGrass {
           if (grassShader) grassShader.uniforms.grassWindTime.value = this.windTime;
           this.mesh.material.userData.grassShader?.uniforms.grassCameraXZ.value
             .set(this.game.camera.position.x, this.game.camera.position.z);
-        this.refreshTimer += deltaSeconds;
-        // Repacking an instanced buffer is CPU work. The grass can refresh a
-        // few times per second without visible popping, instead of scanning
-        // the complete meadow every animation frame.
-        if (this.refreshTimer < 0.20) return;
-        this.refreshTimer = 0;
+        // Rebuild as soon as the view changes.  Delaying this to a fixed
+        // cadence makes the per-instance frustum culling visibly add grass
+        // in batches while the camera pans or moves. `updateVisible` exits
+        // immediately for a stationary camera, so this adds no idle work.
         this.updateVisible(false);
     }
 
