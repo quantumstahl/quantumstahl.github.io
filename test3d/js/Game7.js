@@ -476,6 +476,7 @@ class EditorRenderBatcher {
         this.selected = null;
         this.hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
         this.tempMatrix = new THREE.Matrix4();
+        this.cellSize = 48;
     }
 
     shouldBatch(source) {
@@ -503,8 +504,9 @@ class EditorRenderBatcher {
         for (const source of this.game.mapObjects) {
             if (!this.shouldBatch(source)) continue;
             const type = source.userData.assetType;
-            if (!groups.has(type)) groups.set(type, []);
-            groups.get(type).push(source);
+            const cellKey = `${type.uid || type.id || type.name}|${Math.floor(source.position.x / this.cellSize)},${Math.floor(source.position.z / this.cellSize)}`;
+            if (!groups.has(cellKey)) groups.set(cellKey, []);
+            groups.get(cellKey).push(source);
         }
 
         for (const sources of groups.values()) this.buildTypeBatch(sources);
@@ -513,6 +515,9 @@ class EditorRenderBatcher {
     }
 
     buildTypeBatch(sources) {
+        // A one-item batch adds overhead while preventing the source mesh
+        // from benefiting from its own precise frustum bounds.
+        if (sources.length < 2) return;
         const templateMeshes = this.getMeshes(sources[0]);
         if (!templateMeshes.length) return;
 
@@ -523,7 +528,7 @@ class EditorRenderBatcher {
                 sources.length
             );
             batch.name = `Editor batch: ${sources[0].userData.assetType.name || "asset"}`;
-            batch.frustumCulled = false;
+            batch.frustumCulled = true;
             batch.castShadow = template.castShadow;
             batch.receiveShadow = template.receiveShadow;
             this.root.add(batch);
@@ -544,7 +549,11 @@ class EditorRenderBatcher {
             source.visible = false;
             this.entries.set(source, slots);
         });
-        for (const batch of batches) batch.instanceMatrix.needsUpdate = true;
+        for (const batch of batches) {
+            batch.instanceMatrix.needsUpdate = true;
+            batch.computeBoundingBox();
+            batch.computeBoundingSphere();
+        }
     }
 
     setSelected(source) {

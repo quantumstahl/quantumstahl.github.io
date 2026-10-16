@@ -38,7 +38,11 @@ class AssetManager {
 
                     scene.traverse((obj) => {
                         if (obj.isMesh) {
-                            obj.frustumCulled = false;
+                            // Keep Three.js' per-mesh frustum test enabled in
+                            // both the game and editor.  GLTF meshes use their
+                            // geometry bounds by default, so off-screen props
+                            // no longer reach the renderer.
+                            obj.frustumCulled = true;
                             obj.castShadow = true;
                             obj.receiveShadow = true;
 

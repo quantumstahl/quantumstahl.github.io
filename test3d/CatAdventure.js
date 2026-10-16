@@ -226,7 +226,7 @@ class CatAdventure {
             antialias: true
         });
 
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      
 
         this.renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
 
@@ -234,7 +234,7 @@ class CatAdventure {
         this.renderer.shadowMap.type = THREE.PCFShadowMap;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.08;
-        this.renderer.setPixelRatio(1);
+        this.renderer.setPixelRatio(1.0);
 
         this.createSunsetSky();
 
@@ -1529,6 +1529,7 @@ class CatAdventure {
 
         this.camera.aspect = w / h;
         this.camera.updateProjectionMatrix();
+        this.grass?.updateVisible(true);
 
         return true;
     }
@@ -2852,11 +2853,13 @@ class CatAdventureFakeShadows {
         mesh.name = dynamic ? "Dynamic instanced fake shadows" : "Static instanced fake shadows";
         mesh.castShadow = false;
         mesh.receiveShadow = false;
-        mesh.frustumCulled = false;
+        mesh.frustumCulled = true;
         mesh.renderOrder = -1;
         mesh.userData.isRenderBatch = true;
         entries.forEach((entry, index) => this.setMatrix(mesh, index, entry, dynamic));
         mesh.instanceMatrix.needsUpdate = true;
+        mesh.computeBoundingBox();
+        mesh.computeBoundingSphere();
         this.root.add(mesh);
         return mesh;
     }
@@ -2885,6 +2888,10 @@ class CatAdventureFakeShadows {
             this.setMatrix(this.dynamicMesh, index, this.dynamicEntries[index], true);
         }
         this.dynamicMesh.instanceMatrix.needsUpdate = true;
+        // Animated objects can move their contact shadows outside the bounds
+        // calculated at build time. Refresh the small dynamic batch so its
+        // frustum test remains correct.
+        this.dynamicMesh.computeBoundingSphere();
     }
 }
 
@@ -2902,6 +2909,10 @@ class CatAdventureRenderBatcher {
         this.active = false;
         this.lastBatchCount = 0;
         this.lastInstanceCount = 0;
+        // A single batch spread over the entire map defeats frustum culling:
+        // one visible tree keeps every tree in the draw call. Keep batches
+        // local enough for Three.js to discard off-screen map regions.
+        this.cellSize = 48;
     }
 
     isStaticMapObject(root) {
@@ -2929,6 +2940,11 @@ class CatAdventureRenderBatcher {
             mesh.castShadow, mesh.receiveShadow].join("|");
     }
 
+    cellKey(mesh) {
+        const { elements } = mesh.matrixWorld;
+        return `${Math.floor(elements[12] / this.cellSize)},${Math.floor(elements[14] / this.cellSize)}`;
+    }
+
     build() {
         if (this.active) return;
         this.restore();
@@ -2945,8 +2961,9 @@ class CatAdventureRenderBatcher {
                     : null;
                 meshIndex++;
                 if (!key) return;
-                if (!groups.has(key)) groups.set(key, []);
-                groups.get(key).push(mesh);
+                const cellKey = `${key}|${this.cellKey(mesh)}`;
+                if (!groups.has(cellKey)) groups.set(cellKey, []);
+                groups.get(cellKey).push(mesh);
             });
         }
 
@@ -2958,6 +2975,7 @@ class CatAdventureRenderBatcher {
             proxy.name = "Instanced map prop";
             proxy.castShadow = first.castShadow;
             proxy.receiveShadow = first.receiveShadow;
+            proxy.frustumCulled = true;
             proxy.userData.isRenderBatch = true;
             meshes.forEach((mesh, index) => {
                 proxy.setMatrixAt(index, mesh.matrixWorld);
@@ -3865,6 +3883,11 @@ class CatAdventureGrass {
         this.root.name = "Meadow grass";
         this.candidates = [];
         this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity);
+        this.lastCameraQuaternion = new THREE.Quaternion();
+        this.hasCameraPose = false;
+        this.frustum = new THREE.Frustum();
+        this.viewProjectionMatrix = new THREE.Matrix4();
+        this.grassBounds = new THREE.Sphere(new THREE.Vector3(), 0.9);
           this.refreshTimer = 0;
           this.windTime = 0;
         this.nearDistance = 20;
@@ -3929,6 +3952,10 @@ class CatAdventureGrass {
         this.game.addBackgroundFadeToMaterial(material, this.game.skyTexture);
         this.mesh = new THREE.InstancedMesh(geometry, material, this.capacity);
         this.mesh.name = "Distance faded crossed-billboard grass";
+        // Instances are compacted to the camera frustum below.  Keep the
+        // container itself enabled: its bounds would otherwise have to be
+        // rebuilt from every grass blade every frame, which costs more CPU
+        // than it saves and only culls the batch as one large object.
         this.mesh.frustumCulled = false;
         this.mesh.castShadow = false;
         this.mesh.receiveShadow = false;
@@ -4157,15 +4184,30 @@ class CatAdventureGrass {
           this.mesh.material.userData.grassShader?.uniforms.grassCameraXZ.value
             .set(this.game.camera.position.x, this.game.camera.position.z);
         this.refreshTimer += deltaSeconds;
-       // if (this.refreshTimer < 0.20 && this.lastCamera.distanceToSquared(this.game.camera.position) < 9) return;
+        // Repacking an instanced buffer is CPU work. The grass can refresh a
+        // few times per second without visible popping, instead of scanning
+        // the complete meadow every animation frame.
+        if (this.refreshTimer < 0.20) return;
         this.refreshTimer = 0;
         this.updateVisible(false);
     }
 
     updateVisible(force) {
-        const camera = this.game.camera.position;
-        if (!force && this.lastCamera.distanceToSquared(camera) < 0.00001) return;
+        const cameraObject = this.game.camera;
+        const camera = cameraObject.position;
+        const cameraMoved = this.lastCamera.distanceToSquared(camera) >= 0.00001;
+        const cameraRotated = !this.hasCameraPose ||
+            1 - Math.abs(this.lastCameraQuaternion.dot(cameraObject.quaternion)) >= 0.000001;
+        if (!force && !cameraMoved && !cameraRotated) return;
+
+        cameraObject.updateMatrixWorld();
+        this.viewProjectionMatrix.multiplyMatrices(
+            cameraObject.projectionMatrix, cameraObject.matrixWorldInverse
+        );
+        this.frustum.setFromProjectionMatrix(this.viewProjectionMatrix);
         this.lastCamera.copy(camera);
+        this.lastCameraQuaternion.copy(cameraObject.quaternion);
+        this.hasCameraPose = true;
         let count = 0;
         const farSq = this.farDistance * this.farDistance;
         for (const grass of this.candidates) {
@@ -4177,6 +4219,12 @@ class CatAdventureGrass {
             // shader still fades the final surviving clumps smoothly.
             const density = 1 - Math.max(0, distance - this.nearDistance) / (this.farDistance - this.nearDistance);
             if (grass.seed > density || count === this.capacity) continue;
+            // InstancedMesh culling is batch-wide. Test each clump before
+            // uploading it so grass behind or beside the camera is never sent
+            // to the GPU. The radius leaves a small buffer for swaying tips.
+            this.grassBounds.center.set(grass.x, grass.y + 0.3 * grass.scale, grass.z);
+            this.grassBounds.radius = 0.9 * grass.scale;
+            if (!this.frustum.intersectsSphere(this.grassBounds)) continue;
             this.dummy.position.set(grass.x, grass.y, grass.z);
             this.dummy.rotation.set(0, grass.rotation, 0);
             this.dummy.scale.setScalar(grass.scale);
@@ -4230,7 +4278,7 @@ class CatAdventurePathEdgeFlowers {
         mesh.name = "Path-edge flower clumps";
         mesh.castShadow = false;
         mesh.receiveShadow = false;
-        mesh.frustumCulled = false;
+        mesh.frustumCulled = true;
         candidates.forEach((candidate, index) => {
             this.dummy.position.copy(candidate.position);
             this.dummy.rotation.set(0, candidate.rotation, 0);
@@ -4241,6 +4289,8 @@ class CatAdventurePathEdgeFlowers {
             mesh.setMatrixAt(index, this.dummy.matrix);
         });
         mesh.instanceMatrix.needsUpdate = true;
+        mesh.computeBoundingBox();
+        mesh.computeBoundingSphere();
         this.root.add(mesh);
         this.game.scene.add(this.root);
     }
