@@ -74,6 +74,7 @@ class CatAdventure {
         this.heartDrops = [];
         this.foxMeadowCinematicPlayed = false;
         this.cinematic = null;
+        this.voiceDialog = null;
         
         this.gates=[];
         this.clouds = [];
@@ -102,6 +103,14 @@ class CatAdventure {
             required: 10,
             announcement: 0,
             token: 0
+        };
+        this.gateQuest = {
+            state: "waiting", // waiting, active, completed
+            elapsed: 0,
+            startDelay: 3,
+            coins: 0,
+            required: 9,
+            announcement: 0
         };
         
         this.texture2 = new THREE.TextureLoader().load("grasyfield.png");
@@ -719,7 +728,7 @@ class CatAdventure {
         }
         this.updatePlayerHealth(deltaSeconds);
         this.updateSunShadow(this.player.position);
-        const controlsLocked = this.isCinematicActive() || this.isFoxDialogActive();
+        const controlsLocked = this.isCinematicActive() || this.isFoxDialogActive() || this.isVoiceDialogActive();
         
 
         this.restoreWaterSinkOffset();
@@ -743,6 +752,7 @@ class CatAdventure {
         this.updateSky();
         this.updateOwlEncounter(deltaSeconds);
         this.updateFoxPatrol(deltaSeconds);
+        this.updateGateQuest(deltaSeconds);
         this.updateFoxQuest(deltaSeconds);
         this.updateSpiderQuest(deltaSeconds);
         this.updateBugAI(deltaSeconds);
@@ -805,6 +815,7 @@ class CatAdventure {
                 audio.play();
             }
         }
+        this.handleVoiceDialogInput();
         this.handleFoxDialogInput();
         
         
@@ -926,6 +937,7 @@ class CatAdventure {
             action.setEffectiveWeight(1).play();
             gate.open=true;
             audio2("sounds/gate.mp3");
+            this.startGateCinematic(gate);
             
         }
     }
@@ -986,7 +998,7 @@ class CatAdventure {
         const h = this.canvas2d.height;
         const mobile = mobileAndTabletCheck();
         const cinematicActive = this.isCinematicActive();
-        const dialogActive = this.isFoxDialogActive();
+        const dialogActive = this.isFoxDialogActive() || this.isVoiceDialogActive();
         const uiLocked = cinematicActive || dialogActive || !!this.deathSequence;
         // On mobile joy.redraw() already clears this shared canvas just before
         // drawUI(). Clearing again here would erase the joystick.
@@ -1003,8 +1015,10 @@ class CatAdventure {
         this.drawHealthUI(this.ctx);
         this.drawCinematicTitle(this.ctx, w, h);
         this.drawQuestAnnouncement(this.ctx, w, h);
+        this.drawVoiceDialog(this.ctx, w, h);
         const mobileInset = mobile ? 0 : 6;
         let nextQuestY = mobileInset;
+        nextQuestY = this.drawGateQuestUI(this.ctx, w, h, nextQuestY);
         nextQuestY = this.drawFoxQuestUI(this.ctx, w, h, nextQuestY);
         this.drawSpiderQuestUI(this.ctx, w, h, nextQuestY);
         this.drawFoxQuestCompletion(this.ctx, w, h);
@@ -1028,25 +1042,30 @@ class CatAdventure {
         ctx.shadowOffsetY = 3;
         ctx.fillStyle = "#fff1b9";
         ctx.font = `800 ${mobile ? 30 : 52}px Georgia, serif`;
-        ctx.fillText("Fox Meadow", width * 0.5, height * 0.33);
+        ctx.fillText(cinematic.title || "Fox Meadow", width * 0.5, height * 0.33);
         ctx.shadowColor = "transparent";
         ctx.fillStyle = "rgba(255, 248, 218, 0.92)";
         ctx.font = `700 ${mobile ? 11 : 14}px system-ui, sans-serif`;
-        ctx.fillText("A new meadow awaits", width * 0.5, height * 0.33 + (mobile ? 27 : 39));
+        ctx.fillText(cinematic.subtitle || "A new meadow awaits", width * 0.5, height * 0.33 + (mobile ? 27 : 39));
         ctx.restore();
     }
 
     drawQuestAnnouncement(ctx, width, height) {
         const fox = this.foxQuest;
         const spider = this.spiderQuest;
-        const quest = fox.announcement > 0 ? fox : (spider.announcement > 0 ? spider : null);
+        const gate = this.gateQuest;
+        const quest = gate.announcement > 0 ? gate :
+            (fox.announcement > 0 ? fox : (spider.announcement > 0 ? spider : null));
         if (!quest) return;
 
         const mobile = mobileAndTabletCheck();
-        const title = quest === fox ? "Strange Tracks" : "Spider Problem";
-        const flavour = quest === fox
+        const title = quest === gate ? "Open the Gate" :
+            (quest === fox ? "Strange Tracks" : "Spider Problem");
+        const flavour = quest === gate
+            ? (gate.state === "completed" ? "The gate is open. The path ahead awaits." : "Collect 9 coins to open the gate.")
+            : (quest === fox
             ? (fox.state === "readyToComplete" ? "All the tracks have been found." : "Investigate the strange tracks in Fox Meadow.")
-            : ((spider.state === "completed" || spider.state === "completing") ? "The dryfield can breathe again.  +10 coins" : "The dry grass is crawling. Squish the spiders!");
+            : ((spider.state === "completed" || spider.state === "completing") ? "The dryfield can breathe again.  +10 coins" : "The dry grass is crawling. Squish the spiders!"));
         const timer = quest.announcement;
         const alpha = Math.min(1, timer / 0.4, (4 - timer) / 0.4);
         const panelWidth = Math.min(width - 34, mobile ? 278 : 350);
@@ -1075,6 +1094,84 @@ class CatAdventure {
         ctx.font = `600 ${mobile ? 10 : 12}px system-ui, sans-serif`;
         ctx.fillText(flavour, width * 0.5, y + (mobile ? 68 : 80));
         ctx.restore();
+    }
+
+    drawVoiceDialog(ctx, width, height) {
+        const dialog = this.voiceDialog;
+        if (!dialog) return;
+        const mobile = mobileAndTabletCheck();
+        const panelWidth = Math.min(width - 28, mobile ? 330 : 500);
+        const x = (width - panelWidth) * 0.5;
+        const textWidth = panelWidth - 36;
+        ctx.save();
+        ctx.font = `600 ${mobile ? 12 : 14}px system-ui, sans-serif`;
+        const words = dialog.text.replace(/\s+/g, " ").trim().split(" ");
+        const lines = [];
+        let line = "";
+        for (const word of words) {
+            const candidate = line ? `${line} ${word}` : word;
+            if (line && ctx.measureText(candidate).width > textWidth) {
+                lines.push(line);
+                line = word;
+            } else {
+                line = candidate;
+            }
+        }
+        if (line) lines.push(line);
+        const visibleLines = lines;
+        const lineHeight = mobile ? 16 : 18;
+        const panelHeight = 82 + visibleLines.length * lineHeight + 48;
+        const panelY = height - panelHeight - (mobile ? 20 : 32);
+        this.roundRect(ctx, x, panelY, panelWidth, panelHeight, 18);
+        ctx.fillStyle = "rgba(20, 43, 31, 0.95)";
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "rgba(255, 224, 126, 0.8)";
+        ctx.stroke();
+        ctx.fillStyle = "#fff2bd";
+        ctx.font = `800 ${mobile ? 20 : 24}px Georgia, serif`;
+        ctx.textAlign = "left";
+        ctx.fillText(dialog.speaker, x + 18, panelY + 31);
+        ctx.fillStyle = "#dcebcf";
+        ctx.font = `600 ${mobile ? 12 : 14}px system-ui, sans-serif`;
+        visibleLines.forEach((text, index) => ctx.fillText(text, x + 18, panelY + 57 + index * lineHeight));
+        const buttonWidth = mobile ? 82 : 96;
+        const buttonHeight = 34;
+        const buttonX = x + panelWidth - buttonWidth - 16;
+        const buttonY = panelY + panelHeight - buttonHeight - 12;
+        this.roundRect(ctx, buttonX, buttonY, buttonWidth, buttonHeight, 10);
+        ctx.fillStyle = "#d99a37";
+        ctx.fill();
+        ctx.fillStyle = "#fff8d8";
+        ctx.font = `800 ${mobile ? 13 : 15}px system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.fillText("Next", buttonX + buttonWidth * 0.5, buttonY + 22);
+        dialog.nextBounds = { x: buttonX, y: buttonY, width: buttonWidth, height: buttonHeight };
+        ctx.restore();
+    }
+
+    drawGateQuestUI(ctx, width, height, stackY = 12) {
+        const quest = this.gateQuest;
+        if (quest.state !== "active") return stackY;
+        const mobile = mobileAndTabletCheck();
+        const panelWidth = mobile ? 142 : 178;
+        const panelHeight = mobile ? 32 : 50;
+        const x = width - panelWidth - (mobile ? 7 : 12);
+        const y = stackY;
+        ctx.save();
+        this.roundRect(ctx, x, y, panelWidth, panelHeight, 10);
+        ctx.fillStyle = "rgba(38, 50, 28, 0.9)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255, 224, 126, 0.78)";
+        ctx.stroke();
+        ctx.fillStyle = "#fff4c8";
+        ctx.font = `800 ${mobile ? 13 : 16}px Georgia, serif`;
+        ctx.fillText("Open the Gate", x + 9, y + 15);
+        ctx.fillStyle = "#dcebcf";
+        ctx.font = `700 ${mobile ? 9 : 10}px system-ui, sans-serif`;
+        ctx.fillText(`Collect coins  \u2022  ${quest.coins} / ${quest.required}`, x + 9, y + 28);
+        ctx.restore();
+        return y + panelHeight + (mobile ? 3 : 5);
     }
 
     drawFoxQuestUI(ctx, width, height, stackY = 12) {
@@ -1758,15 +1855,55 @@ class CatAdventure {
             this.foxQuest.state === "completing";
     }
 
+    isVoiceDialogActive() {
+        return this.voiceDialog !== null;
+    }
+
+    async playVoiceDialogue(speaker, clip) {
+        const dialog = {
+            speaker,
+            text: "…",
+            nextBounds: null
+        };
+        this.voiceDialog = dialog;
+        const textUrl = clip.replace(/\.mp3$/i, ".txt");
+        fetch(textUrl)
+            .then(response => {
+                if (!response.ok) throw new Error(`Could not load ${textUrl}`);
+                return response.text();
+            })
+            .then(text => {
+                if (this.voiceDialog === dialog) dialog.text = text || "…";
+            })
+            .catch(error => console.warn("Could not load dialogue text:", error));
+        const playback = audio2(clip);
+        dialog.stop = () => playback.stop?.();
+        try {
+            await playback;
+        } finally {
+            if (this.voiceDialog === dialog) this.voiceDialog = null;
+        }
+    }
+
+    handleVoiceDialogInput() {
+        const dialog = this.voiceDialog;
+        const bounds = dialog?.nextBounds;
+        if (!this.input.pointer.justPressed || !bounds) return;
+        const { x, y } = this.input.pointer;
+        if (x < bounds.x || x > bounds.x + bounds.width || y < bounds.y || y > bounds.y + bounds.height) return;
+        dialog.stop?.();
+        this.voiceDialog = null;
+    }
+
     async beginFoxDialogue(kind) {
         const quest = this.foxQuest;
-        if (this.isCinematicActive() || this.isFoxDialogActive()) return;
+        if (this.isCinematicActive() || this.isFoxDialogActive() || this.isVoiceDialogActive()) return;
         const token = ++quest.token;
         quest.state = "speaking";
-        quest.dialog = { message: "The fox is speaking…" };
+        quest.dialog = null;
         const clip = kind === "first" ? "sounds/Fox1.mp3" : "sounds/Fox4.mp3";
         try {
-            await audio2(clip);
+            await this.playVoiceDialogue("Fox", clip);
         } catch (error) {
             console.warn("Could not play fox dialogue:", error);
         }
@@ -1784,10 +1921,10 @@ class CatAdventure {
         if (quest.state !== "choice") return;
         const token = ++quest.token;
         quest.state = "speaking";
-        quest.dialog = { message: "The fox listens…" };
+        quest.dialog = null;
         if (option === "yes") {
             try {
-                await audio2("sounds/Fox2.mp3");
+                await this.playVoiceDialogue("Fox", "sounds/Fox2.mp3");
             } catch (error) {
                 console.warn("Could not play fox quest audio:", error);
             }
@@ -1798,7 +1935,7 @@ class CatAdventure {
             this.showFoxTrackSparkles();
         } else if (option === "later") {
             try {
-                await audio2("sounds/Fox3.mp3");
+                await this.playVoiceDialogue("Fox", "sounds/Fox3.mp3");
             } catch (error) {
                 console.warn("Could not play fox dialogue:", error);
             }
@@ -1817,9 +1954,9 @@ class CatAdventure {
         if (quest.state !== "readyToComplete") return;
         const token = ++quest.token;
         quest.state = "completing";
-        quest.dialog = { message: "The fox is speakingâ€¦" };
+        quest.dialog = null;
         try {
-            await audio2("sounds/Fox5.mp3");
+            await this.playVoiceDialogue("Fox", "sounds/Fox5.mp3");
         } catch (error) {
             console.warn("Could not play fox quest completion audio:", error);
         }
@@ -1880,6 +2017,22 @@ class CatAdventure {
         if (!this.dryField?.containsPoint(this.player.position.x, this.player.position.z)) return;
 
         quest.state = "active";
+        quest.announcement = 4;
+    }
+
+    updateGateQuest(deltaSeconds) {
+        const quest = this.gateQuest;
+        if (quest.announcement > 0) quest.announcement = Math.max(0, quest.announcement - deltaSeconds);
+        if (quest.state === "waiting") {
+            quest.elapsed += deltaSeconds;
+            if (quest.elapsed < quest.startDelay) return;
+            quest.state = "active";
+            quest.announcement = 4;
+        }
+        if (quest.state !== "active") return;
+        quest.coins = Math.min(quest.required, this.coins);
+        if (quest.coins < quest.required) return;
+        quest.state = "completed";
         quest.announcement = 4;
     }
 
@@ -2291,9 +2444,9 @@ class CatAdventure {
             );
         }
 
-        if (this.owlHasMetPlayer) return;
+        if (this.owlHasMetPlayer || this.isFoxDialogActive() || this.isVoiceDialogActive()) return;
         this.owlHasMetPlayer = true;
-        audio2("sounds/owl1.mp3").catch(error => {
+        this.playVoiceDialogue("Alder the Owl", "sounds/owl1.mp3").catch(error => {
             console.warn("Could not play owl encounter audio:", error);
         });
     }
@@ -2544,6 +2697,8 @@ class CatAdventure {
             start,
             end,
             lookAt,
+            title: "Fox Meadow",
+            subtitle: "A new meadow awaits",
             fogNear: this.scene.fog?.near,
             fogFar: this.scene.fog?.far
         };
@@ -2559,17 +2714,46 @@ class CatAdventure {
         this.camera.lookAt(lookAt);
     }
 
+    startGateCinematic(gate) {
+        if (!gate || this.isCinematicActive() || !this.player) return;
+        gate.updateWorldMatrix(true, false);
+        const lookAt = gate.getWorldPosition(new THREE.Vector3());
+        lookAt.y += 1.05;
+        const fromGateToPlayer = this.player.position.clone().sub(lookAt);
+        fromGateToPlayer.y = 0;
+        if (fromGateToPlayer.lengthSq() < 0.01) {
+            fromGateToPlayer.set(Math.sin(this.cameraYaw), 0, Math.cos(this.cameraYaw));
+        } else {
+            fromGateToPlayer.normalize();
+        }
+        const end = lookAt.clone().addScaledVector(fromGateToPlayer, 8.5);
+        end.y += 4.2;
+        this.cinematic = {
+            elapsed: 0,
+            duration: 3.6,
+            moveDuration: 0.7,
+            start: this.camera.position.clone(),
+            end,
+            lookAt,
+            title: "Gate Opened",
+            subtitle: "The path ahead is open",
+            fogNear: this.scene.fog?.near,
+            fogFar: this.scene.fog?.far
+        };
+    }
+
     updateCinematic(deltaSeconds) {
         const cinematic = this.cinematic;
         if (!cinematic) return;
         cinematic.elapsed += deltaSeconds;
-        const progress = Math.min(1, cinematic.elapsed / cinematic.duration);
+        const moveDuration = cinematic.moveDuration || cinematic.duration;
+        const progress = Math.min(1, cinematic.elapsed / moveDuration);
         // Smooth acceleration/deceleration gives the travel a calmer flyby.
         const eased = progress * progress * (3 - 2 * progress);
         this.camera.position.lerpVectors(cinematic.start, cinematic.end, eased);
         this.camera.lookAt(cinematic.lookAt);
 
-        if (progress < 1) return;
+        if (cinematic.elapsed < cinematic.duration) return;
         // Preserve the final view direction so the normal follow camera takes
         // over smoothly when player controls return.
         const playerTarget = this.player.position.clone();
@@ -2777,6 +2961,7 @@ class CatAdventureFakeShadows {
         this.yawQuaternion = new THREE.Quaternion();
         this.yAxis = new THREE.Vector3(0, 1, 0);
         this.offsetVector = new THREE.Vector3();
+        this.pawPosition = new THREE.Vector3();
         this.planeQuaternion = new THREE.Quaternion().setFromAxisAngle(
             new THREE.Vector3(1, 0, 0), -Math.PI / 2
         );
@@ -2813,6 +2998,28 @@ class CatAdventureFakeShadows {
         return null;
     }
 
+    findContactBones(object, typeId) {
+        const bones = [];
+        const contactBoneNames = typeId === "cat"
+            // The four lowest leg joints in cat.glb.
+            ? ["export-node-19", "export-node-23", "export-node-27", "export-node-31"]
+            // bug.glb is the spider asset. These are the six leg-tip joints,
+            // rather than its body pivot, which is well behind the spider.
+            : (typeId === "bug" || typeId === "spider")
+                ? ["export-node-6", "export-node-10", "export-node-14",
+                    "export-node-18", "export-node-22", "export-node-26"]
+                : null;
+        if (!contactBoneNames) return bones;
+        const contactBoneSet = new Set(contactBoneNames);
+        object.traverse(child => {
+            if (!child.isSkinnedMesh) return;
+            for (const bone of child.skeleton.bones) {
+                if (contactBoneSet.has(bone.name)) bones.push(bone);
+            }
+        });
+        return bones;
+    }
+
     makeEntry(object) {
         const config = this.game.fakeShadowConfig;
         this.bounds.setFromObject(object);
@@ -2822,10 +3029,7 @@ class CatAdventureFakeShadows {
         const type = object.userData.assetType || {};
         const typeId = String(type.id || type.name || "").toLowerCase();
         const footprint = config.footprints[typeId];
-        let followsSkinnedBounds = false;
-        object.traverse(child => {
-            followsSkinnedBounds ||= child.isSkinnedMesh;
-        });
+        const pawBones = this.findContactBones(object, typeId);
         const groundY = (this.game.ground?.position.y ?? this.worldPosition.y) + config.verticalOffset;
         this.offsetVector.set(
             (this.bounds.min.x + this.bounds.max.x) * 0.5 - this.worldPosition.x,
@@ -2834,6 +3038,7 @@ class CatAdventureFakeShadows {
         ).applyQuaternion(this.worldQuaternion.clone().invert());
         return {
             object,
+            pawBones,
             width: footprint?.width ?? Math.max(config.minSize, this.bounds.max.x - this.bounds.min.x + config.padding),
             depth: footprint?.depth ?? Math.max(config.minSize, this.bounds.max.z - this.bounds.min.z + config.padding),
             // Do not follow a jumping cat or a floating coin vertically. A
@@ -2843,10 +3048,7 @@ class CatAdventureFakeShadows {
             x: (this.bounds.min.x + this.bounds.max.x) * 0.5,
             z: (this.bounds.min.z + this.bounds.max.z) * 0.5,
             localCenterX: this.offsetVector.x,
-            localCenterZ: this.offsetVector.z,
-            // Bone animation can move a skinned model well away from its root.
-            // Re-read its posed bounds instead of reusing an offset from load.
-            followsSkinnedBounds
+            localCenterZ: this.offsetVector.z
         };
     }
 
@@ -2860,13 +3062,17 @@ class CatAdventureFakeShadows {
             let shadowX, shadowZ;
             entry.object.getWorldPosition(this.worldPosition);
             entry.object.getWorldQuaternion(this.worldQuaternion);
-            if (entry.followsSkinnedBounds) {
-                // A SkinnedMesh's geometry-space bounds come from its bind
-                // pose and may be offset from the visible character. The map
-                // object's origin is the authoritative gameplay position, so
-                // use it directly for the contact shadow.
-                shadowX = this.worldPosition.x;
-                shadowZ = this.worldPosition.z;
+            if (entry.pawBones.length) {
+                entry.object.updateWorldMatrix(true, true);
+                shadowX = 0;
+                shadowZ = 0;
+                for (const paw of entry.pawBones) {
+                    paw.getWorldPosition(this.pawPosition);
+                    shadowX += this.pawPosition.x;
+                    shadowZ += this.pawPosition.z;
+                }
+                shadowX /= entry.pawBones.length;
+                shadowZ /= entry.pawBones.length;
             } else {
                 this.offsetVector.set(entry.localCenterX, 0, entry.localCenterZ)
                     .applyQuaternion(this.worldQuaternion);
