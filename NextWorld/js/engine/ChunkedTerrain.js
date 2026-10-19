@@ -99,11 +99,17 @@ export class ChunkedTerrain {
     const count = positions.count;
     chunk.terrain ??= {};
     chunk.terrain.heights ??= [];
+    chunk.terrain.xOffsets ??= [];
+    chunk.terrain.zOffsets ??= [];
     chunk.terrain.colors ??= [];
     chunk.terrain.masks ??= [];
     while (chunk.terrain.heights.length < count) chunk.terrain.heights.push(0);
+    while (chunk.terrain.xOffsets.length < count) chunk.terrain.xOffsets.push(0);
+    while (chunk.terrain.zOffsets.length < count) chunk.terrain.zOffsets.push(0);
     while (chunk.terrain.colors.length < count) chunk.terrain.colors.push(this.config?.color ?? 0x638450);
     const heights = chunk.terrain.heights;
+    const xOffsets = chunk.terrain.xOffsets;
+    const zOffsets = chunk.terrain.zOffsets;
     const colors = chunk.terrain.colors;
     const masks = chunk.terrain?.masks ?? [];
     const colorAttribute = new THREE.BufferAttribute(new Float32Array(count * 3), 3);
@@ -111,7 +117,9 @@ export class ChunkedTerrain {
     const fallback = this.config?.color ?? 0x638450;
 
     for (let index = 0; index < count; index++) {
+      positions.setX(index, positions.getX(index) + (Number(xOffsets[index]) || 0));
       positions.setY(index, Number(heights[index]) || 0);
+      positions.setZ(index, positions.getZ(index) + (Number(zOffsets[index]) || 0));
       color.setHex(Number(colors[index]) || fallback);
       colorAttribute.setXYZ(index, color.r, color.g, color.b);
     }
@@ -376,6 +384,10 @@ setChunkDecorative(
       if (point.x + brushRadius < originX || point.x - brushRadius > originX + this.chunkSize || point.z + brushRadius < originZ || point.z - brushRadius > originZ + this.chunkSize) continue;
       const positions = mesh.geometry.getAttribute("position");
       const heights = chunk.terrain.heights;
+      const xOffsets = chunk.terrain.xOffsets ??= [];
+      const zOffsets = chunk.terrain.zOffsets ??= [];
+      while (xOffsets.length < positions.count) xOffsets.push(0);
+      while (zOffsets.length < positions.count) zOffsets.push(0);
       const before = mode === "smooth" ? heights.slice() : null;
       let tileChanged = false;
       for (let z = 0; z <= resolution; z++) for (let x = 0; x <= resolution; x++) {
@@ -390,11 +402,20 @@ setChunkDecorative(
           const neighbours = [index, x ? index - 1 : -1, x < resolution ? index + 1 : -1, z ? index - resolution - 1 : -1, z < resolution ? index + resolution + 1 : -1].filter(item => item >= 0);
           heights[index] += (neighbours.reduce((sum, item) => sum + (before[item] ?? 0), 0) / neighbours.length - heights[index]) * Math.min(1, amount * 3) * weight;
         } else if (mode === "rockify") {
-          // `amount` is stroke time/strength, so repeated passes build the
-          // same formation gradually instead of introducing random jitter.
-          heights[index] += amount * rockFormation(sampleX, sampleZ) * weight;
-        } else heights[index] += amount * weight;
-        positions.setY(index, heights[index]);
+          // Rockify spreads vertices horizontally. It deliberately leaves
+          // their saved height and Y coordinate untouched.
+          const displacement = amount * rockFormation(sampleX, sampleZ) * weight;
+          const angle = rockHash(sampleX * .37, sampleZ * .37) * Math.PI * 2;
+          const offsetX = Math.cos(angle) * displacement;
+          const offsetZ = Math.sin(angle) * displacement;
+          xOffsets[index] += offsetX*5.0;
+          zOffsets[index] += offsetZ*5.0;
+          positions.setX(index, positions.getX(index) + offsetX);
+          positions.setZ(index, positions.getZ(index) + offsetZ);
+        } else {
+          heights[index] += amount * weight;
+        }
+        if (mode !== "rockify") positions.setY(index, heights[index]);
         changed = true;
         tileChanged = true;
       }
@@ -435,13 +456,15 @@ setChunkDecorative(
       if (!tile) continue;
       const { chunk, mesh } = tile;
       const heights = chunk.terrain.heights;
+      const xOffsets = chunk.terrain.xOffsets ?? [];
+      const zOffsets = chunk.terrain.zOffsets ?? [];
       for (let z = 0; z <= resolution; z++) for (let x = 0; x <= resolution; x++) {
         if (x !== 0 && x !== resolution && z !== 0 && z !== resolution) continue;
         const key = `${chunk.x * resolution + x},${chunk.z * resolution + z}`;
         if (!targetVertexKeys.has(key)) continue;
         const index = z * width + x;
         const records = sharedVertices.get(key) ?? [];
-        records.push({ heights, positions: mesh.geometry.getAttribute("position"), index, chunkX: chunk.x, chunkZ: chunk.z });
+        records.push({ heights, xOffsets, zOffsets, positions: mesh.geometry.getAttribute("position"), index, chunkX: chunk.x, chunkZ: chunk.z });
         sharedVertices.set(key, records);
       }
     }
@@ -449,9 +472,17 @@ setChunkDecorative(
     for (const records of sharedVertices.values()) {
       if (records.length < 2) continue;
       const height = records.reduce((sum, record) => sum + (Number(record.heights[record.index]) || 0), 0) / records.length;
+      const xOffset = records.reduce((sum, record) => sum + (Number(record.xOffsets[record.index]) || 0), 0) / records.length;
+      const zOffset = records.reduce((sum, record) => sum + (Number(record.zOffsets[record.index]) || 0), 0) / records.length;
       for (const record of records) {
         record.heights[record.index] = height;
+        const previousXOffset = Number(record.xOffsets[record.index]) || 0;
+        const previousZOffset = Number(record.zOffsets[record.index]) || 0;
+        record.xOffsets[record.index] = xOffset;
+        record.zOffsets[record.index] = zOffset;
+        record.positions.setX(record.index, record.positions.getX(record.index) + xOffset - previousXOffset);
         record.positions.setY(record.index, height);
+        record.positions.setZ(record.index, record.positions.getZ(record.index) + zOffset - previousZOffset);
         record.positions.needsUpdate = true;
       }
     }
