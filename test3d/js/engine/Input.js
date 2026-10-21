@@ -1,8 +1,13 @@
 export class Input {
   constructor(canvas) {
     this.keys = new Set();
+    this.pressedKeys = new Set();
     this.pointer = { x: 0, y: 0, dx: 0, dy: 0, primaryDown: false, secondaryDown: false, pressed: false, released: false, wheel: 0 };
-    window.addEventListener("keydown", event => this.keys.add(event.key.toLowerCase()));
+    window.addEventListener("keydown", event => {
+      const key = event.key.toLowerCase();
+      if (!this.keys.has(key)) this.pressedKeys.add(key);
+      this.keys.add(key);
+    });
     window.addEventListener("keyup", event => this.keys.delete(event.key.toLowerCase()));
     canvas.addEventListener("contextmenu", event => event.preventDefault());
     canvas.addEventListener("pointerdown", event => {
@@ -26,6 +31,7 @@ export class Input {
     this.pointer.dx += x - this.pointer.x; this.pointer.dy += y - this.pointer.y;
     this.pointer.x = x; this.pointer.y = y;
   }
-  endFrame() { Object.assign(this.pointer, { dx: 0, dy: 0, pressed: false, released: false, wheel: 0 }); }
+  endFrame() { this.pressedKeys.clear(); Object.assign(this.pointer, { dx: 0, dy: 0, pressed: false, released: false, wheel: 0 }); }
   down(key) { return this.keys.has(key.toLowerCase()); }
+  pressed(key) { return this.pressedKeys.has(key.toLowerCase()); }
 }

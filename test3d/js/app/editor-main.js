@@ -10,6 +10,8 @@ app.scene.background = new THREE.Color(0x8fb3d9);
 // A 200m terrain reaches its edge about 100m from its centre. End fog before
 // that edge so geometry actually dissolves into the shader sky.
 app.scene.fog = new THREE.Fog(0x8fb3d9, 90, 190);
+app.scene.fog.near = 215;
+app.scene.fog.far = 225;
 app.addDefaultLighting();
 const grid = new THREE.GridHelper(100, 100, 0x58796a, 0x425a50); grid.position.y = .015; app.scene.add(grid);
 app.editorGrid = grid;

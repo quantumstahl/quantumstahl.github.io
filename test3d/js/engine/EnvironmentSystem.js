@@ -19,7 +19,10 @@ export class EnvironmentSystem {
     // Match the authoring preview's readable direct/ambient balance. The
     // stronger sky fill prevents low-poly foliage from turning nearly black
     // on faces turned away from the sun.
-    this.sunIntensity = 3.0;
+    this.sunIntensity = 0.5;
+    // Keep directional silhouettes readable, while allowing enough sky fill
+    // through them that foliage and terrain do not crush to near-black.
+    this.shadowStrength = 0.50;
     // Kept deliberately below sunlight, but non-zero so the night shadow map
     // has a visible result when the moon becomes the active caster.
     this.moonIntensity = 0.35;
@@ -50,9 +53,9 @@ export class EnvironmentSystem {
     // EnvironmentSystem is created by MapLoader, so the mobile profile is
     // owned by ThreeApp and published on window for shared render systems.
     const shadowSize = window.mobileProfile ? 2048 : 4096;
-    this.moon.shadow.mapSize.set(shadowSize, shadowSize); this.moon.shadow.camera.left = this.moon.shadow.camera.bottom = -80; this.moon.shadow.camera.right = this.moon.shadow.camera.top = 80;
+    this.moon.shadow.mapSize.set(shadowSize, shadowSize); this.moon.shadow.camera.left = this.moon.shadow.camera.bottom = -215; this.moon.shadow.camera.right = this.moon.shadow.camera.top = 215;
     this.moon.shadow.camera.near = 1;
-    this.moon.shadow.camera.far = 250;
+    this.moon.shadow.camera.far = 500;
     this.moon.shadow.bias = 0.0005;
     this.moon.shadow.normalBias = 0.06;
 
@@ -159,7 +162,7 @@ export class EnvironmentSystem {
       // A sun almost level with the terrain creates kilometre-long, hard
       // shadow-map silhouettes. Keep the dawn/dusk light colour, but fade
       // real shadows until the sun has enough altitude to look intentional.
-      this.sun.shadow.intensity = THREE.MathUtils.smoothstep(this.sunDirection.y, 0.08, 0.24);
+      this.sun.shadow.intensity = this.shadowStrength * THREE.MathUtils.smoothstep(this.sunDirection.y, 0.08, 0.24);
       // Grazing light magnifies shadow-map precision error across the broad,
       // smooth terrain surface. Increase only the normal offset at dawn/dusk
       // to prevent triangular self-shadow bands without weakening midday
@@ -173,7 +176,7 @@ export class EnvironmentSystem {
     // Moonlight should reveal the terrain without reading as a second sun.
     this.moon.intensity = this.moonIntensity * moonlight;
     this.moon.visible = moonlight > 0.001;
-    this.moon.shadow.intensity = THREE.MathUtils.smoothstep(this.moonDirection.y, 0.08, 0.24);
+    this.moon.shadow.intensity = this.shadowStrength * THREE.MathUtils.smoothstep(this.moonDirection.y, 0.08, 0.24);
     const grazingMoon = 1 - THREE.MathUtils.smoothstep(Math.abs(this.moonDirection.y), 0.06, 0.35);
     this.moon.shadow.normalBias = 0.06 + grazingMoon * 0.18;
     this.moon.updateMatrixWorld();

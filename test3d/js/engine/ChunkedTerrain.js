@@ -19,6 +19,19 @@ export class ChunkedTerrain {
     this.textureLoader = new THREE.TextureLoader();
     this.textures = new Map();
     this.placeholderTexture = new THREE.Texture();
+    this.cliffRockTexture = null;
+    this.textureLoader.load("assets/rockrock.png", texture => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      texture.anisotropy = 8;
+      this.cliffRockTexture = texture;
+      for (const { mesh } of this.tiles.values()) {
+        const material = mesh.userData.cliffWall?.material;
+        if (!material) continue;
+        material.map = texture;
+        material.needsUpdate = true;
+      }
+    });
     this.surfaceRaycaster = new THREE.Raycaster();
     this.time = 0;
     this.sun= 0.84375;
@@ -320,6 +333,97 @@ setChunkDecorative(
     }
 }
 
+  // Build the vertical rock faces for raised decorative-border edges. The
+  // hill generator keeps the top heights in terrain.heights and the original
+  // playable-edge heights in terrain.cliffEdges; this mesh joins the two.
+  updateCliffWall(chunk) {
+    const tile = this.tiles.get(this.key(chunk?.x, chunk?.z));
+    if (!tile?.mesh) return null;
+    const mesh = tile.mesh;
+    const previous = mesh.userData.cliffWall;
+    if (previous) {
+      mesh.remove(previous);
+      previous.geometry.dispose();
+      previous.material.dispose();
+      delete mesh.userData.cliffWall;
+    }
+
+    const edges = chunk.terrain?.cliffEdges;
+    const heights = chunk.terrain?.heights;
+    const positions = mesh.geometry.getAttribute("position");
+    const resolution = this.config?.resolution ?? 50;
+    const width = resolution + 1;
+    if (!edges || !heights || !positions) return null;
+
+    const vertexFor = (edge, index) => {
+      if (edge === 0) return index * width;
+      if (edge === 1) return index * width + resolution;
+      if (edge === 2) return resolution * width + index;
+      return index;
+    };
+    const vertices = [];
+    const uvs = [];
+    const thickness = .22;
+    const pushQuad = (a, b, c, d, u0, u1, v0, v1) => {
+      vertices.push(...a, ...b, ...c, ...a, ...c, ...d);
+      uvs.push(u0, v0, u1, v0, u1, v1, u0, v0, u1, v1, u0, v1);
+    };
+    const outward = [[-1, 0], [1, 0], [0, 1], [0, -1]];
+    for (let edge = 0; edge < 4; edge++) {
+      const bottoms = edges[edge] ?? [];
+      for (let index = 0; index < resolution; index++) {
+        const rawBottomA = bottoms[index];
+        const rawBottomB = bottoms[index + 1];
+        if (!Number.isFinite(rawBottomA) || !Number.isFinite(rawBottomB)) continue;
+        const bottomA = Number(rawBottomA);
+        const bottomB = Number(rawBottomB);
+        const first = vertexFor(edge, index), second = vertexFor(edge, index + 1);
+        const ax = positions.getX(first), az = positions.getZ(first);
+        const bx = positions.getX(second), bz = positions.getZ(second);
+        const topA = positions.getY(first), topB = positions.getY(second);
+        const [normalX, normalZ] = outward[edge];
+        const offsetX = normalX * thickness, offsetZ = normalZ * thickness;
+        const innerBottomA = [ax, bottomA, az], innerBottomB = [bx, bottomB, bz];
+        const innerTopA = [ax, topA, az], innerTopB = [bx, topB, bz];
+        const outerBottomA = [ax + offsetX, bottomA, az + offsetZ], outerBottomB = [bx + offsetX, bottomB, bz + offsetZ];
+        const outerTopA = [ax + offsetX, topA, az + offsetZ], outerTopB = [bx + offsetX, topB, bz + offsetZ];
+        const along = Math.hypot(bx - ax, bz - az);
+        const tall = Math.max(topA - bottomA, topB - bottomB, .01);
+        const u0 = index * along * .18, u1 = (index + 1) * along * .18;
+        const v1 = tall * .18;
+        // Front/back, crest, and bottom make the cliff a shallow rock slab
+        // rather than a paper-thin wall.
+        pushQuad(innerBottomA, innerBottomB, innerTopB, innerTopA, u0, u1, 0, v1);
+        pushQuad(outerBottomB, outerBottomA, outerTopA, outerTopB, u0, u1, 0, v1);
+        pushQuad(innerTopA, innerTopB, outerTopB, outerTopA, u0, u1, 0, thickness * .5);
+        pushQuad(outerBottomA, outerBottomB, innerBottomB, innerBottomA, u0, u1, 0, thickness * .5);
+      }
+    }
+    if (!vertices.length) return null;
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.computeVertexNormals();
+    const material = new THREE.MeshStandardMaterial({
+      // MeshStandardMaterial multiplies map pixels by its colour. Keep this
+      // neutral so rockrock.png is not tinted brown/darkened.
+      color: 0xffffff,
+      map: this.cliffRockTexture,
+      roughness: 1,
+      metalness: 0,
+      fog: true,
+      side: THREE.DoubleSide
+    });
+    const wall = new THREE.Mesh(geometry, material);
+    wall.name = `Decorative cliff wall ${chunk.x},${chunk.z}`;
+    wall.castShadow = true;
+    wall.receiveShadow = true;
+    mesh.add(wall);
+    mesh.userData.cliffWall = wall;
+    return wall;
+  }
+
   unloadChunk(x, z) {
     const key = this.key(x, z);
     const tile = this.tiles.get(key);
@@ -380,6 +484,37 @@ setChunkDecorative(
       THREE.MathUtils.lerp(heightAt(x0, z1), heightAt(x1, z1), tx),
       tz
     );
+  }
+
+  // Heightfield sampling is fast, but Rockify can move terrain sideways and
+  // create an overhang. The player needs the highest rendered surface at its
+  // X/Z position so those authored stone bridges are solid underfoot.
+  getSurfaceHeightAt(point, maxSurfaceY = Infinity) {
+    // Rockify can extend a face beyond its source tile. Test the local 3×3
+    // tile neighbourhood, rather than only the chunk containing the X/Z
+    // coordinate, so an overhanging bridge remains solid across a seam.
+    const chunkX = Math.floor(point.x / this.chunkSize);
+    const chunkZ = Math.floor(point.z / this.chunkSize);
+    const meshes = [];
+    for (let offsetZ = -1; offsetZ <= 1; offsetZ++) {
+      for (let offsetX = -1; offsetX <= 1; offsetX++) {
+        const mesh = this.tiles.get(this.key(chunkX + offsetX, chunkZ + offsetZ))?.mesh;
+        if (!mesh) continue;
+        // Player setup runs before the first renderer frame, so make every
+        // candidate transform current before asking Raycaster to use it.
+        mesh.updateWorldMatrix(true, false);
+        meshes.push(mesh);
+      }
+    }
+    if (!meshes.length) return this.getHeightAt(point);
+    this.surfaceRaycaster.ray.origin.set(point.x, 10000, point.z);
+    this.surfaceRaycaster.ray.direction.set(0, -1, 0);
+    // Intersections are nearest-first from the sky. Ignore bridge decks that
+    // are above the actor's feet, then return the highest surface it can
+    // actually stand on. This keeps the space beneath an arch walkable.
+    const hit = this.surfaceRaycaster.intersectObjects(meshes, false)
+      .find(candidate => candidate.point.y <= maxSurfaceY);
+    return hit?.point.y ?? this.getHeightAt(point);
   }
 
   sculpt(point, radius, amount, mode, flattenHeight = 0, rockStamp = null) {
@@ -484,7 +619,7 @@ const displacement = amount * rockProfile * 1.4;
           xOffsets[index] += offsetX;
           heights[index] += offsetY*0.0;
           zOffsets[index] += offsetZ;
-          rockifyExposure[index] += displacement/5.0;
+          rockifyExposure[index] += displacement/10.0;
           positions.setX(index, positions.getX(index) + offsetX);
           positions.setY(index, positions.getY(index) + offsetY*0.0);
           positions.setZ(index, positions.getZ(index) + offsetZ);
@@ -979,11 +1114,15 @@ float cliffShade = 1.0 - smoothstep(0.58, 0.74, abs(terrainFaceNormal.y));
 float rockOutward = max(0.0, vTerrainRockExposure);
 float rockInward = max(0.0, -vTerrainRockExposure);
 float outwardLight = 0.0;// 1.0 - exp(-rockOutward  * 0.5);
-float inwardOcclusion = 1.0 - exp(-rockInward * 1.00);
+float inwardOcclusion = 1.0 - exp(-rockInward *2.0);
 // Fade the entire facet contribution in a deep stamp. This hides the mesh's
 // thin normal/triangle streaks instead of making them visible as dark bands.
-float facetLight = (0.5 + outwardLight) * (1.0 - inwardOcclusion * 0.82);
-float facetLight2 = 0.68 + 0.32 * max(0.0, dot(terrainFaceNormal, normalize(vec3(-0.45, 0.78, 0.42))));
+//float facetLight = (0.5 + outwardLight) * (1.0 - inwardOcclusion * 1.00);
+//float facetLight2 = 0.68 + 0.32 * max(0.0, dot(terrainFaceNormal, normalize(vec3(-0.45, 0.78, 0.42))));
+
+float facetLight = (0.50 + 0.25 * max(0.0, dot(terrainFaceNormal, normalize(vec3(-0.45, 0.78, 0.42))))+ outwardLight)* (1.0 - inwardOcclusion * 1.00);
+
+
 // Texture-free broad forms keep the cliff modern and painted, not like a
 // repeating rock-wall wallpaper. The variation is deliberately low-frequency.
 float cliffMacro = 0.5 + 0.26 * sin(dot(vWorldPosition.xz, vec2(0.066, 0.042))) + 0.24 * sin(dot(vWorldPosition.xz, vec2(-0.030, 0.059)));
@@ -992,13 +1131,9 @@ cliffShade = smoothstep(0.0, 1.0, cliffShade + (cliffMacro - 0.5) * 0.07);
 // spaced stripes. Most breakup comes from broad sideways rock patches.
 float cliffStrata = 0.91 + 0.09 * sin(vWorldPosition.y * 0.5 + sin(dot(vWorldPosition.xz, vec2(0.041, -0.030))) * 2.1);
 float cliffPatch = smoothstep(0.34, 0.76, sin(dot(vWorldPosition.xz, vec2(0.047, -0.039))) + 0.48 * sin(dot(vWorldPosition.xz, vec2(-0.064, -0.022)) + vWorldPosition.y * 0.075));
-vec3 rockColor = mix(vec3(0.831, 0.710, 0.498), vec3(0.659, 0.565, 0.396), cliffMacro) * cliffStrata * facetLight*facetLight2;
+vec3 rockColor = (mix(vec3(0.831, 0.710, 0.498), vec3(0.659, 0.565, 0.396), cliffMacro) * cliffStrata) * facetLight;
 rockColor = mix(rockColor, vec3(0.31, 0.27, 0.24) * cliffStrata, cliffPatch * 0.40);
-// Deep inward stamps use a uniform occlusion tone, deliberately suppressing
-// macro/facet variation that would expose the underlying terrain triangles.
-rockColor = mix(rockColor, vec3(0.105, 0.092, 0.080), inwardOcclusion * 0.88);
-float mossBand = smoothstep(0.16, 0.48, cliffShade) * (1.0 - smoothstep(0.46, 0.82, cliffShade));
-rockColor = mix(rockColor, vec3(0.31, 0.43, 0.21), mossBand * 0.34);
+
 
 
 vec3 n = normalize(cross(dFdx(vWorldPosition), dFdy(vWorldPosition)));

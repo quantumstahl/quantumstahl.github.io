@@ -68,7 +68,7 @@ export class AssetManager {
             }
           }
         });
-        if (/(?:träd|trad|tree)/i.test(path)) this.addTreeLife(scene);
+        if (/(?:träd|trad|tree|gran)/i.test(path)) this.addTreeLife(scene);
         return scene;
       }));
     }
@@ -139,43 +139,70 @@ export class AssetManager {
               `
             )
             .replace(
-              "#include <begin_vertex>",
-              `
-              #include <begin_vertex>
-              float treeFoliage = smoothstep(
-                uTreeFoliageStart,
-                uTreeFoliageStart + uTreeFoliageFade,
-                position.y
-              );
-              vec3 treeWindAnchor = modelMatrix[3].xyz;
-              #ifdef USE_INSTANCING
-                treeWindAnchor += instanceMatrix[3].xyz;
-              #endif
-              float treePhase = uTreeWindTime * 1.00
-                + treeWindAnchor.x * 50.19
-                + treeWindAnchor.z * 50.14;
-              // Same two motion layers as MaxPaint V4's generated leaves:
-              // a slow rotation of the full crown, then faster leaf flutter.
-              // The foliage mask keeps the trunk fixed.
-              vec3 treeCrown = transformed - uTreeFoliageCenter;
-              float canopyPitch = sin(uTreeWindTime * 0.85 + treePhase) * 0.01225;
-              float canopyYaw = sin(uTreeWindTime * 0.57 + treePhase) * 0.007;
-              float canopyRoll = cos(uTreeWindTime * 0.72 + treePhase) * 0.01575;
-              treeCrown.yz = mat2(cos(canopyPitch), -sin(canopyPitch), sin(canopyPitch), cos(canopyPitch)) * treeCrown.yz;
-              treeCrown.xz = mat2(cos(canopyYaw), -sin(canopyYaw), sin(canopyYaw), cos(canopyYaw)) * treeCrown.xz;
-              treeCrown.xy = mat2(cos(canopyRoll), -sin(canopyRoll), sin(canopyRoll), cos(canopyRoll)) * treeCrown.xy;
-              vec3 swayedCrown = treeCrown + uTreeFoliageCenter;
-              transformed = mix(transformed, swayedCrown, treeFoliage);
+  "#include <begin_vertex>",
+  `
+  #include <begin_vertex>
 
-              float leafPhase = fract(sin(dot(position.xz, vec2(12.9898, 78.233))) * 43758.5453) * 6.2831853;
-              float flutterX = sin(uTreeWindTime * 2.35 + leafPhase) * 0.042;
-              float flutterY = cos(uTreeWindTime * 1.73 + leafPhase) * 0.028;
-              float flutterZ = sin(uTreeWindTime * 2.90 + leafPhase) * 0.056;
-              transformed += vec3(flutterX, flutterY, flutterZ) * treeFoliage;
-              vTreeFoliage = treeFoliage;
+  // Mask for foliage, keeping the trunk stable.
+  float treeFoliage = smoothstep(
+    uTreeFoliageStart,
+    uTreeFoliageStart + max(uTreeFoliageFade, 0.001),
+    position.y
+  );
 
-              `
-            );
+  vec3 treeWindAnchor = modelMatrix[3].xyz;
+
+  #ifdef USE_INSTANCING
+    treeWindAnchor +=
+      (modelMatrix * instanceMatrix)[3].xyz
+      - modelMatrix[3].xyz;
+  #endif
+
+  // Different phase for each tree.
+  float treePhase =
+    treeWindAnchor.x * 0.173 +
+    treeWindAnchor.z * 0.217;
+
+  float t = uTreeWindTime;
+
+  // Slow wind with a subtle secondary variation.
+  float wind =
+    sin(t * 0.85 + treePhase) * 2.75 +
+    sin(t * 1.37 + treePhase * 3.31) * 0.25;
+
+  // Sway the whole crown around its base.
+  vec3 crown = transformed - uTreeFoliageCenter;
+
+  float sway = wind * 0.018;
+
+  float cs = cos(sway);
+  float sn = sin(sway);
+
+  crown.xy = mat2(
+    cs, -sn,
+    sn,  cs
+  ) * crown.xy;
+
+  transformed = mix(
+    transformed,
+    crown + uTreeFoliageCenter,
+    treeFoliage
+  );
+
+  // Very subtle branch movement.
+  // No individual leaf flutter.
+  float branchMotion =
+    sin(t * 1.65 + treePhase + position.y * 1.8)
+    * 0.008;
+
+  transformed.xz +=
+    normalize(position.xz + vec2(0.0001))
+    * branchMotion
+    * treeFoliage;
+
+  vTreeFoliage = treeFoliage;
+  `
+);
 
           shader.fragmentShader = shader.fragmentShader
             .replace(
@@ -194,7 +221,7 @@ export class AssetManager {
               `
 
 
-gl_FragColor.rgb *=0.5;              
+            
 vec3 leaf = gl_FragColor.rgb ;
 
 // 1. Gör om till gråskala / ljushetsvärde
@@ -212,8 +239,8 @@ vec3 treeMoonTint  = vec3(0.192, 0.239, 0.380);   // ljusare månljus
 vec3 tintedNight = mix(treeNightTint, treeMoonTint, luma);
 
 // 4. Blanda in på natten
-gl_FragColor.rgb = mix(gl_FragColor.rgb, tintedNight, (uTreeNightAmount*0.9) );
-gl_FragColor.rgb *=(((-uTreeNightAmount)*0.20)+1.0);
+gl_FragColor.rgb = mix(gl_FragColor.rgb, tintedNight, (uTreeNightAmount*0.5) );
+gl_FragColor.rgb *=(((-uTreeNightAmount)*0.30)+1.0);
 
 
 

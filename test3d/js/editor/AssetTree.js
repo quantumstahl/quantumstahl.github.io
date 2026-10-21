@@ -59,6 +59,12 @@ export class AssetTree {
         typeRow.addEventListener("contextmenu", event => {
           event.preventDefault(); event.stopPropagation(); this.openTypeMenu(event, type);
         });
+        const collision = document.createElement("button");
+        collision.textContent = "C";
+        const collisionMode = type.collision ?? "solid";
+        collision.title = `Collision: ${this.collisionLabel(collisionMode)}. Click to choose`;
+        collision.classList.add("collision-control", `collision-${collisionMode}`);
+        collision.addEventListener("click", event => { event.stopPropagation(); this.openCollisionMenu(event, type); });
         const brush = document.createElement("button"); brush.textContent = "B"; brush.title = "Choose for Brush";
         brush.addEventListener("click", event => { event.stopPropagation(); this.editor.setBrushType(type); });
         const shadowMode = type.render.shadowMode ?? (type.render.castShadow ? "real" : "none");
@@ -67,7 +73,7 @@ export class AssetTree {
         shadow.addEventListener("click", event => { event.stopPropagation(); this.editor.cycleTypeShadowMode(type); });
         const add = document.createElement("button"); add.textContent = "+"; add.title = "Add an instance";
         add.addEventListener("click", event => { event.stopPropagation(); this.editor.addInstance(type); });
-        typeRow.append(brush, shadow, add); this.panel.append(typeRow);
+        typeRow.append(collision, brush, shadow, add); this.panel.append(typeRow);
         if (!typeOpen) continue;
         const visibleCount = this.visibleInstanceCounts.get(type.id) ?? 10;
         type.instances.slice(0, visibleCount).forEach((instance, index) => {
@@ -124,6 +130,33 @@ export class AssetTree {
     menu.append(remove);
     menu.style.left = `${Math.min(event.clientX, window.innerWidth - 210)}px`;
     menu.style.top = `${Math.min(event.clientY, window.innerHeight - 50)}px`;
+    document.body.append(menu); this.contextMenu = menu;
+  }
+  collisionLabel(mode) {
+    return ({ solid: "Solid", wall: "Wall", floor: "Floor", "floor-posts": "Floor + posts", ghost: "Ghost", trigger: "Trigger", none: "None" })[mode] ?? "Solid";
+  }
+  openCollisionMenu(event, type) {
+    this.closeContextMenu();
+    const menu = document.createElement("div");
+    menu.className = "tree-context-menu tree-collision-menu";
+    const modes = [
+      ["solid", "Solid — blocks the player"],
+      ["wall", "Wall — blocks the player"],
+      ["floor", "Floor — walkable only"],
+      ["floor-posts", "Floor + posts — only tall parts block"],
+      ["ghost", "Ghost — contact only"],
+      ["trigger", "Trigger — event volume"],
+      ["none", "None — no collision"]
+    ];
+    for (const [mode, label] of modes) {
+      const option = document.createElement("button");
+      option.textContent = label;
+      option.classList.toggle("is-current", (type.collision ?? "solid") === mode);
+      option.addEventListener("click", () => { this.closeContextMenu(); this.editor.setTypeCollision(type, mode); });
+      menu.append(option);
+    }
+    menu.style.left = `${Math.min(event.clientX, window.innerWidth - 235)}px`;
+    menu.style.top = `${Math.min(event.clientY, window.innerHeight - 260)}px`;
     document.body.append(menu); this.contextMenu = menu;
   }
   openTerrainMenu(event) {

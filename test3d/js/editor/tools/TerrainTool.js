@@ -22,8 +22,6 @@ export class TerrainTool {
           : "Rockify Out: extrude along the rock face. Hold Shift for Rockify In.";
       }
     }
-    const isGrassMode = this.editor.terrainMode === "grass" || this.editor.terrainMode === "eraseGrass";
-    this.editor.mapLoader.setGrassPainting(isGrassMode && input.pointer.primaryDown && !input.pointer.secondaryDown);
     const step = delta * (input.down("shift") ? 12 : 3);
     if (input.down("q")) this.setRadius(this.radius - step);
     if (input.down("e")) this.setRadius(this.radius + step);

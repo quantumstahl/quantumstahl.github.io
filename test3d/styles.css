@@ -31,12 +31,17 @@ canvas { display: block; width: 100vw; height: 100vh; margin: 0;
 .hud { top: 16px; left: 16px; padding: 10px 14px; border-radius: 8px; display: grid; gap: 3px; }
 .game-page .hud { display: none; }
 .mobile-joystick { display: none; }
+.mobile-paw-button { display: none; }
 @media (pointer: coarse) {
   .mobile-joystick { display: block; position: fixed; z-index: 5; inset: 0 auto 0 0; width: 48vw; pointer-events:auto;user-select:none; }
   .mobile-joystick__base, .mobile-joystick__knob { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); }
   .mobile-joystick__base { display: none; width: 75px; height: 75px; border: 2px solid rgb(255 255 255 / .8); background: rgb(20 41 30 / .22); box-shadow: 0 3px 16px rgb(0 0 0 / .25); }
   .mobile-joystick.is-active .mobile-joystick__base { display: block; }
   .mobile-joystick__knob { left: 50%; top: 50%; width: 34px; height: 34px; border: 2px solid rgb(255 255 255 / .9); background: radial-gradient(circle at 35% 30%, #f45b5b, #65151b); transition: transform .03s linear; }
+  .mobile-paw-button { display: grid; place-items: center; position: fixed; z-index: 6; right: max(28px, env(safe-area-inset-right)); bottom: max(80px, calc(env(safe-area-inset-bottom) + 24px)); width: 76px; height: 76px; padding: 0; border: 2px solid rgb(255 255 255 / .88); border-radius: 50%; background: radial-gradient(circle at 35% 28%, #ff6570, #a41120 72%); box-shadow: 0 5px 20px rgb(0 0 0 / .35); touch-action: none; }
+  .mobile-paw-button:active { transform: scale(.93); background: radial-gradient(circle at 35% 28%, #9199a1, #3f4852 72%); }
+  .mobile-paw-button svg { width: 57px; height: 57px; filter: drop-shadow(0 1px 1px rgb(0 0 0 / .28)); }
+  .mobile-paw-button .paw-pad, .mobile-paw-button .paw-toe { fill: rgb(255 255 255 / .94); }
 }
 .hud span, #editorStatus { color: #b7c8d8; font-size: .84rem; }
 .editor-bar { inset: 0 0 auto; height: 46px; display: flex; align-items: center; gap: 8px; padding: 8px 12px; }
@@ -59,9 +64,16 @@ button.is-active { border-color: #ffd34f; background: #526073; color: #fff3b1; }
 .tree-row button + button { margin-left: 0; }
 .tree-row button.is-enabled { border-color: #e3c267; color: #fff0aa; background: #594e2d; }
 .tree-row button.is-fake { border-color: #8bb5d6; color: #d7efff; background: #294a61; }
+.tree-row button.collision-control { min-width: 29px; font-weight: 700; }
+.tree-row button.collision-solid, .tree-row button.collision-wall, .tree-row button.collision-floor-posts { border-color: #d68066; color: #ffe0d4; background: #66372e; }
+.tree-row button.collision-floor { border-color: #7eae78; color: #d9f4d2; background: #315433; }
+.tree-row button.collision-ghost, .tree-row button.collision-trigger { border-color: #7faed3; color: #d6efff; background: #294a61; }
+.tree-row button.collision-none { border-color: #657889; color: #aebbc6; background: #2a3640; }
 .tree-layer { margin-top: 6px; font-weight: 600; }.tree-type { padding-left: 14px; }.tree-instance { padding-left: 29px; color: #c7d4df; }
 .tree-actions { display: flex; gap: 5px; padding-top: 9px; }.tree-actions button { flex: 1; }
 .tree-more { width: calc(100% - 28px); margin: 4px 0 4px 28px; padding: 4px 6px; font-size: .72rem; color: #c8ddef; }
 .tree-context-menu { position: fixed; z-index: 10; min-width: 200px; padding: 5px; border: 1px solid #607a90; border-radius: 6px; background: #172635; box-shadow: 0 8px 22px rgb(0 0 0 / .35); }
 .tree-context-menu button { width: 100%; border-color: #8b5861; background: #58313a; text-align: left; }
 .tree-context-menu button:hover { background: #7a424e; }
+.tree-context-menu.tree-collision-menu button { border-color: #4f6b80; background: #243d51; }
+.tree-context-menu.tree-collision-menu button:hover, .tree-context-menu.tree-collision-menu button.is-current { background: #386285; }

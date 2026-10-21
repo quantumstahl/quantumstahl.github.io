@@ -6,6 +6,7 @@ import { Input } from "../engine/Input.js";
 import { PlayerController } from "../game/PlayerController.js";
 import { HorsePatrolController } from "../game/HorsePatrolController.js";
 import { TouchJoystick } from "../game/TouchJoystick.js";
+import { CatAdventure } from "../../CatAdventure.js";
 
 const isMobile = {Android: function() { return navigator.userAgent.match(/Android/i); },BlackBerry: function() { return navigator.userAgent.match(/BlackBerry/i); },iOS: function() { return navigator.userAgent.match(/iPhone|iPod/i); },Opera: function() { return navigator.userAgent.match(/Opera Mini/i); },Windows: function() { return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i); },any: function() {return (isMobile.Android() ||isMobile.BlackBerry() ||isMobile.iOS() ||isMobile.Opera() ||isMobile.Windows() ||(navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints &&navigator.maxTouchPoints > 1));}};
 
@@ -14,8 +15,8 @@ const app = new ThreeApp(document.querySelector("#gameCanvas"),isMobile.any());
 // background when it is created, while the fog remains visible on terrain.
 app.scene.background = new THREE.Color(0x8fb3d9);
 app.scene.fog = new THREE.Fog(0x8fb3d9, 90, 190);
-app.scene.fog.near = 75;
-app.scene.fog.far = 85;
+app.scene.fog.near = 215;
+app.scene.fog.far = 225;
 app.addDefaultLighting();
 app.camera.position.set(12, 10, 16); app.camera.lookAt(0, 0, 0);
 
@@ -37,10 +38,12 @@ const player = new PlayerController({ mapLoader, input, camera: app.camera, joys
 const horsePatrol = new HorsePatrolController({ mapLoader });
 const hasPlayer = player.attach();
 const hasHorsePatrol = horsePatrol.attach();
+const catAdventure = new CatAdventure({ playerController: player, input });
 if (hasPlayer) status.textContent = "Use WASD, arrow keys, or the mobile joystick to move the cat";
 else if (hasHorsePatrol) status.textContent = "Horse patrol active between the two Box markers";
 else status.textContent = "No cat player or horse patrol markers found in this map";
 app.start(delta => {
+  app.performanceInfo.measure("Gameplay", () => catAdventure.update(delta));
   app.performanceInfo.measure("Player", () => player.update(delta));
   app.performanceInfo.measure("Horse patrol", () => horsePatrol.update(delta));
   app.performanceInfo.measure("World", () => mapLoader.update(delta, app.camera));

@@ -135,7 +135,7 @@ export class ChunkSystem {
   async load(key) {
     const objects = await this.loadChunk(this.entries.get(key) ?? [], key);
     // The camera may have crossed another chunk while assets were loading.
-    // Retain only objects that belong to the current 5x5 window.
+    // Retain only objects that belong to the current active window.
     const [x, z] = key.split(",").map(Number);
     const [centerX, centerZ] = (this.currentKey ?? "0,0").split(",").map(Number);
     if (Math.abs(x - centerX) > this.radius || Math.abs(z - centerZ) > this.radius) {

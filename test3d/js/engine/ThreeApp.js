@@ -33,9 +33,9 @@ export class ThreeApp {
     // remains on layer 0, while this shadow camera renders both layers.
     sun.shadow.camera.layers.enable(1);
     const shadowSize = this.mobileProfile ? 2048  : 4096;
-    sun.shadow.mapSize.set(shadowSize, shadowSize); sun.shadow.camera.left = sun.shadow.camera.bottom = -80; sun.shadow.camera.right = sun.shadow.camera.top = 80;
+    sun.shadow.mapSize.set(shadowSize, shadowSize); sun.shadow.camera.left = sun.shadow.camera.bottom = -215; sun.shadow.camera.right = sun.shadow.camera.top = 215;
     sun.shadow.camera.near = 1;
-    sun.shadow.camera.far = 250;
+    sun.shadow.camera.far = 500;
     // A positive bias avoids terrain self-shadowing; EnvironmentSystem raises
     // normalBias further only while the sun is near the horizon.
     sun.shadow.bias = 0.0005;

@@ -5,21 +5,6 @@
   "chunkRadius": 2,
   "chunks": [
     {
-      "x": -2,
-      "z": -2,
-      "decorative": true
-    },
-    {
-      "x": -1,
-      "z": -2,
-      "decorative": true
-    },
-    {
-      "x": 0,
-      "z": -2,
-      "decorative": true
-    },
-    {
       "x": 1,
       "z": -2,
       "decorative": true
@@ -28,11 +13,6 @@
       "x": 2,
       "z": -2,
       "decorative": true
-    },
-    {
-      "x": -2,
-      "z": -1,
-      "decorative": false
     },
     {
       "x": -1,
@@ -52,12 +32,12 @@
     {
       "x": 2,
       "z": -1,
-      "decorative": true
+      "decorative": false
     },
     {
       "x": -2,
       "z": 0,
-      "decorative": false
+      "decorative": true
     },
     {
       "x": -1,
@@ -77,11 +57,6 @@
     {
       "x": 2,
       "z": 0,
-      "decorative": true
-    },
-    {
-      "x": -2,
-      "z": 1,
       "decorative": false
     },
     {
@@ -102,6 +77,41 @@
     {
       "x": 2,
       "z": 1,
+      "decorative": false
+    },
+    {
+      "x": 1,
+      "z": 2,
+      "decorative": true
+    },
+    {
+      "x": 2,
+      "z": 2,
+      "decorative": true
+    },
+    {
+      "x": -2,
+      "z": -2,
+      "decorative": true
+    },
+    {
+      "x": -1,
+      "z": -2,
+      "decorative": true
+    },
+    {
+      "x": 0,
+      "z": -2,
+      "decorative": true
+    },
+    {
+      "x": -2,
+      "z": -1,
+      "decorative": true
+    },
+    {
+      "x": -2,
+      "z": 1,
       "decorative": true
     },
     {
@@ -120,78 +130,148 @@
       "decorative": true
     },
     {
-      "x": 1,
-      "z": 2,
-      "decorative": true
-    },
-    {
-      "x": 2,
-      "z": 2,
-      "decorative": true
-    },
-    {
-      "x": -3,
-      "z": -2,
-      "decorative": true
-    },
-    {
-      "x": -3,
-      "z": -1,
-      "decorative": false
-    },
-    {
-      "x": -3,
+      "x": 3,
       "z": 0,
       "decorative": false
     },
     {
-      "x": -3,
+      "x": 4,
+      "z": 0,
+      "decorative": false
+    },
+    {
+      "x": 4,
+      "z": -1,
+      "decorative": false
+    },
+    {
+      "x": 4,
       "z": 1,
       "decorative": false
     },
     {
-      "x": -3,
+      "x": 5,
+      "z": -1,
+      "decorative": false
+    },
+    {
+      "x": 5,
+      "z": 0,
+      "decorative": false
+    },
+    {
+      "x": 4,
+      "z": 2,
+      "decorative": false
+    },
+    {
+      "x": 4,
+      "z": -2,
+      "decorative": false
+    },
+    {
+      "x": 3,
+      "z": -2,
+      "decorative": true
+    },
+    {
+      "x": 3,
+      "z": -1,
+      "decorative": false
+    },
+    {
+      "x": 3,
+      "z": 1,
+      "decorative": false
+    },
+    {
+      "x": 3,
       "z": 2,
       "decorative": true
     },
     {
-      "x": -4,
-      "z": -1,
+      "x": 3,
+      "z": -3,
       "decorative": true
     },
     {
-      "x": -4,
-      "z": 0,
+      "x": 3,
+      "z": 3,
       "decorative": true
     },
     {
-      "x": -4,
+      "x": 4,
+      "z": 3,
+      "decorative": true
+    },
+    {
+      "x": 5,
       "z": 1,
       "decorative": true
     },
     {
-      "x": -4,
+      "x": 5,
       "z": 2,
       "decorative": true
     },
     {
-      "x": -4,
+      "x": 5,
+      "z": 3,
+      "decorative": true
+    },
+    {
+      "x": 5,
       "z": -2,
+      "decorative": false
+    },
+    {
+      "x": 4,
+      "z": -3,
+      "decorative": true
+    },
+    {
+      "x": 5,
+      "z": -3,
+      "decorative": true
+    },
+    {
+      "x": 6,
+      "z": -3,
+      "decorative": true
+    },
+    {
+      "x": 6,
+      "z": -2,
+      "decorative": true
+    },
+    {
+      "x": 6,
+      "z": -1,
+      "decorative": true
+    },
+    {
+      "x": 6,
+      "z": 0,
+      "decorative": true
+    },
+    {
+      "x": 6,
+      "z": 1,
       "decorative": true
     }
   ],
   "editor": {
     "showGrid": true,
-    "autoCreateChunks": true,
+    "autoCreateChunks": false,
     "camera": {
       "target": {
-        "x": 41.01297791614067,
+        "x": -15.800148990438965,
         "y": 0,
-        "z": -14.418430244080511
+        "z": 25.271468336019705
       },
-      "yaw": -1.2800003051757818,
-      "pitch": 0.09079663197067807,
-      "distance": 120
+      "yaw": 17.28667129516607,
+      "pitch": 0.3707972423222393,
+      "distance": 52.21449445047349
     }
   },
   "sky": {
@@ -204,8 +284,17 @@
     "resolution": 50,
     "color": 6521936,
     "baseTexture": null,
-    "textures": [],
-    "activeTexture": 0,
+    "textures": [
+      {
+        "src": "assets/path.png",
+        "scale": 16
+      },
+      {
+        "src": "assets/grunden.png",
+        "scale": 2
+      }
+    ],
+    "activeTexture": 1,
     "chunkSize": 50
   },
   "water": {
@@ -220,7 +309,7 @@
   },
   "layers": [
     {
-      "id": "4f930158-a7ef-4614-96f2-936d4cacb3af",
+      "id": "d803bd32-1a3b-40d3-b85f-112421e1607d",
       "name": "Objects",
       "visible": true,
       "assetTypes": [
@@ -230,6 +319,7 @@
           "glb": "assets/cat.glb",
           "shape": null,
           "collision": "solid",
+          "collisionShape": "compound",
           "render": {
             "castShadow": false,
             "shadowMode": "fake",
@@ -241,11 +331,12 @@
           }
         },
         {
-          "id": "tree",
-          "name": "tree",
-          "glb": "assets/tree.glb",
+          "id": "gran",
+          "name": "gran",
+          "glb": "assets/gran.glb",
           "shape": null,
           "collision": "solid",
+          "collisionShape": "compound",
           "render": {
             "castShadow": true,
             "shadowMode": "real",

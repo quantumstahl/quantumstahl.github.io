@@ -34,12 +34,12 @@ export class MapLoader {
     this.sky = new Sky(scene);
     this.environment = new EnvironmentSystem({ scene, sky: this.sky, assets });
     this.selectedObject = null;
-    // Both play mode and the editor use the same active 5x5 object window.
+    // Both play mode and the editor use the same active 9x9 object window.
     // The editor retains the map data for authoring, but only nearby scene
     // instances are created and rendered.
     this.chunks = new ChunkSystem({
       chunkSize: 50,
-      radius: 2,
+      radius: 4,
       loadChunk: (entries, key) => this.loadChunk(entries, key),
       unloadChunk: objects => this.unloadChunk(objects),
       shouldLoad: key => this.shouldLoadChunk(key),
@@ -105,7 +105,7 @@ export class MapLoader {
     }
     // Chunk manifests keep asset definitions but intentionally omit their
     // instance arrays. Rebuild that editor-facing index from every chunk so
-    // the asset tree represents the complete map, not only the streamed 5x5
+    // the asset tree represents the complete map, not only the streamed 9x9
     // window around the camera.
     if (this.chunkStore) await this.indexChunkedObjects();
     await this.rebuild();
@@ -160,10 +160,8 @@ export class MapLoader {
     this.water.setSunDirection(this.sky.findDirectionalLight(), this.environment.sunsun);
     this.sky.addBackgroundFadeToMaterial(this.chunkStore ? this.streamedTerrain.material : this.terrain.mesh?.material);
     if (this.chunkStore) this.sky.addBackgroundFadeToMaterial(this.water.material);
-    if (this.chunkStore) this.sky.addBackgroundFadeToMaterial(this.grass.farGrassMaterial);
     if (!this.chunkStore) {
       this.sky.addBackgroundFadeToMaterial(this.water.mesh?.material);
-      this.sky.addBackgroundFadeToMaterial(this.grass.farGrassMaterial);
     }
     if (this.chunks) {
       this.chunks.buildIndex(this.world, this.mode);
@@ -197,6 +195,7 @@ export class MapLoader {
       chunk._decorativeOuterCorners = decoration.outerCorners;
       objects.terrainChunk = chunk;
       const terrainMesh = this.streamedTerrain.loadChunk(chunk);
+      this.streamedTerrain.updateCliffWall(chunk);
       // A diagonal decorative tile builds the rock connector between two
       // adjacent wall chunks. Refresh this small neighbourhood as tiles stream
       // in, so the connector appears once both source walls are available.
@@ -636,8 +635,7 @@ export class MapLoader {
       chunk.grass.points ??= [];
       const hillVersion = Number(chunk.terrain?.decorativeHillsVersion) || 0;
       // Version 13 widens the bare cliff buffer. Re-running the editor action
-      // upgrades previous generated borders and removes their far-grass source
-      // points as well as the visible near blades.
+      // upgrades previous generated borders and removes their grass points.
       const refreshGeneratedHills = rebuildAll || (hillVersion > 0 && hillVersion < 13) || this.hasLegacyDecorativeHills(chunk, definition);
       // This command creates base cover once. Re-running it must not pile
       // hundreds more blades onto chunks the user has already painted. The
@@ -663,9 +661,7 @@ export class MapLoader {
         for (const blade of chunk.grass.points) blade.y = this.getChunkHeight(chunk, blade.x, blade.z);
         chunk.grass.revision = (Number(chunk.grass.revision) || 0) + 1;
       }
-      // The cliff face and its crest are deliberately bare. Far grass expands
-      // its source cells by one 2 m cell, so the source points need a wider
-      // exclusion zone than the visible rock cap itself.
+      // The cliff face and its crest are deliberately bare.
       const cliffEdges = this.getChunkDecoration(definition.x, definition.z).edges;
       const cliffGrassClearance = 2.0;
       const isOnCliff = (x, z) => Math.min(
@@ -1691,7 +1687,6 @@ export class MapLoader {
       : cameraClearance;
   }
   refreshChunkedGrass() { if (this.chunkStore) this.grass.setChunkedChunks(this.activeTerrainChunks()); }
-  setGrassPainting(active) { this.grass.setFarGrassEditing(active); }
   paintGrass(point, radius) {
     if (!this.chunkStore) return this.grass.paint(this.world.grass, this.terrain, point, radius);
     const chunks = this.activeTerrainChunks();
@@ -1704,7 +1699,6 @@ export class MapLoader {
     );
     if (changed) {
       this.markActiveChunksDirty();
-      this.grass.updateTerrainOverlay(chunks);
     }
     return changed;
   }
@@ -1712,7 +1706,6 @@ export class MapLoader {
     const changed = this.chunkStore ? this.grass.eraseChunked(point, radius, this.activeTerrainChunks()) : this.grass.erase(this.world.grass, point, radius);
     if (changed) {
       this.markActiveChunksDirty();
-      if (this.chunkStore) this.grass.updateTerrainOverlay(this.activeTerrainChunks());
     }
     return changed;
   }

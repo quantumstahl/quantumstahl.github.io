@@ -72,6 +72,7 @@ export class AssetType {
     this.glb = data.glb ?? null;
     this.shape = data.shape ?? null;
     this.collision = data.collision ?? "solid";
+    this.collisionShape = data.collisionShape ?? "compound";
     const shadowMode = data.render?.shadowMode ?? (data.render?.castShadow ?? data.castShadow ?? true ? "real" : "none");
     this.render = { castShadow: shadowMode === "real", shadowMode: ["real", "fake", "none"].includes(shadowMode) ? shadowMode : "real", receiveShadow: data.render?.receiveShadow ?? true, instanced: data.render?.instanced ?? data.instanced ?? true };
     this.editor = { visible: data.editor?.visible ?? data.visibleInEditor ?? true };

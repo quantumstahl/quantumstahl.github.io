@@ -89,7 +89,6 @@ export class Editor {
   }
   setTool(name) {
     if (this.activeTool === "brush" && name !== "brush") this.brushTool.exit();
-    if (this.activeTool === "terrain" && name !== "terrain") this.mapLoader.setGrassPainting(false);
     this.activeTool = name;
     if (name === "brush") this.brushTool.enter();
     document.querySelector("#selectToolButton")?.classList.toggle("is-active", name === "select");
@@ -389,6 +388,14 @@ export class Editor {
     this.mapLoader.setTypeShadowMode(type, mode);
     this.markDirty(); this.tree.render();
     this.setStatus(`${type.name}: ${mode === "real" ? "real shadows" : mode === "fake" ? "fake contact shadows" : "no shadows"}`);
+  }
+  setTypeCollision(type, collision) {
+    const modes = ["solid", "wall", "floor", "floor-posts", "ghost", "trigger", "none"];
+    if (!modes.includes(collision)) return;
+    type.collision = collision;
+    this.markDirty(); this.tree.render();
+    const labels = { solid: "solid", wall: "a wall", floor: "a floor", "floor-posts": "a floor with solid posts", ghost: "a ghost", trigger: "a trigger", none: "non-colliding" };
+    this.setStatus(`${type.name}: collision set to ${labels[collision]}`);
   }
   async importGLBAsset() {
     const file = await this.pickGLBFile();
