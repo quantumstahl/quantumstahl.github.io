@@ -1,0 +1,17 @@
+{
+  "name": "CatAdventure",
+  "short_name": "CatAdventure",
+  "description": "A cat adventure game.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#e60000",
+  "theme_color": "#e60000",
+  "icons": [
+    {
+      "src": "assets/cat-paw-icon.png",
+      "sizes": "1254x1254",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
