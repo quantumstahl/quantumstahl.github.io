@@ -50,6 +50,10 @@ app.start(delta => {
   app.performanceInfo.measure("Input", () => input.endFrame());
 });
 
+// Wait until the render loop has had a frame to draw before revealing the game.
+const loadingScreen = document.querySelector("#loadingScreen");
+requestAnimationFrame(() => requestAnimationFrame(() => loadingScreen?.classList.add("is-hidden")));
+
 function restoreSavedCameraView(camera, state) {
   const target = state?.target;
   const values = [target?.x, target?.y, target?.z, state?.yaw, state?.pitch, state?.distance];

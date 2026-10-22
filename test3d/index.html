@@ -21,6 +21,12 @@
 </head>
 <body class="game-page">
   <canvas id="gameCanvas"></canvas>
+  <div id="loadingScreen" class="loading-screen" role="status" aria-live="polite">
+    <img class="loading-screen__icon" src="assets/cat-paw-icon.png" alt="">
+    <div class="loading-screen__title">CatAdventure</div>
+    <div class="loading-screen__message">Loading world…</div>
+    <div class="loading-screen__bar" aria-hidden="true"><div></div></div>
+  </div>
   <div class="hud"><strong>NextWorld</strong><span id="status">Loading world…</span></div>
   <script type="module" src="js/app/game-main.js"></script>
 </body>
