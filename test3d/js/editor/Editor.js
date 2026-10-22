@@ -131,15 +131,18 @@ export class Editor {
     let newest = null;
     const added = [];
     for (const point of points) {
-      newest = await this.createInstance(type, point, 1, { groundY: point.y, select: false, markDirty: false, renderTree: false, refreshBatches: false });
+      // Brush-painted GLBs are scenery, so give each saved placement a unique
+      // yaw. Boxes retain their authored orientation for predictable layouts.
+      const rotationY = type.glb ? Math.random() * Math.PI * 2 : 0;
+      newest = await this.createInstance(type, point, 1, { groundY: point.y, rotationY, select: false, markDirty: false, renderTree: false, refreshBatches: false });
       if (newest) added.push(newest);
     }
     added.forEach(object => this.mapLoader.addToBatch(object));
     if (newest) this.setSelected(newest);
     this.markDirty(); this.tree.render();
   }
-  async createInstance(type, position, scale = 1, { groundY = 0, select = true, markDirty = true, renderTree = true, refreshBatches = true } = {}) {
-    const object = new MapObject({ name: type.name, position: { x: position.x, y: position.y, z: position.z }, scale });
+  async createInstance(type, position, scale = 1, { groundY = 0, rotationY = 0, select = true, markDirty = true, renderTree = true, refreshBatches = true } = {}) {
+    const object = new MapObject({ name: type.name, position: { x: position.x, y: position.y, z: position.z }, rotation: { y: rotationY }, scale });
     type.instances.push(object);
     const mesh = await this.mapLoader.addInstance(type, object, this.findLayerForType(type));
     // GLBs use a centred pivot, so a fresh instance starts with half its

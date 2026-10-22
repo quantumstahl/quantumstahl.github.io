@@ -68,7 +68,7 @@ export class AssetManager {
             }
           }
         });
-        if (/(?:träd|trad|tree|gran)/i.test(path)) this.addTreeLife(scene);
+        if (/(?:träd|trad|tree|gran|flower)/i.test(path)) this.addTreeLife(scene);
         return scene;
       }));
     }

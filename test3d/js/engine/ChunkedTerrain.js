@@ -46,11 +46,13 @@ export class ChunkedTerrain {
     this.material?.dispose();
     this.shadowMaterial?.dispose();
     this.terrainShadowDepthMaterial?.dispose();
-    this.material = new THREE.MeshStandardMaterial({
+    this.material = new THREE.MeshLambertMaterial({
       color: 0xffffff,
       vertexColors: true,
      // side: THREE.DoubleSide,
-      toneMapped: false
+      toneMapped: false,
+      roughness: 1.0,
+       metalness: 0.0  
     });
     (this.material.extensions ??= {}).derivatives = true;
     this.shadowMaterial = new THREE.ShadowMaterial({ opacity: .48, transparent: true, depthWrite: false, fog: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });

@@ -14,18 +14,18 @@ export class EnvironmentSystem {
     this.clouds = new Clouds(scene);
     this.timeOfDay = 0.25; // 0 = midnight, .25 = sunrise, .5 = noon.
     this.dayDuration = 360;
-    this.timeScale = 1.0;
+    this.timeScale = 10.0;
     this.sunDistance = 100;
     // Match the authoring preview's readable direct/ambient balance. The
     // stronger sky fill prevents low-poly foliage from turning nearly black
     // on faces turned away from the sun.
-    this.sunIntensity = 0.5;
+    this.sunIntensity = 5.8;
     // Keep directional silhouettes readable, while allowing enough sky fill
     // through them that foliage and terrain do not crush to near-black.
     this.shadowStrength = 0.50;
     // Kept deliberately below sunlight, but non-zero so the night shadow map
     // has a visible result when the moon becomes the active caster.
-    this.moonIntensity = 0.35;
+    this.moonIntensity = 2.35;
     this.sunDirection = new THREE.Vector3();
     this.moonDirection = new THREE.Vector3();
     this.fogColor = new THREE.Color();

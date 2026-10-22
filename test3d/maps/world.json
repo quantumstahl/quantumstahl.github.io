@@ -265,13 +265,13 @@
     "autoCreateChunks": false,
     "camera": {
       "target": {
-        "x": 27.111772122796857,
+        "x": 18.056595402917104,
         "y": 0,
-        "z": 34.66651463704853
+        "z": 25.376861668468887
       },
-      "yaw": 17.18000473022464,
-      "pitch": 0.21413128773239548,
-      "distance": 102
+      "yaw": 18.126670379638707,
+      "pitch": 0.7574635020878644,
+      "distance": 86.7
     }
   },
   "sky": {
@@ -340,6 +340,40 @@
           "render": {
             "castShadow": true,
             "shadowMode": "real",
+            "receiveShadow": true,
+            "instanced": true
+          },
+          "editor": {
+            "visible": true
+          }
+        },
+        {
+          "id": "flower",
+          "name": "flower",
+          "glb": "assets/flower.glb",
+          "shape": null,
+          "collision": "none",
+          "collisionShape": "compound",
+          "render": {
+            "castShadow": false,
+            "shadowMode": "none",
+            "receiveShadow": true,
+            "instanced": true
+          },
+          "editor": {
+            "visible": true
+          }
+        },
+        {
+          "id": "lilaflower",
+          "name": "lilaflower",
+          "glb": "assets/lilaflower.glb",
+          "shape": null,
+          "collision": "none",
+          "collisionShape": "compound",
+          "render": {
+            "castShadow": false,
+            "shadowMode": "none",
             "receiveShadow": true,
             "instanced": true
           },

@@ -13,7 +13,9 @@ export class Grass {
     this.maxVisible = window.mobileProfile ? 120000 : 320000;
     // Applies to newly painted grass only. Saved paint remains untouched.
     this.paintDensityMultiplier = 0.1;
-    this.tramplePosition = new THREE.Vector3(1e6, 0, 1e6); this.trampleRadius = 2.00; this.trampleFlatten = 1.5; this.trampleBend = 0.80;
+    // A light footstep response: blades yield near the player without
+    // looking pressed flat or pushed into an obvious ring.
+    this.tramplePosition = new THREE.Vector3(1e6, 0, 1e6); this.trampleRadius = 2.00; this.trampleFlatten = 0.28; this.trampleBend = 0.16;
     this.environmentTint = new THREE.Color(0.00, 0.00, 0.00);
     this.matrix = new THREE.Matrix4(); this.position = new THREE.Vector3(); this.rotation = new THREE.Quaternion(); this.scale = new THREE.Vector3(); this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity); this.lastCameraDirection = new THREE.Vector3(); this.cameraDirection = new THREE.Vector3(); this.viewPoint = new THREE.Vector3(); this.viewProjection = new THREE.Matrix4(); this.frustum = new THREE.Frustum(); this.hasCameraDirection = false; this.dirty = true; this.visibilityRefreshElapsed = Infinity; this.visibilityRefreshInterval = 0.125; this.sunDirection = new THREE.Vector3(.4, .8, .2).normalize(); this.sunPosition = new THREE.Vector3(); this.sunTargetPosition = new THREE.Vector3(); this.sunBacklight = 1; this.backlightCameraPosition = new THREE.Vector3();
     this.geometry = this.createBladeGeometry(); this.material = this.createMaterial();
@@ -35,109 +37,60 @@ export class Grass {
     this.grassBuildCellsPerFrame = 12;
   }
 createBladeGeometry() {
-
     const positions = [];
     const colors = [];
+    const geometryTypes = [];
+    const baseColor = new THREE.Color(0x294d1d);
+    const tipColor = new THREE.Color(0x91b94f);
 
-    const blades = 30;
+    // These deliberately differ in blade count, spread, width, height and
+    // bend. They are packed into one BufferGeometry; the vertex shader selects
+    // the matching set for each instance, keeping grass to one draw call.
+    const profiles = [
+        { blades: 26, radius: .15*3.0, height: [.70*3.0, 1.35*3.0], width: [.035*3.0, .080*3.0], lean: [.06, .26] }, // regular
+        { blades: 46, radius: .25*3.0, height: [.38*3.0, .88*3.0], width: [.050*3.0, .125*3.0], lean: [.08, .36] }, // low dense
+        { blades: 15, radius: .13*3.0, height: [1.25*1.5, 2.15*1.5], width: [.020*3.0, .050*3.0], lean: [.02, .18] }, // tall sparse
+        { blades: 30, radius: .34*3.0, height: [.60*3.0, 1.52*1.5], width: [.030*3.0, .095*3.0], lean: [.22, .62] }, // wild spread
+        { blades: 54, radius: .19*3.0, height: [.55*3.0, 1.12*3.0], width: [.014*3.0, .042*3.0], lean: [.03, .20] }  // fine tuft
+    ];
+    let seed = 0x9e3779b9;
+    const random = () => {
+        seed = (seed * 1664525 + 1013904223) >>> 0;
+        return seed / 4294967296;
+    };
+    const between = ([min, max]) => min + random() * (max - min);
 
-    const baseColor = new THREE.Color(0x35582A);
-    const tipColor  = new THREE.Color(0x779746);
-    for (let blade = 0; blade < blades; blade++) {
+    profiles.forEach((profile, type) => {
+        for (let blade = 0; blade < profile.blades; blade++) {
+            const angle = random() * Math.PI * 2;
+            const radial = blade === 0 ? 0 : Math.sqrt(random()) * profile.radius;
+            const cx = Math.cos(angle) * radial;
+            const cz = Math.sin(angle) * radial;
+            const height = between(profile.height);
+            const width = between(profile.width);
+            const leanAngle = angle + (random() - .5) * 1.8;
+            const lean = between(profile.lean);
+            const rightX = Math.cos(angle + Math.PI * .5);
+            const rightZ = Math.sin(angle + Math.PI * .5);
 
-        const angle = blade * 2.39996;
-
-        const radial =
-            blade === 0
-                ? 0
-                : 0.04 + (blade % 5) * 0.025;
-
-        const cx = Math.cos(angle) * radial;
-        const cz = Math.sin(angle) * radial;
-
-        const height =
-            0.60 + (blade % 30) * 0.04;
-
-        const baseWidth =
-            0.100 + (blade % 30) * 0.003;
-
-        const lean =
-            0.05 + (blade % 20) * 0.012;
-
-        const leanX = Math.cos(angle) * lean;
-        const leanZ = Math.sin(angle) * lean;
-
-        // Direction sideways from blade
-        const rightX =
-            Math.cos(angle + Math.PI * 0.5);
-
-        const rightZ =
-            Math.sin(angle + Math.PI * 0.5);
-
-
-        // LEFT BASE
-        positions.push(
-            cx - rightX * baseWidth,
-            0,
-            cz - rightZ * baseWidth
-        );
-
-        // RIGHT BASE
-        positions.push(
-            cx + rightX * baseWidth,
-            0,
-            cz + rightZ * baseWidth
-        );
-
-        // TIP
-        positions.push(
-            cx + leanX,
-            height,
-            cz + leanZ
-        );
-
-
-        // Base colors
-        colors.push(
-            baseColor.r,
-            baseColor.g,
-            baseColor.b
-        );
-
-        colors.push(
-            baseColor.r,
-            baseColor.g,
-            baseColor.b
-        );
-
-        // Tip color
-        colors.push(
-            tipColor.r,
-            tipColor.g,
-            tipColor.b
-        );
-    }
-
+            positions.push(
+                cx - rightX * width, 0, cz - rightZ * width,
+                cx + rightX * width, 0, cz + rightZ * width,
+                cx + Math.cos(leanAngle) * lean, height, cz + Math.sin(leanAngle) * lean
+            );
+            colors.push(
+                baseColor.r, baseColor.g, baseColor.b,
+                baseColor.r, baseColor.g, baseColor.b,
+                tipColor.r, tipColor.g, tipColor.b
+            );
+            geometryTypes.push(type, type, type);
+        }
+    });
 
     const geometry = new THREE.BufferGeometry();
-
-    geometry.setAttribute(
-        "position",
-        new THREE.Float32BufferAttribute(
-            positions,
-            3
-        )
-    );
-
-    geometry.setAttribute(
-        "color",
-        new THREE.Float32BufferAttribute(
-            colors,
-            3
-        )
-    );
-
-
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    geometry.setAttribute("geometryType", new THREE.Float32BufferAttribute(geometryTypes, 1));
     return geometry;
 }
 buildGrassGrid() {
@@ -165,6 +118,8 @@ buildGrassGrid() {
             cell = {
                 blades: [],
                 matrices: null,
+                colors: null,
+                variants: null,
                 box: null,
                 minY: Infinity,
                 maxY: -Infinity
@@ -178,7 +133,7 @@ buildGrassGrid() {
         const y = blade.y ?? 0;
 
         const grassHeight =
-            0.7 *
+            5.5 *
             blade.scale *
             (blade.height ?? 1);
 
@@ -203,10 +158,14 @@ buildGrassGrid() {
 
             cell.matrices =
                 new Float32Array(count * 16);
+            cell.colors = new Float32Array(count * 3);
+            cell.variants = new Float32Array(count);
 
             let offset = 0;
 
             for (const blade of cell.blades) {
+
+                const variation = this.getBladeVariation(blade);
 
                 this.position.set(
                     blade.x,
@@ -220,9 +179,9 @@ buildGrassGrid() {
                 );
 
                 this.scale.set(
-                    blade.scale,
-                    blade.scale * (blade.height ?? 1),
-                    blade.scale
+                    blade.scale * variation.width,
+                    blade.scale * (blade.height ?? 1) * variation.height,
+                    blade.scale * variation.width
                 );
 
                 this.matrix.compose(
@@ -235,6 +194,8 @@ buildGrassGrid() {
                     this.matrix.elements,
                     offset
                 );
+                cell.colors.set(variation.color, (offset / 16) * 3);
+                cell.variants[offset / 16] = variation.type;
 
                 offset += 16;
             }
@@ -274,6 +235,24 @@ buildGrassGrid() {
 getGrassCell(cellX, cellZ) {
     return this.grassGrid.get(cellX)?.get(cellZ);
 }
+  getBladeVariation(blade) {
+    // Old saved maps do not need a migration: derive a repeatable variation
+    // from the placement instead of storing another field in every point.
+    const seed = blade.x * 12.9898 + blade.z * 78.233 + (blade.y ?? 0) * 37.719;
+    const random = offset => {
+      const value = Math.sin(seed + offset * 91.345) * 43758.5453;
+      return value - Math.floor(value);
+    };
+    return {
+      width: 0.76 + random(1) * 0.48,
+      height: 0.90 + random(2) * 0.20,
+      // Five profiles are deformed separately in the vertex shader. Keeping
+      // them as an instance attribute preserves the one-draw-call design.
+      type: Math.floor(random(6) * 5),
+      // This multiplier is combined with the geometry's base-to-tip colour.
+      color: [0.78 + random(3) * 0.34, 0.84 + random(4) * 0.25, 0.68 + random(5) * 0.30]
+    };
+  }
 getOrCreateGrassCell(cellX, cellZ) {
     let column = this.grassGrid.get(cellX);
 
@@ -285,7 +264,7 @@ getOrCreateGrassCell(cellX, cellZ) {
     let cell = column.get(cellZ);
 
     if (!cell) {
-        cell = { blades: [], matrices: null, box: null };
+        cell = { blades: [], matrices: null, colors: null, variants: null, box: null };
         column.set(cellZ, cell);
     }
 
@@ -296,23 +275,32 @@ rebuildGrassCell(cellX, cellZ, cell) {
     const count = cell.blades.length;
 
     cell.matrices = new Float32Array(count * 16);
+    cell.colors = new Float32Array(count * 3);
+    cell.variants = new Float32Array(count);
 
     let minY = Infinity;
     let maxY = -Infinity;
     let offset = 0;
 
     for (const blade of cell.blades) {
+        const variation = this.getBladeVariation(blade);
         const y = blade.y ?? 0;
-        const grassHeight = 0.7 * blade.scale * (blade.height ?? 1);
+        const grassHeight = 5.5 * blade.scale * (blade.height ?? 1);
 
         minY = Math.min(minY, y);
         maxY = Math.max(maxY, y + grassHeight);
 
         this.position.set(blade.x, y, blade.z);
         this.rotation.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, blade.rotation);
-        this.scale.set(blade.scale, blade.scale * (blade.height ?? 1), blade.scale);
+        this.scale.set(
+            blade.scale * variation.width,
+            blade.scale * (blade.height ?? 1) * variation.height,
+            blade.scale * variation.width
+        );
         this.matrix.compose(this.position, this.rotation, this.scale);
         cell.matrices.set(this.matrix.elements, offset);
+        cell.colors.set(variation.color, (offset / 16) * 3);
+        cell.variants[offset / 16] = variation.type;
         offset += 16;
     }
 
@@ -404,6 +392,8 @@ createMaterial() {
                 uniform float uTrampleRadius;
                 uniform float uTrampleFlatten;
                 uniform float uTrampleBend;
+                attribute float instanceVariant;
+                attribute float geometryType;
                 varying float vBladeTip;
                 varying vec3 vGrassWorldPosition;
                 `
@@ -413,6 +403,31 @@ createMaterial() {
                 "#include <begin_vertex>",
                 `
                 #include <begin_vertex>
+
+                // Five distinct profiles: standard, short/wide, tall,
+                // wind-swept and slender. The profile is per instance.
+                float profile = floor(instanceVariant + 0.5);
+                // All five source meshes live in the same buffer. Collapse
+                // non-matching triangles into points before projection.
+                float activeGeometry = 1.0 - step(0.25, abs(geometryType - profile));
+                transformed *= activeGeometry;
+                float profileWidth = 0.95;
+                float profileHeight = 1.0;
+                float profileLean = 0.0;
+                if (profile == 1.0) {
+                    profileWidth = 1.35; profileHeight = 0.72; profileLean = 0.05;
+                } else if (profile == 2.0) {
+                    profileWidth = 0.76; profileHeight = 1.45; profileLean = 0.18;
+                } else if (profile == 3.0) {
+                    profileWidth = 1.08; profileHeight = 1.02; profileLean = 0.42;
+                } else if (profile == 4.0) {
+                    profileWidth = 0.58; profileHeight = 1.20; profileLean = -0.12;
+                }
+                float profileTip = clamp(transformed.y / 1.9, 0.0, 1.0);
+                transformed.xz *= profileWidth;
+                transformed.y *= profileHeight;
+                transformed.xz += vec2(0.22, 0.08) * profileLean * profileTip * profileTip;
+                vBladeTip = profileTip;
 
 
                 // Position för denna instans i world-space
@@ -563,7 +578,7 @@ createMaterial() {
 
 
     material.customProgramCacheKey = () =>
-        "next-world-grass-height-lod-trample-backlight-environment-unlit-shadow-receiver-v10";
+        "next-world-grass-five-authored-clump-geometries-trample-shadow-receiver-v12";
 
 
     return material;
@@ -877,6 +892,8 @@ createMaterial() {
                 cell = {
                     blades: [],
                     matrices: null,
+                    colors: null,
+                    variants: null,
                     box: null,
                     minY: Infinity,
                     maxY: -Infinity
@@ -892,7 +909,7 @@ createMaterial() {
                 blade.y ?? 0;
 
             const grassHeight =
-                0.7 *
+                5.5 *
                 blade.scale *
                 (blade.height ?? 1);
 
@@ -960,12 +977,16 @@ createMaterial() {
             new Float32Array(
                 count * 16
             );
+        cell.colors = new Float32Array(count * 3);
+        cell.variants = new Float32Array(count);
 
 
         let offset = 0;
 
 
         for (const blade of cell.blades) {
+
+            const variation = this.getBladeVariation(blade);
 
             const y =
                 blade.y ?? 0;
@@ -985,9 +1006,9 @@ createMaterial() {
 
 
             this.scale.set(
-                blade.scale,
-                blade.scale * (blade.height ?? 1),
-                blade.scale
+                blade.scale * variation.width,
+                blade.scale * (blade.height ?? 1) * variation.height,
+                blade.scale * variation.width
             );
 
 
@@ -1002,6 +1023,8 @@ createMaterial() {
                 this.matrix.elements,
                 offset
             );
+            cell.colors.set(variation.color, (offset / 16) * 3);
+            cell.variants[offset / 16] = variation.type;
 
 
             offset += 16;
@@ -1426,6 +1449,10 @@ const maxCellZ =
 
 const target =
     this.mesh.instanceMatrix.array;
+const colorTarget =
+    this.mesh.instanceColor.array;
+const variantTarget =
+    this.geometry.getAttribute("instanceVariant").array;
 
 
 
@@ -1529,6 +1556,8 @@ for (const { cell } of visibleCells) {
                 cell.matrices,
                 destinationOffset
             );
+            colorTarget.set(cell.colors, visibleCount * 3);
+            variantTarget.set(cell.variants, visibleCount);
 
     } else {
 
@@ -1540,6 +1569,8 @@ for (const { cell } of visibleCells) {
                 ),
                 destinationOffset
             );
+            colorTarget.set(cell.colors.subarray(0, take * 3), visibleCount * 3);
+            variantTarget.set(cell.variants.subarray(0, take), visibleCount);
         }
 
     visibleCount += take;
@@ -1558,6 +1589,13 @@ instanceMatrix.addUpdateRange(
 );
 
 instanceMatrix.needsUpdate = true;
+this.mesh.instanceColor.clearUpdateRanges();
+this.mesh.instanceColor.addUpdateRange(0, visibleCount * 3);
+this.mesh.instanceColor.needsUpdate = true;
+const instanceVariant = this.geometry.getAttribute("instanceVariant");
+instanceVariant.clearUpdateRanges();
+instanceVariant.addUpdateRange(0, visibleCount);
+instanceVariant.needsUpdate = true;
 }
 createMesh() {
     this.mesh = new THREE.InstancedMesh(
@@ -1572,6 +1610,17 @@ createMesh() {
     this.mesh.frustumCulled = false;
 
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.mesh.instanceColor = new THREE.InstancedBufferAttribute(
+        new Float32Array(this.maxVisible * 3),
+        3
+    );
+    this.mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+    const instanceVariant = new THREE.InstancedBufferAttribute(
+        new Float32Array(this.maxVisible),
+        1
+    );
+    instanceVariant.setUsage(THREE.DynamicDrawUsage);
+    this.geometry.setAttribute("instanceVariant", instanceVariant);
 
     this.root.add(this.mesh);
 

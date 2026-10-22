@@ -27,7 +27,7 @@ export class ThreeApp {
   addDefaultLighting() {
     // HemisphereLight takes sky colour, ground colour, then intensity.
 
-    const sun = new THREE.DirectionalLight(0xffffff, 3);
+    const sun = new THREE.DirectionalLight(0xffffff, 0);
     sun.position.set(18,28,16); sun.castShadow = true;
     // Layer 1 is reserved for shadow-only proxy meshes. The gameplay camera
     // remains on layer 0, while this shadow camera renders both layers.
@@ -40,7 +40,7 @@ export class ThreeApp {
     // normalBias further only while the sun is near the horizon.
     sun.shadow.bias = 0.0005;
     sun.shadow.normalBias = 0.06;
-    this.scene.add(new THREE.HemisphereLight(0xe9f5ff,0x24382b,2.0));
+    this.scene.add(new THREE.HemisphereLight(0xe9f5ff,0x24382b,3.0));
 
     this.scene.add(sun);
 
