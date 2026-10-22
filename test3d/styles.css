@@ -27,8 +27,8 @@ canvas { display: block; width: 100vw; height: 100vh; margin: 0;
                 position: fixed;
                 pointer-events:auto;
                 inset: 0; }
-.loading-screen { position: fixed; z-index: 20; inset: 0; display: grid; place-content: center; justify-items: center; gap: 15px; padding: 24px; color: #fff; text-align: center; background: #e60000; opacity: 1; transition: opacity .45s ease, visibility .45s ease; }
-.loading-screen.is-hidden { visibility: hidden; opacity: 0; pointer-events: none;background: #000000; }
+.loading-screen { position: fixed; z-index: 20; inset: 0; display: grid; place-content: center; justify-items: center; gap: 15px; padding: 24px; color: #fff; text-align: center;  opacity: 1; transition: opacity .45s ease, visibility .45s ease; }
+.loading-screen.is-hidden { visibility: hidden; opacity: 0; pointer-events: none; }
 .loading-screen__icon { width: min(30vw, 132px); aspect-ratio: 1; border-radius: 24%; object-fit: cover; box-shadow: 0 12px 30px rgb(80 0 0 / .28); }
 .loading-screen__title { font-size: clamp(1.8rem, 8vw, 3rem); font-weight: 800; letter-spacing: -.04em; }
 .loading-screen__message { font-size: .95rem; font-weight: 600; }
