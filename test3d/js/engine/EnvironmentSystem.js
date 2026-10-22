@@ -14,7 +14,7 @@ export class EnvironmentSystem {
     this.clouds = new Clouds(scene);
     this.timeOfDay = 0.25; // 0 = midnight, .25 = sunrise, .5 = noon.
     this.dayDuration = 360;
-    this.timeScale = 10.0;
+    this.timeScale = 1.0;
     this.sunDistance = 100;
     // Match the authoring preview's readable direct/ambient balance. The
     // stronger sky fill prevents low-poly foliage from turning nearly black
