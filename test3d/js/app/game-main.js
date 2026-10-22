@@ -52,7 +52,10 @@ app.start(delta => {
 
 // Wait until the render loop has had a frame to draw before revealing the game.
 const loadingScreen = document.querySelector("#loadingScreen");
-requestAnimationFrame(() => requestAnimationFrame(() => loadingScreen?.classList.add("is-hidden")));
+requestAnimationFrame(() => requestAnimationFrame(() => {
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#000000");
+  loadingScreen?.classList.add("is-hidden");
+}));
 
 function restoreSavedCameraView(camera, state) {
   const target = state?.target;
