@@ -68,7 +68,9 @@ export class AssetManager {
             }
           }
         });
-        if (/(?:träd|trad|tree|gran|flower)/i.test(path)) this.addTreeLife(scene);
+        // Night shading is shared by every GLB. Only plant assets receive
+        // the vertex displacement that makes stems and foliage sway.
+        this.addTreeLife(scene, /(?:träd|trad|tree|gran|flower|plant|bush|shrub|grass|fern|leaf|foliage|flora|vegetation)/i.test(path));
         return scene;
       }));
     }
@@ -83,7 +85,7 @@ export class AssetManager {
     this.treeNightAmount.value = THREE.MathUtils.clamp(nightAmount, 0, 1);
   }
 
-  addTreeLife(scene) {
+  addTreeLife(scene, isPlant) {
     scene.traverse(mesh => {
       // Shadow proxies must be completely rigid.  Applying the foliage wind
       // shader here makes their depth silhouette change every frame.
@@ -102,10 +104,9 @@ export class AssetManager {
       const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
       for (const material of materials) {
         if (!material || material.userData.treeLifeApplied) continue;
-        // Trees are authored as painted, matte assets. Remove runtime
-        // specular/environment contribution so their albedo is not turned
-        // into a glossy, lime-tinted surface by the game sky.
-        if (material.isMeshStandardMaterial) {
+        // Keep the original material response for non-plants. Vegetation is
+        // intentionally matte so its painted colours stay stable in the sky.
+        if (isPlant && material.isMeshStandardMaterial) {
           material.metalness = 0;
           material.roughness = 1;
           material.envMap = null;
@@ -114,17 +115,14 @@ export class AssetManager {
         }
         const previousOnBeforeCompile = material.onBeforeCompile;
         const previousProgramKey = material.customProgramCacheKey?.() ?? "";
-        const foliageMaterial = material.alphaTest > 0 || /leaf|foliage/i.test(material.name || "");
-
         material.onBeforeCompile = (shader, renderer) => {
           previousOnBeforeCompile?.call(material, shader, renderer);
-          shader.uniforms.uTreeWindTime = this.treeWindTime;
           shader.uniforms.uTreeNightAmount = this.treeNightAmount;
-          shader.uniforms.uTreeFoliageTintEnabled = { value: foliageMaterial ? 1 : 0 };
-          shader.uniforms.uTreeFoliageStart = { value: foliageStart };
-          shader.uniforms.uTreeFoliageFade = { value: foliageFade };
-          shader.uniforms.uTreeFoliageCenter = { value: foliageCenter };
-
+          if (isPlant) {
+            shader.uniforms.uTreeWindTime = this.treeWindTime;
+            shader.uniforms.uTreeFoliageStart = { value: foliageStart };
+            shader.uniforms.uTreeFoliageFade = { value: foliageFade };
+            shader.uniforms.uTreeFoliageCenter = { value: foliageCenter };
           shader.vertexShader = shader.vertexShader
             .replace(
               "#include <common>",
@@ -135,7 +133,6 @@ export class AssetManager {
               uniform float uTreeFoliageFade;
               uniform vec3 uTreeFoliageCenter;
               varying float vTreeFoliage;
-              varying float vTreeLeafTone;
               `
             )
             .replace(
@@ -203,17 +200,13 @@ export class AssetManager {
   vTreeFoliage = treeFoliage;
   `
 );
-
+          }
           shader.fragmentShader = shader.fragmentShader
             .replace(
               "#include <common>",
               `
               #include <common>
               uniform float uTreeNightAmount;
-              uniform float uTreeFoliageTintEnabled;
-              varying float vTreeFoliage;
-
-              
               `
             )
             .replace(
@@ -287,7 +280,7 @@ gl_FragColor.rgb *=(((-uTreeNightAmount)*0.30)+1.0);
             )
 
         };
-        material.customProgramCacheKey = () => `${previousProgramKey}|next-world-tree-life-v2`;
+        material.customProgramCacheKey = () => `${previousProgramKey}|next-world-tree-life-v4|${isPlant ? "plant-wind" : "night-only"}`;
         material.needsUpdate = true;
         material.userData.treeLifeApplied = true;
       }

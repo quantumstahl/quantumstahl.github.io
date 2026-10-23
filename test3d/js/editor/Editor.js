@@ -99,7 +99,7 @@ export class Editor {
     document.querySelector("#brushToolButton")?.classList.toggle("is-active", name === "brush");
     document.querySelector("#chunkToolButton")?.classList.toggle("is-active", name === "chunk" && this.chunkAction === "decorate");
     document.querySelector("#deleteChunkToolButton")?.classList.toggle("is-active", name === "chunk" && this.chunkAction === "delete");
-    const instructions = { select: "Select tool: click an object", move: "Move tool: drag the selected object", rotate: "Rotate tool: horizontal drag or Q / E", scale: "Scale tool: vertical drag or Q / E; R resets", stack: "Stack tool: click a support surface", brush: this.brushType ? `Brush tool: painting ${this.brushType.name}` : "Brush tool: choose an asset type in the tree", chunk: this.chunkAction === "delete" ? "Delete Chunk: click a chunk to delete it" : "Chunk: click a chunk to toggle decorative terrain", terrain: this.terrainMode === "texture" ? "Texture paint: drag to paint the selected layer; Q / E radius" : this.terrainMode === "grass" ? "Grass paint: drag to scatter grass; Q / E radius" : this.terrainMode === "eraseGrass" ? "Grass erase: drag to remove grass; Q / E radius" : this.terrainMode === "rockify" ? "Rock Stamp Out: hold to press out one rounded rock; hold Shift to press it in; Q / E radius" : `Terrain ${this.terrainMode}: drag to sculpt; Q / E radius` };
+    const instructions = { select: "Select tool: click an object", move: "Move tool: drag the selected object", rotate: "Rotate tool: horizontal drag or Q / E", scale: "Scale tool: vertical drag or Q / E; R resets", stack: "Stack tool: click a support surface", brush: this.brushType ? `Brush tool: painting ${this.brushType.name}` : "Brush tool: choose an asset type in the tree", chunk: this.chunkAction === "delete" ? "Delete Chunk: click a chunk to delete it" : "Chunk: click a chunk to toggle decorative terrain", terrain: this.terrainMode === "texture" ? "Texture paint: drag to paint the selected layer; Q / E radius" : this.terrainMode === "eraseTexture" ? "Texture erase: drag to reveal the texture underneath; Q / E radius" : this.terrainMode === "grass" ? "Grass paint: drag to scatter grass; Q / E radius" : this.terrainMode === "eraseGrass" ? "Grass erase: drag to remove grass; Q / E radius" : this.terrainMode === "rockify" ? "Rock Stamp Out: hold to press out one rounded rock; hold Shift to press it in; Q / E radius" : `Terrain ${this.terrainMode}: drag to sculpt; Q / E radius` };
     this.setStatus(instructions[name] ?? "Tool selected");
   }
   setChunkToolAction(action) {
@@ -309,6 +309,7 @@ export class Editor {
     this.setTool("terrain");
     for (const name of ["raise", "lower", "smooth", "flatten", "rockify"]) document.querySelector(`#terrain${name[0].toUpperCase()}${name.slice(1)}Button`)?.classList.toggle("is-active", name === mode);
     document.querySelector("#terrainPaintButton")?.classList.toggle("is-active", mode === "texture");
+    document.querySelector("#terrainEraseTextureButton")?.classList.toggle("is-active", mode === "eraseTexture");
     document.querySelector("#terrainGrassButton")?.classList.toggle("is-active", mode === "grass");
     document.querySelector("#terrainEraseGrassButton")?.classList.toggle("is-active", mode === "eraseGrass");
   }
@@ -318,6 +319,13 @@ export class Editor {
       return;
     }
     this.setTerrainMode("texture");
+  }
+  startTerrainTextureErase() {
+    if (!this.mapLoader.world.terrain.textures?.[this.mapLoader.world.terrain.activeTexture]?.src) {
+      this.setStatus("Select a PNG texture layer first");
+      return;
+    }
+    this.setTerrainMode("eraseTexture");
   }
   startGrassPaint() { this.setTerrainMode("grass"); }
   startGrassErase() { this.setTerrainMode("eraseGrass"); }

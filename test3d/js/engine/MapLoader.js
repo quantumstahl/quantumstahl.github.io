@@ -470,6 +470,13 @@ export class MapLoader {
     if (changed) this.markActiveChunksDirty();
     return changed;
   }
+  eraseTerrainTexture(point, radius, strength) {
+    const changed = this.chunkStore
+      ? this.terrain.eraseTexture(point, radius, strength)
+      : this.terrain.eraseTexture(this.world.terrain, point, radius, strength);
+    if (changed) this.markActiveChunksDirty();
+    return changed;
+  }
   activeTerrainChunks() { return [...this.streamedTerrain.tiles.values()].map(tile => tile.chunk); }
   shouldLoadChunk(key) {
     if (!this.chunkStore) return true;

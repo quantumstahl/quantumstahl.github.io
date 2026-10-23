@@ -55,6 +55,7 @@ document.querySelector("#terrainSmoothButton").addEventListener("click", () => e
 document.querySelector("#terrainFlattenButton").addEventListener("click", () => editor.setTerrainMode("flatten"));
 document.querySelector("#terrainRockifyButton").addEventListener("click", () => editor.setTerrainMode("rockify"));
 document.querySelector("#terrainPaintButton").addEventListener("click", () => editor.startTerrainTexturePaint());
+document.querySelector("#terrainEraseTextureButton").addEventListener("click", () => editor.startTerrainTextureErase());
 document.querySelector("#terrainTextureButton").addEventListener("click", () => editor.chooseTerrainTexture());
 document.querySelector("#terrainTextureSelect").addEventListener("change", event => editor.selectTerrainTexture(Number(event.target.value)));
 document.querySelector("#terrainTextureScale").addEventListener("change", event => editor.setTerrainTextureScale(Number(event.target.value)));

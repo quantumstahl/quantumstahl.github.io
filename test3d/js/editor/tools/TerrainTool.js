@@ -36,6 +36,10 @@ export class TerrainTool {
       if (this.editor.mapLoader.paintTerrainTexture(hit.point, this.radius, delta * 3)) this.editor.markDirty();
       return;
     }
+    if (this.editor.terrainMode === "eraseTexture") {
+      if (this.editor.mapLoader.eraseTerrainTexture(hit.point, this.radius, delta * 3)) this.editor.markDirty();
+      return;
+    }
     if (this.editor.terrainMode === "grass" || this.editor.terrainMode === "eraseGrass") {
       // Closer dabs make a dragged stroke continuous. Incremental grass-cell
       // updates keep this responsive even on maps with many painted chunks.

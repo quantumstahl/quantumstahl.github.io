@@ -159,7 +159,7 @@ cloudColor *= 1.95;
       // the clouds down naturally when the camera climbs a hill.
       mesh.position.copy(camera.position);
       mesh.updateMatrixWorld(true);
-      const fogFar = this.scene.fog?.far ?? 1000000;
+      const fogFar = this.scene.fog?.far+50.0 ?? 1000000;
       material.uniforms.uFogFar.value = fogFar;
       // Although the dome is intentionally very large and world-anchored, the
       // fog horizon is only fogFar units away. Use that nearer distance for

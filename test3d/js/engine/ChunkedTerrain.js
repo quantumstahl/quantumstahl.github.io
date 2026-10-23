@@ -856,6 +856,39 @@ const displacement = amount * rockProfile * 1.4;
     return changed;
   }
 
+  eraseTexture(point, radius, strength) {
+    const layer = this.config?.activeTexture ?? 0;
+    let changed = false;
+    const resolution = this.config?.resolution ?? 50;
+    const spacing = this.chunkSize / resolution;
+    for (const tile of this.tiles.values()) {
+      const { chunk, mesh } = tile;
+      const originX = chunk.x * this.chunkSize;
+      const originZ = chunk.z * this.chunkSize;
+      if (point.x + radius < originX || point.x - radius > originX + this.chunkSize || point.z + radius < originZ || point.z - radius > originZ + this.chunkSize) continue;
+      const count = (resolution + 1) ** 2;
+      chunk.terrain.masks ??= [];
+      for (let index = 0; index < MAX_TEXTURE_LAYERS; index++) chunk.terrain.masks[index] ??= Array(count).fill(0);
+      let tileChanged = false;
+      for (let z = 0; z <= resolution; z++) for (let x = 0; x <= resolution; x++) {
+        const index = z * (resolution + 1) + x;
+        const distance = Math.hypot(originX + x * spacing - point.x, originZ + z * spacing - point.z);
+        if (distance > radius) continue;
+        const current = chunk.terrain.masks[layer][index];
+        const next = Math.max(0, current - strength * (1 - distance / radius) ** 2);
+        if (next === current) continue;
+        chunk.terrain.masks[layer][index] = next;
+        tileChanged = changed = true;
+      }
+      if (tileChanged) for (let index = 0; index < MAX_TEXTURE_LAYERS; index++) {
+        const attribute = mesh.geometry.getAttribute(`terrainTextureMask${index}`);
+        for (let vertex = 0; vertex < count; vertex++) attribute.setX(vertex, chunk.terrain.masks[index][vertex]);
+        attribute.needsUpdate = true;
+      }
+    }
+    return changed;
+  }
+
   configureTextureBlend(material) {
     material.onBeforeCompile = shader => {
 

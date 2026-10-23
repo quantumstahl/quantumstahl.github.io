@@ -36,13 +36,21 @@ export class CatAdventure {
     this.verticalVelocity += this.gravity * delta;
     const nextHeight = this.airborneWorldHeight + this.verticalVelocity * delta;
     const footHeight = this.airborneWorldHeight - controller.groundOffset;
-    const groundHeight = controller.mapLoader.terrain.getSurfaceHeightAt?.(
+    const terrainHeight = controller.mapLoader.terrain.getSurfaceHeightAt?.(
       controller.player.position,
       footHeight + .02
     ) ?? controller.mapLoader.terrain.getHeightAt(controller.player.position);
+    // Terrain alone cannot catch the cat on a bridge. Query the explicit
+    // floor/floor-posts deck as it falls, but never choose a deck above its
+    // current feet (which would close an underpass from below).
+    const floorHeight = controller.collisions.getWalkableFloorHeight(
+      controller.player.position,
+      footHeight + .02
+    );
+    const groundHeight = floorHeight === null ? terrainHeight : Math.max(terrainHeight, floorHeight);
 
-    // Land on any Rockify deck below the cat. Surfaces above its feet are
-    // ignored, so an underpass remains open while falling beneath a bridge.
+    // Land on any terrain or explicit floor deck below the cat. Surfaces
+    // above its feet are ignored, so an underpass remains open.
     if (this.verticalVelocity <= 0 && nextHeight - controller.groundOffset <= groundHeight) {
       this.airborneWorldHeight = groundHeight + controller.groundOffset;
       controller.airborneWorldHeight = this.airborneWorldHeight;

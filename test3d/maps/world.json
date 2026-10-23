@@ -207,12 +207,12 @@
     {
       "x": 5,
       "z": 1,
-      "decorative": true
+      "decorative": false
     },
     {
       "x": 5,
       "z": 2,
-      "decorative": true
+      "decorative": false
     },
     {
       "x": 5,
@@ -242,36 +242,96 @@
     {
       "x": 6,
       "z": -2,
-      "decorative": true
+      "decorative": false
     },
     {
       "x": 6,
       "z": -1,
-      "decorative": true
+      "decorative": false
     },
     {
       "x": 6,
       "z": 0,
-      "decorative": true
+      "decorative": false
     },
     {
       "x": 6,
       "z": 1,
+      "decorative": false
+    },
+    {
+      "x": 7,
+      "z": -4,
+      "decorative": true
+    },
+    {
+      "x": 7,
+      "z": -3,
+      "decorative": true
+    },
+    {
+      "x": 6,
+      "z": 2,
+      "decorative": false
+    },
+    {
+      "x": 7,
+      "z": -1,
+      "decorative": true
+    },
+    {
+      "x": 7,
+      "z": 0,
+      "decorative": true
+    },
+    {
+      "x": 7,
+      "z": 1,
+      "decorative": true
+    },
+    {
+      "x": 7,
+      "z": 2,
+      "decorative": true
+    },
+    {
+      "x": 6,
+      "z": 3,
+      "decorative": true
+    },
+    {
+      "x": 7,
+      "z": -2,
+      "decorative": true
+    },
+    {
+      "x": 7,
+      "z": 3,
+      "decorative": true
+    },
+    {
+      "x": 6,
+      "z": 4,
+      "decorative": true
+    },
+    {
+      "x": 7,
+      "z": 4,
       "decorative": true
     }
   ],
   "editor": {
-    "showGrid": true,
+    "showGrid": false,
     "autoCreateChunks": false,
     "camera": {
       "target": {
-        "x": 18.915392121940748,
+        "x": 284.72827441767924,
         "y": 0,
-        "z": 30.0744698289229
+        "z": 16.318621362955298
       },
-      "yaw": 17.220003509521536,
-      "pitch": 0.15413006702927026,
-      "distance": 86.7
+      "yaw": -26.223330230712694,
+      "pitch": 0.7174628917363038,
+      "distance": 55.903729158422614
     }
   },
   "sky": {
@@ -299,7 +359,7 @@
   },
   "water": {
     "enabled": true,
-    "level": -0.5,
+    "level": -2,
     "color": 3901124,
     "opacity": 0.72
   },
@@ -372,8 +432,42 @@
           "collision": "none",
           "collisionShape": "compound",
           "render": {
-            "castShadow": false,
-            "shadowMode": "none",
+            "castShadow": true,
+            "shadowMode": "real",
+            "receiveShadow": true,
+            "instanced": true
+          },
+          "editor": {
+            "visible": true
+          }
+        },
+        {
+          "id": "house",
+          "name": "house",
+          "glb": "assets/house.glb",
+          "shape": null,
+          "collision": "solid",
+          "collisionShape": "compound",
+          "render": {
+            "castShadow": true,
+            "shadowMode": "real",
+            "receiveShadow": true,
+            "instanced": true
+          },
+          "editor": {
+            "visible": true
+          }
+        },
+        {
+          "id": "brygga",
+          "name": "brygga",
+          "glb": "assets/brygga.glb",
+          "shape": null,
+          "collision": "floor-posts",
+          "collisionShape": "compound",
+          "render": {
+            "castShadow": true,
+            "shadowMode": "real",
             "receiveShadow": true,
             "instanced": true
           },

@@ -23,8 +23,8 @@ export class GroundMist {
     // Mist is thickest in low ground and thins progressively up a hill.
     // These world-space elevations keep the base of the current terrain
     // misty while fading it out near the tops of its roughly 4m hills.
-    this.mistElevationFadeStart = -1.0;
-    this.mistElevationFadeEnd = 0.0;
+    this.mistElevationFadeStart = -100.0;
+    this.mistElevationFadeEnd = -90.0;
     this.mistSegments = 32;
     this.time = 0;
     this.mesh = null;

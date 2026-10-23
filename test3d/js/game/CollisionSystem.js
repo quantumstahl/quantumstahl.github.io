@@ -9,6 +9,9 @@ export class CollisionSystem {
     this.mapLoader = mapLoader;
     this.geometryCollisionBoxes = new WeakMap();
     this.maxHorizontalCorrection = 0.6;
+    this.floorRaycaster = new THREE.Raycaster();
+    this.floorRayOrigin = new THREE.Vector3();
+    this.down = new THREE.Vector3(0, -1, 0);
   }
 
   resolvePlayer(player, radius, bottomOffset, height) {
@@ -32,6 +35,32 @@ export class CollisionSystem {
   collisionType(object) { return object.userData.assetType?.collision ?? "solid"; }
   isSolid(object) {
     return ["solid", "wall", "floor-posts"].includes(this.collisionType(object));
+  }
+
+  getWalkableFloorHeight(point, maxHeight = Infinity) {
+    if (!Number.isFinite(maxHeight)) return null;
+    // Raycast only explicit floor collision modes. A short origin above the
+    // player's permitted step height prevents an overhead bridge from becoming
+    // ground while still allowing the deck to support the player.
+    this.floorRayOrigin.set(point.x, maxHeight + .05, point.z);
+    this.floorRaycaster.set(this.floorRayOrigin, this.down);
+    this.floorRaycaster.far = 1000;
+    let floorHeight = null;
+
+    for (const object of this.mapLoader.objects) {
+      const type = this.collisionType(object);
+      if (type !== "floor" && type !== "floor-posts") continue;
+      object.updateWorldMatrix(true, true);
+      for (const hit of this.floorRaycaster.intersectObject(object, true)) {
+        if (!hit.face || hit.point.y > maxHeight + .001) continue;
+        const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
+        // Decks and ramps support the player; vertical post and railing faces
+        // must never be treated as a floor.
+        if (normal.y < .35) continue;
+        if (floorHeight === null || hit.point.y > floorHeight) floorHeight = hit.point.y;
+      }
+    }
+    return floorHeight;
   }
 
   playerTouchesBounds(player, radius, bottom, top, object) {

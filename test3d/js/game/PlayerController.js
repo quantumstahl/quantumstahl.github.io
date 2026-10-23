@@ -124,7 +124,14 @@ export class PlayerController {
       const isFlatLanding = !terrain.isRockSurfaceAt?.({ x, z });
       const jumpBase = this.jumpStartGroundHeight ?? lastHeight;
       const isLowJumpLanding = this.airborne && isFlatLanding && height - jumpBase <= this.maxJumpStepHeight;
-      if ((heightChange > horizontalDistance * maxRise && !isLowJumpLanding) || -heightChange > horizontalDistance * maxDrop) {
+      // An elevated bridge is intentionally steeper than a walkable terrain
+      // slope. While jumping, allow horizontal movement onto its deck only
+      // once the cat's feet are already level with (or above) that surface.
+      // This keeps a bridge ceiling from becoming passable from underneath.
+      const footY = this.player.position.y - this.groundOffset;
+      const landingFloor = this.collisions.getWalkableFloorHeight({ x, z }, footY + .02);
+      const isJumpingOntoFloor = this.airborne && landingFloor !== null && landingFloor >= height - .01;
+      if ((heightChange > horizontalDistance * maxRise && !isLowJumpLanding && !isJumpingOntoFloor) || -heightChange > horizontalDistance * maxDrop) {
         this.player.position.x = lastX;
         this.player.position.z = lastZ;
         return;
@@ -133,10 +140,12 @@ export class PlayerController {
     }
   }
   getGroundHeight(point) {
-    // A bridge above the cat must not become its ground. Permit a small step
-    // up while walking, but otherwise query only surfaces at foot level.
-    const footY = this.player ? this.player.position.y - this.groundOffset + .35 : Infinity;
-    return this.mapLoader.terrain.getSurfaceHeightAt?.(point, footY) ?? this.mapLoader.terrain.getHeightAt(point);
+    // A bridge above the cat must not become its ground. Permit a climbable
+    // step onto a floor deck, but ignore any walkable surface higher than that.
+    const footY = this.player ? this.player.position.y - this.groundOffset : Infinity;
+    const terrainHeight = this.mapLoader.terrain.getSurfaceHeightAt?.(point, footY + .35) ?? this.mapLoader.terrain.getHeightAt(point);
+    const floorHeight = this.collisions.getWalkableFloorHeight(point, footY + this.maxJumpStepHeight);
+    return floorHeight === null ? terrainHeight : Math.max(terrainHeight, floorHeight);
   }
   lerpAngle(from, to, amount) { let difference = to - from; while (difference > Math.PI) difference -= Math.PI * 2; while (difference < -Math.PI) difference += Math.PI * 2; return from + difference * amount; }
   setWalkAnimation(moving) { if (!this.walkAction || this.walkAction.paused === !moving) return; this.walkAction.enabled = true; this.walkAction.paused = !moving; if (moving) this.walkAction.setEffectiveWeight(1).play(); }
