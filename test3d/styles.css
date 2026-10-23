@@ -27,6 +27,20 @@ canvas { display: block; width: 100vw; height: 100vh; margin: 0;
                 position: fixed;
                 pointer-events:auto;
                 inset: 0; }
+.rotate-device-prompt { display: none; position: fixed; z-index: 30; inset: 0; place-content: center; justify-items: center; gap: 10px; padding: 24px; color: #fff; background: #07111dcc; text-align: center; pointer-events: auto; }
+.rotate-device-prompt__icon { display: grid; place-items: center; width: 76px; height: 76px; border: 2px solid currentColor; border-radius: 18px; font-size: 3.5rem; line-height: 1; transform: rotate(35deg); }
+.rotate-device-prompt strong { font-size: 1.35rem; }
+.rotate-device-prompt span { color: #c7d4df; }
+@media (pointer: coarse) and (orientation: portrait) {
+  .game-page .rotate-device-prompt { display: grid; }
+}
+.install-prompt { position: fixed; z-index: 25; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 12px; max-width: min(390px, calc(100vw - 32px)); padding: 14px 40px 14px 14px; border: 1px solid rgb(255 255 255 / .22); border-radius: 14px; color: #f7fbff; background: rgb(10 19 28 / .94); box-shadow: 0 12px 32px rgb(0 0 0 / .35); }
+.install-prompt[hidden] { display: none; }
+.install-prompt__icon { width: 46px; height: 46px; border-radius: 12px; object-fit: cover; }
+.install-prompt strong { font-size: 1rem; }
+.install-prompt p { margin: 4px 0 0; color: #c7d4df; font-size: .84rem; line-height: 1.35; }
+.install-prompt__close { position: absolute; top: 6px; right: 7px; width: 27px; height: 27px; padding: 0; border: 0; border-radius: 50%; color: #dbefff; background: transparent; font-size: 1.4rem; line-height: 1; }
+.install-prompt__close:hover { background: rgb(255 255 255 / .13); }
 .loading-screen { position: fixed; z-index: 20; inset: 0; display: grid; place-content: center; justify-items: center; gap: 15px; padding: 24px; color: #fff; text-align: center;  opacity: 1; transition: opacity .45s ease, visibility .45s ease; }
 .loading-screen.is-hidden { visibility: hidden; opacity: 0; pointer-events: none; }
 .loading-screen__icon { width: min(30vw, 132px); aspect-ratio: 1; border-radius: 24%; object-fit: cover; box-shadow: 0 12px 30px rgb(80 0 0 / .28); }

@@ -21,6 +21,19 @@
 </head>
 <body class="game-page">
   <canvas id="gameCanvas"></canvas>
+  <div id="rotateDevicePrompt" class="rotate-device-prompt" role="status" aria-live="polite">
+    <div class="rotate-device-prompt__icon" aria-hidden="true">↻</div>
+    <strong>Rotate your device</strong>
+    <span>This game is best played in landscape.</span>
+  </div>
+  <aside id="installPrompt" class="install-prompt" aria-labelledby="installPromptTitle" hidden>
+    <button class="install-prompt__close" type="button" aria-label="Dismiss install instructions">×</button>
+    <img src="assets/cat-paw-icon.png" alt="" class="install-prompt__icon">
+    <div>
+      <strong id="installPromptTitle">Play fullscreen</strong>
+      <p id="installPromptInstructions"></p>
+    </div>
+  </aside>
   <div id="loadingScreen" class="loading-screen" role="status" aria-live="polite">
     <img class="loading-screen__icon" src="assets/cat-paw-icon.png" alt="">
     <div class="loading-screen__title">CatAdventure</div>

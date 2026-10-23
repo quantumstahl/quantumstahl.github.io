@@ -10,6 +10,56 @@ import { CatAdventure } from "../../CatAdventure.js";
 
 const isMobile = {Android: function() { return navigator.userAgent.match(/Android/i); },BlackBerry: function() { return navigator.userAgent.match(/BlackBerry/i); },iOS: function() { return navigator.userAgent.match(/iPhone|iPod/i); },Opera: function() { return navigator.userAgent.match(/Opera Mini/i); },Windows: function() { return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i); },any: function() {return (isMobile.Android() ||isMobile.BlackBerry() ||isMobile.iOS() ||isMobile.Opera() ||isMobile.Windows() ||(navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints &&navigator.maxTouchPoints > 1));}};
 
+// Installed PWAs can usually lock immediately. In browser tabs, the same API
+// normally requires the first player interaction and fullscreen permission.
+async function lockLandscape({ allowFullscreen = false } = {}) {
+    if (!isMobile.any() || typeof screen.orientation?.lock !== "function") return false;
+    try {
+        await screen.orientation.lock("landscape");
+        return true;
+    } catch (_) {
+        if (!allowFullscreen || document.fullscreenElement || !document.documentElement.requestFullscreen) return false;
+    }
+
+    try {
+        await document.documentElement.requestFullscreen();
+        await screen.orientation.lock("landscape");
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+void lockLandscape();
+window.addEventListener("pointerdown", () => { void lockLandscape({ allowFullscreen: true }); }, { once: true, passive: true });
+
+const installPrompt = document.querySelector("#installPrompt");
+const installInstructions = document.querySelector("#installPromptInstructions");
+const installDismissKey = "nextworld-install-prompt-dismissed";
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const isAndroid = /Android/i.test(navigator.userAgent);
+const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isLandscape = window.matchMedia("(orientation: landscape)");
+
+function updateInstallPrompt() {
+    if (!installPrompt || !installInstructions) return;
+    const shouldShow = !isStandalone() && isLandscape.matches && !sessionStorage.getItem(installDismissKey) && (isIOS || isAndroid);
+    installPrompt.hidden = !shouldShow;
+    if (!shouldShow) return;
+
+    installInstructions.textContent = isIOS
+        ? "In Safari, tap Share, choose Add to Home Screen, turn on Open as Web App, then tap Add."
+        : "In Chrome, tap the three-dot menu, then choose Install app or Add to Home screen.";
+}
+
+document.querySelector(".install-prompt__close")?.addEventListener("click", () => {
+    sessionStorage.setItem(installDismissKey, "true");
+    updateInstallPrompt();
+});
+isLandscape.addEventListener("change", updateInstallPrompt);
+window.addEventListener("pageshow", updateInstallPrompt);
+updateInstallPrompt();
+
 var song= 'sounds/TheGoldenYarn.mp3';          
 var audio = new Audio(song);
 audio.loop = true;
