@@ -56,6 +56,17 @@ export class CatAdventure {
 
     this.airborneWorldHeight = nextHeight;
     controller.airborneWorldHeight = nextHeight;
+
+
+    if(song!=='sounds/TheGoldenYarn.mp3'){
+        song= 'sounds/TheGoldenYarn.mp3';
+        audio.src = song;
+        audio.play();
+    }
+
+
+
+
   }
 
   jump() {

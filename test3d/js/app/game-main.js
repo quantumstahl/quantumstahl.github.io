@@ -10,6 +10,69 @@ import { CatAdventure } from "../../CatAdventure.js";
 
 const isMobile = {Android: function() { return navigator.userAgent.match(/Android/i); },BlackBerry: function() { return navigator.userAgent.match(/BlackBerry/i); },iOS: function() { return navigator.userAgent.match(/iPhone|iPod/i); },Opera: function() { return navigator.userAgent.match(/Opera Mini/i); },Windows: function() { return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i); },any: function() {return (isMobile.Android() ||isMobile.BlackBerry() ||isMobile.iOS() ||isMobile.Opera() ||isMobile.Windows() ||(navigator.userAgent.toLowerCase().indexOf('macintosh') > -1 &&navigator.maxTouchPoints &&navigator.maxTouchPoints > 1));}};
 
+var song= 'sounds/TheGoldenYarn.mp3';          
+var audio = new Audio(song);
+audio.loop = true;
+const context = new (window.AudioContext || window.webkitAudioContext)();
+const audio2 = url => {
+    let source = null;
+    let stopRequested = false;
+    let finishPlayback = null;
+    const finished = new Promise((resolve, reject) => {
+        finishPlayback = resolve;
+        fetch(url)
+            .then(res => res.arrayBuffer())
+            .then(buffer => context.decodeAudioData(buffer))
+            .then(audioBuffer => {
+                if (stopRequested) return resolve();
+                source = context.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(context.destination);
+                source.onended = resolve;
+                source.start();
+            })
+            .catch(reject);
+    });
+    finished.stop = () => {
+        stopRequested = true;
+        if (source) source.stop();
+        else finishPlayback?.();
+    };
+    return finished;
+};
+window.song=song;
+window.audio=audio;
+window.audio2=audio2;
+
+document.addEventListener('click', (event) => {
+    try{if(audio.paused){ audio.play();}}catch(error){};
+    if(context.state === 'suspended'){context.suspend();context.resume();} 
+
+});
+document.addEventListener("touchstart" , function(e) {
+    e.preventDefault();
+    try{if(audio.paused){ audio.play();}}catch(error){};
+    if(context.state === 'suspended'){context.suspend();context.resume();}           
+});
+document.addEventListener("visibilitychange", event => {
+    if (document.visibilityState === "visible") {
+        audio.pause();
+        audio.src = song;
+        audio.play();
+        context.resume();
+    }
+    else {audio.pause(); audio.src = "";context.suspend();}
+});
+window.addEventListener("keydown", e => {
+        try{if(audio.paused){ audio.play();}}catch(error){};
+        if(context.state === 'suspended'){context.suspend();context.resume();} 
+    
+});
+
+
+
+
+
 const app = new ThreeApp(document.querySelector("#gameCanvas"),isMobile.any());
 // Keep the base sky and fog identical to the editor. Sky captures this
 // background when it is created, while the fog remains visible on terrain.
