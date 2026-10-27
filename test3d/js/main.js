@@ -11,15 +11,7 @@ import { WaterSystem } from "./water/WaterSystem.js";
 const canvas = document.querySelector("#viewport");
 const statsElement = document.querySelector("#stats");
 const worldSession = await loadWorldSession(statsElement);
-document.querySelector("#worldFileName").textContent = worldSession.name;
-document.querySelector("#worldFileName").title = worldSession.notice || worldSession.name;
-document.querySelector("#openWorldButton").addEventListener("click", async () => {
-  try {
-    const selected = await pickWorldFile();
-    await worldSession.remember.set(selected.handle);
-    window.location.reload();
-  } catch (error) { if (error.name !== "AbortError") statsElement.textContent = `Open failed: ${error.message}`; }
-});
+
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
