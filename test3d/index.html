@@ -2,45 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#000000">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="CatAdventure">
-  <title>CatAdventure</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/png" href="assets/cat-paw-icon.png">
-  <link rel="apple-touch-icon" href="assets/cat-paw-icon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101b28">
+  <title>MaxWorld — Terrain Prototype</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="world-files.css">
   <script type="importmap">
-    { "imports": {
-      "three": "https://unpkg.com/three@0.186.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.186.0/examples/jsm/"
-    } }
+    { "imports": { "three": "https://unpkg.com/three@0.186.0/build/three.module.js" } }
   </script>
 </head>
-<body class="game-page">
-  <canvas id="gameCanvas"></canvas>
-  <div id="rotateDevicePrompt" class="rotate-device-prompt" role="status" aria-live="polite">
-    <div class="rotate-device-prompt__icon" aria-hidden="true">↻</div>
-    <strong>Rotate your device</strong>
-    <span>This game is best played in landscape.</span>
-  </div>
-  <aside id="installPrompt" class="install-prompt" aria-labelledby="installPromptTitle" hidden>
-    <button class="install-prompt__close" type="button" aria-label="Dismiss install instructions">×</button>
-    <img src="assets/cat-paw-icon.png" alt="" class="install-prompt__icon">
-    <div>
-      <strong id="installPromptTitle">Play fullscreen</strong>
-      <p id="installPromptInstructions"></p>
-    </div>
+<body>
+  <canvas id="viewport" aria-label="MaxWorld terrain prototype"></canvas>
+  <aside class="panel panel--brand">
+    <strong>MAXWORLD</strong>
+    <span id="worldFileName" class="world-file-name">Loading world…</span>
+    <button id="openWorldButton" class="world-open-button" type="button">Open world…</button>
   </aside>
-  <div id="loadingScreen" class="loading-screen" role="status" aria-live="polite">
-    <img class="loading-screen__icon" src="assets/cat-paw-icon.png" alt="">
-    <div class="loading-screen__title">CatAdventure</div>
-    <div class="loading-screen__message">Loading world…</div>
-    <div class="loading-screen__bar" aria-hidden="true"><div></div></div>
-  </div>
-  <div class="hud"><strong>NextWorld</strong><span id="status">Loading world…</span></div>
-  <script type="module" src="js/app/game-main.js"></script>
+  <aside id="stats" class="panel panel--stats" aria-live="polite">Starting renderer…</aside>
+  <div id="help" class="help">Gamepad: left stick move · right stick look · L1/R1 down/up · R2 boost · Menu reset</div>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

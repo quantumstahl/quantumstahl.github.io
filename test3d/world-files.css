@@ -1,0 +1,8 @@
+.world-dialog { max-width: 34rem; padding: 1.5rem; color: #e4edf3; background: #172c3d; border: 1px solid #68849a; border-radius: .5rem; font: 15px/1.5 system-ui, sans-serif; }
+.world-dialog::backdrop { background: #06121bc9; }
+.world-dialog h2 { margin-top: 0; }
+.world-dialog-actions { display: flex; gap: .65rem; flex-wrap: wrap; }
+.world-dialog button, .world-open-button { padding: .4rem .7rem; color: #e4edf3; background: #27475d; border: 1px solid #68849a; border-radius: .3rem; cursor: pointer; }
+.world-file-name { max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.editor-bar .world-file-name { min-width: 0; max-width: 20vw; font-size: 11px; }
+.editor-bar [aria-label="World file"].history-group { margin-left: auto; flex-shrink: 0; }

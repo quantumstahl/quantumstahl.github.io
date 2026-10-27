@@ -3,28 +3,131 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NextWorld Editor</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta name="theme-color" content="#101b28">
+  <title>MaxWorld Editor</title>
+  <link rel="stylesheet" href="editor.css">
+  <link rel="stylesheet" href="world-files.css">
   <script type="importmap">
-    { "imports": {
-      "three": "https://unpkg.com/three@0.186.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.186.0/examples/jsm/"
-    } }
+    { "imports": { "three": "https://unpkg.com/three@0.186.0/build/three.module.js" } }
   </script>
 </head>
-<body class="editor-page">
+<body>
   <header class="editor-bar">
-    <button id="chunkToolButton" title="Click a chunk to toggle decorative terrain">Chunk</button><button id="deleteChunkToolButton" title="Click a saved chunk to delete it">Delete chunk</button>
-    <strong>NextWorld Editor</strong>
-    <button id="openButton">Open</button><button id="saveButton">Save</button><button id="selectToolButton">Select</button><button id="moveToolButton">Move</button><button id="rotateToolButton">Rotate</button><button id="scaleToolButton">Scale</button><button id="stackToolButton">Stack</button><button id="brushToolButton">Brush</button><button id="duplicateButton">Duplicate</button><span class="terrain-label">Terrain:</span><button id="terrainRaiseButton">Raise</button><button id="terrainLowerButton">Lower</button><button id="terrainSmoothButton">Smooth</button><button id="terrainFlattenButton">Flatten</button><button id="terrainRockifyButton" title="Rockify Out: extrude along the rock face. Hold Shift for Rockify In: carve inward.">Rockify Out</button><button id="terrainTextureButton" title="Add a PNG texture layer">Add PNG…</button><select id="terrainTextureSelect" title="Choose the terrain texture layer"></select><label class="terrain-texture-scale" title="Higher tiling makes the selected texture appear smaller"><span>Tiling</span><input id="terrainTextureScale" type="number" min="1" max="200" step="1" value="16"></label><button id="terrainRemoveTextureButton" title="Remove the selected terrain texture layer">Remove PNG</button><button id="terrainPaintButton" title="Paint the selected PNG layer on terrain">Paint</button><button id="terrainEraseTextureButton" title="Erase the selected PNG layer to reveal the texture underneath">Erase Paint</button><button id="terrainGrassButton" title="Paint nearby-rendered grass">Grass</button><button id="terrainEraseGrassButton" title="Remove painted grass">Erase Grass</button>
-    <span id="editorStatus">Loading world…</span>
+    <div class="editor-brand"><strong>MAXWORLD</strong><span>Terrain editor</span></div>
+    <div class="tool-group" aria-label="Terrain tools">
+      <span class="tool-label">Terrain</span>
+      <button type="button" data-tool="raise" aria-pressed="true">Raise</button>
+      <button type="button" data-tool="lower" aria-pressed="false">Lower</button>
+      <button type="button" data-tool="smooth" aria-pressed="false">Smooth</button>
+      <button type="button" data-tool="flatten" aria-pressed="false">Flatten</button>
+      <button type="button" data-tool="rockify" aria-pressed="false" title="Build broad rock blocks with bevelled edges. Hold to settle the shape; release to start another layer. Shift shapes inward.">Rockify Out</button>
+      <button type="button" data-tool="smoothWarp" aria-pressed="false" title="Smooth XZ terrain displacement">Smooth Warp</button>
+      <button type="button" data-tool="paint" aria-pressed="false">Paint</button>
+      <button type="button" data-tool="erasePaint" aria-pressed="false">Erase paint</button>
+      <button type="button" data-tool="water" aria-pressed="false">Water</button>
+    </div>
+    <div class="history-group" aria-label="Edit history">
+      <button id="undoButton" type="button" disabled>Undo</button>
+      <button id="redoButton" type="button" disabled>Redo</button>
+    </div>
+    <div class="rock-shell-group" aria-label="Rock shell">
+      <button id="rockShellButton" type="button" aria-pressed="false" title="Show the fixed 2 m Rock shell and replace its matching source terrain">Rock shell</button>
+    </div>
+    <div class="history-group" aria-label="World file">
+      <button id="openWorldButton" type="button" title="Open a MaxWorld world file (Ctrl+O)">Open…</button>
+      <button id="saveButton" class="save-button" type="button" title="Save to the selected world file (Ctrl+S)">Save</button>
+      <button id="saveAsButton" type="button" title="Choose the world file name and location (Ctrl+Shift+S)">Save As…</button>
+    </div>
+    <span id="worldFileName" class="world-file-name" aria-label="World file"></span>
+    <span id="editorStatus" class="editor-status">Ready</span>
   </header>
-  <aside id="assetPanel" class="asset-panel">
-    <div class="asset-panel__title">World</div>
-    <div id="assetTree"></div>
+  <aside class="inspector">
+    <div id="brushPanel">
+    <div class="inspector-title">Brush</div>
+    <label><span>Radius</span><output id="radiusValue">24 m</output><input id="radiusInput" type="range" min="4" max="80" step="2" value="24"></label>
+    <label id="sculptStrengthControl"><span>Strength</span><output id="strengthValue">18</output><input id="strengthInput" type="range" min="2" max="40" step="1" value="18"></label>
+    <label id="paintFlowControl" hidden><span>Paint flow</span><output id="paintFlowValue">50%</output><input id="paintFlowInput" type="range" min="1" max="100" step="1" value="50"></label>
+    <section id="materialPanel" class="material-panel" aria-label="Terrain materials">
+      <h2 class="inspector-title">Materials</h2>
+      <div id="materialSlots" class="material-slots" aria-label="Select a material"></div>
+      <label>Name<input id="materialName" type="text" maxlength="80" autocomplete="off"></label>
+      <label>Texture path<input id="materialPath" type="text" placeholder="assets/grass.png or image URL" autocomplete="off" spellcheck="false"></label>
+      <label>Repeat size (m)<input id="materialRepeat" type="number" min="0.25" max="2048" step="0.25" value="8"></label>
+      <div class="material-actions"><button id="importMaterialImage" type="button">Import image…</button><button id="clearMaterialImage" type="button">Clear image</button></div>
+      <input id="materialImageFile" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+      <p id="materialLoadStatus" class="material-load-status" role="status"></p>
+      <p>Imported images travel with the world. Paint or erase the selected material. Rock surfaces keep their rock shading.</p>
+    </section>
+    <p>Left drag uses the selected tool.<br>Right drag looks.<br>WASD/QE moves · Shift boosts.</p>
+    </div>
+    <section id="waterPanel" class="material-panel" aria-label="Water authoring" hidden>
+      <h2 class="inspector-title">Water</h2>
+      <select id="waterBodies" aria-label="Water bodies"></select>
+      <div class="material-actions"><button id="newLake" type="button">Draw lake</button><button id="newRoundLake" type="button">Round lake</button><button id="newRiver" type="button">Draw river</button><button id="deleteWater" type="button">Delete</button></div>
+      <div class="material-actions"><button id="newWaterfall" type="button">Create Waterfall</button></div>
+      <div class="material-actions"><button id="finishWater" type="button">Finish water</button><button id="cancelWater" type="button">Cancel drawing</button></div>
+      <label>Name<input id="waterName" type="text" maxlength="80"></label>
+      <label><span id="waterElevationLabel">Water elevation (m)</span><input id="waterElevation" type="number" min="-1000" max="4000" step="0.1" value="2"></label>
+      <label>Color<input id="waterColor" type="color" value="#238fa3"></label>
+      <label>Opacity<input id="waterOpacity" type="range" min="0" max="1" step="0.01" value="0.82"></label>
+      <label><span id="waterWavesLabel">Wave strength</span><input id="waterWaves" type="range" min="0" max="2" step="0.05" value="0.65"></label>
+      <label><span id="waterFlowLabel">Surface speed</span><input id="waterFlow" type="number" min="0" max="10" step="0.1" value="0.7"></label>
+      <label><span id="waterFoamLabel">Boundary foam</span><input id="waterFoam" type="range" min="0" max="1" step="0.05" value="0.35"></label>
+      <label>Depth tint<input id="waterDepth" type="range" min="0" max="1" step="0.05" value="0.25"></label>
+      <section id="waterfallControls" hidden>
+        <h3 class="inspector-title">Waterfall</h3>
+        <select id="waterfallPointSelect" aria-label="Waterfall control point"></select>
+        <label>Width (m)<input id="waterfallWidth" type="number" min="0.5" max="64" step="0.25" value="6"></label>
+        <label>Curvature<input id="waterfallCurvature" type="range" min="0" max="1" step="0.05" value="0.65"></label>
+        <label>Vertical fall heading (degrees)<input id="waterfallHeading" type="number" min="0" max="360" step="5" value="0"></label>
+        <label>Bottom turbulence<input id="waterfallTurbulence" type="range" min="0" max="1" step="0.05" value="0.6"></label>
+        <label>Mist amount<input id="waterfallMist" type="range" min="0" max="1" step="0.05" value="0.2"></label>
+        <label>Spray amount<input id="waterfallSpray" type="range" min="0" max="1" step="0.05" value="0.25"></label>
+        <label>Connection overlap (m)<input id="waterfallOverlap" type="number" min="0" max="2" step="0.05" value="0.35"></label>
+        <p>Impact foam / splashes controls the base effect. Mist/spray fade out at distance; zero disables them. Set the lower point to the pool surface to place the impact effect.</p>
+        <p>Select upper/lower points and set Point elevation for exact river/lake alignment. Dragging moves a point horizontally at its elevation. Insert points to shape the curve. Heading sets the sheet orientation when endpoints share XZ.</p>
+      </section>
+      <section id="waterfallPlacementControls" hidden>
+        <label class="waterfall-pick-mode"><span>Pick terrain or water</span><input id="waterfallUseSurface" type="checkbox" checked></label>
+        <label>Next point elevation (m)<input id="waterfallPlaceElevation" type="number" min="-1000" max="4000" step="0.1" value="0"></label>
+        <p>Click upper lip, then lower pool. Turn off surface picking to place at the explicit elevation, including behind cliffs. Placement never edits terrain.</p>
+      </section>
+      <section id="lakeControls">
+        <label>Round lake radius (m)<input id="lakeRadius" type="number" min="2" max="300" step="1" value="50"></label>
+        <label>Shore rounding<input id="lakeRoundness" type="range" min="0" max="1" step="0.05" value="0.85"></label>
+        <p>Round lake places a circle with one centre click. Draw lake uses boundary points; shore rounding softens its corners.</p>
+      </section>
+      <section id="riverPlacementControls" hidden>
+        <label class="waterfall-pick-mode"><span>Snap river points to surface</span><input id="riverUseSurface" type="checkbox" checked></label>
+        <label>Terrain clearance (m)<input id="riverSurfaceOffset" type="number" min="0" max="2" step="0.01" value="0.08"></label>
+        <p>Click or drag onto visible terrain/Rockify plus clearance, or match another water surface exactly. The first click sets base elevation; subsequent points follow surface height. Turn snapping off to use the current elevation plane. Placement never carves; carving on warped/Rockify terrain remains protected.</p>
+      </section>
+      <p id="waterPointLabel">Select a boundary point</p>
+      <label>Point X (m)<input id="waterPointX" type="number" min="-10000" max="10000" step="0.1"></label>
+      <label>Point Z (m)<input id="waterPointZ" type="number" min="-10000" max="10000" step="0.1"></label>
+      <div id="riverPointControls" hidden>
+        <label>Point elevation (m)<input id="waterPointY" type="number" min="-2000" max="5000" step="0.1"></label>
+        <label>Point width (m)<input id="waterPointWidth" type="number" min="1" max="512" step="0.5" value="16"></label>
+        <div class="material-actions"><button id="reverseWaterFlow" type="button">Flow: first → last</button></div>
+      </div>
+      <div class="material-actions"><button id="insertWaterPoint" type="button">Insert after point</button><button id="removeWaterPoint" type="button">Remove point</button></div>
+      <section id="riverbedControls" hidden>
+        <h3 class="inspector-title">Waterbed</h3>
+        <label>Bed depth (m)<input id="riverbedDepth" type="number" min="0.25" max="32" step="0.25" value="3"></label>
+        <label>Bank transition width (m)<input id="riverbedBankWidth" type="number" min="2" max="100" step="1" value="12"></label>
+        <label class="waterfall-pick-mode"><input id="riverbedAllowRockify" type="checkbox" checked>Allow carving into Rockify</label>
+        <div class="material-actions"><button id="previewRiverbed" type="button">Preview bed</button><button id="carveRiverbed" type="button">Carve waterbed</button></div>
+        <p id="riverbedStatus" role="status"></p>
+        <p>Carve replaces this lake or river's previous bed. Delete or reshape water to restore its tracked bed; press Carve to apply the new shape. Later manual height edits and other waterbeds are preserved. Amber points preview changes. Allow carving into Rockify can lower cliff tops and deform overhangs; it preserves XZ warp and cutout ownership. Uncheck it to protect nearby rock.</p>
+      </section>
+      <p id="waterMeshStatus" role="status"></p>
+      <p>Choose elevation, create a lake or river, click its points, then Finish water. Drag points to reshape. Rivers flow along point order; each point has a width and elevation. Changing the base elevation shifts the whole river.</p>
+      <p>Extend water under banks. Terrain and cliffs hide covered water. Foam follows authored edges; depth tint is artistic. Placement never carves terrain.</p>
+      <p>Right drag looks · WASD/QE moves. Water edits use the shared Undo/Redo and Save controls.</p>
+    </section>
   </aside>
-  
-  <canvas id="gameCanvas"></canvas>
-  <script type="module" src="js/app/editor-main.js"></script>
+  <aside id="editorStats" class="editor-stats" aria-live="polite">Starting renderer…</aside>
+  <canvas id="editorCanvas" aria-label="MaxWorld terrain editor"></canvas>
+  <script type="module" src="js/editor/editor-main.js"></script>
 </body>
 </html>
