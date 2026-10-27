@@ -1,101 +1,12 @@
-:root { color-scheme: dark; font-family: system-ui, sans-serif; background: #000; }
+:root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
 * { box-sizing: border-box; }
-
- html,body {
-                margin: 0;
-                overflow: hidden;
-                user-select:none;
-                pointer-events:none;
-                -webkit-user-select: none;
-                touch-action: none;
-                overscroll-behavior: none;
-                user-select: none;
-                position: fixed;
-                inset: 0;
-                pointer-events:auto;
-            }
-
-
-canvas { display: block; width: 100vw; height: 100vh; margin: 0;
-                overflow: hidden;
-                user-select:none;
-                pointer-events:none;
-                -webkit-user-select: none;
-                touch-action: none;
-                overscroll-behavior: none;
-                user-select: none;
-                position: fixed;
-                pointer-events:auto;
-                inset: 0; }
-.rotate-device-prompt { display: none; position: fixed; z-index: 30; inset: 0; place-content: center; justify-items: center; gap: 10px; padding: 24px; color: #fff; background: #07111dcc; text-align: center; pointer-events: auto; }
-.rotate-device-prompt__icon { display: grid; place-items: center; width: 76px; height: 76px; border: 2px solid currentColor; border-radius: 18px; font-size: 3.5rem; line-height: 1; transform: rotate(35deg); }
-.rotate-device-prompt strong { font-size: 1.35rem; }
-.rotate-device-prompt span { color: #c7d4df; }
-@media (pointer: coarse) and (orientation: portrait) {
-  .game-page .rotate-device-prompt { display: grid; }
-}
-.install-prompt { position: fixed; z-index: 25; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 12px; max-width: min(390px, calc(100vw - 32px)); padding: 14px 40px 14px 14px; border: 1px solid rgb(255 255 255 / .22); border-radius: 14px; color: #f7fbff; background: rgb(10 19 28 / .94); box-shadow: 0 12px 32px rgb(0 0 0 / .35); }
-.install-prompt[hidden] { display: none; }
-.install-prompt__icon { width: 46px; height: 46px; border-radius: 12px; object-fit: cover; }
-.install-prompt strong { font-size: 1rem; }
-.install-prompt p { margin: 4px 0 0; color: #c7d4df; font-size: .84rem; line-height: 1.35; }
-.install-prompt__close { position: absolute; top: 6px; right: 7px; width: 27px; height: 27px; padding: 0; border: 0; border-radius: 50%; color: #dbefff; background: transparent; font-size: 1.4rem; line-height: 1; }
-.install-prompt__close:hover { background: rgb(255 255 255 / .13); }
-.loading-screen { position: fixed; z-index: 20; inset: 0; display: grid; place-content: center; justify-items: center; gap: 15px; padding: 24px; color: #fff; text-align: center;  opacity: 1; transition: opacity .45s ease, visibility .45s ease; }
-.loading-screen.is-hidden { visibility: hidden; opacity: 0; pointer-events: none; }
-.loading-screen__icon { width: min(30vw, 132px); aspect-ratio: 1; border-radius: 24%; object-fit: cover; box-shadow: 0 12px 30px rgb(80 0 0 / .28); }
-.loading-screen__title { font-size: clamp(1.8rem, 8vw, 3rem); font-weight: 800; letter-spacing: -.04em; }
-.loading-screen__message { font-size: .95rem; font-weight: 600; }
-.loading-screen__bar { width: min(68vw, 235px); height: 5px; overflow: hidden; border-radius: 99px; background: rgb(255 255 255 / .36); }
-.loading-screen__bar div { width: 42%; height: 100%; border-radius: inherit; background: #fff; animation: loading-screen-progress 1.15s ease-in-out infinite; }
-@keyframes loading-screen-progress { from { transform: translateX(-115%); } to { transform: translateX(255%); } }
-.hud, .editor-bar, .help { position: fixed; z-index: 1; color: #eef6ff; background: rgb(10 19 28 / .78); backdrop-filter: blur(8px); }
-.hud { top: 16px; left: 16px; padding: 10px 14px; border-radius: 8px; display: grid; gap: 3px; }
-.game-page .hud { display: none; }
-.mobile-joystick { display: none; }
-.mobile-paw-button { display: none; }
-@media (pointer: coarse) {
-  .mobile-joystick { display: block; position: fixed; z-index: 5; inset: 0 auto 0 0; width: 48vw; pointer-events:auto;user-select:none; }
-  .mobile-joystick__base, .mobile-joystick__knob { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); }
-  .mobile-joystick__base { display: none; width: 75px; height: 75px; border: 2px solid rgb(255 255 255 / .8); background: rgb(20 41 30 / .22); box-shadow: 0 3px 16px rgb(0 0 0 / .25); }
-  .mobile-joystick.is-active .mobile-joystick__base { display: block; }
-  .mobile-joystick__knob { left: 50%; top: 50%; width: 34px; height: 34px; border: 2px solid rgb(255 255 255 / .9); background: radial-gradient(circle at 35% 30%, #f45b5b, #65151b); transition: transform .03s linear; }
-  .mobile-paw-button { display: grid; place-items: center; position: fixed; z-index: 6; right: max(28px, env(safe-area-inset-right)); bottom: max(80px, calc(env(safe-area-inset-bottom) + 24px)); width: 76px; height: 76px; padding: 0; border: 2px solid rgb(255 255 255 / .88); border-radius: 50%; background: radial-gradient(circle at 35% 28%, #ff6570, #a41120 72%); box-shadow: 0 5px 20px rgb(0 0 0 / .35); touch-action: none; }
-  .mobile-paw-button:active { transform: scale(.93); background: radial-gradient(circle at 35% 28%, #9199a1, #3f4852 72%); }
-  .mobile-paw-button svg { width: 57px; height: 57px; filter: drop-shadow(0 1px 1px rgb(0 0 0 / .28)); }
-  .mobile-paw-button .paw-pad, .mobile-paw-button .paw-toe { fill: rgb(255 255 255 / .94); }
-}
-.hud span, #editorStatus { color: #b7c8d8; font-size: .84rem; }
-.editor-bar { inset: 0 0 auto; height: 46px; display: flex; align-items: center; gap: 8px; padding: 8px 12px; }
-.editor-bar strong { margin-right: 10px; }
-.terrain-label { margin-left: 5px; color: #b7c8d8; font-size: .82rem; }
-.terrain-texture-scale { display: inline-flex; align-items: center; gap: 3px; color: #b7c8d8; font-size: .78rem; }
-.terrain-texture-scale input { width: 3.5rem; }
-button { border: 1px solid #587087; border-radius: 5px; color: inherit; background: #273a4c; padding: 5px 9px; cursor: pointer; }
-button:hover { background: #39556d; }
-button.is-active { border-color: #ffd34f; background: #526073; color: #fff3b1; }
-.performance-info { position: fixed; z-index: 2; top: 3px; right: 3px; margin: 0; padding: 8px 10px; border: 1px solid #4f677b; border-radius: 6px; color: #dbefff; background: rgb(10 19 28 / .42); font: 8px/1.45 ui-monospace, Consolas, monospace; white-space: pre; pointer-events: none; }
-@media (pointer: coarse){.performance-info{font: 4px/1.45 ui-monospace;}} 
-.editor-page .performance-info { top: 56px; }
-.editor-page canvas { height: calc(100vh - 46px); margin-top: 46px; }
-.asset-panel { position: fixed; z-index: 1; top: 54px; left: 8px; width: 252px; max-height: calc(100vh - 62px); overflow: auto; padding: 10px; border: 1px solid #496174; border-radius: 8px; color: #eaf4ff; background: rgb(10 19 28 / .88); }
-.asset-panel__title { margin-bottom: 8px; font-weight: 700; }
-.tree-row { display: flex; align-items: center; gap: 5px; min-height: 27px; padding: 2px 3px; border-radius: 4px; cursor: pointer; }
-.tree-row:hover, .tree-row.is-selected { background: #30485e; }
-.tree-row button { margin-left: auto; padding: 2px 6px; font-size: .75rem; }
-.tree-row button + button { margin-left: 0; }
-.tree-row button.is-enabled { border-color: #e3c267; color: #fff0aa; background: #594e2d; }
-.tree-row button.is-fake { border-color: #8bb5d6; color: #d7efff; background: #294a61; }
-.tree-row button.collision-control { min-width: 29px; font-weight: 700; }
-.tree-row button.collision-solid, .tree-row button.collision-wall, .tree-row button.collision-floor-posts { border-color: #d68066; color: #ffe0d4; background: #66372e; }
-.tree-row button.collision-floor { border-color: #7eae78; color: #d9f4d2; background: #315433; }
-.tree-row button.collision-ghost, .tree-row button.collision-trigger { border-color: #7faed3; color: #d6efff; background: #294a61; }
-.tree-row button.collision-none { border-color: #657889; color: #aebbc6; background: #2a3640; }
-.tree-layer { margin-top: 6px; font-weight: 600; }.tree-type { padding-left: 14px; }.tree-instance { padding-left: 29px; color: #c7d4df; }
-.tree-actions { display: flex; gap: 5px; padding-top: 9px; }.tree-actions button { flex: 1; }
-.tree-more { width: calc(100% - 28px); margin: 4px 0 4px 28px; padding: 4px 6px; font-size: .72rem; color: #c8ddef; }
-.tree-context-menu { position: fixed; z-index: 10; min-width: 200px; padding: 5px; border: 1px solid #607a90; border-radius: 6px; background: #172635; box-shadow: 0 8px 22px rgb(0 0 0 / .35); }
-.tree-context-menu button { width: 100%; border-color: #8b5861; background: #58313a; text-align: left; }
-.tree-context-menu button:hover { background: #7a424e; }
-.tree-context-menu.tree-collision-menu button { border-color: #4f6b80; background: #243d51; }
-.tree-context-menu.tree-collision-menu button:hover, .tree-context-menu.tree-collision-menu button.is-current { background: #386285; }
+html, body, #viewport { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+body { background: #77b4df; }
+#viewport { display: block; }
+.panel { position: fixed; z-index: 1; border: 1px solid rgb(196 232 255 / 22%); background: rgb(7 18 31 / 72%); backdrop-filter: blur(10px); border-radius: 8px; color: #dceeff; box-shadow: 0 10px 35px rgb(0 0 0 / 18%); }
+.panel--brand { top: max(16px, env(safe-area-inset-top)); left: max(16px, env(safe-area-inset-left)); padding: 10px 13px; display: grid; gap: 2px; }
+.panel--brand strong { letter-spacing: .15em; font-size: 12px; color: #fff; }
+.panel--brand span { font-size: 11px; color: #a8c6dc; }
+.panel--stats { right: max(12px, env(safe-area-inset-right)); top: max(12px, env(safe-area-inset-top)); width: min(252px, calc(100vw - 24px)); padding: 8px 10px; white-space: pre; font: 10px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.help { position: fixed; z-index: 1; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%); padding: 8px 12px; border-radius: 6px; color: #e8f5ff; background: rgb(7 18 31 / 66%); font-size: 12px; text-align: center; pointer-events: none; }
+@media (pointer: coarse) { .help { font-size: 11px; max-width: calc(100% - 32px); } }
