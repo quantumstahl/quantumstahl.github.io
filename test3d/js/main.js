@@ -14,7 +14,7 @@ const worldSession = await loadWorldSession(statsElement);
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+renderer.setPixelRatio(1.0);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x83b9de);
