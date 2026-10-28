@@ -11,6 +11,7 @@ import { EnvironmentSystem } from "./engine/EnvironmentSystem.js";
 import { GLBAssetLibrary } from "./objects/GLBAssetLibrary.js";
 import { ObjectSystem } from "./objects/ObjectSystem.js";
 import { renderWorldFrame, renderStatsLabel } from "./engine/RenderFrame.js";
+import { GrassSystem } from "./vegetation/GrassSystem.js";
 
 const canvas = document.querySelector("#viewport");
 const statsElement = document.querySelector("#stats");
@@ -36,6 +37,9 @@ const rockSurfaceShell = new RockSurfaceShell(scene, terrainData, heightCache);
 rockSurfaceShell.setEnabled(worldSession.settings.rockShellEnabled);
 const water = new WaterSystem(scene, worldSession.waterData);
 const environment = new EnvironmentSystem(scene, worldSession.settings.environment);
+const grass = new GrassSystem(scene, terrainData, worldSession.materialData, { settings: worldSession.settings.grass, water,
+  diagnostics: new URLSearchParams(location.search).has("grassStats") });
+environment.bindMaterial(grass.nearMaterial); environment.bindMaterial(grass.farMaterial);
 const objectWarnings = document.querySelector("#objectWarnings");
 const objectAssets = new GLBAssetLibrary(worldSession.objectData, { onError: message => { objectWarnings.hidden = false; objectWarnings.textContent = `${message} Available LODs are used where possible; objects with no available model appear as pink boxes.`; } });
 const objects = new ObjectSystem(scene, worldSession.objectData, objectAssets, { diagnostics: new URLSearchParams(location.search).has("objectLODStats") });
@@ -79,6 +83,7 @@ function updateStats(now, delta) {
     `Waterfalls ${water.waterfall.records.size} · ${water.waterfall.records.size*26} effect tris`,
     `Objects ${objects.stats.instances} · ${objects.stats.visibleCells}/${objects.stats.residentCells} cells · ${objects.stats.animated} animated`,
     ...objects.diagnosticLines(),
+    ...grass.diagnosticLines(),
   ].join("\n");
   frames = 0;
   elapsed = 0;
@@ -99,6 +104,7 @@ function frame(now) {
   materialCache.update(camera.position.x, camera.position.z, terrain.getVisibleSourceTileKeys());
   rockSurfaceShell.syncCoverage();
   terrain.syncHeightCacheUniforms();
+  grass.update(camera, delta);
   renderWorldFrame(renderer, environment, scene, camera);
   updateStats(now, rawDelta);
   requestAnimationFrame(frame);
@@ -107,4 +113,4 @@ function frame(now) {
 window.addEventListener("resize", resize);
 resize();
 requestAnimationFrame(frame);
-window.addEventListener("pagehide", event => { if (!event.persisted) { objects.dispose(); objectAssets.dispose(); } });
+window.addEventListener("pagehide", event => { if (!event.persisted) { grass.dispose(); objects.dispose(); objectAssets.dispose(); } });

@@ -20,6 +20,8 @@ import { refreshTerrainAnchors } from "../objects/ObjectSurface.js";
 import { ObjectEditor } from "./ObjectEditor.js";
 import { ObjectSurfacePicker } from "./ObjectSurfacePicker.js";
 import { renderWorldFrame, renderStatsLabel } from "../engine/RenderFrame.js";
+import { GrassSystem } from "../vegetation/GrassSystem.js";
+import { GrassPanel } from "./GrassPanel.js";
 
 const canvas = document.querySelector("#editorCanvas");
 const status = document.querySelector("#editorStatus");
@@ -82,6 +84,9 @@ const undoStack = [];
 const redoStack = [];
 const water = new WaterSystem(scene, worldSession.waterData);
 const environment = new EnvironmentSystem(scene, worldSession.settings.environment);
+const grass = new GrassSystem(scene, terrainData, worldSession.materialData, { settings: worldSession.settings.grass, water,
+  diagnostics: new URLSearchParams(location.search).has("grassStats") });
+environment.bindMaterial(grass.nearMaterial); environment.bindMaterial(grass.farMaterial);
 for (const material of [terrain.material, rockSurfaceShell.material, water.material, water.waterfall.material, water.waterfall.effectsMaterial]) environment.bindMaterial(material);
 const waterEditor = new WaterEditor({ scene, camera, canvas, data: worldSession.waterData, water,
   panel: document.querySelector("#waterPanel"), recordHistory, onStatus: setStatus, sculptor,bedData:worldSession.waterBeds,pickSurface:event=>pickPaintSurface(event) });
@@ -116,8 +121,14 @@ let rockifyPickScheduled = false;
 let rockCutoutEnabled = false;
 let changingWorld = false;
 const skyPanel = new SkyPanel(environment, refreshWorldFileName);
+const grassPanel = new GrassPanel(document.querySelector("#grassPanel"), grass, worldSession.materialData, { onEdit(patch) {
+  const before=grass.settings;
+  const after=grass.configure(patch);
+  if (JSON.stringify(before)!==JSON.stringify(after)) recordHistory({ kind:"grass", entries:{before,after} });
+  refreshWorldFileName();
+} });
 
-function worldSettings() { return { rockShellEnabled: rockSurfaceShell.enabled, environment: { ...environment.settings } }; }
+function worldSettings() { return { rockShellEnabled: rockSurfaceShell.enabled, environment: { ...environment.settings }, grass: grass.settings }; }
 function refreshWorldFileName() {
   const label = `${worldSession.name}${worldSession.hasUnsavedChanges(terrainData, worldSettings()) ? " *" : ""}`;
   if (worldFileName.textContent !== label) worldFileName.textContent = label;
@@ -220,6 +231,7 @@ function updateStats(now, delta) {
     `waterfalls ${water.waterfall.records.size} / ${water.waterfall.records.size*26} effect tris`,
     `objects ${objects.stats.instances} visible / ${worldSession.objectData.objects.size} saved · ${objects.stats.visibleCells}/${objects.stats.residentCells} cells · ${objects.stats.animated} animated`,
     ...objects.diagnosticLines(),
+    ...grass.diagnosticLines(),
   ].join("\n");
   statFrames = 0;
   statElapsed = 0;
@@ -286,7 +298,8 @@ function finishStroke() {
 }
 
 function applyHistory(step, property) {
-  if (step.kind === "object" || step.kind === "objectAsset" || step.kind === "objectLOD" || step.kind === "objectBrush") objectEditor.applyHistory(step.entries, property, step.kind);
+  if (step.kind === "grass") { grass.configure(step.entries[property]); grassPanel.render(); refreshWorldFileName(); }
+  else if (step.kind === "object" || step.kind === "objectAsset" || step.kind === "objectLOD" || step.kind === "objectBrush") objectEditor.applyHistory(step.entries, property, step.kind);
   else if (step.kind === "water") waterEditor.applyHistory(step.entries, property);
   else if(step.kind==="waterbed")waterEditor.beds.applyHistory(step.entries,property);
   else if (step.kind === "paint") painter.applyHistory(step.entries, property);
@@ -675,6 +688,7 @@ function frame(now) {
   materialCache.update(camera.position.x, camera.position.z, terrain.getVisibleSourceTileKeys());
   rockSurfaceShell.syncCoverage();
   terrain.syncHeightCacheUniforms();
+  grass.update(camera, delta);
   const renderStarted = performance.now();
   renderWorldFrame(renderer, environment, scene, camera);
   const renderElapsed = performance.now() - renderStarted;
@@ -691,4 +705,4 @@ updateHistoryButtons();
 refreshWorldFileName();
 setStatus(worldSession.notice || (worldSession.importedLegacy ? "Imported browser save — Save to choose a world file" : `Loaded ${worldSession.name}`));
 requestAnimationFrame(frame);
-window.addEventListener("pagehide", event => { if (!event.persisted) { objectEditor.dispose(); objects.dispose(); objectAssets.dispose(); } });
+window.addEventListener("pagehide", event => { if (!event.persisted) { grassPanel.dispose(); grass.dispose(); objectEditor.dispose(); objects.dispose(); objectAssets.dispose(); } });

@@ -6,6 +6,10 @@ const SAMPLE_COUNT = (TERRAIN_TILE_SEGMENTS + 1) ** 2;
 const WEIGHT_COUNT = SAMPLE_COUNT * TERRAIN_MATERIAL_COUNT;
 const SPACING = TERRAIN_TILE_SIZE / TERRAIN_TILE_SEGMENTS;
 const WEIGHT_EPSILON = 1e-6;
+function changedSample(tile, x, z) {
+  const b=tile.changeBounds ??= {minX:x,maxX:x,minZ:z,maxZ:z};
+  b.minX=Math.min(b.minX,x); b.maxX=Math.max(b.maxX,x); b.minZ=Math.min(b.minZ,z); b.maxZ=Math.max(b.maxZ,z);
+}
 
 function validateMaterials(materials) {
   if (!Array.isArray(materials) || materials.length !== TERRAIN_MATERIAL_COUNT) throw new Error("Terrain requires exactly eight material slots.");
@@ -126,7 +130,10 @@ export class TerrainMaterialData {
     if (--this.changeBatchDepth) return;
     const changed = [...this.changedTiles];
     this.changedTiles.clear();
-    for (const tile of changed) this.emit({ type: "tile", tile });
+    for (const tile of changed) {
+      const bounds=tile.changeBounds; tile.changeBounds=undefined;
+      this.emit({ type: "tile", tile, bounds });
+    }
   }
 
   getTile(tileX, tileZ, create = false) {
@@ -206,6 +213,7 @@ export class TerrainMaterialData {
               if (tx === lastX && tz === lastZ) lastTile = tile;
             }
             tile.weights.set(next, offset);
+            changedSample(tile,gx*SPACING,gz*SPACING);
             tile.dirty = true;
             changed.add(tile);
             count++;
@@ -271,6 +279,7 @@ export class TerrainMaterialData {
         if (next.every((value, layer) => value === (tile?.weights[offset + layer] ?? 0))) continue;
         tile ??= this.getTile(tileX, tileZ, true);
         tile.weights.set(next, offset);
+        changedSample(tile,worldX,worldZ);
         tile.revision++;
         tile.dirty = true;
         this.changedTiles.add(tile);

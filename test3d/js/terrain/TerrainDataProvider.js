@@ -403,7 +403,7 @@ export class TerrainDataProvider {
       // source sample. Keeping this lightweight metadata on the CPU tile
       // avoids incorrectly inspecting the unchanged centre of a large tile.
       tile.lastChangedSample = { x: alignedX, z: alignedZ, index, height, revision: tile.revision };
-      this.markTileChanged(tile, TERRAIN_CHANGE.HEIGHT);
+      this.markTileChanged(tile, TERRAIN_CHANGE.HEIGHT, alignedX, alignedZ);
     }
   }
 
@@ -435,7 +435,7 @@ export class TerrainDataProvider {
       tile.source = "modified";
       tile.dirty = true;
       tile.revision += 1;
-      this.markTileChanged(tile, TERRAIN_CHANGE.WARP);
+      this.markTileChanged(tile, TERRAIN_CHANGE.WARP, alignedX, alignedZ);
     }
   }
 
@@ -462,7 +462,7 @@ export class TerrainDataProvider {
       tile.source = "modified";
       tile.dirty = true;
       tile.revision += 1;
-      this.markTileChanged(tile, TERRAIN_CHANGE.ROCK_EXPOSURE);
+      this.markTileChanged(tile, TERRAIN_CHANGE.ROCK_EXPOSURE, alignedX, alignedZ);
     }
   }
 
@@ -693,8 +693,17 @@ export class TerrainDataProvider {
     return saved;
   }
 
-  markTileChanged(tile, channels = TERRAIN_CHANGE.ALL) {
+  markTileChanged(tile, channels = TERRAIN_CHANGE.ALL, sampleX, sampleZ) {
     tile.changedChannels |= channels;
+    // Optional transient sample bounds let independent vegetation cells
+    // invalidate a brush area without rebuilding a whole 256 m owner. An
+    // unknown/direct mutation remains conservative for every consumer.
+    if (sampleX === undefined || sampleZ === undefined) tile.changeBounds = null;
+    else if (tile.changeBounds !== null) {
+      const b = tile.changeBounds ??= { minX: sampleX, maxX: sampleX, minZ: sampleZ, maxZ: sampleZ };
+      b.minX=Math.min(b.minX,sampleX); b.maxX=Math.max(b.maxX,sampleX);
+      b.minZ=Math.min(b.minZ,sampleZ); b.maxZ=Math.max(b.maxZ,sampleZ);
+    }
     if (tile.rockExposure) this.rockExposureTileKeys.add(this.tileKey(Math.round(tile.x / tile.size), Math.round(tile.z / tile.size)));
     if (this.changeBatchDepth > 0) {
       this.changedTiles.add(tile);
@@ -708,8 +717,10 @@ export class TerrainDataProvider {
   emitTileChanged(tile) {
     this.tileStateRevision += 1;
     const channels = tile.changedChannels || TERRAIN_CHANGE.ALL;
+    const bounds = tile.changeBounds;
     tile.changedChannels = 0;
-    for (const listener of this.tileListeners) listener(tile, channels);
+    tile.changeBounds = undefined;
+    for (const listener of this.tileListeners) listener(tile, channels, bounds);
   }
 
   trimCache(retainedTile = null) {

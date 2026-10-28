@@ -4,6 +4,7 @@ import { WaterData } from "../water/WaterData.js";
 import {WaterBedData} from "../water/WaterBedData.js";
 import { normalizeEnvironmentSettings, environmentSettingsEqual } from "../engine/EnvironmentSettings.js";
 import { ObjectData } from "../objects/ObjectData.js";
+import { normalizeGrassSettings, grassSettingsEqual } from "../vegetation/GrassSettings.js";
 
 export const DEFAULT_WORLD_URL = new URL("../../worlds/main.maxworld.json", import.meta.url).href;
 export const WORLD_FILE_NAME = "main.maxworld.json";
@@ -24,7 +25,7 @@ export class WorldTileStore {
 
   static parse(text) {
     const world = JSON.parse(text);
-    if (!world || world.format !== FORMAT || ![1, 2, 3, 4, 5, 6].includes(world.version) || world.baseTerrain !== "flat-v1"
+    if (!world || world.format !== FORMAT || ![1, 2, 3, 4, 5, 6, 7].includes(world.version) || world.baseTerrain !== "flat-v1"
       || world.tileSize !== TERRAIN_TILE_SIZE || world.tileSegments !== TERRAIN_TILE_SEGMENTS || !Array.isArray(world.tiles)) {
       throw new Error("This is not a supported MaxWorld world file.");
     }
@@ -50,7 +51,7 @@ export class WorldTileStore {
       store.tiles.set(key, serialized);
       if (record.rockExposure) store.rockExposureTileKeys.add(key);
     }
-    return { store, settings: { rockShellEnabled: world.settings?.rockShellEnabled !== false, environment: normalizeEnvironmentSettings(world.settings?.environment) }, savedAt: world.savedAt ?? null, version: world.version };
+    return { store, settings: { rockShellEnabled: world.settings?.rockShellEnabled !== false, environment: normalizeEnvironmentSettings(world.settings?.environment), grass: normalizeGrassSettings(world.settings?.grass) }, savedAt: world.savedAt ?? null, version: world.version };
   }
 
   snapshot(provider, settings) {
@@ -65,7 +66,7 @@ export class WorldTileStore {
     const waterSnapshot = this.waterData.snapshot();
     const bedSnapshot=this.waterBeds.snapshot();
     const objectSnapshot = this.objectData.snapshot();
-    const header = JSON.stringify({ format: FORMAT, version: 6, baseTerrain: "flat-v1", tileSize: provider.tileSize, tileSegments: provider.tileSegments, savedAt: new Date().toISOString(), settings, materials: materialSnapshot.materials, water: waterSnapshot.value,waterBeds:bedSnapshot.value, objects: objectSnapshot.value });
+    const header = JSON.stringify({ format: FORMAT, version: 7, baseTerrain: "flat-v1", tileSize: provider.tileSize, tileSegments: provider.tileSegments, savedAt: new Date().toISOString(), settings: { ...settings, grass: normalizeGrassSettings(settings?.grass) }, materials: materialSnapshot.materials, water: waterSnapshot.value,waterBeds:bedSnapshot.value, objects: objectSnapshot.value });
     return { text: `${header.slice(0, -1)},"tiles":[${[...tiles.values()].join(",")}],"materialTiles":[${[...materialSnapshot.tiles.values()].join(",")}]}`, tiles, versions, rockKeys, materialSnapshot, waterSnapshot,bedSnapshot, objectSnapshot };
   }
 
@@ -127,6 +128,7 @@ export class WorldFileSession {
     return globalThis.showSaveFilePicker(options);
   } } = {}) {
     Object.assign(this, { store, settings, handle, name, importedLegacy, notice, remember, pickSave });
+    this.settings = { ...settings, grass: normalizeGrassSettings(settings.grass) };
     this.saving = false;
     this.fileMissing = false;
   }
@@ -179,7 +181,7 @@ export class WorldFileSession {
   get objectData() { return this.store.objectData; }
 
   hasUnsavedChanges(provider, settings = this.settings) {
-    return this.fileMissing || this.importedLegacy || this.objectData.hasUnsavedChanges || this.materialData.hasUnsavedChanges || this.waterData.hasUnsavedChanges || this.waterBeds.hasUnsavedChanges || settings.rockShellEnabled !== this.settings.rockShellEnabled || !environmentSettingsEqual(settings.environment, this.settings.environment) || [...provider.cache.values()].some(tile => tile.dirty);
+    return this.fileMissing || this.importedLegacy || this.objectData.hasUnsavedChanges || this.materialData.hasUnsavedChanges || this.waterData.hasUnsavedChanges || this.waterBeds.hasUnsavedChanges || settings.rockShellEnabled !== this.settings.rockShellEnabled || !environmentSettingsEqual(settings.environment, this.settings.environment) || !grassSettingsEqual(settings.grass, this.settings.grass) || [...provider.cache.values()].some(tile => tile.dirty);
   }
 
   async save(provider, { saveAs = false, settings = this.settings } = {}) {
