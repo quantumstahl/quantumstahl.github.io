@@ -19,6 +19,7 @@ import { ObjectSystem } from "../objects/ObjectSystem.js";
 import { refreshTerrainAnchors } from "../objects/ObjectSurface.js";
 import { ObjectEditor } from "./ObjectEditor.js";
 import { ObjectSurfacePicker } from "./ObjectSurfacePicker.js";
+import { renderWorldFrame, renderStatsLabel } from "../engine/RenderFrame.js";
 
 const canvas = document.querySelector("#editorCanvas");
 const status = document.querySelector("#editorStatus");
@@ -199,7 +200,7 @@ function updateStats(now, delta) {
   statsElement.textContent = [
     `${(statFrames / statElapsed).toFixed(0)} FPS · ${(statElapsed * 1000 / statFrames).toFixed(1)} ms`,
     `peak ${statPeak.toFixed(1)} ms`,
-    `${(renderInfo.triangles / 1000).toFixed(0)}k total rendered tris · ${renderInfo.calls} draws`,
+    renderStatsLabel(renderInfo),
     `${(terrain.stats.triangles / 1000).toFixed(0)}k terrain submitted + ${(rockShellStats.triangles / 1000).toFixed(0)}k rock shell resident`,
     `${terrain.stats.patches} submitted / ${terrain.stats.selectedPatches}/${terrain.stats.patchBudget} selected / ${terrain.stats.culledPatches} culled · ${heightCache.keyToLayer.size}/${heightCache.layerCount} tiles`,
     `gen ${dataProfile.generatedTiles}${generationSources ? ` [${generationSources}]` : ""} / ${dataProfile.generationMs.toFixed(1)}ms / cache ${cacheProfile.updateMs.toFixed(1)} p${cacheProfile.updatePeakMs.toFixed(1)}`,
@@ -675,8 +676,7 @@ function frame(now) {
   rockSurfaceShell.syncCoverage();
   terrain.syncHeightCacheUniforms();
   const renderStarted = performance.now();
-  environment.beforeRender(renderer, camera);
-  renderer.render(scene, camera);
+  renderWorldFrame(renderer, environment, scene, camera);
   const renderElapsed = performance.now() - renderStarted;
   renderCpuMs += renderElapsed;
   renderCpuPeakMs = Math.max(renderCpuPeakMs, renderElapsed);

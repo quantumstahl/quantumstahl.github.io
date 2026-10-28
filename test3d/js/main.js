@@ -10,6 +10,7 @@ import { WaterSystem } from "./water/WaterSystem.js";
 import { EnvironmentSystem } from "./engine/EnvironmentSystem.js";
 import { GLBAssetLibrary } from "./objects/GLBAssetLibrary.js";
 import { ObjectSystem } from "./objects/ObjectSystem.js";
+import { renderWorldFrame, renderStatsLabel } from "./engine/RenderFrame.js";
 
 const canvas = document.querySelector("#viewport");
 const statsElement = document.querySelector("#stats");
@@ -70,8 +71,9 @@ function updateStats(now, delta) {
   statsElement.textContent = [
     `${(frames / elapsed).toFixed(0)} FPS · ${averageFrame.toFixed(1)} ms · peak ${peakFrame.toFixed(1)} ms`,
     `Gamepad ${controller.gamepadConnected ? "connected" : "not detected"}`,
-    `${(terrain.stats.triangles / 1000).toFixed(0)}k tris · ${info.calls} draws · ${terrain.stats.patches} patches (${terrain.stats.culledPatches} culled)`,
-    `LOD ${lods}`,
+    renderStatsLabel(info),
+    `Terrain ${terrain.stats.triangles.toLocaleString("en-US")} tris · ${terrain.stats.patches} patches (${terrain.stats.culledPatches} culled)`,
+    `Terrain LOD ${lods}`,
     `Rock ${rockStats.submittedChunks}/${rockStats.chunks} chunks · ${(rockStats.submittedTriangles / 1000).toFixed(0)}k/${(rockStats.triangles / 1000).toFixed(0)}k tris submitted/resident`,
     `Water ${water.stats.bodies} bodies · ${water.stats.triangles} tris · CPU ${water.stats.updateMs.toFixed(3)} ms`,
     `Waterfalls ${water.waterfall.records.size} · ${water.waterfall.records.size*26} effect tris`,
@@ -97,8 +99,7 @@ function frame(now) {
   materialCache.update(camera.position.x, camera.position.z, terrain.getVisibleSourceTileKeys());
   rockSurfaceShell.syncCoverage();
   terrain.syncHeightCacheUniforms();
-  environment.beforeRender(renderer, camera);
-  renderer.render(scene, camera);
+  renderWorldFrame(renderer, environment, scene, camera);
   updateStats(now, rawDelta);
   requestAnimationFrame(frame);
 }
