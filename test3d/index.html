@@ -8,13 +8,14 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="world-files.css">
   <script type="importmap">
-    { "imports": { "three": "https://unpkg.com/three@0.186.0/build/three.module.js" } }
+    { "imports": { "three": "https://unpkg.com/three@0.186.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.186.0/examples/jsm/" } }
   </script>
 </head>
 <body>
   <canvas id="viewport" aria-label="MaxWorld terrain prototype"></canvas>
 
   <aside id="stats" class="panel panel--stats" aria-live="polite">Starting renderer…</aside>
+  <aside id="objectWarnings" class="panel" role="alert" hidden></aside>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

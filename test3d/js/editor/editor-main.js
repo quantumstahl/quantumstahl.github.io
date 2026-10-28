@@ -14,6 +14,11 @@ import { WaterSystem } from "../water/WaterSystem.js";
 import { WaterEditor } from "./WaterEditor.js";
 import { EnvironmentSystem } from "../engine/EnvironmentSystem.js";
 import { SkyPanel } from "./SkyPanel.js";
+import { GLBAssetLibrary } from "../objects/GLBAssetLibrary.js";
+import { ObjectSystem } from "../objects/ObjectSystem.js";
+import { refreshTerrainAnchors } from "../objects/ObjectSurface.js";
+import { ObjectEditor } from "./ObjectEditor.js";
+import { ObjectSurfacePicker } from "./ObjectSurfacePicker.js";
 
 const canvas = document.querySelector("#editorCanvas");
 const status = document.querySelector("#editorStatus");
@@ -80,6 +85,23 @@ for (const material of [terrain.material, rockSurfaceShell.material, water.mater
 const waterEditor = new WaterEditor({ scene, camera, canvas, data: worldSession.waterData, water,
   panel: document.querySelector("#waterPanel"), recordHistory, onStatus: setStatus, sculptor,bedData:worldSession.waterBeds,pickSurface:event=>pickPaintSurface(event) });
 const MAX_HISTORY_STEPS = 50;
+const objectAssets = new GLBAssetLibrary(worldSession.objectData, { onError: message => { setStatus(message); objectEditor.listsDirty = true; } });
+const objects = new ObjectSystem(scene, worldSession.objectData, objectAssets, { diagnostics: new URLSearchParams(location.search).has("objectLODStats") });
+const objectSurfacePicker = new ObjectSurfacePicker(terrainData);
+const objectEditor = new ObjectEditor({ scene, camera, canvas, data: worldSession.objectData, assets: objectAssets, system: objects, provider: terrainData,
+  panel: document.querySelector("#objectPanel"), recordHistory, onStatus: setStatus, activate: () => setTool("objects") });
+const changedObjectTerrain = new Map();
+terrainData.onTileChanged((tile, channels) => { if (channels & 3) changedObjectTerrain.set(`${tile.x},${tile.z}`, tile); });
+function flushObjectTerrain() {
+  for (const tile of changedObjectTerrain.values()) refreshTerrainAnchors(worldSession.objectData, terrainData, tile);
+  changedObjectTerrain.clear();
+}
+objectEditor.pickVertical = (x, z, y) => {
+  const ray = new THREE.Ray(new THREE.Vector3(x, y, z), new THREE.Vector3(0, -1, 0));
+  return objectSurfacePicker.pick(ray, 20000);
+};
+function pickObjectSurface() { return objectSurfacePicker.pick(objectEditor.raycaster.ray); }
+objectEditor.pickSurface = pickObjectSurface;
 let statFrames = 0;
 let statElapsed = 0;
 let statPeak = 0;
@@ -104,11 +126,14 @@ terrainData.onTileChanged(refreshWorldFileName);
 worldSession.materialData.onChanged(refreshWorldFileName);
 worldSession.waterData.onChanged(refreshWorldFileName);
 worldSession.waterBeds.onChanged(refreshWorldFileName);
+worldSession.objectData.onChanged(refreshWorldFileName);
 
 async function saveWorld(saveAs = false) {
   if (worldSession.saving) return;
+  objectEditor.finishTransform();
   waterEditor.finishDrag();
   if (!waterEditor.finishDraft()) return;
+  flushObjectTerrain();
   saveButton.disabled = saveAsButton.disabled = openWorldButton.disabled = true;
   setStatus("Saving world…");
   try {
@@ -121,6 +146,8 @@ async function saveWorld(saveAs = false) {
 
 async function openWorld() {
   if (worldSession.saving) return;
+  objectEditor.finishTransform();
+  flushObjectTerrain();
   if ((waterEditor.draft?.points.length || worldSession.hasUnsavedChanges(terrainData, worldSettings())) && !window.confirm("Discard unsaved changes and open another world?")) return;
   try {
     const selected = await pickWorldFile();
@@ -130,6 +157,8 @@ async function openWorld() {
   } catch (error) { if (error.name !== "AbortError") setStatus(`Open failed: ${error.message}`); }
 }
 window.addEventListener("beforeunload", event => {
+  objectEditor.finishTransform();
+  flushObjectTerrain();
   if (!changingWorld && (waterEditor.draft?.points.length || worldSession.hasUnsavedChanges(terrainData, worldSettings()))) { event.preventDefault(); event.returnValue = ""; }
 });
 
@@ -188,6 +217,8 @@ function updateStats(now, delta) {
     `rock shell cutout ${rockCutoutEnabled ? "on" : "off"} / ${rockShellStats.sourceMaskTexels} source cells`,
     `water ${water.stats.bodies} bodies / ${water.stats.triangles} tris / update ${water.stats.updateMs.toFixed(3)}ms / last build ${water.stats.buildMs.toFixed(2)}ms`,
     `waterfalls ${water.waterfall.records.size} / ${water.waterfall.records.size*26} effect tris`,
+    `objects ${objects.stats.instances} visible / ${worldSession.objectData.objects.size} saved · ${objects.stats.visibleCells}/${objects.stats.residentCells} cells · ${objects.stats.animated} animated`,
+    ...objects.diagnosticLines(),
   ].join("\n");
   statFrames = 0;
   statElapsed = 0;
@@ -204,13 +235,15 @@ function setTool(tool) {
   activeTool = tool;
   hoverPickScheduled = rockifyPickScheduled = false;
   waterEditor.setActive(tool === "water");
-  document.querySelector("#brushPanel").hidden = tool === "water";
+  objectEditor.setActive(tool === "objects");
+  document.querySelector("#brushPanel").hidden = tool === "water" || tool === "objects";
   brush.visible = false;
   for (const button of document.querySelectorAll("[data-tool]")) button.setAttribute("aria-pressed", String(button.dataset.tool === tool));
   updateRockifyLabel();
   document.querySelector("#sculptStrengthControl").hidden = isPaintTool();
   document.querySelector("#paintFlowControl").hidden = !isPaintTool();
   if (tool === "water") return;
+  if (tool === "objects") { setStatus("Objects: import a GLB, select an asset to place, or click an object to edit"); return; }
   if (isPaintTool()) {
     const material = worldSession.materialData.materials[painter.activeMaterial];
     setStatus(`${activeTool === "paint" ? "Paint" : "Erase"}: ${material.name}${material.texture || activeTool === "erasePaint" ? "" : " — import an image first"}`);
@@ -252,7 +285,8 @@ function finishStroke() {
 }
 
 function applyHistory(step, property) {
-  if (step.kind === "water") waterEditor.applyHistory(step.entries, property);
+  if (step.kind === "object" || step.kind === "objectAsset" || step.kind === "objectLOD" || step.kind === "objectBrush") objectEditor.applyHistory(step.entries, property, step.kind);
+  else if (step.kind === "water") waterEditor.applyHistory(step.entries, property);
   else if(step.kind==="waterbed")waterEditor.beds.applyHistory(step.entries,property);
   else if (step.kind === "paint") painter.applyHistory(step.entries, property);
   else if (step.kind === "palette") worldSession.materialData.updateMaterial(step.entries.id, step.entries[property]);
@@ -268,22 +302,26 @@ function editMaterial(id, patch) {
 }
 
 function undo() {
+  objectEditor.finishTransform();
   waterEditor.finishDrag();
   if (sculpting) finishStroke();
   const step = undoStack.pop();
   if (!step) return;
   applyHistory(step, "before");
+  flushObjectTerrain();
   redoStack.push(step);
   updateHistoryButtons();
   setStatus("Undo");
 }
 
 function redo() {
+  objectEditor.finishTransform();
   waterEditor.finishDrag();
   if (sculpting) finishStroke();
   const step = redoStack.pop();
   if (!step) return;
   applyHistory(step, "after");
+  flushObjectTerrain();
   undoStack.push(step);
   updateHistoryButtons();
   setStatus("Redo");
@@ -509,6 +547,7 @@ redoButton.addEventListener("click", redo);
 window.addEventListener("keydown", event => {
   const typing = event.target.closest?.("input, textarea, select, [contenteditable='true']");
   if (typing && !((event.ctrlKey || event.metaKey) && ["s", "o"].includes(event.key.toLowerCase()))) return;
+  objectEditor.keyDown(event);
   if (isPaintTool() && !event.ctrlKey && !event.metaKey && /^[1-8]$/.test(event.key)) { materialPanel.select(Number(event.key) - 1); return; }
   if (event.key === "Shift") {
     rockifyIn = true;
@@ -529,6 +568,7 @@ window.addEventListener("keyup", event => {
 
 canvas.addEventListener("pointerdown", event => {
   if (event.button !== 0) return;
+  if (activeTool === "objects") { objectEditor.pointerDown(event); return; }
   if (activeTool === "water") { waterEditor.pointerDown(event); event.preventDefault(); return; }
   if (sculpting) return;
   if (activeTool === "paint") {
@@ -563,6 +603,7 @@ canvas.addEventListener("pointerdown", event => {
   event.preventDefault();
 });
 canvas.addEventListener("pointermove", event => {
+  if (activeTool === "objects") { objectEditor.pointerMove(event); return; }
   if (activeTool === "water") { waterEditor.pointerMove(event); return; }
   // Camera look does not need a brush hit. More importantly, picking walks a
   // long terrain ray and can synchronously create missing 2 m data tiles.
@@ -581,6 +622,7 @@ canvas.addEventListener("pointermove", event => {
   if (!sculpting) return;
 });
 const stopSculpt = event => {
+  if (activeTool === "objects") { objectEditor.pointerUp(event, pickObjectSurface); return; }
   if (activeTool === "water") waterEditor.pointerUp(event);
   if (event.type === "pointerup" && event.button !== 0) return;
   if (sculpting && isPaintTool() && event.type === "pointerup") {
@@ -598,7 +640,8 @@ const stopSculpt = event => {
 canvas.addEventListener("pointerup", stopSculpt);
 canvas.addEventListener("pointercancel", stopSculpt);
 canvas.addEventListener("lostpointercapture", stopSculpt);
-window.addEventListener("blur", () => { waterEditor.finishDrag(); if (sculpting) finishStroke(); brush.visible = false; });
+canvas.addEventListener("pointerleave", () => objectEditor.pointerLeave());
+window.addEventListener("blur", () => { objectEditor.finishTransform(); waterEditor.finishDrag(); if (sculpting) finishStroke(); brush.visible = false; });
 
 function frame(now) {
   const rawDelta = clock.getDelta();
@@ -608,6 +651,9 @@ function frame(now) {
   skyPanel.update();
   waterEditor.update();
   water.update(delta,camera);
+  flushObjectTerrain();
+  objectEditor.update(delta);
+  objects.update(camera, delta);
   materialPanel.updateLoadState();
   // Consume the newest pointer before sculpting. A separate RAF callback
   // could run after this frame and leave the brush one rendered frame behind.
@@ -645,3 +691,4 @@ updateHistoryButtons();
 refreshWorldFileName();
 setStatus(worldSession.notice || (worldSession.importedLegacy ? "Imported browser save — Save to choose a world file" : `Loaded ${worldSession.name}`));
 requestAnimationFrame(frame);
+window.addEventListener("pagehide", event => { if (!event.persisted) { objectEditor.dispose(); objects.dispose(); objectAssets.dispose(); } });

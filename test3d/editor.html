@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="editor.css">
   <link rel="stylesheet" href="world-files.css">
   <script type="importmap">
-    { "imports": { "three": "https://unpkg.com/three@0.186.0/build/three.module.js" } }
+    { "imports": { "three": "https://unpkg.com/three@0.186.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.186.0/examples/jsm/" } }
   </script>
 </head>
 <body>
@@ -25,6 +25,7 @@
       <button type="button" data-tool="paint" aria-pressed="false">Paint</button>
       <button type="button" data-tool="erasePaint" aria-pressed="false">Erase paint</button>
       <button type="button" data-tool="water" aria-pressed="false">Water</button>
+      <button type="button" data-tool="objects" aria-pressed="false">Objects</button>
     </div>
     <div class="history-group" aria-label="Edit history">
       <button id="undoButton" type="button" disabled>Undo</button>
@@ -42,6 +43,7 @@
     <span id="editorStatus" class="editor-status">Ready</span>
   </header>
   <aside class="inspector">
+    <section id="objectPanel" class="material-panel" aria-label="Objects" hidden></section>
     <details class="sky-panel">
       <summary class="inspector-title">Sky &amp; time</summary>
       <label for="skyTime"><span>Time of day</span><output id="skyTimeValue" for="skyTime">08:24</output><input id="skyTime" type="range" min="0" max="1439" step="1" value="504"></label>

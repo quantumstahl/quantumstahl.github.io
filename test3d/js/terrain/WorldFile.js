@@ -3,6 +3,7 @@ import { TerrainMaterialData } from "./TerrainMaterialData.js";
 import { WaterData } from "../water/WaterData.js";
 import {WaterBedData} from "../water/WaterBedData.js";
 import { normalizeEnvironmentSettings, environmentSettingsEqual } from "../engine/EnvironmentSettings.js";
+import { ObjectData } from "../objects/ObjectData.js";
 
 export const DEFAULT_WORLD_URL = new URL("../../worlds/main.maxworld.json", import.meta.url).href;
 export const WORLD_FILE_NAME = "main.maxworld.json";
@@ -15,6 +16,7 @@ export class WorldTileStore {
     this.materialData = materialData;
     this.waterData = new WaterData();
     this.waterBeds = new WaterBedData();
+    this.objectData = new ObjectData();
   }
   read(key) { return this.tiles.get(key) ?? null; }
   write(key, value) { this.tiles.set(key, value); return true; }
@@ -22,11 +24,13 @@ export class WorldTileStore {
 
   static parse(text) {
     const world = JSON.parse(text);
-    if (!world || world.format !== FORMAT || ![1, 2, 3, 4].includes(world.version) || world.baseTerrain !== "flat-v1"
+    if (!world || world.format !== FORMAT || ![1, 2, 3, 4, 5, 6].includes(world.version) || world.baseTerrain !== "flat-v1"
       || world.tileSize !== TERRAIN_TILE_SIZE || world.tileSegments !== TERRAIN_TILE_SEGMENTS || !Array.isArray(world.tiles)) {
       throw new Error("This is not a supported MaxWorld world file.");
     }
     const store = new WorldTileStore();
+    if (world.objects !== undefined && world.version < 5) throw new Error("Object data requires world file version 5.");
+    store.objectData = ObjectData.fromJSON(world.objects);
     if (world.version >= 2) store.materialData = TerrainMaterialData.fromJSON({ materials: world.materials, tiles: world.materialTiles });
     else if (world.materials !== undefined || world.materialTiles !== undefined) throw new Error("Material data requires world file version 2.");
     if (world.water !== undefined && world.version < 3) throw new Error("Water data requires world file version 3.");
@@ -60,8 +64,9 @@ export class WorldTileStore {
     const materialSnapshot = this.materialData.snapshot();
     const waterSnapshot = this.waterData.snapshot();
     const bedSnapshot=this.waterBeds.snapshot();
-    const header = JSON.stringify({ format: FORMAT, version: 4, baseTerrain: "flat-v1", tileSize: provider.tileSize, tileSegments: provider.tileSegments, savedAt: new Date().toISOString(), settings, materials: materialSnapshot.materials, water: waterSnapshot.value,waterBeds:bedSnapshot.value });
-    return { text: `${header.slice(0, -1)},"tiles":[${[...tiles.values()].join(",")}],"materialTiles":[${[...materialSnapshot.tiles.values()].join(",")}]}`, tiles, versions, rockKeys, materialSnapshot, waterSnapshot,bedSnapshot };
+    const objectSnapshot = this.objectData.snapshot();
+    const header = JSON.stringify({ format: FORMAT, version: 6, baseTerrain: "flat-v1", tileSize: provider.tileSize, tileSegments: provider.tileSegments, savedAt: new Date().toISOString(), settings, materials: materialSnapshot.materials, water: waterSnapshot.value,waterBeds:bedSnapshot.value, objects: objectSnapshot.value });
+    return { text: `${header.slice(0, -1)},"tiles":[${[...tiles.values()].join(",")}],"materialTiles":[${[...materialSnapshot.tiles.values()].join(",")}]}`, tiles, versions, rockKeys, materialSnapshot, waterSnapshot,bedSnapshot, objectSnapshot };
   }
 
   commit(snapshot, provider) {
@@ -70,6 +75,7 @@ export class WorldTileStore {
     this.materialData.commit(snapshot.materialSnapshot);
     this.waterData.commit(snapshot.waterSnapshot);
     this.waterBeds.commit(snapshot.bedSnapshot);
+    this.objectData.commit(snapshot.objectSnapshot);
     for (const key of this.tiles.keys()) provider.persistedTileKeys.add(key);
     for (const [tile, saved] of snapshot.versions) {
       // Editing may continue while a large file is being written. Only the
@@ -170,9 +176,10 @@ export class WorldFileSession {
   get materialData() { return this.store.materialData; }
   get waterData() { return this.store.waterData; }
   get waterBeds(){return this.store.waterBeds;}
+  get objectData() { return this.store.objectData; }
 
   hasUnsavedChanges(provider, settings = this.settings) {
-    return this.fileMissing || this.importedLegacy || this.materialData.hasUnsavedChanges || this.waterData.hasUnsavedChanges || this.waterBeds.hasUnsavedChanges || settings.rockShellEnabled !== this.settings.rockShellEnabled || !environmentSettingsEqual(settings.environment, this.settings.environment) || [...provider.cache.values()].some(tile => tile.dirty);
+    return this.fileMissing || this.importedLegacy || this.objectData.hasUnsavedChanges || this.materialData.hasUnsavedChanges || this.waterData.hasUnsavedChanges || this.waterBeds.hasUnsavedChanges || settings.rockShellEnabled !== this.settings.rockShellEnabled || !environmentSettingsEqual(settings.environment, this.settings.environment) || [...provider.cache.values()].some(tile => tile.dirty);
   }
 
   async save(provider, { saveAs = false, settings = this.settings } = {}) {

@@ -49,3 +49,19 @@ button:disabled:hover { background: rgb(102 149 178 / 15%); border-color: rgb(18
 .inspector .sky-cycle { align-items: center; }
 .inspector .sky-cycle input { grid-column: 2; grid-row: 1; width: auto; }
 #skyDuration { padding: 6px; border: 1px solid rgb(188 224 245 / 25%); border-radius: 4px; background: #122a3a; color: #e5f3ff; }
+#objectPanel { margin-top: 0; padding-top: 0; border-top: 0; }
+#objectPanel select { width: 100%; padding: 6px; background: #122a3a; color: #e5f3ff; border: 1px solid #49697e; border-radius: 4px; }
+#objectPanel label > select, #objectPanel label > .object-vector { grid-column: 1 / -1; }
+#objectPanel .object-vector { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+#objectPanel .object-vector input { grid-column: auto; width: 100%; }
+#objectPanel fieldset { min-width: 0; margin: 14px 0 0; padding: 8px; border: 1px solid #49697e; border-radius: 6px; }
+#objectPanel legend { font-size: 12px; }
+#objectPanel .object-check { align-items: center; }
+#objectPanel .object-check input { grid-column: 2; grid-row: 1; width: auto; }
+#objectLODPanel { margin-top: 12px; border-top: 1px solid #49697e; padding-top: 10px; }
+#objectLODPanel summary { cursor: pointer; font-size: 12px; font-weight: 700; }
+#objectLODPanel .lod-model-name { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #bdd5e5; }
+#objectLODWarnings { color: #ffd391; }
+#objectBrushPanel { padding: 8px 0 12px; border-bottom: 1px solid #49697e; }
+#objectBrushPanel .object-brush-range { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#objectBrushRadiusValue { grid-column: 1 / -1; font-size: 11px; }

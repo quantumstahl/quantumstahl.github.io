@@ -8,6 +8,8 @@ import { RockSurfaceShell } from "./editor/RockSurfaceShell.js";
 import { loadWorldSession, pickWorldFile } from "./WorldFileUI.js";
 import { WaterSystem } from "./water/WaterSystem.js";
 import { EnvironmentSystem } from "./engine/EnvironmentSystem.js";
+import { GLBAssetLibrary } from "./objects/GLBAssetLibrary.js";
+import { ObjectSystem } from "./objects/ObjectSystem.js";
 
 const canvas = document.querySelector("#viewport");
 const statsElement = document.querySelector("#stats");
@@ -33,6 +35,12 @@ const rockSurfaceShell = new RockSurfaceShell(scene, terrainData, heightCache);
 rockSurfaceShell.setEnabled(worldSession.settings.rockShellEnabled);
 const water = new WaterSystem(scene, worldSession.waterData);
 const environment = new EnvironmentSystem(scene, worldSession.settings.environment);
+const objectWarnings = document.querySelector("#objectWarnings");
+const objectAssets = new GLBAssetLibrary(worldSession.objectData, { onError: message => { objectWarnings.hidden = false; objectWarnings.textContent = `${message} Available LODs are used where possible; objects with no available model appear as pink boxes.`; } });
+const objects = new ObjectSystem(scene, worldSession.objectData, objectAssets, { diagnostics: new URLSearchParams(location.search).has("objectLODStats") });
+window.addEventListener("keydown", event => {
+  if (!event.ctrlKey && !event.metaKey && event.key.toLowerCase() === "l" && !event.target.closest?.("input, textarea, select, [contenteditable='true']")) objects.diagnostics = !objects.diagnostics;
+});
 for (const material of [terrain.material, rockSurfaceShell.material, water.material, water.waterfall.material, water.waterfall.effectsMaterial]) environment.bindMaterial(material);
 const clock = new THREE.Clock();
 
@@ -67,6 +75,8 @@ function updateStats(now, delta) {
     `Rock ${rockStats.submittedChunks}/${rockStats.chunks} chunks · ${(rockStats.submittedTriangles / 1000).toFixed(0)}k/${(rockStats.triangles / 1000).toFixed(0)}k tris submitted/resident`,
     `Water ${water.stats.bodies} bodies · ${water.stats.triangles} tris · CPU ${water.stats.updateMs.toFixed(3)} ms`,
     `Waterfalls ${water.waterfall.records.size} · ${water.waterfall.records.size*26} effect tris`,
+    `Objects ${objects.stats.instances} · ${objects.stats.visibleCells}/${objects.stats.residentCells} cells · ${objects.stats.animated} animated`,
+    ...objects.diagnosticLines(),
   ].join("\n");
   frames = 0;
   elapsed = 0;
@@ -80,6 +90,7 @@ function frame(now) {
   controller.update(delta);
   environment.update(rawDelta);
   water.update(delta,camera);
+  objects.update(camera, delta);
   if (rockSurfaceShell.update()) terrain.setExperimentalRockMask(rockSurfaceShell.getSourceMask());
   terrain.update(camera);
   heightCache.update(camera.position.x, camera.position.z, terrain.getVisibleSourceTileKeys());
@@ -95,3 +106,4 @@ function frame(now) {
 window.addEventListener("resize", resize);
 resize();
 requestAnimationFrame(frame);
+window.addEventListener("pagehide", event => { if (!event.persisted) { objects.dispose(); objectAssets.dispose(); } });
