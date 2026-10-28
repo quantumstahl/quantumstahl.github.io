@@ -33,7 +33,7 @@ function createShellMaterial(heightCache) {
         // Derivative normals face the visible side, including folded and
         // underside faces. Keep their direction: abs(dot) flattens the light.
         vec3 normal = normalize(cross(dFdx(vWorldPosition), dFdy(vWorldPosition)));
-        vec3 color = environmentLightDisplayColor(shadeRock(vWorldPosition, normal, uLightDirection));
+        vec3 color = environmentLightDisplayColor(shadeRock(vWorldPosition, normal, environmentDiffuse(normal)));
         outColor = vec4(environmentFog(color, vWorldPosition, false), 1.0);
       }`,
     side: THREE.DoubleSide,

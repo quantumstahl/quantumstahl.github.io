@@ -25,7 +25,7 @@ export const ROCK_APPEARANCE_GLSL = `
     if (fade < .001) return .5;
     return mix(.5, rockValueNoise(position * frequency), fade);
   }
-  vec3 shadeRock(vec3 worldPosition, vec3 normal, vec3 lightDirection) {
+  vec3 shadeRock(vec3 worldPosition, vec3 normal, float directLight) {
     float pixelSpan = max(length(dFdx(worldPosition)), length(dFdy(worldPosition)));
     float macro = rockMottle(worldPosition + vec3(31, 7, -19), .055, pixelSpan);
     float mottle = rockMottle(worldPosition + vec3(-13, 23, 5), .32, pixelSpan);
@@ -36,8 +36,7 @@ export const ROCK_APPEARANCE_GLSL = `
     // facet bands without smoothing away authored planes or fold geometry.
     float sky = normal.y * .5 + .5;
     vec3 ambient = mix(vec3(.44, .435, .42), vec3(.70, .695, .675), sky);
-    float sun = max(0.0, dot(normal, lightDirection));
-    vec3 illumination = ambient + vec3(.25, .24, .22) * sun;
+    vec3 illumination = ambient + vec3(.25, .24, .22) * directLight;
     return stone * illumination;
   }
 `;

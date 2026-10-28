@@ -357,8 +357,7 @@ function createTerrainMaterial(atmosphere, heightCache, materialCache) {
         // The terrain is double-sided. This keeps top faces stable while
         // still allowing folded Rockify walls to receive facet lighting.
        // if (faceNormal.y < 0.0) faceNormal *= -1.0;
-        vec3 lightDirection = normalize(uLightDirection);
-        float groundLight = clamp(dot(faceNormal, lightDirection) * .42 + .58, .30, 1.0);
+        float groundLight = environmentGroundLight(faceNormal);
         groundColor *= groundLight;
 
         // Coverage keeps either signed Rockify history stone. Its appearance
@@ -370,7 +369,7 @@ function createTerrainMaterial(atmosphere, heightCache, materialCache) {
 
         float rockShade = max(cliffShade, exposureRockCoverage);
 
-        vec3 rockColor = shadeRock(vWorldPosition, faceNormal, lightDirection);
+        vec3 rockColor = shadeRock(vWorldPosition, faceNormal, environmentDiffuse(faceNormal));
         vec3 color = mix(groundColor, rockColor, rockShade);
         float atmosphere = smoothstep(uAtmosphereStart, uAtmosphereEnd, length(cameraPosition - vWorldPosition)) * uAtmosphereStrength;
         color = environmentLightDisplayColor(color);

@@ -183,8 +183,7 @@ export class WaterSystem {
           vec3 deepColor = vColor * (1.0 - vDepthTint * .9) * vec3(.87,.98,1.0);
           vec3 color = mix(shallowColor,deepColor,depth) * (brightness + colorDrift);
           color = mix(color, vec3(.49,.74,.85), .045 + fresnel * .28);
-          vec3 halfDir = normalize(viewDir + normalize(uLightDirection));
-          float specular = pow(max(dot(normal, halfDir), 0.0), 100.0);
+          float specular = environmentSpecular(normal, viewDir, 100.0);
           color += vec3(1.0,.94,.74) * specular * .20;
           float streak = smoothstep(.88,1.0,sin(p.y*.65+waveA*.25)) * smoothstep(.35,.85,sin(p.x*.17-t*.4));
           color += vec3(.013,.025,.025) * streak * vStyle.y * waveFade;

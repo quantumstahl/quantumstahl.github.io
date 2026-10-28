@@ -44,6 +44,7 @@ export class Sky {
     uniforms.uMoonVisibility.value = THREE.MathUtils.clamp(values.moonVisibility, 0, 1);
     if (values.sunDirection) uniforms.uSunDirection.value.copy(values.sunDirection);
     if (values.moonDirection) uniforms.uMoonDirection.value.copy(values.moonDirection);
+    uniforms.uTwilight.value = values.twilight ?? (1 - THREE.MathUtils.smootherstep(Math.abs(uniforms.uSunDirection.value.y), .02, .45));
   }
 
   setCloudStarOcclusion(map, time) {
@@ -126,6 +127,7 @@ export class Sky {
         uStarVisibility: { value: 0 },
         uSunVisibility: { value: 1 },
         uMoonVisibility: { value: 0 },
+        uTwilight: { value: 0 },
         uCloudMap: { value: null },
         uStarMap: { value: this.starMap },
         uMoonMap: { value: this.moonMap },
@@ -151,6 +153,7 @@ uniform float uNight;
 uniform float uStarVisibility;
 uniform float uSunVisibility;
 uniform float uMoonVisibility;
+uniform float uTwilight;
 uniform sampler2D uCloudMap;
 uniform sampler2D uStarMap;
 uniform sampler2D uMoonMap;
@@ -255,7 +258,7 @@ float sunDot = max(dot(d, sunDirection), 0.0);
 
 // A broad, subtle halo only while the sun is near the horizon. The disc is
 // still visible in daylight, but the atmospheric glow belongs to dawn/dusk.
-float twilight = 1.0 - smoothstep(0.05, 0.35, abs(sunDirection.y));
+float twilight = uTwilight;
 float sunGlow = pow(sunDot, 7.0) * twilight;
 vec2 sunUv = (gl_FragCoord.xy - uSunScreen.xy) / max(uSunScreen.z, .001);
 float sunRadius = length(sunUv);

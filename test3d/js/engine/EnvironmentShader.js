@@ -6,6 +6,8 @@ export function createEnvironmentUniforms() {
   return {
     uEnvironmentTint: { value: new THREE.Color(1, 1, 1) },
     uLightDirection: { value: new THREE.Vector3(-.45, .78, .42).normalize() },
+    uMoonLightDirection: { value: new THREE.Vector3(.45, -.78, -.42).normalize() },
+    uDaylight: { value: 1 },
     uSkyBackground: { value: null },
     uSkyResolution: { value: new THREE.Vector2(1, 1) },
     uSkyFadeEnabled: { value: false },
@@ -16,11 +18,36 @@ export function createEnvironmentUniforms() {
 }
 
 export const ENVIRONMENT_GLSL = `
-  uniform vec3 uEnvironmentTint, uLightDirection;
+  uniform vec3 uEnvironmentTint, uLightDirection, uMoonLightDirection;
+  uniform float uDaylight;
   uniform sampler2D uSkyBackground;
   uniform vec2 uSkyResolution;
   uniform bool uSkyFadeEnabled;
   uniform float uSkyFadeStart, uSkyFadeEnd, uSkyFadeStrength;
+
+  // Blend the illumination from both lights. Switching between opposite
+  // directions at twilight caused terrain and water to change in one frame.
+  float environmentDiffuse(vec3 normal) {
+    float sun = max(dot(normal, uLightDirection), 0.0);
+    float moon = max(dot(normal, uMoonLightDirection), 0.0);
+    return mix(moon, sun, uDaylight);
+  }
+
+  float environmentGroundLight(vec3 normal) {
+    float sun = clamp(dot(normal, uLightDirection) * .42 + .58, .30, 1.0);
+    float moon = clamp(dot(normal, uMoonLightDirection) * .42 + .58, .30, 1.0);
+    return mix(moon, sun, uDaylight);
+  }
+
+  float environmentSpecular(vec3 normal, vec3 viewDirection, float shininess) {
+    vec3 sunHalf = viewDirection + uLightDirection;
+    vec3 moonHalf = viewDirection + uMoonLightDirection;
+    sunHalf *= inversesqrt(max(dot(sunHalf, sunHalf), .000001));
+    moonHalf *= inversesqrt(max(dot(moonHalf, moonHalf), .000001));
+    float sun = pow(max(dot(normal, sunHalf), 0.0), shininess);
+    float moon = pow(max(dot(normal, moonHalf), 0.0), shininess);
+    return mix(moon, sun, uDaylight);
+  }
 
   vec3 environmentToLinear(vec3 color) {
     return mix(pow((color + .055) / 1.055, vec3(2.4)), color / 12.92, lessThanEqual(color, vec3(.04045)));

@@ -50,11 +50,15 @@ export class EnvironmentSystem {
     const angle = (this.timeOfDay - .25) * Math.PI * 2;
     this.sunDirection.set(Math.cos(angle), Math.sin(angle), -.35).normalize();
     this.moonDirection.copy(this.sunDirection).multiplyScalar(-1);
-    const daylight = THREE.MathUtils.smoothstep(this.sunDirection.y, -.30, .10);
-    const stars = 1 - THREE.MathUtils.smoothstep(this.sunDirection.y, -.10, .05);
-    const twilight = 1 - THREE.MathUtils.smoothstep(Math.abs(this.sunDirection.y), .03, .32);
+    // A wider twilight band with eased endpoints keeps the whole environment
+    // changing gradually, including at the start and end of dawn/dusk.
+    const daylight = THREE.MathUtils.smootherstep(this.sunDirection.y, -.35, .22);
+    const stars = 1 - THREE.MathUtils.smootherstep(this.sunDirection.y, -.24, .10);
+    const twilight = 1 - THREE.MathUtils.smootherstep(Math.abs(this.sunDirection.y), .02, .45);
     const sunset = twilight * THREE.MathUtils.smoothstep(-this.sunDirection.x, -.15, .55);
-    this.uniforms.uLightDirection.value.copy(daylight >= .5 ? this.sunDirection : this.moonDirection);
+    this.uniforms.uLightDirection.value.copy(this.sunDirection);
+    this.uniforms.uMoonLightDirection.value.copy(this.moonDirection);
+    this.uniforms.uDaylight.value = daylight;
     this.uniforms.uEnvironmentTint.value.lerpColors(this.nightTint, this.dayTint, daylight);
     this.uniforms.uEnvironmentTint.value.lerp(this.twilightTint, twilight * daylight * .32);
     this.sun.position.copy(this.sunDirection).multiplyScalar(100);
@@ -72,6 +76,7 @@ export class EnvironmentSystem {
       moonVisibility: THREE.MathUtils.smoothstep(this.moonDirection.y, -.30, -.03),
       sunDirection: this.sunDirection,
       moonDirection: this.moonDirection,
+      twilight,
     });
   }
 
