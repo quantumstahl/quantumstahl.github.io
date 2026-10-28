@@ -148,6 +148,14 @@ export class TerrainHeightGpuCache {
     this.usageTick = 0;
     this.windowKeys = new Set();
     this.visibleKeys = new Set();
+    // Only authored keys can need residency. Do not walk the much larger
+    // selected source rectangle (mostly procedural tiles) on every frame.
+    this.authoredKeys = new Set();
+    this.authoredRevision = -1;
+    this.authoredCache = null;
+    this.authoredPersistedKeys = null;
+    this.authoredCacheSize = -1;
+    this.authoredPersistedSize = -1;
     this.centerTileX = null;
     this.centerTileZ = null;
     this.uploadedLayers = 0;
@@ -164,6 +172,7 @@ export class TerrainHeightGpuCache {
     this.residencyTraceEnabled = false;
     this.newTileUploadsEnabled = true;
     this.profile = { updateMs: 0, updatePeakMs: 0, remapMs: 0, uploadPreparationMs: 0, uploadPreparationPeakMs: 0, remappedTiles: 0, uploadedLayers: 0, pendingUploads: 0, visibleRequired: 0, visibleResident: 0, visibleFallback: 0, visibleCoarse: 0, visibleUnavailable: 0, visibleOverflow: 0, coarseBuildMs: 0, coarseUploads: 0 };
+    Object.assign(this.profile, { sourceKeysExamined: 0, authoredKeysExamined: 0, coverageKeysExamined: 0, authoredIndexRebuilds: 0, updatePasses: 0, idleFrames: 0, fallbackUploadedLayers: 0 });
     this.unsubscribe = provider.onTileChanged(tile => this.onTileChanged(tile));
   }
 
@@ -196,12 +205,10 @@ export class TerrainHeightGpuCache {
   update(worldX, worldZ, visibleSourceKeys = null) {
     if (!this.newTileUploadsEnabled) return;
     const started = performance.now();
-    const center = this.provider.worldToTile(worldX, worldZ);
-    const nextVisibleKeys = new Set();
-    for (const key of visibleSourceKeys ?? []) {
-      const [x, z] = key.split(",").map(Number);
-      if (this.provider.isTileAuthored(x, z)) nextVisibleKeys.add(key);
-    }
+    const centerX = Math.floor(worldX / this.provider.tileSize);
+    const centerZ = Math.floor(worldZ / this.provider.tileSize);
+    const sourceKeys = visibleSourceKeys instanceof Set ? visibleSourceKeys : new Set(visibleSourceKeys ?? []);
+    const nextVisibleKeys = this.visibleAuthoredKeys(sourceKeys);
     // A camera center alone is not a valid cache state. After a context or
     // diagnostic transition the previous center can remain recorded while
     // every layer mapping has been released; returning early then renders
@@ -209,7 +216,11 @@ export class TerrainHeightGpuCache {
     // Only authored tiles consume GPU layers. Procedural terrain is evaluated
     // directly in the vertex shader, so reserving a layer for every camera
     // window tile merely exhausts the cache without adding data.
-    const visibleIsCovered = [...nextVisibleKeys].every(key => this.shaderSourceForKey(key) !== "procedural");
+    let visibleIsCovered = true;
+    for (const key of nextVisibleKeys) {
+      this.profile.coverageKeysExamined += 1;
+      if (this.shaderSourceForKey(key) === "procedural") { visibleIsCovered = false; break; }
+    }
     // A brush may change an already resident layer without changing the
     // camera tile or the visible source-tile set.  Those queued uploads are
     // still real cache work; treating the frame as idle here left edits
@@ -219,20 +230,25 @@ export class TerrainHeightGpuCache {
       || this.pendingFallbackUploads.size > 0
       || this.dirtyFallbackUploads.size > 0
       || this.fallbackMapDirty || this.coarseDirty;
-    if (center.x === this.centerTileX && center.z === this.centerTileZ && this.sameKeys(nextVisibleKeys, this.visibleKeys) && visibleIsCovered && !hasQueuedWork) {
+    if (centerX === this.centerTileX && centerZ === this.centerTileZ && nextVisibleKeys === this.visibleKeys && visibleIsCovered && !hasQueuedWork) {
       const elapsed = performance.now() - started;
       this.profile.updateMs += elapsed;
       this.profile.updatePeakMs = Math.max(this.profile.updatePeakMs, elapsed);
+      this.profile.idleFrames += 1;
       return;
     }
-    this.centerTileX = center.x;
-    this.centerTileZ = center.z;
-    this.visibleKeys = nextVisibleKeys;
+    this.profile.updatePasses += 1;
+    this.centerTileX = centerX;
+    this.centerTileZ = centerZ;
+    // Idle membership ignores ordering, as before. A real scheduling pass
+    // must still observe the caller's current order, even when its Set was
+    // reordered in place while work was queued.
+    this.visibleKeys = nextVisibleKeys === this.visibleKeys ? this.orderedVisibleAuthoredKeys(sourceKeys) : nextVisibleKeys;
     this.fallbackMapDirty = true;
 
     const nextWindowKeys = new Set();
-    for (let z = center.z - this.radius; z <= center.z + this.radius; z += 1) {
-      for (let x = center.x - this.radius; x <= center.x + this.radius; x += 1) {
+    for (let z = centerZ - this.radius; z <= centerZ + this.radius; z += 1) {
+      for (let x = centerX - this.radius; x <= centerX + this.radius; x += 1) {
         if (this.provider.isTileAuthored(x, z)) nextWindowKeys.add(this.provider.tileKey(x, z));
       }
     }
@@ -253,13 +269,13 @@ export class TerrainHeightGpuCache {
       if (this.coarsePublishedKeys.has(key) && this.findVisibleLayer() === -1) continue;
       // All visible authored tiles outrank prefetch, but closest visible
       // tiles get the scarce full-resolution layers first.
-      const distance = (x - center.x) ** 2 + (z - center.z) ** 2;
+      const distance = (x - centerX) ** 2 + (z - centerZ) ** 2;
       this.queueTile(key, x, z, -100000 + distance, true);
     }
     for (const key of this.windowKeys) {
       if (this.keyToLayer.has(key) || this.visibleKeys.has(key)) continue;
       const [x, z] = key.split(",").map(Number);
-      const distance = (x - center.x) ** 2 + (z - center.z) ** 2;
+      const distance = (x - centerX) ** 2 + (z - centerZ) ** 2;
       // Tile generation/deserialization is deliberately deferred too. The
       // scheduler is ineffective if crossing one boundary synchronously
       // creates every entering 2 m tile before those jobs are queued.
@@ -290,6 +306,52 @@ export class TerrainHeightGpuCache {
     this.profile.updateMs += elapsed;
     this.profile.updatePeakMs = Math.max(this.profile.updatePeakMs, elapsed);
     this.profile.remapMs += elapsed;
+  }
+
+  visibleAuthoredKeys(sourceKeys) {
+    const provider = this.provider;
+    if (this.authoredRevision !== provider.tileStateRevision || this.authoredCache !== provider.cache
+      || this.authoredPersistedKeys !== provider.persistedTileKeys || this.authoredCacheSize !== provider.cache.size
+      || this.authoredPersistedSize !== provider.persistedTileKeys.size) {
+      this.authoredKeys.clear();
+      for (const key of provider.persistedTileKeys) this.authoredKeys.add(key);
+      // A cached procedural tile overrides persisted metadata, exactly like
+      // isTileAuthored(). This also handles missing/invalid saved payloads.
+      for (const [key, tile] of provider.cache) {
+        if (tile.source === "procedural") this.authoredKeys.delete(key);
+        else this.authoredKeys.add(key);
+      }
+      this.authoredRevision = provider.tileStateRevision;
+      this.authoredCache = provider.cache;
+      this.authoredPersistedKeys = provider.persistedTileKeys;
+      this.authoredCacheSize = provider.cache.size;
+      this.authoredPersistedSize = provider.persistedTileKeys.size;
+      this.profile.authoredIndexRebuilds += 1;
+    }
+    const sources = sourceKeys instanceof Set ? sourceKeys : new Set(sourceKeys ?? []);
+    let visibleCount = 0, changed = false;
+    // Inspect the small authored index, not thousands of procedural sources.
+    // Membership is checked even for the same Set instance: callers can add
+    // and remove keys in place, including same-size changes.
+    for (const key of this.authoredKeys) {
+      this.profile.authoredKeysExamined += 1;
+      if (!sources.has(key)) continue;
+      visibleCount += 1;
+      if (!this.visibleKeys.has(key)) changed = true;
+    }
+    if (!changed && visibleCount === this.visibleKeys.size) return this.visibleKeys;
+    return this.orderedVisibleAuthoredKeys(sources);
+  }
+
+  orderedVisibleAuthoredKeys(sources) {
+    const visible = new Set();
+    // Preserve original source iteration order whenever membership changes;
+    // upload priorities and layer ownership must remain deterministic.
+    for (const key of sources) {
+      this.profile.sourceKeysExamined += 1;
+      if (this.authoredKeys.has(key)) visible.add(key);
+    }
+    return visible;
   }
 
   setNewTileUploadsEnabled(enabled) {
@@ -806,6 +868,7 @@ export class TerrainHeightGpuCache {
     this.fallbackExposureTexture.addLayerUpdate(layer); this.fallbackExposureTexture.needsUpdate = true;
     const key = this.provider.tileKey(tile.x / tile.size, tile.z / tile.size);
     this.fallbackUploadRevisions.set(key, tile.revision);
+    this.profile.fallbackUploadedLayers += 1;
   }
 
   captureCoarseTile(tile) {
@@ -993,12 +1056,16 @@ export class TerrainHeightGpuCache {
     const fallback = fallbackUsable ? [...this.visibleKeys].filter(key => !this.keyToLayer.has(key) && this.fallbackKeyToLayer.has(key)).length : 0;
     const coarse = [...this.visibleKeys].filter(key => !this.keyToLayer.has(key) && !(fallbackUsable && this.fallbackKeyToLayer.has(key)) && this.coarsePublishedKeys.has(key)).length;
     this.profile = { updateMs: 0, updatePeakMs: 0, remapMs: 0, uploadPreparationMs: 0, uploadPreparationPeakMs: 0, remappedTiles: 0, uploadedLayers: 0, pendingUploads: this.pendingUploads.size, visibleRequired: this.visibleKeys.size, visibleResident: resident, visibleFallback: fallback, visibleCoarse: coarse, visibleUnavailable: this.visibleKeys.size - resident - fallback - coarse, visibleOverflow: this.visibleKeys.size - resident, coarseBuildMs: 0, coarseUploads: 0 };
+    Object.assign(this.profile, { sourceKeysExamined: 0, authoredKeysExamined: 0, coverageKeysExamined: 0, authoredIndexRebuilds: 0, updatePasses: 0, idleFrames: 0, fallbackUploadedLayers: 0 });
     return profile;
   }
 
   dispose() {
     this.unsubscribe?.();
     this.cullingBounds.clear();
+    this.authoredKeys.clear();
+    this.authoredCache = null;
+    this.authoredPersistedKeys = null;
     this.texture.dispose();
     this.warpTexture.dispose();
     this.rockExposureTexture.dispose();

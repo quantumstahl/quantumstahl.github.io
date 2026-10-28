@@ -400,6 +400,12 @@ export class TerrainQuadtree {
     this.lodDecisions = new Map();
     this.renderSignature = "";
     this.selectionSignature = "";
+    // One exact input/output topology cache. Selection still runs against
+    // current bounds and frustum; only coordinate-dependent neighbor work is
+    // reused. Keep input order: budget-limited balancing is order-sensitive.
+    this.cachedInputTopology = null;
+    this.cachedPatchBudget = null;
+    this.cachedBalanceSplits = 0;
     this.stats = { patches: 0, selectedPatches: 0, culledPatches: 0, patchBudget: MAX_PATCHES, triangles: 0, lods: [], warpFeaturePatches: 0, balanceSplits: 0, persistentRefinementSplits: 0 };
     this.trianglesPerPatch = this.geometry.index.count / 3;
     this.minimumPatchSize = MIN_PATCH_SIZE;
@@ -410,6 +416,7 @@ export class TerrainQuadtree {
     this.heightBoundsScratch = {};
     this.warpFeatureScratch = {};
     this.profile = { updateMs: 0, selectionMs: 0, selectionPeakMs: 0, warpLodMs: 0, streamingMs: 0, streamingPeakMs: 0, cullingMs: 0, cullingPeakMs: 0, commitMs: 0 };
+    Object.assign(this.profile, { balancingMs: 0, stitchingMs: 0, neighborDiscoveryMs: 0, neighborIndexBuilds: 0, topologyCacheHits: 0, topologyRebuilds: 0 });
   }
 
   getBatch(size) {
@@ -467,10 +474,29 @@ export class TerrainQuadtree {
     const streamingElapsed = performance.now() - streamingStarted;
     this.profile.streamingMs += streamingElapsed;
     this.profile.streamingPeakMs = Math.max(this.profile.streamingPeakMs, streamingElapsed);
+    if (this.canReuseTopology(rendered)) {
+      this.profile.topologyCacheHits += 1;
+      this.stats.selectedPatches = this.selectedNodes.length;
+      this.stats.balanceSplits = this.cachedBalanceSplits;
+      this.stats.persistentRefinementSplits = 0;
+      this.profile.updateMs += performance.now() - updateStarted;
+      return;
+    }
+    const inputTopology = rendered.slice();
     const persistentRefinementSplits = 0;
+    const balanceStarted = performance.now();
     const balanceSplits = this.balanceSelected(rendered);
+    this.profile.balancingMs += performance.now() - balanceStarted;
+    const stitchStarted = performance.now();
     this.assignStitchMasks(rendered);
+    this.profile.stitchingMs += performance.now() - stitchStarted;
     rendered.sort((a, b) => a.size - b.size || a.z - b.z || a.x - b.x);
+    // Publish the cache only after the complete original balancing/stitching
+    // pass. No partly balanced replacement can reach visibility submission.
+    this.cachedInputTopology = inputTopology;
+    this.cachedPatchBudget = this.patchBudget;
+    this.cachedBalanceSplits = balanceSplits;
+    this.profile.topologyRebuilds += 1;
     this.selectedNodes = rendered;
     this.stats.selectedPatches = rendered.length;
     this.stats.balanceSplits = balanceSplits;
@@ -483,6 +509,19 @@ export class TerrainQuadtree {
       this.visibleSourceTileKeys = this.collectSourceTileKeys(rendered);
     }
     this.profile.updateMs += performance.now() - updateStarted;
+  }
+
+  canReuseTopology(nodes) {
+    const cached = this.cachedInputTopology;
+    if (!cached || this.cachedPatchBudget !== this.patchBudget || cached.length !== nodes.length) return false;
+    for (let i = 0; i < nodes.length; i++) {
+      const a = nodes[i], b = cached[i];
+      if (a.x !== b.x || a.z !== b.z || a.size !== b.size) return false;
+    }
+    // Unsplit roots carry diagnostic distances. Their coordinates can stay
+    // fixed while the camera moves; refresh these without rebuilding masks.
+    for (let i = 0; i < nodes.length; i++) if (nodes[i].distance !== undefined) cached[i].distance = nodes[i].distance;
+    return true;
   }
 
   commitVisiblePatches() {
@@ -572,6 +611,7 @@ export class TerrainQuadtree {
   consumeProfile() {
     const profile = this.profile;
     this.profile = { updateMs: 0, selectionMs: 0, selectionPeakMs: 0, warpLodMs: 0, streamingMs: 0, streamingPeakMs: 0, cullingMs: 0, cullingPeakMs: 0, commitMs: 0 };
+    Object.assign(this.profile, { balancingMs: 0, stitchingMs: 0, neighborDiscoveryMs: 0, neighborIndexBuilds: 0, topologyCacheHits: 0, topologyRebuilds: 0 });
     return profile;
   }
 
@@ -676,20 +716,57 @@ export class TerrainQuadtree {
     for (const child of children) this.resolve(child, desired, rendered);
   }
 
+  buildNeighborIndex(selected) {
+    const started = performance.now();
+    const edges = { west: new Map(), east: new Map(), north: new Map(), south: new Map() };
+    const add = (map, coordinate, entry) => {
+      let line = map.get(coordinate);
+      if (!line) { line = []; map.set(coordinate, line); }
+      line.push(entry);
+    };
+    for (let i = 0; i < selected.length; i++) {
+      const node = selected[i], entry = { node, index: i };
+      add(edges.west, node.x, entry); add(edges.east, node.x + node.size, entry);
+      add(edges.north, node.z, entry); add(edges.south, node.z + node.size, entry);
+    }
+    this.profile.neighborDiscoveryMs += performance.now() - started;
+    this.profile.neighborIndexBuilds += 1;
+    return edges;
+  }
+
+  hasCoarseNeighbor(entries, node, alongX) {
+    if (!entries) return false;
+    const start = alongX ? node.x : node.z;
+    for (const { node: other } of entries) {
+      if (other.size !== node.size * 2) continue;
+      const otherStart = alongX ? other.x : other.z;
+      if (Math.min(start + node.size, otherStart + other.size) - Math.max(start, otherStart) > 0) return true;
+    }
+    return false;
+  }
+
   assignStitchMasks(selected) {
+    const edges = this.buildNeighborIndex(selected);
     for (const node of selected) {
       let mask = 0;
-      for (const other of selected) {
-        if (other.size !== node.size * 2) continue;
-        const xOverlap = Math.min(node.x + node.size, other.x + other.size) - Math.max(node.x, other.x);
-        const zOverlap = Math.min(node.z + node.size, other.z + other.size) - Math.max(node.z, other.z);
-        if (other.x + other.size === node.x && zOverlap > 0) mask |= 1;
-        if (node.x + node.size === other.x && zOverlap > 0) mask |= 2;
-        if (other.z + other.size === node.z && xOverlap > 0) mask |= 4;
-        if (node.z + node.size === other.z && xOverlap > 0) mask |= 8;
-      }
+      if (this.hasCoarseNeighbor(edges.east.get(node.x), node, false)) mask |= 1;
+      if (this.hasCoarseNeighbor(edges.west.get(node.x + node.size), node, false)) mask |= 2;
+      if (this.hasCoarseNeighbor(edges.south.get(node.z), node, true)) mask |= 4;
+      if (this.hasCoarseNeighbor(edges.north.get(node.z + node.size), node, true)) mask |= 8;
       node.stitchMask = mask;
     }
+  }
+
+  firstUnbalancedNeighbor(entries, node, aIndex, bestIndex, alongX) {
+    if (!entries) return bestIndex;
+    const start = alongX ? node.x : node.z;
+    for (const { node: other, index } of entries) {
+      if (index <= aIndex || index >= bestIndex) continue;
+      if (node.size <= other.size * 2 && other.size <= node.size * 2) continue;
+      const otherStart = alongX ? other.x : other.z;
+      if (Math.min(start + node.size, otherStart + other.size) - Math.max(start, otherStart) > 0) bestIndex = index;
+    }
+    return bestIndex;
   }
 
   // A coarse leaf beside a 64 m leaf stretches its 32x32 grid over the
@@ -699,27 +776,24 @@ export class TerrainQuadtree {
   // the same shared geometry and material.
   balanceSelected(selected) {
     let splits = 0;
-    const touches = (a, b) => {
-      const xOverlap = Math.min(a.x + a.size, b.x + b.size) - Math.max(a.x, b.x);
-      const zOverlap = Math.min(a.z + a.size, b.z + b.size) - Math.max(a.z, b.z);
-      const verticalEdge = (a.x + a.size === b.x || b.x + b.size === a.x) && zOverlap > 0;
-      const horizontalEdge = (a.z + a.size === b.z || b.z + b.size === a.z) && xOverlap > 0;
-      return verticalEdge || horizontalEdge;
-    };
     let changed = true;
     while (changed && selected.length + 3 <= this.patchBudget) {
       changed = false;
+      const edges = this.buildNeighborIndex(selected);
       for (let aIndex = 0; aIndex < selected.length && !changed; aIndex += 1) {
-        for (let bIndex = aIndex + 1; bIndex < selected.length; bIndex += 1) {
-          const a = selected[aIndex], b = selected[bIndex];
-          if (!touches(a, b)) continue;
-          const coarseIndex = a.size > b.size * 2 ? aIndex : b.size > a.size * 2 ? bIndex : -1;
-          if (coarseIndex === -1) continue;
-          selected.splice(coarseIndex, 1, ...this.children(selected[coarseIndex]));
-          splits += 1;
-          changed = true;
-          break;
-        }
+        const a = selected[aIndex];
+        let bIndex = selected.length;
+        bIndex = this.firstUnbalancedNeighbor(edges.east.get(a.x), a, aIndex, bIndex, false);
+        bIndex = this.firstUnbalancedNeighbor(edges.west.get(a.x + a.size), a, aIndex, bIndex, false);
+        bIndex = this.firstUnbalancedNeighbor(edges.south.get(a.z), a, aIndex, bIndex, true);
+        bIndex = this.firstUnbalancedNeighbor(edges.north.get(a.z + a.size), a, aIndex, bIndex, true);
+        if (bIndex === selected.length) continue;
+        // Same lexicographically first (aIndex,bIndex) violation as the
+        // original all-pairs scan. Preserve split order and budget behavior.
+        const coarseIndex = a.size > selected[bIndex].size * 2 ? aIndex : bIndex;
+        selected.splice(coarseIndex, 1, ...this.children(selected[coarseIndex]));
+        splits += 1;
+        changed = true;
       }
     }
     return splits;

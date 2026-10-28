@@ -123,6 +123,9 @@ export class TerrainDataProvider {
     this.maxCachedTiles = maxCachedTiles;
     this.store = store;
     this.cache = new Map();
+    // Changes to tile membership/authorship, not LRU touches. The height GPU
+    // cache uses this to reuse its small authored-key index between frames.
+    this.tileStateRevision = 0;
     // This is deliberately only tile metadata, not another height cache. It
     // lets GPU streaming distinguish authored tiles from procedural terrain
     // without loading every saved Float32 tile into CPU memory.
@@ -208,6 +211,7 @@ export class TerrainDataProvider {
     this.refreshHeightSummary(tile);
     this.refreshWarpSummary(tile);
     this.cache.set(key, tile);
+    this.tileStateRevision += 1;
     this.trimCache(tile);
     return tile;
   }
@@ -675,6 +679,7 @@ export class TerrainDataProvider {
     const saved = this.store.write(this.tileKey(tileX, tileZ), this.serializeTile(tile));
     if (saved) {
       tile.dirty = false;
+      if (!this.persistedTileKeys.has(this.tileKey(tileX, tileZ))) this.tileStateRevision += 1;
       this.persistedTileKeys.add(this.tileKey(tileX, tileZ));
     }
     return saved;
@@ -701,6 +706,7 @@ export class TerrainDataProvider {
   }
 
   emitTileChanged(tile) {
+    this.tileStateRevision += 1;
     const channels = tile.changedChannels || TERRAIN_CHANGE.ALL;
     tile.changedChannels = 0;
     for (const listener of this.tileListeners) listener(tile, channels);
@@ -715,6 +721,7 @@ export class TerrainDataProvider {
       const disposable = [...this.cache.entries()].find(([, tile]) => !tile.dirty && tile !== retainedTile);
       if (!disposable) return;
       this.cache.delete(disposable[0]);
+      this.tileStateRevision += 1;
     }
   }
 }

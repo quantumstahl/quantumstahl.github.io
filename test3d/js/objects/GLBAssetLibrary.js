@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkeleton } from "three/addons/utils/SkeletonUtils.js";
 import { lodCandidates } from "./ObjectLOD.js";
+import { runtimeMaterial } from "./RuntimeMaterials.js";
 
 export function encodeGLB(buffer) {
   const bytes = new Uint8Array(buffer); let binary = "";
@@ -26,8 +27,9 @@ export function validateGLB(buffer) {
   return json;
 }
 export class GLBAssetLibrary {
-  constructor(data, { loader = new GLTFLoader(), onError = () => {}, now = () => performance.now(), resourceRetention = 5000 } = {}) {
+  constructor(data, { loader = new GLTFLoader(), onError = () => {}, now = () => performance.now(), resourceRetention = 5000, materialMode = 'standard' } = {}) {
     this.data = data; this.loader = loader; this.onError = onError;
+    this.materialMode = materialMode;
     this.cache = new Map(); this.errors = new Map(); this.disposed = false;
     this.references = new Map(); this.lastUsed = new Map(); this.now = now; this.resourceRetention = resourceRetention; this.nextTrim = 0;
     this.unsubscribe = data.onChanged(event => {
@@ -73,10 +75,16 @@ export class GLBAssetLibrary {
   }
   async parse(buffer) {
     const gltf = await this.loader.parseAsync(buffer, "");
+    const converted = new Map();
     let canInstance = gltf.animations.length === 0;
     gltf.scene.traverse(node => {
       if (node.isSkinnedMesh || node.morphTargetInfluences?.length || node.isLight || node.isCamera || node.isLine || node.isPoints || node.isInstancedMesh) canInstance = false;
       if (!node.isMesh) return;
+      const convert = material => {
+        if (!converted.has(material)) converted.set(material, runtimeMaterial(material, this.materialMode));
+        return converted.get(material);
+      };
+      node.material = Array.isArray(node.material) ? node.material.map(convert) : convert(node.material);
       if (node.isSkinnedMesh || node.morphTargetInfluences?.length) node.frustumCulled = false;
       const proxy = /^SHADOW_PROXY_/i.test(node.name) || node.userData.shadowProxy || !!node.userData.gltfExtensions?.EXT_maxpaint_shadow_proxy;
       const leaves = /^LEAF_NO_SHADOW$/i.test(node.name) || !!node.userData.gltfExtensions?.EXT_maxpaint_leaf_batch;
@@ -89,6 +97,7 @@ export class GLBAssetLibrary {
       // Blended objects require independent sorting. Leave them as live clones.
       if ((Array.isArray(node.material) ? node.material : [node.material]).some(m => m.transparent)) canInstance = false;
     });
+    for (const [source, target] of converted) if (source !== target) source.dispose();
     gltf.scene.updateMatrixWorld(true);
     const meshes = [];
     const visit = (node, visible) => {
