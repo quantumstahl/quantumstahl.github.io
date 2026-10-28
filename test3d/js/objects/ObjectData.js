@@ -1,5 +1,6 @@
 // Persistent authoring data. Render cells may be discarded without touching it.
 import { normalizeLOD } from "./ObjectLOD.js";
+import { normalizeCollision } from "./ObjectCollision.js";
 export const OBJECT_CELL_SIZE = 128;
 export const objectId = () => globalThis.crypto.randomUUID();
 export const copy = value => value == null ? null : structuredClone(value);
@@ -44,6 +45,7 @@ export function normalizeAsset(value, validatePayload = true) {
     result.clips = [...value.clips];
   }
   if (value.lod != null) result.lod = normalizeLOD(value.lod, result.id);
+  if (value.collision != null) result.collision = normalizeCollision(value.collision);
   return result;
 }
 export class ObjectData {
@@ -91,6 +93,7 @@ export class ObjectData {
     this.changed({ kind: "resource", id: resource.id, before, after: resource }); return resource;
   }
   deleteResource(id) {
+    if ([...this.assets.values()].some(asset => asset.collision?.sourceId === id)) throw new Error("This GLB is used by an asset's collision mesh.");
     if ([...this.assets.values()].some(asset => asset.lod?.levels.some(level => level.resourceId === id))) throw new Error("This GLB is still used by an LOD level.");
     const before = this.resources.get(id);
     if (this.resources.delete(id)) this.changed({ kind: "resource", id, before, after: null });
@@ -103,6 +106,7 @@ export class ObjectData {
     this.changed({ kind: "asset", id, before, after: null });
   }
   deleteAsset(id) {
+    if ([...this.assets.values()].some(asset => asset.id !== id && asset.collision?.sourceId === id)) throw new Error("This GLB is used by another asset's collision mesh.");
     if ([...this.objects.values()].some(object => object.assetId === id)) throw new Error("Delete this asset's placed objects first.");
     if ([...this.assets.values()].some(asset => asset.id !== id && asset.lod?.levels.some(level => level.resourceId === id))) throw new Error("This GLB is used by another asset's LOD configuration.");
     const before = this.assets.get(id);
@@ -131,6 +135,7 @@ export class ObjectData {
   }
   snapshot() {
     const used = new Set([...this.assets.values()].flatMap(asset => asset.lod?.levels.map(level => level.resourceId) ?? []));
+    for (const asset of this.assets.values()) if (asset.collision?.sourceId) used.add(asset.collision.sourceId);
     return { revision: this.revision, value: { assets: [...this.assets.values()], resources: [...this.resources.values()].filter(resource => used.has(resource.id)), instances: [...this.objects.values()] } };
   }
   commit(snapshot) { this.savedRevision = snapshot.revision; }

@@ -103,9 +103,12 @@ export class ObjectLODGroup {
     Object.assign(this, { system, cell, asset });
     this.root = new THREE.Group(); this.root.name = `LOD asset ${asset.name}`; cell.group.add(this.root);
     this.states = records.map(record => ({ record, choice: null, target: null, revision: 0 }));
+    this.pivotBounds = new THREE.Box3();
+    const pivot = new THREE.Vector3();
+    for (const record of records) this.pivotBounds.expandByPoint(pivot.fromArray(record.position));
     this.byId = new Map(this.states.map(state => [state.record.id, state]));
     this.targets = new Map(); this.loading = new Map(); this.pending = new Set(); this.reservations = new Map();
-    this.disposed = false; this.cursor = 0; this.checking = false; this.nextCheck = 0;
+    this.disposed = false; this.cursor = 0; this.checking = false; this.nextCheck = 0; this.configurationRevision = 0;
     this.lastCamera = new THREE.Vector3(Infinity, Infinity, Infinity);
     this.checkView = { position: new THREE.Vector3() }; this.flushScheduled = false;
   }
@@ -123,10 +126,19 @@ export class ObjectLODGroup {
     const p = state.record.position, c = camera.position;
     return Math.hypot(p[0] - c.x, p[1] - c.y, p[2] - c.z);
   }
+  configure(asset) {
+    this.asset = asset; this.checking = false; this.nextCheck = 0;
+    this.configurationRevision++; this.loading.clear();
+    this.lastCamera.set(Infinity, Infinity, Infinity);
+    // Cancel stale asynchronous selections. Retain resolved targets and GPU
+    // buffers; the next budgeted pass updates only changed membership.
+    for (const state of this.states) { state.choice = null; state.revision++; }
+  }
   ensureTarget(requested) {
     if (!this.loading.has(requested)) {
+      const configurationRevision = this.configurationRevision;
       const task = this.system.assets.acquireLOD(this.asset.id, requested).then(lease => {
-        if (this.disposed) { lease.release(); return null; }
+        if (this.disposed || configurationRevision !== this.configurationRevision) { lease.release(); return null; }
         const key = `${lease.level}:${lease.resourceId}`;
         let target = this.targets.get(key);
         if (target) lease.release();
@@ -135,7 +147,7 @@ export class ObjectLODGroup {
           catch (error) { lease.release(); throw error; }
         }
         return target;
-      }).finally(() => this.loading.delete(requested));
+      }).finally(() => { if (this.loading.get(requested) === task) this.loading.delete(requested); });
       this.loading.set(requested, task);
     }
     return this.loading.get(requested);
@@ -159,14 +171,24 @@ export class ObjectLODGroup {
     this.pending.add(task); return task;
   }
   updateLOD(camera, now, budget) {
+    const limit = this.asset.lod?.maxDistance;
+    // Once a whole asset group is culled, skip its individual distance checks
+    // until the conservative pivot bounds approach the cutoff again.
+    if (!this.count && !this.pending.size && limit != null && this.pivotBounds.distanceToPoint(camera.position) > limit * (1 + this.asset.lod.hysteresis)) {
+      this.checking = false; this.nextCheck = 0; this.lastCamera.set(Infinity, Infinity, Infinity);
+      return 0;
+    }
     if (!this.checking) {
       if (now < this.nextCheck || this.lastCamera.distanceToSquared(camera.position) < .0001) return 0;
       this.checking = true; this.cursor = 0;
       this.checkView.position.copy(camera.position);
     }
     let checked = 0;
+    // Limited assets must not finish a partial scan against a pre-teleport
+    // camera. Retain the existing snapshot/cadence for unlimited LOD assets.
+    const view = limit != null ? camera : this.checkView;
     while (this.cursor < this.states.length && checked < budget) {
-      const state = this.states[this.cursor++], choice = chooseLOD(this.asset, this.distance(state, this.checkView), state.choice);
+      const state = this.states[this.cursor++], choice = chooseLOD(this.asset, this.distance(state, view), state.choice);
       if (choice !== state.choice) this.switchTo(state, choice);
       checked++;
     }

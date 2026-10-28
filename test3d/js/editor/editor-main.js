@@ -87,6 +87,7 @@ const environment = new EnvironmentSystem(scene, worldSession.settings.environme
 const grass = new GrassSystem(scene, terrainData, worldSession.materialData, { settings: worldSession.settings.grass, water,
   diagnostics: new URLSearchParams(location.search).has("grassStats") });
 environment.bindMaterial(grass.nearMaterial); environment.bindMaterial(grass.farMaterial);
+environment.bindMaterial(grass.flowerMaterial);
 for (const material of [terrain.material, rockSurfaceShell.material, water.material, water.waterfall.material, water.waterfall.effectsMaterial]) environment.bindMaterial(material);
 const waterEditor = new WaterEditor({ scene, camera, canvas, data: worldSession.waterData, water,
   panel: document.querySelector("#waterPanel"), recordHistory, onStatus: setStatus, sculptor,bedData:worldSession.waterBeds,pickSurface:event=>pickPaintSurface(event) });

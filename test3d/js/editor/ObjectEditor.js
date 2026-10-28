@@ -6,6 +6,7 @@ import { sampleObjectSurface } from "../objects/ObjectSurface.js";
 import { chooseLOD, enabledLODLevels, lodResourceIds } from "../objects/ObjectLOD.js";
 import { ObjectLODPanel, applyLODHistory } from "./ObjectLODPanel.js";
 import { ObjectBrush, DEFAULT_OBJECT_BRUSH, applyBrushHistory } from "./ObjectBrush.js";
+import { ObjectCollisionPanel } from "./ObjectCollisionPanel.js";
 
 export class ObjectEditor {
   constructor({ scene, camera, canvas, data, assets, system, provider, panel, recordHistory, onStatus, activate }) {
@@ -67,6 +68,7 @@ export class ObjectEditor {
       </section>
       <p id="objectAssetStatus" role="status"></p>
       <section id="objectLODPanel" aria-label="Object LOD"></section>
+      <section id="objectCollisionPanel" aria-label="Object collision"></section>
       <label>Placed objects<select id="placedObjects" aria-label="Placed objects"></select></label>
       <div class="material-actions"><button id="focusObject" type="button">Focus</button><button id="duplicateObject" type="button">Duplicate</button><button id="deleteObject" type="button">Delete</button></div>
       <div class="material-actions" aria-label="Object transform"><button data-object-mode="translate" type="button">Move</button><button data-object-mode="rotate" type="button">Rotate</button><button data-object-mode="scale" type="button">Scale</button></div>
@@ -83,6 +85,8 @@ export class ObjectEditor {
     this.$ = selector => this.panel.querySelector(selector);
     this.lodPanel = new ObjectLODPanel({ element: this.$("#objectLODPanel"), data: this.data, assets: this.assets, system: this.system,
       getAssetId: () => this.assetId, getSelectedId: () => this.selectedId, preview: level => this.setLODPreview(level), recordHistory: this.recordHistory, onStatus: this.onStatus });
+    this.collisionPanel = new ObjectCollisionPanel({ element: this.$("#objectCollisionPanel"), scene: this.scene, data: this.data, assets: this.assets,
+      getAssetId: () => this.assetId, getSelectedId: () => this.selectedId, getRoot: () => this.selectedRoot, recordHistory: this.recordHistory, onStatus: this.onStatus });
     this.$("#importGLB").onclick = () => this.$("#glbFiles").click();
     this.$("#glbFiles").onchange = async event => {
       for (const file of event.target.files) {
@@ -195,20 +199,23 @@ export class ObjectEditor {
   canPlace(asset) { return !!asset && (enabledLODLevels(asset).some(level => !!this.data.getResource(level.resourceId)?.data) || !!asset.data); }
   selectedLODChoice() {
     const record = this.data.objects.get(this.selectedId); if (!record) return 0;
-    if (this.previewLOD != null) return this.previewLOD;
     const asset = this.data.assets.get(record.assetId), c = this.camera.position, p = record.position;
     const level = chooseLOD(asset, Math.hypot(c.x - p[0], c.y - p[1], c.z - p[2]), this.selectedChoice);
-    // A selected object remains available to edit beyond its visibility limit.
-    return level < 0 ? enabledLODLevels(asset).at(-1)?.level ?? 0 : level;
+    return level < 0 ? -1 : this.previewLOD ?? level;
   }
   async loadSelectedLOD(choice, selectionVersion = this.selectVersion) {
     const record = this.data.objects.get(this.selectedId); if (!record) return;
     const request = ++this.selectedLODVersion; this.requestedLOD = choice; this.selectedChoice = choice;
+    if (choice < 0) {
+      if (this.selectedRoot) this.selectedRoot.visible = false;
+      this.outline.visible = false;
+      return;
+    }
     const lease = await this.assets.acquireLOD(record.assetId, choice, { preview: this.previewLOD != null });
     if (request !== this.selectedLODVersion || selectionVersion !== this.selectVersion || !this.active || !this.data.objects.has(record.id)) { lease.release(); return; }
     if (this.beforeDrag) { lease.release(); this.requestedLOD = null; return; }
     const oldRoot = this.selectedRoot, oldLease = this.sourceLease;
-    if (oldRoot && oldLease?.resourceId === lease.resourceId && oldRoot.userData.lodLevel === lease.level) { lease.release(); return; }
+    if (oldRoot && oldLease?.resourceId === lease.resourceId && oldRoot.userData.lodLevel === lease.level) { oldRoot.visible = true; this.updateOutline(); lease.release(); return; }
     const current = this.data.objects.get(record.id), oldClip = oldRoot?.userData.animationClip;
     const effective = oldClip && !current.properties.clip ? { ...current, properties: { ...current.properties, clip: oldClip.name } } : current;
     this.selectedRoot = this.system.createLive(effective, lease.source, lease.level); this.sourceLease = lease;
@@ -235,7 +242,7 @@ export class ObjectEditor {
     this.$("#objectFollowTerrain").checked = !!record?.anchor;
     this.$("#objectAnimation").value = record?.properties.animation === false ? "__paused" : record?.properties.clip ?? this.$("#objectAnimation").options[1]?.value ?? "__paused";
   }
-  updateOutline() { if (this.selectedRoot) { this.outline.setFromObject(this.selectedRoot); this.outline.visible = this.active; } }
+  updateOutline() { if (this.selectedRoot) { this.outline.setFromObject(this.selectedRoot); this.outline.visible = this.active && this.selectedRoot.visible; } }
   commit(before, after) {
     if (JSON.stringify(before) === JSON.stringify(after)) return;
     this.data.setObject(after); this.recordHistory({ kind: "object", entries: { id: after.id, before: copy(before), after: copy(after) } });
@@ -393,19 +400,22 @@ export class ObjectEditor {
     }
     const now = this.system.now();
     if (this.listsDirty && (!this.objectBrush.stroke || now >= this.nextListRefresh)) { this.listsDirty = false; this.nextListRefresh = now + 250; this.refreshLists(); }
-    if (this.active) this.lodPanel.update(this.selectedRoot?.userData.lodLevel, this.previewLOD);
-    if (!this.active || !this.selectedRoot) return;
+    if (this.active) this.lodPanel.update(this.selectedChoice === -1 ? -1 : this.selectedRoot?.userData.lodLevel, this.previewLOD);
+    this.collisionPanel.update(this.active);
+    if (!this.active || !this.selectedId) return;
     const time = this.system.now();
     if (!this.beforeDrag && time >= this.nextLODCheck) {
       this.nextLODCheck = time + 100; const choice = this.selectedLODChoice();
       if (choice !== this.requestedLOD) this.loadSelectedLOD(choice);
     }
     const root = this.selectedRoot;
+    if (!root) return;
     if (root.userData.mixer) { root.userData.mixer.update(delta); this.updateOutline(); }
   }
   dispose() {
     this.finishBrush(); this.brushPreview.removeFromParent(); this.brushGeometry.dispose(); this.brushMaterial.dispose();
     this.lodPanel.dispose();
+    this.collisionPanel.dispose();
     this.select(null); this.unsubscribe(); this.controls.getHelper().removeFromParent(); this.controls.dispose();
     this.outline.removeFromParent(); this.outline.geometry.dispose(); this.outline.material.dispose();
   }

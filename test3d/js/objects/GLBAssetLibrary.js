@@ -35,7 +35,7 @@ export class GLBAssetLibrary {
     this.unsubscribe = data.onChanged(event => {
       if ((event.kind === "asset" || event.kind === "resource") && (event.before?.data !== event.after?.data || this.errors.has(event.id))) this.invalidate(event.id);
       if (event.kind === "asset" || event.kind === "resource") {
-        const used = new Set([...data.assets.values()].flatMap(asset => [asset.id, ...(asset.lod?.levels.map(level => level.resourceId) ?? [])]));
+        const used = new Set([...data.assets.values()].flatMap(asset => [asset.id, ...(asset.lod?.levels.map(level => level.resourceId) ?? []), asset.collision?.sourceId].filter(Boolean)));
         for (const id of this.errors.keys()) if (!used.has(id)) this.invalidate(id);
       }
     });
@@ -44,7 +44,8 @@ export class GLBAssetLibrary {
     const prepared = await this.prepareFile(file);
     const existing = this.data.assets.get(prepared.resource.id);
     if (existing?.data && !this.errors.has(existing.id)) return existing;
-    const asset = this.data.setAsset(prepared.resource);
+    // Repairing a logical payload must retain its authored collision/LOD settings.
+    const asset = this.data.setAsset({ ...existing, ...prepared.resource });
     this.cache.set(asset.id, Promise.resolve(prepared.source)); this.lastUsed.set(asset.id, this.now());
     return asset;
   }
@@ -167,6 +168,7 @@ export class GLBAssetLibrary {
     } };
   }
   async acquireLOD(assetId, requested = 0, { preview = false } = {}) {
+    if (requested === -1 && !preview) return { source: null, level: -1, resourceId: null, release() {} };
     const asset = this.data.assets.get(assetId);
     const candidates = lodCandidates(asset ?? { id: assetId }, requested);
     const forced = asset?.lod?.levels[requested];

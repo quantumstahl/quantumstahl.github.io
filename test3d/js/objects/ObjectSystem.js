@@ -3,6 +3,9 @@ import { ObjectLODGroup } from "./ObjectLODGroup.js";
 import { lodResourceIds } from "./ObjectLOD.js";
 
 const NO_DIAGNOSTICS = [];
+const sameModels = (before, after) => before?.lod && after?.lod && before.data === after.data
+  && JSON.stringify(before.bounds) === JSON.stringify(after.bounds)
+  && JSON.stringify(before.lod.levels.filter(l => l.enabled && l.resourceId)) === JSON.stringify(after.lod.levels.filter(l => l.enabled && l.resourceId));
 
 export function applyObjectTransform(root, record) {
   root.position.fromArray(record.position); root.rotation.set(...record.rotation);
@@ -25,10 +28,12 @@ export function releaseObject(root) {
 // records and asset sources outlive all streamed render cells. No terrain LOD
 // dependency. Configured assets add independently updated LOD batch groups.
 export class ObjectSystem {
-  constructor(scene, data, assets, { visibilityDistance = 5000, maxConcurrentLoads = 2, evictionDelay = 2000, now = () => performance.now(), lodChecksPerFrame = 2048, lodUpdateInterval = 100, diagnostics = false } = {}) {
+  constructor(scene, data, assets, { visibilityDistance = 5000, maxConcurrentLoads = 2, evictionDelay = 2000, now = () => performance.now(), lodChecksPerFrame = 2048, lodUpdateInterval = 100, diagnostics = false, excludeIds = new Set() } = {}) {
     Object.assign(this, { scene, data, assets, visibilityDistance, maxConcurrentLoads, evictionDelay, now, lodChecksPerFrame, lodUpdateInterval, diagnostics });
+    this.excludeIds = excludeIds;
     this.root = new THREE.Group(); this.root.name = "World objects"; scene.add(this.root);
     this.cells = new Map(); this.pending = new Map(); this.versions = new Map(); this.bounds = new Map();
+    this.drawLimits = new Map();
     this.frustum = new THREE.Frustum(); this.viewProjection = new THREE.Matrix4();
     this.matrix = new THREE.Matrix4(); this.localMatrix = new THREE.Matrix4(); this.quaternion = new THREE.Quaternion();
     this.position = new THREE.Vector3(); this.scale = new THREE.Vector3(); this.euler = new THREE.Euler();
@@ -38,6 +43,18 @@ export class ObjectSystem {
     this.missingMaterial = new THREE.MeshBasicMaterial({ color: 0xff48cf, wireframe: true });
     this.unsubscribe = data.onChanged(event => {
       if (event.kind === "asset" || event.kind === "resource") {
+        if (event.before && event.after && event.before.data === event.after.data && JSON.stringify(event.before.lod) === JSON.stringify(event.after.lod)
+          && JSON.stringify(event.before.bounds) === JSON.stringify(event.after.bounds) && JSON.stringify(event.before.clips) === JSON.stringify(event.after.clips)) return;
+        if (event.kind === "asset" && sameModels(event.before, event.after)) {
+          for (const [key, ids] of data.cells) for (const id of ids) if (data.objects.get(id).assetId === event.id) {
+            this.drawLimits.delete(key);
+            for (const group of this.cells.get(key)?.lodGroups ?? []) if (group.asset.id === event.id) group.configure(event.after);
+            // A pending cell build owns a snapshot of the previous settings.
+            if (this.pending.has(key)) this.invalidate(key);
+            break;
+          }
+          return;
+        }
         const affected = new Set([...data.assets.values()].filter(asset => asset.id === event.id || lodResourceIds(asset).has(event.id)).map(asset => asset.id));
         if (event.kind === "asset") affected.add(event.id);
         for (const [key, ids] of data.cells) if ([...ids].some(id => affected.has(data.objects.get(id).assetId))) {
@@ -53,7 +70,17 @@ export class ObjectSystem {
       lodInstances: [0, 0, 0, 0], lodTriangles: [0, 0, 0, 0], objectDrawCalls: 0, culledCells: 0, lodTransitions: 0, lodUpdateMs: 0, lodChecks: 0 };
   }
   invalidate(key) {
-    this.versions.set(key, (this.versions.get(key) ?? 0) + 1); this.bounds.delete(key);
+    this.versions.set(key, (this.versions.get(key) ?? 0) + 1); this.bounds.delete(key); this.drawLimits.delete(key);
+  }
+  cellDrawLimit(key) {
+    if (this.drawLimits.has(key)) return this.drawLimits.get(key);
+    let limit = 0;
+    for (const id of this.data.cells.get(key) ?? []) {
+      const lod = this.data.assets.get(this.data.objects.get(id).assetId)?.lod;
+      if (lod?.maxDistance == null) { limit = Infinity; break; }
+      limit = Math.max(limit, lod.maxDistance * (1 + lod.hysteresis));
+    }
+    this.drawLimits.set(key, limit); return limit;
   }
   recordMatrix(record, target = this.matrix) {
     this.position.fromArray(record.position); this.scale.fromArray(record.scale); this.euler.set(...record.rotation);
@@ -71,6 +98,8 @@ export class ObjectSystem {
         variantBox.min.fromArray(variant.min); variantBox.max.fromArray(variant.max); box.union(variantBox);
       }
       box.applyMatrix4(this.recordMatrix(record)); bounds.union(box);
+      // Distance uses placement pivots, including models exported off-origin.
+      bounds.expandByPoint(this.position.fromArray(record.position));
     }
     this.bounds.set(key, bounds); return bounds;
   }
@@ -138,7 +167,7 @@ export class ObjectSystem {
     try {
       const buckets = new Map();
       for (const id of this.data.cells.get(key) ?? []) {
-        if (id === this.selectedId) continue;
+        if (id === this.selectedId || this.excludeIds.has(id)) continue;
         const record = this.data.objects.get(id);
         if (!buckets.has(record.assetId)) buckets.set(record.assetId, []);
         buckets.get(record.assetId).push(record);
@@ -204,8 +233,12 @@ export class ObjectSystem {
     // until that cell's data changes, and include objects crossing cell edges.
     for (const key of this.data.cells.keys()) {
       const box = this.cellBounds(key), distance = box.distanceToPoint(camera.position);
-      const visible = distance <= this.visibilityDistance && this.frustum.intersectsBox(box);
       const cell = this.cells.get(key);
+      let active = cell?.count > 0;
+      if (cell && !active) for (const group of cell.lodGroups) if (group.count || group.pending.size) { active = true; break; }
+      // Existing members finish their ordinary budgeted cull pass. Empty or
+      // unbuilt cells beyond every asset's limit need no GLB loads or checks.
+      const visible = distance <= this.visibilityDistance && (active || distance <= this.cellDrawLimit(key)) && this.frustum.intersectsBox(box);
       if (visible) {
         this.wanted.add(key); visibleCells++;
         if (!cell || cell.version !== (this.versions.get(key) ?? 0)) candidates.push({ key, distance });
@@ -216,8 +249,7 @@ export class ObjectSystem {
           cell.lastVisible = now; instances += cell.count;
           if (this.diagnostics) this.stats.lodInstances[0] += cell.count;
           for (const group of cell.lodGroups) {
-            this.visibleLODGroups.push(group); instances += group.count; animated += group.updateAnimations(delta);
-            if (this.diagnostics) for (const target of group.targets.values()) if (target.level >= 0) this.stats.lodInstances[target.level] += target.count;
+            this.visibleLODGroups.push(group); animated += group.updateAnimations(delta);
           }
           for (const live of cell.animated) if (live.visible) {
             live.userData.mixer.update(Math.min(delta, .1)); animated++;
@@ -236,11 +268,15 @@ export class ObjectSystem {
       group.flush(); group.cleanup(now);
     }
     this.stats.lodChecks = this.lodChecksPerFrame - remaining;
+    for (const group of this.visibleLODGroups) {
+      instances += group.count;
+      if (this.diagnostics) for (const target of group.targets.values()) if (target.level >= 0) this.stats.lodInstances[target.level] += target.count;
+    }
     if (this.diagnostics) this.stats.lodUpdateMs = performance.now() - lodStarted;
     for (const [key, cell] of this.cells) {
       if (!this.data.cells.has(key) || (!this.wanted.has(key) && now - cell.lastVisible > this.evictionDelay)) {
         this.disposeCell(cell); this.cells.delete(key);
-        if (!this.data.cells.has(key)) { this.bounds.delete(key); this.versions.delete(key); }
+        if (!this.data.cells.has(key)) { this.bounds.delete(key); this.versions.delete(key); this.drawLimits.delete(key); }
       }
     }
     candidates.sort((a, b) => a.distance - b.distance);
@@ -283,6 +319,7 @@ export class ObjectSystem {
     this.disposed = true; this.unsubscribe();
     for (const cell of this.cells.values()) this.disposeCell(cell);
     this.cells.clear(); this.root.removeFromParent();
+    this.drawLimits.clear();
     this.missingGeometry.dispose(); this.missingMaterial.dispose();
   }
 }

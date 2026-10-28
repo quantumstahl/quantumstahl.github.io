@@ -13,6 +13,10 @@ const FORMAT = "maxworld-world";
 export class WorldTileStore {
   constructor(tiles = new Map(), rockKeys = new Set(), materialData = new TerrainMaterialData()) {
     this.tiles = tiles;
+    // Retained while validating saves; physics can discover distant displaced
+    // surfaces without decoding every saved height tile at startup.
+    this.warpSummaries = new Map();
+    this.warpMetadataComplete = tiles.size === 0;
     this.rockExposureTileKeys = rockKeys;
     this.materialData = materialData;
     this.waterData = new WaterData();
@@ -49,8 +53,11 @@ export class WorldTileStore {
         if (values?.some(value => !Number.isFinite(value))) throw new Error(`World file contains invalid samples: ${key}.`);
       }
       store.tiles.set(key, serialized);
+      const warpSummary = validator.refreshWarpSummary(tile);
+      if (warpSummary) store.warpSummaries.set(key, warpSummary);
       if (record.rockExposure) store.rockExposureTileKeys.add(key);
     }
+    store.warpMetadataComplete = true;
     return { store, settings: { rockShellEnabled: world.settings?.rockShellEnabled !== false, environment: normalizeEnvironmentSettings(world.settings?.environment), grass: normalizeGrassSettings(world.settings?.grass) }, savedAt: world.savedAt ?? null, version: world.version };
   }
 
@@ -67,11 +74,13 @@ export class WorldTileStore {
     const bedSnapshot=this.waterBeds.snapshot();
     const objectSnapshot = this.objectData.snapshot();
     const header = JSON.stringify({ format: FORMAT, version: 7, baseTerrain: "flat-v1", tileSize: provider.tileSize, tileSegments: provider.tileSegments, savedAt: new Date().toISOString(), settings: { ...settings, grass: normalizeGrassSettings(settings?.grass) }, materials: materialSnapshot.materials, water: waterSnapshot.value,waterBeds:bedSnapshot.value, objects: objectSnapshot.value });
-    return { text: `${header.slice(0, -1)},"tiles":[${[...tiles.values()].join(",")}],"materialTiles":[${[...materialSnapshot.tiles.values()].join(",")}]}`, tiles, versions, rockKeys, materialSnapshot, waterSnapshot,bedSnapshot, objectSnapshot };
+    return { text: `${header.slice(0, -1)},"tiles":[${[...tiles.values()].join(",")}],"materialTiles":[${[...materialSnapshot.tiles.values()].join(",")}]}`, tiles, versions, rockKeys, materialSnapshot, waterSnapshot,bedSnapshot, objectSnapshot,
+      warpSummaries: new Map(provider.warpSummaries) };
   }
 
   commit(snapshot, provider) {
     this.tiles = snapshot.tiles;
+    this.warpSummaries = snapshot.warpSummaries;
     this.rockExposureTileKeys = snapshot.rockKeys;
     this.materialData.commit(snapshot.materialSnapshot);
     this.waterData.commit(snapshot.waterSnapshot);

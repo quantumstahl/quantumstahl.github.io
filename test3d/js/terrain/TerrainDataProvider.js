@@ -139,7 +139,7 @@ export class TerrainDataProvider {
     this.activeEditTileKeys = new Set();
     this.changeBatchDepth = 0;
     this.changedTiles = new Set();
-    this.warpSummaries = new Map();
+    this.warpSummaries = new Map(store?.warpSummaries ?? []);
     this.heightSummaries = new Map();
     // Exact channel-presence metadata survives CPU eviction. The rock shell
     // can discover saved/disconnected regions as their owners are loaded.

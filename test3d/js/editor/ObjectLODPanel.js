@@ -1,5 +1,5 @@
 import { copyAsset } from "../objects/ObjectData.js";
-import { defaultLOD, expandLOD, normalizeLOD, lodWarnings } from "../objects/ObjectLOD.js";
+import { defaultLOD, expandLOD, normalizeLOD, lodWarnings, DEFAULT_MAX_DRAW_DISTANCE } from "../objects/ObjectLOD.js";
 
 // Assignment is one history operation, including a newly imported resource.
 // Placed instances always retain their logical asset ID.
@@ -48,11 +48,12 @@ export class ObjectLODPanel {
         <label class="object-check">Enabled<input type="checkbox" data-lod-enabled="${level}"></label>
         <label>Start distance (m)<input type="number" min="0" step="1" data-lod-distance="${level}" ${level === 0 ? "disabled" : ""}></label>
       </fieldset>`).join("")}</div>
-      <label>Maximum visibility (m; 0 = world limit)<input id="objectLODMaxDistance" type="number" min="0" step="10" value="0"></label>
-      <label>Hysteresis (%)<input id="objectLODHysteresis" type="number" min="0" max="50" step="1" value="12"></label>
+      <label class="object-check">Enable Max Draw Distance<input id="objectLODMaxEnabled" type="checkbox"></label>
+      <label>Max Draw Distance (meters)<input id="objectLODMaxDistance" type="number" min="0.01" step="any" value="100"></label>
+      <label>LOD / cutoff hysteresis (%)<input id="objectLODHysteresis" type="number" min="0" max="50" step="1" value="12"></label>
       <p id="objectLODWarnings" role="status"></p>
       <label class="object-check">Show LOD diagnostics<input id="objectLODDiagnostics" type="checkbox"></label>
-      <p>Levels share one asset and its placements. Align model origins, orientation and dimensions before export. A preview changes only the selected object.</p>
+      <p>Levels and draw distance belong to this asset and all its placements. Draw distance also works with one model and takes precedence over later LOD levels. Disabling the limit restores world-distance visibility. Hysteresis applies to LOD and the cutoff. A preview changes only the selected object's model.</p>
       </details>`;
     this.$ = selector => element.querySelector(selector);
     this.$("#objectLODEnabled").onchange = event => this.edit(asset => { if (event.target.checked) asset.lod = defaultLOD(asset.id); else delete asset.lod; });
@@ -74,7 +75,11 @@ export class ObjectLODPanel {
       this.$(`[data-lod-enabled="${level}"]`).onchange = event => this.edit(asset => { asset.lod.levels[level].enabled = event.target.checked; });
       this.$(`[data-lod-distance="${level}"]`).onchange = event => this.edit(asset => { asset.lod.levels[level].distance = Number(event.target.value); });
     }
-    this.$("#objectLODMaxDistance").onchange = event => this.edit(asset => { asset.lod.maxDistance = Number(event.target.value) || null; });
+    this.$("#objectLODMaxEnabled").onchange = event => this.edit(asset => {
+      asset.lod ??= defaultLOD(asset.id);
+      asset.lod.maxDistance = event.target.checked ? DEFAULT_MAX_DRAW_DISTANCE : null;
+    });
+    this.$("#objectLODMaxDistance").onchange = event => this.edit(asset => { asset.lod.maxDistance = Number(event.target.value); });
     this.$("#objectLODHysteresis").onchange = event => this.edit(asset => { asset.lod.hysteresis = Number(event.target.value) / 100; });
     this.$("#objectLODPreview").onchange = event => this.preview(event.target.value === "auto" ? null : Number(event.target.value));
     this.$("#objectLODDiagnostics").checked = system.diagnostics;
@@ -107,7 +112,9 @@ export class ObjectLODPanel {
     this.$("#objectLODEnabled").disabled = !asset; this.$("#objectLODEnabled").checked = enabled;
     for (let level = 0; level < 4; level++) {
       const item = config.levels[level], resource = item?.resourceId ? this.data.getResource(item.resourceId) : null;
-      this.$(`[data-lod-triangles="${level}"]`).textContent = this.count(resource);
+      const first = config.levels.findIndex(l => l.enabled && l.resourceId);
+      const reachable = config.maxDistance == null || level === first || item.distance <= config.maxDistance;
+      this.$(`[data-lod-triangles="${level}"]`).textContent = reachable ? this.count(resource) : resource?.triangles != null ? `${resource.triangles.toLocaleString()} tris` : "Beyond draw distance";
       this.$(`[data-lod-name="${level}"]`).textContent = resource?.name ?? (item?.resourceId ? "Missing GLB" : "Unassigned");
       this.$(`[data-lod-row="${level}"]`).disabled = !enabled;
       this.$(`[data-lod-clear="${level}"]`).disabled = !item?.resourceId;
@@ -116,8 +123,11 @@ export class ObjectLODPanel {
       if (document.activeElement !== distance) distance.value = item?.distance ?? [0, 80, 600, 2000][level];
       const option = this.$("#objectLODPreview").options[level + 1]; option.disabled = !item?.resourceId;
     }
-    this.$("#objectLODMaxDistance").disabled = this.$("#objectLODHysteresis").disabled = !enabled;
-    if (document.activeElement !== this.$("#objectLODMaxDistance")) this.$("#objectLODMaxDistance").value = config.maxDistance ?? 0;
+    const limited = config.maxDistance != null;
+    this.$("#objectLODMaxEnabled").disabled = !asset; this.$("#objectLODMaxEnabled").checked = limited;
+    this.$("#objectLODMaxDistance").disabled = !asset || !limited;
+    this.$("#objectLODHysteresis").disabled = !enabled;
+    if (document.activeElement !== this.$("#objectLODMaxDistance")) this.$("#objectLODMaxDistance").value = config.maxDistance ?? DEFAULT_MAX_DRAW_DISTANCE;
     if (document.activeElement !== this.$("#objectLODHysteresis")) this.$("#objectLODHysteresis").value = Math.round(config.hysteresis * 100);
     this.$("#objectLODWarnings").textContent = lodWarnings(asset, id => this.data.getResource(id)).join(" ");
   }
@@ -126,7 +136,7 @@ export class ObjectLODPanel {
     const record = this.data.objects.get(this.getSelectedId()), selected = record?.assetId === this.getAssetId();
     this.$("#objectLODPreview").disabled = !selected;
     this.$("#objectLODPreview").value = previewLevel == null ? "auto" : String(previewLevel);
-    const message = selected ? `Active LOD: ${activeLevel == null ? "loading" : activeLevel < 0 ? "missing model" : activeLevel}${previewLevel == null ? " · automatic" : " · preview"}` : "Select a placed object to preview LOD.";
+    const message = selected ? `Active LOD: ${activeLevel == null ? "loading" : activeLevel < 0 ? "outside draw distance" : activeLevel}${previewLevel == null ? " · automatic" : " · preview"}` : "Select a placed object to preview LOD.";
     if (this.$("#objectLODActive").textContent !== message) this.$("#objectLODActive").textContent = message;
   }
   dispose() { this.disposed = true; this.unsubscribe(); this.element.removeEventListener("focusout", this.onFocusOut); }

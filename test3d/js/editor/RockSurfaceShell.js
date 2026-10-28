@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { proceduralHeight } from "../terrain/TerrainHeight.js";
 import { ROCK_APPEARANCE_GLSL } from "../engine/RockAppearance.js";
 import { TERRAIN_CHANGE } from "../terrain/TerrainDataProvider.js";
+import { rockCellCovered } from "../terrain/RockSurface.js";
 import { createEnvironmentUniforms, ENVIRONMENT_GLSL } from "../engine/EnvironmentShader.js";
 
 // Shell vertices retain authoritative authored height and warp independently
@@ -150,8 +151,7 @@ export class RockSurfaceShell {
       let left = segments, top = segments, right = -1, bottom = -1;
       for (let z = 0; z < segments; z++) for (let x = 0; x < segments; x++) {
         const a = z * width + x, cell = z * segments + x;
-        const present = Math.max(Math.abs(tile.rockExposure?.[a] ?? 0), Math.abs(tile.rockExposure?.[a + 1] ?? 0),
-          Math.abs(tile.rockExposure?.[a + width] ?? 0), Math.abs(tile.rockExposure?.[a + width + 1] ?? 0)) >= this.coverageThreshold;
+        const present = rockCellCovered(tile, x, z, this.coverageThreshold);
         coverage[cell] = present ? 1 : 0;
         if (present) {
           count++; minX = Math.min(minX, x); maxX = Math.max(maxX, x);
@@ -384,8 +384,7 @@ export class RockSurfaceShell {
     const exposure = tile.rockExposure, width = tile.segments + 1;
     for (let z = 0; z < tile.segments; z++) for (let x = 0; x < tile.segments; x++) {
       const a = z * width + x;
-      const present = Math.max(Math.abs(exposure?.[a] ?? 0), Math.abs(exposure?.[a + 1] ?? 0),
-        Math.abs(exposure?.[a + width] ?? 0), Math.abs(exposure?.[a + width + 1] ?? 0)) >= this.coverageThreshold;
+      const present = rockCellCovered(tile, x, z, this.coverageThreshold);
       if (present !== Boolean(covered[z * tile.segments + x])) return false;
     }
     return true;
