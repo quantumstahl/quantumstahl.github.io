@@ -58,7 +58,7 @@ function updateStats(now, delta) {
   statsElement.textContent = [
     `${(frames / elapsed).toFixed(0)} FPS · ${averageFrame.toFixed(1)} ms · peak ${peakFrame.toFixed(1)} ms`,
     `Gamepad ${controller.gamepadConnected ? "connected" : "not detected"}`,
-    `${(terrain.stats.triangles / 1000).toFixed(0)}k tris · ${info.calls} draws · ${terrain.stats.patches} patches`,
+    `${(terrain.stats.triangles / 1000).toFixed(0)}k tris · ${info.calls} draws · ${terrain.stats.patches} patches (${terrain.stats.culledPatches} culled)`,
     `LOD ${lods}`,
     `Water ${water.stats.bodies} bodies · ${water.stats.triangles} tris · CPU ${water.stats.updateMs.toFixed(3)} ms`,
     `Waterfalls ${water.waterfall.records.size} · ${water.waterfall.records.size*26} effect tris`,

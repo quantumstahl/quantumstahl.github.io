@@ -83,6 +83,11 @@ export class TerrainHeightGpuCache {
     this.coarseDirtyTiles = new Set();
     this.coarsePublishedKeys = new Set();
     this.coarseDirty = false;
+    // Scalar bounds only, retained alongside geographic overviews. Union all
+    // captured revisions: an older full/fallback upload can still be sampled
+    // while a newer edit is queued. Shrinking to the newest CPU shape could
+    // otherwise cull a surface which the GPU is still rendering.
+    this.cullingBounds = new Map();
 
     // Overflow tiles get their own lower-resolution layers. The layer count
     // is bounded, while every layer still covers exactly one 256 m source
@@ -807,6 +812,7 @@ export class TerrainHeightGpuCache {
     if (tile.source === "procedural" || this.coarseCapturedRevisions.get(tile) === tile.revision) return;
     const x = Math.round(tile.x / tile.size), z = Math.round(tile.z / tile.size);
     const key = this.provider.tileKey(x, z);
+    this.captureCullingBounds(key, tile);
     let overview = this.coarseTiles.get(key);
     if (!overview) {
       overview = { x, z, values: new Float32Array(this.coarseSamples ** 2 * 4) };
@@ -827,6 +833,50 @@ export class TerrainHeightGpuCache {
     this.coarseCapturedRevisions.set(tile, tile.revision);
     this.coarseDirtyTiles.add(key);
     this.coarseDirty = true;
+  }
+
+  captureCullingBounds(key, tile) {
+    let bounds = this.cullingBounds.get(key);
+    if (!bounds) {
+      bounds = { x: tile.x, z: tile.z, size: tile.size,
+        minHeight: 0, maxHeight: 0, minWarpX: 0, maxWarpX: 0, minWarpZ: 0, maxWarpZ: 0 };
+      this.cullingBounds.set(key, bounds);
+    }
+    // All GPU representations sample this snapshot (or a subset) with
+    // bilinear interpolation. Full-tile extrema therefore enclose all of
+    // them, including tiny warps omitted by feature-activity summaries.
+    let { minHeight, maxHeight, minWarpX, maxWarpX, minWarpZ, maxWarpZ } = bounds;
+    for (let i = 0; i < tile.heights.length; i++) {
+      const height = tile.heights[i];
+      const warpX = tile.warp?.[i * 2] ?? 0;
+      const warpZ = tile.warp?.[i * 2 + 1] ?? 0;
+      minHeight = Math.min(minHeight, height);
+      maxHeight = Math.max(maxHeight, height);
+      minWarpX = Math.min(minWarpX, warpX);
+      maxWarpX = Math.max(maxWarpX, warpX);
+      minWarpZ = Math.min(minWarpZ, warpZ);
+      maxWarpZ = Math.max(maxWarpZ, warpZ);
+    }
+    Object.assign(bounds, { minHeight, maxHeight, minWarpX, maxWarpX, minWarpZ, maxWarpZ });
+  }
+
+  expandPatchCullingBox(node, box) {
+    let minWarpX = 0, maxWarpX = 0, minWarpZ = 0, maxWarpZ = 0;
+    for (const bounds of this.cullingBounds.values()) {
+      // Include source borders: a patch's final row/column can sample the
+      // adjacent owner. A displaced footprint never moves unrelated sources.
+      if (bounds.x + bounds.size < node.x || bounds.x > node.x + node.size
+        || bounds.z + bounds.size < node.z || bounds.z > node.z + node.size) continue;
+      minWarpX = Math.min(minWarpX, bounds.minWarpX);
+      maxWarpX = Math.max(maxWarpX, bounds.maxWarpX);
+      minWarpZ = Math.min(minWarpZ, bounds.minWarpZ);
+      maxWarpZ = Math.max(maxWarpZ, bounds.maxWarpZ);
+      box.min.y = Math.min(box.min.y, bounds.minHeight);
+      box.max.y = Math.max(box.max.y, bounds.maxHeight);
+    }
+    box.min.x += minWarpX; box.max.x += maxWarpX;
+    box.min.z += minWarpZ; box.max.z += maxWarpZ;
+    return box;
   }
 
   updateCoarseFallback(allowLoad = true) {
@@ -948,6 +998,7 @@ export class TerrainHeightGpuCache {
 
   dispose() {
     this.unsubscribe?.();
+    this.cullingBounds.clear();
     this.texture.dispose();
     this.warpTexture.dispose();
     this.rockExposureTexture.dispose();

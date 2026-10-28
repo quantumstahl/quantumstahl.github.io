@@ -390,11 +390,13 @@ export class TerrainQuadtree {
     this.hysteresis = new Map();
     this.batches = new Map();
     this.matrix = new THREE.Matrix4();
+    this.selectedNodes = [];
     this.renderedNodes = [];
     this.visibleSourceTileKeys = new Set();
     this.lodDecisions = new Map();
     this.renderSignature = "";
-    this.stats = { patches: 0, patchBudget: MAX_PATCHES, triangles: 0, lods: [], warpFeaturePatches: 0, balanceSplits: 0, persistentRefinementSplits: 0 };
+    this.selectionSignature = "";
+    this.stats = { patches: 0, selectedPatches: 0, culledPatches: 0, patchBudget: MAX_PATCHES, triangles: 0, lods: [], warpFeaturePatches: 0, balanceSplits: 0, persistentRefinementSplits: 0 };
     this.trianglesPerPatch = this.geometry.index.count / 3;
     this.minimumPatchSize = MIN_PATCH_SIZE;
     this.dataProvider = heightCache.provider;
@@ -403,7 +405,7 @@ export class TerrainQuadtree {
     this.warpBoundsScratch = {};
     this.heightBoundsScratch = {};
     this.warpFeatureScratch = {};
-    this.profile = { updateMs: 0, selectionMs: 0, selectionPeakMs: 0, warpLodMs: 0, streamingMs: 0, streamingPeakMs: 0, commitMs: 0 };
+    this.profile = { updateMs: 0, selectionMs: 0, selectionPeakMs: 0, warpLodMs: 0, streamingMs: 0, streamingPeakMs: 0, cullingMs: 0, cullingPeakMs: 0, commitMs: 0 };
   }
 
   getBatch(size) {
@@ -465,18 +467,47 @@ export class TerrainQuadtree {
     const balanceSplits = this.balanceSelected(rendered);
     this.assignStitchMasks(rendered);
     rendered.sort((a, b) => a.size - b.size || a.z - b.z || a.x - b.x);
-    this.renderedNodes = rendered.slice();
-    const signature = rendered.map(node => `${this.key(node)}:${node.stitchMask}`).join("|");
-    // Instanced matrices change only when the render set changes. Rotating in
-    // place therefore costs selection/culling, not mesh rebuilding or uploads.
-    if (signature !== this.renderSignature) {
-      this.renderSignature = signature;
+    this.selectedNodes = rendered;
+    this.stats.selectedPatches = rendered.length;
+    this.stats.balanceSplits = balanceSplits;
+    this.stats.persistentRefinementSplits = persistentRefinementSplits;
+    const signature = rendered.map(node => this.key(node)).join("|");
+    // Streaming retains the complete balanced topology, including offscreen
+    // neighbours. Visibility compaction must not change residency or seams.
+    if (signature !== this.selectionSignature) {
+      this.selectionSignature = signature;
       this.visibleSourceTileKeys = this.collectSourceTileKeys(rendered);
-      const commitStarted = performance.now();
-      this.commit(rendered, balanceSplits, persistentRefinementSplits);
-      this.profile.commitMs += performance.now() - commitStarted;
     }
     this.profile.updateMs += performance.now() - updateStarted;
+  }
+
+  commitVisiblePatches() {
+    const started = performance.now();
+    const visible = [];
+    for (const node of this.selectedNodes) {
+      this.bounds.min.set(node.x, TERRAIN_MIN_Y, node.z);
+      this.bounds.max.set(node.x + node.size, TERRAIN_MAX_Y, node.z + node.size);
+      this.heightCache.expandPatchCullingBox(node, this.bounds);
+      // Cover float arithmetic at the frustum boundary, including large
+      // world coordinates. Seam snapping stays inside the source rectangle.
+      const min = this.bounds.min, max = this.bounds.max;
+      const magnitude = Math.max(Math.abs(min.x), Math.abs(min.y), Math.abs(min.z), Math.abs(max.x), Math.abs(max.y), Math.abs(max.z));
+      this.bounds.expandByScalar(Math.max(.05, magnitude * 1e-6));
+      if (this.frustum.intersectsBox(this.bounds)) visible.push(node);
+    }
+    // Masks remain those of the full balanced topology. Recomputing them
+    // from just visible instances could unsnap an edge beside a culled leaf.
+    this.renderedNodes = visible;
+    this.stats.culledPatches = this.selectedNodes.length - visible.length;
+    const signature = visible.map(node => `${this.key(node)}:${node.stitchMask}`).join("|");
+    const elapsed = performance.now() - started;
+    this.profile.cullingMs += elapsed;
+    this.profile.cullingPeakMs = Math.max(this.profile.cullingPeakMs, elapsed);
+    if (signature === this.renderSignature) return;
+    this.renderSignature = signature;
+    const commitStarted = performance.now();
+    this.commit(visible, this.stats.balanceSplits, this.stats.persistentRefinementSplits);
+    this.profile.commitMs += performance.now() - commitStarted;
   }
 
   syncHeightCacheUniforms() {
@@ -494,6 +525,9 @@ export class TerrainQuadtree {
     uniforms.uFallbackMapOrigin.value.copy(this.heightCache.fallbackMapOrigin);
     uniforms.uFallbackMapExtent.value.copy(this.heightCache.fallbackMapExtent);
     uniforms.uFallbackEnabled.value = this.heightCache.fallbackKeyToLayer.size > 0;
+    // Both frame loops call this after cache uploads, immediately before
+    // rendering. New displacement must affect culling in that same frame.
+    this.commitVisiblePatches();
   }
 
   // Conservative source-tile coverage for the selected render set. A patch
@@ -533,7 +567,7 @@ export class TerrainQuadtree {
 
   consumeProfile() {
     const profile = this.profile;
-    this.profile = { updateMs: 0, selectionMs: 0, selectionPeakMs: 0, warpLodMs: 0, streamingMs: 0, streamingPeakMs: 0, commitMs: 0 };
+    this.profile = { updateMs: 0, selectionMs: 0, selectionPeakMs: 0, warpLodMs: 0, streamingMs: 0, streamingPeakMs: 0, cullingMs: 0, cullingPeakMs: 0, commitMs: 0 };
     return profile;
   }
 
