@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { proceduralHeight } from "../terrain/TerrainHeight.js";
 import { ROCK_APPEARANCE_GLSL } from "../engine/RockAppearance.js";
 import { TERRAIN_CHANGE } from "../terrain/TerrainDataProvider.js";
+import { createEnvironmentUniforms, ENVIRONMENT_GLSL } from "../engine/EnvironmentShader.js";
 
 // Shell vertices retain authoritative authored height and warp independently
 // of terrain texture residency. Bounds follow those same rendered positions.
@@ -11,7 +12,7 @@ function createShellMaterial(heightCache) {
   if (!heightCache) throw new Error("RockSurfaceShell requires TerrainHeightGpuCache.");
   return new THREE.ShaderMaterial({
     uniforms: {
-      uLightDirection: { value: new THREE.Vector3(-.45, .78, .42).normalize() },
+      ...createEnvironmentUniforms(),
     },
     glslVersion: THREE.GLSL3,
     vertexShader: `
@@ -24,7 +25,7 @@ function createShellMaterial(heightCache) {
         gl_Position = projectionMatrix * viewMatrix * world;
       }`,
     fragmentShader: `
-      uniform vec3 uLightDirection;
+      ${ENVIRONMENT_GLSL}
       in vec3 vWorldPosition;
       out vec4 outColor;
       ${ROCK_APPEARANCE_GLSL}
@@ -32,7 +33,8 @@ function createShellMaterial(heightCache) {
         // Derivative normals face the visible side, including folded and
         // underside faces. Keep their direction: abs(dot) flattens the light.
         vec3 normal = normalize(cross(dFdx(vWorldPosition), dFdy(vWorldPosition)));
-        outColor = vec4(shadeRock(vWorldPosition, normal, uLightDirection), 1.0);
+        vec3 color = environmentLightDisplayColor(shadeRock(vWorldPosition, normal, uLightDirection));
+        outColor = vec4(environmentFog(color, vWorldPosition, false), 1.0);
       }`,
     side: THREE.DoubleSide,
     polygonOffset: true,

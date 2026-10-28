@@ -2,6 +2,7 @@ import { LocalStorageTerrainTileStore, TerrainDataProvider, TERRAIN_TILE_SIZE, T
 import { TerrainMaterialData } from "./TerrainMaterialData.js";
 import { WaterData } from "../water/WaterData.js";
 import {WaterBedData} from "../water/WaterBedData.js";
+import { normalizeEnvironmentSettings, environmentSettingsEqual } from "../engine/EnvironmentSettings.js";
 
 export const DEFAULT_WORLD_URL = new URL("../../worlds/main.maxworld.json", import.meta.url).href;
 export const WORLD_FILE_NAME = "main.maxworld.json";
@@ -45,7 +46,7 @@ export class WorldTileStore {
       store.tiles.set(key, serialized);
       if (record.rockExposure) store.rockExposureTileKeys.add(key);
     }
-    return { store, settings: { rockShellEnabled: world.settings?.rockShellEnabled !== false }, savedAt: world.savedAt ?? null, version: world.version };
+    return { store, settings: { rockShellEnabled: world.settings?.rockShellEnabled !== false, environment: normalizeEnvironmentSettings(world.settings?.environment) }, savedAt: world.savedAt ?? null, version: world.version };
   }
 
   snapshot(provider, settings) {
@@ -171,7 +172,7 @@ export class WorldFileSession {
   get waterBeds(){return this.store.waterBeds;}
 
   hasUnsavedChanges(provider, settings = this.settings) {
-    return this.fileMissing || this.importedLegacy || this.materialData.hasUnsavedChanges || this.waterData.hasUnsavedChanges || this.waterBeds.hasUnsavedChanges || settings.rockShellEnabled !== this.settings.rockShellEnabled || [...provider.cache.values()].some(tile => tile.dirty);
+    return this.fileMissing || this.importedLegacy || this.materialData.hasUnsavedChanges || this.waterData.hasUnsavedChanges || this.waterBeds.hasUnsavedChanges || settings.rockShellEnabled !== this.settings.rockShellEnabled || !environmentSettingsEqual(settings.environment, this.settings.environment) || [...provider.cache.values()].some(tile => tile.dirty);
   }
 
   async save(provider, { saveAs = false, settings = this.settings } = {}) {

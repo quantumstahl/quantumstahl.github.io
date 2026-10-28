@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createEnvironmentUniforms, ENVIRONMENT_GLSL } from "../engine/EnvironmentShader.js";
 import {sampleWaterfall} from "./WaterfallPath.js";
 import {buildWaterfallEffects,updateWaterfallEffects,createWaterfallEffectsMaterial} from "./WaterfallEffects.js";
 import {WATERFALL_FADE_START,WATERFALL_DRAW_DISTANCE} from "./WaterfallVisibility.js";
@@ -35,7 +36,7 @@ export class WaterfallRenderer {
     this.root=root;this.records=new Map();this.time={value:0};
     this.effectsMaterial=createWaterfallEffectsMaterial(this.time);
     this.material=new THREE.ShaderMaterial({name:"MaxWorld flowing waterfall",side:THREE.DoubleSide,forceSinglePass:true,transparent:true,depthWrite:false,
-      uniforms:{uTime:this.time},
+      uniforms:{...createEnvironmentUniforms(),uTime:this.time},
       vertexShader:`
         attribute vec4 fallShape; attribute vec3 fallNormal; attribute vec3 fallColor; attribute vec4 fallStyle;
         varying vec2 vFlow; varying vec4 vShape; varying vec3 vColor; varying vec4 vStyle; varying vec3 vWorld;
@@ -48,6 +49,7 @@ export class WaterfallRenderer {
           gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0);
         }`,
       fragmentShader:`
+        ${ENVIRONMENT_GLSL}
         uniform float uTime;
         varying vec2 vFlow; varying vec4 vShape; varying vec3 vColor; varying vec4 vStyle; varying vec3 vWorld;
         void main(){
@@ -63,7 +65,9 @@ export class WaterfallRenderer {
           float broken=.012*sin(v*1.1-t*2.0+u*1.7)+.008*sin(v*2.7-t*3.0);
           float alpha=smoothstep(.002,.05+fwidth(edge),edge+broken)*vStyle.x*(.9+.1*lanes);
           float distanceToCamera=distance(cameraPosition,vWorld);
-          color=mix(color,vec3(.39,.51,.59),smoothstep(1800.0,4000.0,distanceToCamera)*.42);
+          color *= uEnvironmentTint;
+          if (!uSkyFadeEnabled) color=mix(color,vec3(.39,.51,.59),smoothstep(1800.0,4000.0,distanceToCamera)*.42);
+          color = environmentFog(color, vWorld, true);
           alpha*=1.0-smoothstep(${WATERFALL_FADE_START.toFixed(1)},${WATERFALL_DRAW_DISTANCE.toFixed(1)},distanceToCamera);
           if(alpha<.003)discard;
           gl_FragColor=vec4(color,alpha);

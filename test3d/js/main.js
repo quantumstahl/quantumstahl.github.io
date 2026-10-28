@@ -7,6 +7,7 @@ import { TerrainMaterialGpuCache } from "./terrain/TerrainMaterialGpuCache.js";
 import { RockSurfaceShell } from "./editor/RockSurfaceShell.js";
 import { loadWorldSession, pickWorldFile } from "./WorldFileUI.js";
 import { WaterSystem } from "./water/WaterSystem.js";
+import { EnvironmentSystem } from "./engine/EnvironmentSystem.js";
 
 const canvas = document.querySelector("#viewport");
 const statsElement = document.querySelector("#stats");
@@ -31,6 +32,8 @@ const terrain = new TerrainQuadtree(scene, {
 const rockSurfaceShell = new RockSurfaceShell(scene, terrainData, heightCache);
 rockSurfaceShell.setEnabled(worldSession.settings.rockShellEnabled);
 const water = new WaterSystem(scene, worldSession.waterData);
+const environment = new EnvironmentSystem(scene, worldSession.settings.environment);
+for (const material of [terrain.material, rockSurfaceShell.material, water.material, water.waterfall.material, water.waterfall.effectsMaterial]) environment.bindMaterial(material);
 const clock = new THREE.Clock();
 
 let frames = 0;
@@ -75,6 +78,7 @@ function frame(now) {
   const rawDelta = clock.getDelta();
   const delta = Math.min(rawDelta, 1 / 20);
   controller.update(delta);
+  environment.update(rawDelta);
   water.update(delta,camera);
   if (rockSurfaceShell.update()) terrain.setExperimentalRockMask(rockSurfaceShell.getSourceMask());
   terrain.update(camera);
@@ -82,6 +86,7 @@ function frame(now) {
   materialCache.update(camera.position.x, camera.position.z, terrain.getVisibleSourceTileKeys());
   rockSurfaceShell.syncCoverage();
   terrain.syncHeightCacheUniforms();
+  environment.beforeRender(renderer, camera);
   renderer.render(scene, camera);
   updateStats(now, rawDelta);
   requestAnimationFrame(frame);

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createEnvironmentUniforms, ENVIRONMENT_GLSL } from "../engine/EnvironmentShader.js";
 import { applyRiverShoreProfile } from "./RiverShoreProfile.js";
 import {lakeBoundary} from "./LakeBoundary.js";
 import {WaterfallRenderer,buildWaterfallGeometry,updateWaterfallStyle} from "./Waterfall.js";
@@ -145,7 +146,7 @@ export class WaterSystem {
     this.material = new THREE.ShaderMaterial({
       name: "MaxWorld stylized water", transparent: true, depthWrite: false,
       side: THREE.DoubleSide, forceSinglePass: true,
-      uniforms: { uTime: { value: 0 } },
+      uniforms: { ...createEnvironmentUniforms(), uTime: { value: 0 } },
       vertexShader: `
         attribute vec3 waterColor; attribute vec4 waterStyle; attribute vec3 waterShore; attribute float waterDepthTint; attribute vec4 waterFlowInfo;
         varying vec3 vWorld; varying vec2 vFlow; varying vec3 vColor; varying vec4 vStyle; varying vec3 vShore; varying float vDepthTint; varying vec4 vFlowInfo;
@@ -154,6 +155,7 @@ export class WaterSystem {
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }`,
       fragmentShader: `
+        ${ENVIRONMENT_GLSL}
         uniform float uTime;
         varying vec3 vWorld; varying vec2 vFlow; varying vec3 vColor; varying vec4 vStyle; varying vec3 vShore; varying float vDepthTint; varying vec4 vFlowInfo;
         void main() {
@@ -181,7 +183,7 @@ export class WaterSystem {
           vec3 deepColor = vColor * (1.0 - vDepthTint * .9) * vec3(.87,.98,1.0);
           vec3 color = mix(shallowColor,deepColor,depth) * (brightness + colorDrift);
           color = mix(color, vec3(.49,.74,.85), .045 + fresnel * .28);
-          vec3 halfDir = normalize(viewDir + normalize(vec3(-.45,.78,.42)));
+          vec3 halfDir = normalize(viewDir + normalize(uLightDirection));
           float specular = pow(max(dot(normal, halfDir), 0.0), 100.0);
           color += vec3(1.0,.94,.74) * specular * .20;
           float streak = smoothstep(.88,1.0,sin(p.y*.65+waveA*.25)) * smoothstep(.35,.85,sin(p.x*.17-t*.4));
@@ -192,7 +194,9 @@ export class WaterSystem {
           foam *= .85+.15*sin(t*.65+p.x*.3);
           color = mix(color,vec3(.65,.82,.78),foam*.75);
           float distanceFade = smoothstep(3000.0, 5200.0, viewDistance) * .42;
-          color = mix(color, vec3(.39,.51,.59), distanceFade);
+          color *= uEnvironmentTint;
+          if (!uSkyFadeEnabled) color = mix(color, vec3(.39,.51,.59), distanceFade);
+          color = environmentFog(color, vWorld, true);
           float alpha = vStyle.x * (.86+.12*depth+colorDrift*.3) + foam*.04;
           gl_FragColor = vec4(color,clamp(alpha,0.0,1.0)*smoothstep(0.0,max(.12,pixelWidth*.5),edgeDistance));
           #include <tonemapping_fragment>

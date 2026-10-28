@@ -37,7 +37,7 @@ export class EditorCameraController {
     this.canvas.addEventListener("pointermove", event => {
       if (!this.dragging) return;
       this.yaw -= (event.clientX - this.lastX) * this.lookSpeed;
-      this.pitch = THREE.MathUtils.clamp(this.pitch - (event.clientY - this.lastY) * this.lookSpeed, -1.48, -0.05);
+      this.pitch = THREE.MathUtils.clamp(this.pitch - (event.clientY - this.lastY) * this.lookSpeed, -1.48, 1.48);
       this.lastX = event.clientX;
       this.lastY = event.clientY;
     });

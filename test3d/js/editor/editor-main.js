@@ -12,6 +12,8 @@ import { WarpSurfacePicker } from "./WarpSurfacePicker.js";
 import { RockSurfaceShell } from "./RockSurfaceShell.js";
 import { WaterSystem } from "../water/WaterSystem.js";
 import { WaterEditor } from "./WaterEditor.js";
+import { EnvironmentSystem } from "../engine/EnvironmentSystem.js";
+import { SkyPanel } from "./SkyPanel.js";
 
 const canvas = document.querySelector("#editorCanvas");
 const status = document.querySelector("#editorStatus");
@@ -48,12 +50,6 @@ const warpSurfacePicker = new WarpSurfacePicker(terrainData);
 const rockSurfaceShell = new RockSurfaceShell(scene, terrainData, heightCache);
 rockSurfaceShell.setEnabled(worldSession.settings.rockShellEnabled);
 rockShellButton.setAttribute("aria-pressed", String(rockSurfaceShell.enabled));
-// Retain scene lights for editor objects. Terrain and shell use their shared
-// inexpensive rock shading in both the game and editor.
-const rockShellSky = new THREE.HemisphereLight(0xb9d9ed, 0x4d3c29, 1.15);
-const rockShellKey = new THREE.DirectionalLight(0xffefd0, 1.35);
-rockShellKey.position.set(-.45, .78, .42);
-scene.add(rockShellSky, rockShellKey);
 const clock = new THREE.Clock();
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -79,6 +75,8 @@ let rockifyStamp = null;
 const undoStack = [];
 const redoStack = [];
 const water = new WaterSystem(scene, worldSession.waterData);
+const environment = new EnvironmentSystem(scene, worldSession.settings.environment);
+for (const material of [terrain.material, rockSurfaceShell.material, water.material, water.waterfall.material, water.waterfall.effectsMaterial]) environment.bindMaterial(material);
 const waterEditor = new WaterEditor({ scene, camera, canvas, data: worldSession.waterData, water,
   panel: document.querySelector("#waterPanel"), recordHistory, onStatus: setStatus, sculptor,bedData:worldSession.waterBeds,pickSurface:event=>pickPaintSurface(event) });
 const MAX_HISTORY_STEPS = 50;
@@ -94,8 +92,9 @@ const rockifyPointer = { clientX: 0, clientY: 0, shiftKey: false };
 let rockifyPickScheduled = false;
 let rockCutoutEnabled = false;
 let changingWorld = false;
+const skyPanel = new SkyPanel(environment, refreshWorldFileName);
 
-function worldSettings() { return { rockShellEnabled: rockSurfaceShell.enabled }; }
+function worldSettings() { return { rockShellEnabled: rockSurfaceShell.enabled, environment: { ...environment.settings } }; }
 function refreshWorldFileName() {
   const label = `${worldSession.name}${worldSession.hasUnsavedChanges(terrainData, worldSettings()) ? " *" : ""}`;
   if (worldFileName.textContent !== label) worldFileName.textContent = label;
@@ -605,6 +604,8 @@ function frame(now) {
   const rawDelta = clock.getDelta();
   const delta = Math.min(rawDelta, 1 / 20);
   cameraController.update(delta);
+  environment.update(rawDelta);
+  skyPanel.update();
   waterEditor.update();
   water.update(delta,camera);
   materialPanel.updateLoadState();
@@ -628,6 +629,7 @@ function frame(now) {
   rockSurfaceShell.syncCoverage();
   terrain.syncHeightCacheUniforms();
   const renderStarted = performance.now();
+  environment.beforeRender(renderer, camera);
   renderer.render(scene, camera);
   const renderElapsed = performance.now() - renderStarted;
   renderCpuMs += renderElapsed;

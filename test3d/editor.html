@@ -42,6 +42,19 @@
     <span id="editorStatus" class="editor-status">Ready</span>
   </header>
   <aside class="inspector">
+    <details class="sky-panel">
+      <summary class="inspector-title">Sky &amp; time</summary>
+      <label for="skyTime"><span>Time of day</span><output id="skyTimeValue" for="skyTime">08:24</output><input id="skyTime" type="range" min="0" max="1439" step="1" value="504"></label>
+      <div class="material-actions sky-presets" aria-label="Time presets">
+        <button type="button" data-sky-time="0.25">Dawn</button>
+        <button type="button" data-sky-time="0.5">Noon</button>
+        <button type="button" data-sky-time="0.75">Dusk</button>
+        <button type="button" data-sky-time="0">Night</button>
+      </div>
+      <label class="sky-cycle"><span>Run day/night cycle</span><input id="skyCycle" type="checkbox" checked></label>
+      <label>Full day length (seconds)<input id="skyDuration" type="number" min="30" max="86400" step="30" value="360"></label>
+      <p>Pause to hold the current light. Save stores the selected start time and cycle settings for the game.</p>
+    </details>
     <div id="brushPanel">
     <div class="inspector-title">Brush</div>
     <label><span>Radius</span><output id="radiusValue">24 m</output><input id="radiusInput" type="range" min="4" max="80" step="2" value="24"></label>

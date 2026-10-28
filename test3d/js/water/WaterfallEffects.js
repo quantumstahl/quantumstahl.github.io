@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createEnvironmentUniforms, ENVIRONMENT_GLSL } from "../engine/EnvironmentShader.js";
 import {WATERFALL_FADE_START,WATERFALL_DRAW_DISTANCE} from "./WaterfallVisibility.js";
 
 // One tiny batch per impact: a ground foam patch, three splash glints,
@@ -30,7 +31,7 @@ export function updateWaterfallEffects(geometry,body) {
   attribute.needsUpdate=true;
 }
 export function createWaterfallEffectsMaterial(time) {
-  return new THREE.ShaderMaterial({name:"MaxWorld waterfall impact",transparent:true,depthWrite:false,side:THREE.DoubleSide,forceSinglePass:true,uniforms:{uTime:time},
+  return new THREE.ShaderMaterial({name:"MaxWorld waterfall impact",transparent:true,depthWrite:false,side:THREE.DoubleSide,forceSinglePass:true,uniforms:{...createEnvironmentUniforms(),uTime:time},
     vertexShader:`
       attribute vec2 fxCorner; attribute vec4 fxData; attribute vec4 fxFlow;
       uniform float uTime;
@@ -65,6 +66,7 @@ export function createWaterfallEffectsMaterial(time) {
         if(vAmount<.001)gl_Position=vec4(2.0,2.0,2.0,1.0);
       }`,
     fragmentShader:`
+      ${ENVIRONMENT_GLSL}
       uniform float uTime;
       varying vec2 vUv; varying float vKind; varying float vAge; varying float vAmount;
       void main(){
@@ -85,7 +87,7 @@ export function createWaterfallEffectsMaterial(time) {
           alpha=cloud*sin(vAge*3.14159265)*vAmount*.16;
         }else{alpha=(1.0-smoothstep(.15,1.0,radius))*sin(vAge*3.14159265)*vAmount*.8;}
         if(alpha<.003)discard;
-        gl_FragColor=vec4(color,min(.95,alpha));
+        gl_FragColor=vec4(color * uEnvironmentTint,min(.95,alpha));
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,

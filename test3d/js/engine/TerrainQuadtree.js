@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { TERRAIN_HEIGHT_GLSL } from "../terrain/TerrainHeight.js";
 import { ROCK_APPEARANCE_GLSL } from "./RockAppearance.js";
 import { TERRAIN_MATERIAL_GLSL } from "../terrain/TerrainMaterialShader.js";
+import { createEnvironmentUniforms, ENVIRONMENT_GLSL } from "./EnvironmentShader.js";
 
 const GRID_RESOLUTION = 32;
 const ROOT_SIZE = 8192;
@@ -52,6 +53,7 @@ function createTerrainMaterial(atmosphere, heightCache, materialCache) {
   emptyRockSourceMask.needsUpdate = true;
   return new THREE.ShaderMaterial({
     uniforms: {
+      ...createEnvironmentUniforms(),
       ...materialCache?.uniforms,
       uAtmosphereColor: { value: new THREE.Color(atmosphere.color) },
       uAtmosphereStart: { value: atmosphere.start },
@@ -305,6 +307,7 @@ function createTerrainMaterial(atmosphere, heightCache, materialCache) {
         gl_Position = projectionMatrix * viewMatrix * world;
       }`,
     fragmentShader: `
+      ${ENVIRONMENT_GLSL}
       uniform vec3 uAtmosphereColor;
       uniform float uAtmosphereStart, uAtmosphereEnd, uAtmosphereStrength;
       uniform sampler2D uRockSourceMask;
@@ -354,7 +357,7 @@ function createTerrainMaterial(atmosphere, heightCache, materialCache) {
         // The terrain is double-sided. This keeps top faces stable while
         // still allowing folded Rockify walls to receive facet lighting.
        // if (faceNormal.y < 0.0) faceNormal *= -1.0;
-        vec3 lightDirection = normalize(vec3(-.45, .78, .42));
+        vec3 lightDirection = normalize(uLightDirection);
         float groundLight = clamp(dot(faceNormal, lightDirection) * .42 + .58, .30, 1.0);
         groundColor *= groundLight;
 
@@ -370,7 +373,9 @@ function createTerrainMaterial(atmosphere, heightCache, materialCache) {
         vec3 rockColor = shadeRock(vWorldPosition, faceNormal, lightDirection);
         vec3 color = mix(groundColor, rockColor, rockShade);
         float atmosphere = smoothstep(uAtmosphereStart, uAtmosphereEnd, length(cameraPosition - vWorldPosition)) * uAtmosphereStrength;
-        outColor = vec4(mix(color, uAtmosphereColor, atmosphere), 1.0);
+        color = environmentLightDisplayColor(color);
+        if (!uSkyFadeEnabled) color = mix(color, uAtmosphereColor, atmosphere);
+        outColor = vec4(environmentFog(color, vWorldPosition, false), 1.0);
       }`,
     // Folded Rockify faces may intentionally be viewed from either side.
     side: THREE.DoubleSide,

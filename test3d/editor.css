@@ -43,3 +43,9 @@ button:disabled:hover { background: rgb(102 149 178 / 15%); border-color: rgb(18
 #waterfallPointSelect { width: 100%; padding: 6px; background: #122a3a; color: #e5f3ff; border: 1px solid #49697e; border-radius: 4px; }
 .inspector .waterfall-pick-mode { align-items: center; }
 .inspector .waterfall-pick-mode input { grid-column: 2; grid-row: 1; width: auto; min-width: 0; padding: 0; }
+.sky-panel { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgb(196 232 255 / 18%); }
+.sky-panel summary { cursor: pointer; margin-bottom: 0; }
+.sky-presets button { flex: 1; padding: 0 6px; }
+.inspector .sky-cycle { align-items: center; }
+.inspector .sky-cycle input { grid-column: 2; grid-row: 1; width: auto; }
+#skyDuration { padding: 6px; border: 1px solid rgb(188 224 245 / 25%); border-radius: 4px; background: #122a3a; color: #e5f3ff; }
