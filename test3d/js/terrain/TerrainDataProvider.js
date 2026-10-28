@@ -3,6 +3,9 @@ import { proceduralHeight } from "./TerrainHeight.js";
 export const TERRAIN_TILE_SIZE = 256;
 export const TERRAIN_TILE_SEGMENTS = 128;
 export const TERRAIN_TILE_VERSION = 4;
+// Transient notification hints; not serialized. Unknown/direct mutations use
+// ALL so consumers never infer unchanged exposure from a missing hint.
+export const TERRAIN_CHANGE = Object.freeze({ HEIGHT: 1, WARP: 2, ROCK_EXPOSURE: 4, ALL: 7 });
 const WARP_ACTIVITY_EPSILON = 0.001;
 
 function encodeFloat32(values) {
@@ -51,6 +54,7 @@ export class TerrainTile {
     // current warp magnitude so smoothing and opposing strokes do not erase
     // the artist's lighting intent.
     this.rockExposure = rockExposure;
+    this.changedChannels = 0;
     this.materialMask = materialMask;
   }
 
@@ -395,7 +399,7 @@ export class TerrainDataProvider {
       // source sample. Keeping this lightweight metadata on the CPU tile
       // avoids incorrectly inspecting the unchanged centre of a large tile.
       tile.lastChangedSample = { x: alignedX, z: alignedZ, index, height, revision: tile.revision };
-      this.markTileChanged(tile);
+      this.markTileChanged(tile, TERRAIN_CHANGE.HEIGHT);
     }
   }
 
@@ -427,7 +431,7 @@ export class TerrainDataProvider {
       tile.source = "modified";
       tile.dirty = true;
       tile.revision += 1;
-      this.markTileChanged(tile);
+      this.markTileChanged(tile, TERRAIN_CHANGE.WARP);
     }
   }
 
@@ -454,7 +458,7 @@ export class TerrainDataProvider {
       tile.source = "modified";
       tile.dirty = true;
       tile.revision += 1;
-      this.markTileChanged(tile);
+      this.markTileChanged(tile, TERRAIN_CHANGE.ROCK_EXPOSURE);
     }
   }
 
@@ -684,7 +688,8 @@ export class TerrainDataProvider {
     return saved;
   }
 
-  markTileChanged(tile) {
+  markTileChanged(tile, channels = TERRAIN_CHANGE.ALL) {
+    tile.changedChannels |= channels;
     if (tile.rockExposure) this.rockExposureTileKeys.add(this.tileKey(Math.round(tile.x / tile.size), Math.round(tile.z / tile.size)));
     if (this.changeBatchDepth > 0) {
       this.changedTiles.add(tile);
@@ -696,7 +701,9 @@ export class TerrainDataProvider {
   }
 
   emitTileChanged(tile) {
-    for (const listener of this.tileListeners) listener(tile);
+    const channels = tile.changedChannels || TERRAIN_CHANGE.ALL;
+    tile.changedChannels = 0;
+    for (const listener of this.tileListeners) listener(tile, channels);
   }
 
   trimCache(retainedTile = null) {

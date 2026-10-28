@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {sampleWaterfall} from "./WaterfallPath.js";
 import {buildWaterfallEffects,updateWaterfallEffects,createWaterfallEffectsMaterial} from "./WaterfallEffects.js";
+import {WATERFALL_FADE_START,WATERFALL_DRAW_DISTANCE} from "./WaterfallVisibility.js";
 
 export function buildWaterfallGeometry(body) {
   const path=sampleWaterfall(body),columns=Math.max(2,Math.min(12,Math.ceil(body.fall.width/1.5)));
@@ -63,7 +64,7 @@ export class WaterfallRenderer {
           float alpha=smoothstep(.002,.05+fwidth(edge),edge+broken)*vStyle.x*(.9+.1*lanes);
           float distanceToCamera=distance(cameraPosition,vWorld);
           color=mix(color,vec3(.39,.51,.59),smoothstep(1800.0,4000.0,distanceToCamera)*.42);
-          alpha*=1.0-smoothstep(1800.0,2200.0,distanceToCamera);
+          alpha*=1.0-smoothstep(${WATERFALL_FADE_START.toFixed(1)},${WATERFALL_DRAW_DISTANCE.toFixed(1)},distanceToCamera);
           if(alpha<.003)discard;
           gl_FragColor=vec4(color,alpha);
           #include <tonemapping_fragment>
@@ -84,8 +85,8 @@ export class WaterfallRenderer {
   update(delta,camera) {
     this.time.value+=delta;
     if(camera)for(const {mesh,effects,hasEffects} of this.records.values()){
-      const sphere=mesh.geometry.boundingSphere;mesh.visible=camera.position.distanceToSquared(sphere.center)<(2200+sphere.radius)**2;
-      const impact=effects.geometry.boundingSphere;effects.visible=hasEffects&&camera.position.distanceToSquared(impact.center)<(900+impact.radius)**2;
+      const sphere=mesh.geometry.boundingSphere;mesh.visible=camera.position.distanceToSquared(sphere.center)<=(WATERFALL_DRAW_DISTANCE+sphere.radius)**2;
+      const impact=effects.geometry.boundingSphere;effects.visible=hasEffects&&camera.position.distanceToSquared(impact.center)<=(WATERFALL_DRAW_DISTANCE+impact.radius)**2;
     }
   }
   getStats(){return {falls:this.records.size,effectTriangles:this.records.size*26,visibleSheets:[...this.records.values()].filter(r=>r.mesh.visible).length,visibleEffects:[...this.records.values()].filter(r=>r.effects.visible).length};}

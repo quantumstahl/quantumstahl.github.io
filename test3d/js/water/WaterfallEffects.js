@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import {WATERFALL_FADE_START,WATERFALL_DRAW_DISTANCE} from "./WaterfallVisibility.js";
 
 // One tiny batch per impact: a ground foam patch, three splash glints,
 // three mist puffs and six optional spray drops. Animation is entirely GPU-side.
@@ -41,8 +42,13 @@ export function createWaterfallEffectsMaterial(time) {
         vec3 right=vec3(viewMatrix[0][0],viewMatrix[1][0],viewMatrix[2][0]);
         vec3 up=vec3(viewMatrix[0][1],viewMatrix[1][1],viewMatrix[2][1]);
         float age=fract(uTime*(kind<1.5?.65:kind<2.5?.17:.55)+seed*3.73);
-        float cutoff=kind<.5?900.0:kind<1.5?500.0:kind<2.5?240.0:180.0;
-        float visible=1.0-smoothstep(cutoff*.6,cutoff,distance(cameraPosition,position));
+        float cutoff=kind<1.5?500.0:kind<2.5?240.0:180.0;
+        float viewDistance=distance(cameraPosition,position);
+        // The impact foam remains with the distant sheet. Small animated
+        // mist/spray/glints retain their existing local detail ranges.
+        float visible=kind<.5
+          ?1.0-smoothstep(${WATERFALL_FADE_START.toFixed(1)},${WATERFALL_DRAW_DISTANCE.toFixed(1)},viewDistance)
+          :1.0-smoothstep(cutoff*.6,cutoff,viewDistance);
         if(kind<.5){
           p=center+direction*max(.15,fxFlow.z*.1)+side*fxCorner.x*size+direction*fxCorner.y*size*.75;
           age=0.0;

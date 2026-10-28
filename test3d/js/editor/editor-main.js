@@ -161,6 +161,7 @@ function updateStats(now, delta) {
   const paintProfile = painter.consumeProfile();
   const materialProfile = materialCache.consumeProfile();
   const rockShellStats = rockSurfaceShell.getStats();
+  const rockShellProfile = rockSurfaceShell.consumeProfile();
   const rockShellGpu = rockSurfaceShell.getGpuCacheStatus(heightCache);
   const generationSources = Object.entries(dataProfile.generatedBySource ?? {})
     .sort(([, left], [, right]) => right - left)
@@ -183,7 +184,8 @@ function updateStats(now, delta) {
     `warp select ${quadtreeProfile.warpLodMs.toFixed(1)}ms`,
     `pick ${warpPickerProfile.pickMs.toFixed(1)}ms / ${warpPickerProfile.pickHits} hits / ${warpPickerProfile.pickTiles} tiles / ${warpPickerProfile.pickTriangles} tris`,
     `brush ${warpPickerProfile.brushMs.toFixed(1)}ms / ${warpPickerProfile.brushTiles} tiles / ${warpPickerProfile.brushSamples} hits / sculpt ${sculptProfile.rockifyBrushMs.toFixed(1)}ms ${sculptProfile.rockifySourceSamples} src`,
-    `rock shell ${rockShellStats.enabled ? "on" : "off"} / ${rockShellStats.regions} regions / ${rockShellStats.cells} cells / ${rockShellStats.vertices} verts / ${rockShellStats.triangles} tris / ${rockShellStats.chunks} chunks / ${rockShellStats.draws} / rebuilt ${rockShellStats.rebuiltChunks} / GPU ${rockShellGpu.state}${rockShellGpu.maxHeightDeltaError !== undefined ? ` h${rockShellGpu.maxHeightDeltaError.toFixed(3)} w${rockShellGpu.maxWarpError.toFixed(3)}` : ""}`,
+    `rock shell ${rockShellStats.enabled ? "on" : "off"} / ${rockShellStats.regions} regions / ${rockShellStats.cells} cells / ${rockShellStats.vertices} verts / ${rockShellStats.submittedTriangles}/${rockShellStats.triangles} tris / ${rockShellStats.submittedChunks}/${rockShellStats.chunks} chunks submitted/resident / GPU ${rockShellGpu.state}${rockShellGpu.maxHeightDeltaError !== undefined ? ` h${rockShellGpu.maxHeightDeltaError.toFixed(3)} w${rockShellGpu.maxWarpError.toFixed(3)}` : ""}`,
+    `shell CPU ${rockShellProfile.updateMs.toFixed(1)} p${rockShellProfile.updatePeakMs.toFixed(1)}ms / geometry ${rockShellProfile.geometryMs.toFixed(1)} / mask ${rockShellProfile.maskMs.toFixed(1)} / rebuilt ${rockShellProfile.rebuiltChunks}`,
     `rock shell cutout ${rockCutoutEnabled ? "on" : "off"} / ${rockShellStats.sourceMaskTexels} source cells`,
     `water ${water.stats.bodies} bodies / ${water.stats.triangles} tris / update ${water.stats.updateMs.toFixed(3)}ms / last build ${water.stats.buildMs.toFixed(2)}ms`,
     `waterfalls ${water.waterfall.records.size} / ${water.waterfall.records.size*26} effect tris`,
