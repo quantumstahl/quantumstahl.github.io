@@ -4,12 +4,13 @@ import { PhysicsWorld } from "../physics/PhysicsWorld.js";
 import { TerrainCollider } from "../physics/TerrainCollider.js";
 import { RockCollider } from "../physics/RockCollider.js";
 import { ObjectCollider } from "../physics/ObjectCollider.js";
+import { GameplayInput } from "./GameplayInput.js";
 
-// Manually tuned at the existing 0.2 visual scale. Preserve these dimensions
-// and offsets when extending collision providers; they are not derived per frame.
+// Preserve the tuned capsule dimensions. Position is now the centered foot
+// datum; horizontal offsets tied to the old GLB origin no longer apply.
 export const CAT_CHARACTER_DEFAULTS = Object.freeze({
   capsuleAxis: "horizontal", radius: .33, length: 1.0, height: .82,
-  groundClearance: .16, offsetX: -.18, offsetZ: .20,
+  groundClearance: .16, offsetX: 0, offsetZ: 0,
 });
 
 // Small game-facing adapter. Physics never reads animation, GLB bounds or camera.
@@ -31,7 +32,10 @@ export class CatCharacterRuntime {
         runtime.model.scale.setScalar(options.visualScale ?? .2);
       }
       runtime.model.userData.mapObject = runtime.object;
-      runtime.root.add(runtime.model);
+      // Keep skin vertices, bone locals and inverse binds intact. A parent
+      // translates the entire animated hierarchy to a stable foot pivot.
+      runtime.visual = new THREE.Group(); runtime.visual.name = "Cat visual alignment";
+      runtime.visual.add(runtime.model);
       runtime.mixer = new THREE.AnimationMixer(runtime.model);
       const clip = animations.find(clip => clip.name === options.mapObject?.properties.clip)
         ?? animations.find(clip => clip.name === "Animation 1") ?? animations[0];
@@ -39,6 +43,24 @@ export class CatCharacterRuntime {
         runtime.action = runtime.mixer.clipAction(clip); runtime.action.play();
         runtime.mixer.update(0); runtime.action.paused = true;
       }
+      // Measure once in the initial pose, after the existing instance scale,
+      // while detached from world placement/yaw. Never follow animated bounds.
+      runtime.visual.updateMatrixWorld(true);
+      const bounds = new THREE.Box3().setFromObject(runtime.visual, true);
+      runtime.visualAnchor = new THREE.Vector3();
+      if (!bounds.isEmpty()) {
+        bounds.getCenter(runtime.visualAnchor); runtime.visualAnchor.y = bounds.min.y;
+      }
+      runtime.visual.position.copy(runtime.visualAnchor).negate();
+      runtime.root.add(runtime.visual);
+      if (options.mapObject) {
+        // Map positions refer to the authored GLB origin. Rebase only this
+        // runtime body's foot datum so taking control does not move the model.
+        const position = new THREE.Vector3().fromArray(options.mapObject.position)
+          .add(runtime.visualAnchor.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), runtime.body.yaw));
+        runtime.body.teleport(position.x, position.y, position.z, runtime.body.yaw);
+      }
+      runtime.syncVisual(1, 0);
       return runtime;
     } catch (error) { runtime.dispose(); throw error; }
   }
@@ -59,45 +81,30 @@ export class CatCharacterRuntime {
     }
     this.root = new THREE.Group(); this.root.name = "Cat character"; this.root.userData.mapObject = this.object; scene.add(this.root);
     if (mapObject) this.root.userData.objectId = mapObject.id;
-    this.yaw = this.body.yaw; this.pitch = .3; this.gamepad = null; this.jumpWasDown = false;
-    this.keys = new Set(); this.viewPosition = new THREE.Vector3(); this.target = new THREE.Vector3();
-    this.keyDown = event => {
-      if (event.target?.closest?.("input,textarea,select,[contenteditable='true']")) return;
-      if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) event.preventDefault();
-      this.keys.add(event.code);
-    };
-    this.keyUp = event => this.keys.delete(event.code);
-    this.blur = () => { this.keys.clear(); this.body.setMovement(0, 0); this.jumpWasDown = false; };
-    window.addEventListener("keydown", this.keyDown); window.addEventListener("keyup", this.keyUp); window.addEventListener("blur", this.blur);
+    this.yaw = this.body.yaw; this.pitch = .3;
+    this.input = new GameplayInput();
+    this.keys = this.input.keys; this.viewPosition = new THREE.Vector3(); this.target = new THREE.Vector3();
     this.syncVisual(1, 0);
   }
-  get gamepadConnected() { return this.gamepad !== null; }
+  get gamepadConnected() { return this.input.gamepadConnected; }
   attachObjects(data, library, options = {}) {
     if (this.objectCollider) { this.physics.removeCollider(this.objectCollider); this.objectCollider.dispose(); }
     const excludeIds = new Set(options.excludeIds ?? []);
     if (this.controlledObjectId) excludeIds.add(this.controlledObjectId);
     return this.objectCollider = this.physics.addCollider(new ObjectCollider(data, library, { ...options, excludeIds }));
   }
-  axis(index) {
-    const value = this.gamepad?.axes[index] ?? 0, deadzone = .16;
-    return Math.abs(value) <= deadzone ? 0 : (value - Math.sign(value) * deadzone) / (1 - deadzone);
-  }
-  button(index) { return Boolean(this.gamepad?.buttons[index]?.pressed); }
   update(delta) {
-    this.gamepad = null;
-    const pads = navigator.getGamepads?.();
-    if (pads) for (let i = 0; i < pads.length; i++) if (pads[i]?.connected) { this.gamepad = pads[i]; break; }
+    const input = this.input;
+    input.update();
     const inputDelta = Math.max(0, Math.min(delta, .1));
-    const lookX = this.axis(2) + Number(this.keys.has("ArrowRight")) - Number(this.keys.has("ArrowLeft"));
-    const lookY = this.axis(3) + Number(this.keys.has("ArrowDown")) - Number(this.keys.has("ArrowUp"));
-    this.yaw -= lookX * 2.5 * inputDelta; this.pitch = THREE.MathUtils.clamp(this.pitch + lookY * 1.5 * inputDelta, -.1, 1.2);
-    const x = this.axis(0) + Number(this.keys.has("KeyD")) - Number(this.keys.has("KeyA"));
-    const z = this.axis(1) + Number(this.keys.has("KeyS")) - Number(this.keys.has("KeyW"));
+    this.yaw -= input.lookX * 2.5 * inputDelta + input.dragX;
+    this.pitch = THREE.MathUtils.clamp(this.pitch + input.lookY * 1.5 * inputDelta + input.dragY, -.1, 1.2);
+    const x = input.moveX, z = input.moveZ;
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
-    this.body.setMovement(x * cos + z * sin, z * cos - x * sin, this.button(7) || this.button(10) || this.keys.has("ShiftLeft") || this.keys.has("ShiftRight"));
+    this.body.setMovement(x * cos + z * sin, z * cos - x * sin, input.running);
     if (this.body.intent.lengthSq() > .01) this.body.setYaw(Math.atan2(-this.body.intent.x, -this.body.intent.z));
-    const jumpDown = this.button(0) || this.keys.has("Space");
-    if (jumpDown && !this.jumpWasDown) this.body.jump(); this.jumpWasDown = jumpDown;
+    if (input.jump.pressed) this.body.jump();
+    // Combat can consume input.claw.{down,pressed,released}; no combat exists yet.
     this.physics.update(delta);
     this.syncVisual(this.physics.alpha, inputDelta);
   }
@@ -119,7 +126,7 @@ export class CatCharacterRuntime {
     this.camera.lookAt(this.target);
   }
   dispose() {
-    window.removeEventListener("keydown", this.keyDown); window.removeEventListener("keyup", this.keyUp); window.removeEventListener("blur", this.blur);
+    this.input.dispose();
     this.mixer?.stopAllAction(); if (this.model) this.mixer?.uncacheRoot(this.model);
     this.root.traverse(node => {
       if (this.sharedVisual) { node.skeleton?.dispose(); return; }

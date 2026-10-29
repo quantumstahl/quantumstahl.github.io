@@ -43,6 +43,10 @@ if (mapCat || runtimeOptions.get("character") === "cat") {
     physicsDebug = new PhysicsDebug(scene, controller.body, controller.terrainCollider);
   }
 } else controller = new FlyCamera(camera);
+if (controller.input) {
+  const { TouchControls } = await import("./game/TouchControls.js");
+  if (TouchControls.supported()) controller.input.attachTouch(new TouchControls(canvas));
+}
 statsElement.hidden = !!controller.physics && !physicsDebug && !runtimeOptions.has("stats");
 const heightCache = new TerrainHeightGpuCache(terrainData);
 const materialCache = new TerrainMaterialGpuCache(worldSession.materialData);
