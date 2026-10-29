@@ -7,6 +7,7 @@ import { chooseLOD, enabledLODLevels, lodResourceIds } from "../objects/ObjectLO
 import { ObjectLODPanel, applyLODHistory } from "./ObjectLODPanel.js";
 import { ObjectBrush, DEFAULT_OBJECT_BRUSH, applyBrushHistory } from "./ObjectBrush.js";
 import { ObjectCollisionPanel } from "./ObjectCollisionPanel.js";
+import { DestructiblePanel } from "./DestructiblePanel.js";
 
 export class ObjectEditor {
   constructor({ scene, camera, canvas, data, assets, system, provider, panel, recordHistory, onStatus, activate }) {
@@ -76,6 +77,7 @@ export class ObjectEditor {
       ${["position", "rotation", "scale"].map(kind => `<label>${kind === "rotation" ? "Rotation (degrees)" : kind[0].toUpperCase() + kind.slice(1)}<span class="object-vector">${["X", "Y", "Z"].map((axis, i) => `<input type="number" step="${kind === "rotation" ? 1 : .1}" ${kind === "scale" ? 'min="0.001"' : ""} data-transform="${kind}" data-axis="${i}" aria-label="${kind} ${axis}" title="${axis}">`).join("")}</span></label>`).join("")}
       <label class="object-check">Follow terrain edits<input id="objectFollowTerrain" type="checkbox"></label>
       <label>Animation<select id="objectAnimation"></select></label>
+      <section id="objectDestructiblePanel" aria-label="Selected object destruction"></section>
       </fieldset>
       <label>Source grid snap (m; 0 = off)<input id="objectGrid" type="number" min="0" step="0.5" value="0"></label>
       <label>Rotation snap (degrees; 0 = off)<input id="objectRotationSnap" type="number" min="0" max="180" step="5" value="0"></label>
@@ -83,6 +85,7 @@ export class ObjectEditor {
       <p>Select an asset, then click terrain to place copies. Select objects to edit. Ctrl+D duplicates; Delete removes; Escape selects. Positions use the model’s authored origin. Move detaches from terrain; vertical moves retain the terrain offset.</p>
       <p>Save embeds each unique GLB once. Imported textures and animations travel with the world.</p>`;
     this.$ = selector => this.panel.querySelector(selector);
+    this.destructiblePanel = new DestructiblePanel(this, this.$("#objectDestructiblePanel"));
     this.lodPanel = new ObjectLODPanel({ element: this.$("#objectLODPanel"), data: this.data, assets: this.assets, system: this.system,
       getAssetId: () => this.assetId, getSelectedId: () => this.selectedId, preview: level => this.setLODPreview(level), recordHistory: this.recordHistory, onStatus: this.onStatus });
     this.collisionPanel = new ObjectCollisionPanel({ element: this.$("#objectCollisionPanel"), scene: this.scene, data: this.data, assets: this.assets,
@@ -162,6 +165,7 @@ export class ObjectEditor {
     if (!active) { this.brushPreview.visible = false; this.brushPointer = null; this.select(null); }
   }
   refreshLists() {
+    this.destructiblePanel.refresh();
     const list = this.$("#objectAssets"); list.replaceChildren();
     for (const asset of this.data.assets.values()) {
       const option = new Option(`${asset.name}${asset.lod ? " · LOD" : ""}${!this.canPlace(asset) ? " — missing; reimport to repair" : this.assets.errors.has(asset.id) ? " — load failed" : ""}`, asset.id);
@@ -231,6 +235,7 @@ export class ObjectEditor {
     return this.loadSelectedLOD(this.selectedLODChoice());
   }
   syncFields() {
+    this.destructiblePanel.refresh();
     const record = this.data.objects.get(this.selectedId), root = this.selectedRoot;
     this.$("#objectTransform").disabled = !record;
     for (const input of this.panel.querySelectorAll("[data-transform]")) {

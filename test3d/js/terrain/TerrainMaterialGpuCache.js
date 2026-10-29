@@ -48,8 +48,13 @@ export class TerrainMaterialGpuCache {
     this.maskTextures = [configureMask(new THREE.DataArrayTexture(maskBytes, SAMPLES, SAMPLES, layerCount * 2))];
     this.overviewColumns = Math.ceil(Math.sqrt(overviewCapacity));
     this.overviewSize = this.overviewColumns * OVERVIEW_SAMPLES;
-    this.overviewData = [0, 1].map(() => new Uint8Array(this.overviewSize ** 2 * 4));
-    this.overviewTextures = this.overviewData.map(bytes => configureMask(new THREE.DataTexture(bytes, this.overviewSize, this.overviewSize)));
+    // Stack the two RGBA mask groups in one atlas. Each group's 17x17 tile
+    // borders and texel-centre sampling stay intact, including at the join.
+    // This saves a sampler without changing bytes, filtering or resolution.
+    const overviewGroupLength = this.overviewSize ** 2 * 4;
+    const overviewBytes = new Uint8Array(overviewGroupLength * 2);
+    this.overviewData = [overviewBytes.subarray(0, overviewGroupLength), overviewBytes.subarray(overviewGroupLength)];
+    this.overviewTexture = configureMask(new THREE.DataTexture(overviewBytes, this.overviewSize, this.overviewSize * 2));
     this.lookupData = new Float32Array(lookupSize ** 2 * 2);
     this.lookupTexture = configureMask(new THREE.DataTexture(this.lookupData, lookupSize, lookupSize, THREE.RGFormat, THREE.FloatType), THREE.NearestFilter);
     this.lookupOrigin = new THREE.Vector2();
@@ -62,8 +67,8 @@ export class TerrainMaterialGpuCache {
     this.lookupDirty = true;
     this.textureEntries = new Map();
     this.loadErrors = new Map();
-    // One sampler for all eight images, plus one for both mask groups. With
-    // the unchanged height samplers and cutout, the whole program uses 16.
+    // Terrain budget: 10 height/warp/exposure/lookup + 4 paint + 1 Rockify
+    // cutout + 1 sky background = 16. Runtime switches do not free samplers.
     this.imageData = new Uint8Array(imageSize * imageSize * 4 * 8);
     this.imageTexture = new THREE.DataArrayTexture(this.imageData, imageSize, imageSize, 8);
     this.imageTexture.colorSpace = THREE.SRGBColorSpace;
@@ -79,7 +84,7 @@ export class TerrainMaterialGpuCache {
       uMaterialEnabled: { value: false },
       uMaterialMasks: { value: this.maskTextures[0] }, uMaterialDetailLayers: { value: layerCount },
       uMaterialMaps: { value: this.imageTexture },
-      uMaterialOverview0: { value: this.overviewTextures[0] }, uMaterialOverview1: { value: this.overviewTextures[1] },
+      uMaterialOverview: { value: this.overviewTexture },
       uMaterialLookup: { value: this.lookupTexture }, uMaterialLookupOrigin: { value: this.lookupOrigin },
       uMaterialLookupSize: { value: lookupSize }, uMaterialOverviewColumns: { value: this.overviewColumns },
       uMaterialReady: { value: new Float32Array(8) }, uMaterialRepeat: { value: new Float32Array(8) },
@@ -198,10 +203,11 @@ export class TerrainMaterialGpuCache {
         previous = next;
       }
     }
-    for (const texture of this.overviewTextures) {
-      for (let row = 0; row < OVERVIEW_SAMPLES; row++) texture.addUpdateRange(((top + row) * this.overviewSize + left) * 4, OVERVIEW_SAMPLES * 4);
-      texture.needsUpdate = true;
+    for (let group = 0; group < 2; group++) {
+      const groupTop = group * this.overviewSize;
+      for (let row = 0; row < OVERVIEW_SAMPLES; row++) this.overviewTexture.addUpdateRange(((groupTop + top + row) * this.overviewSize + left) * 4, OVERVIEW_SAMPLES * 4);
     }
+    this.overviewTexture.needsUpdate = true;
     this.profile.overviewUploads++;
   }
 
@@ -288,7 +294,7 @@ export class TerrainMaterialGpuCache {
   dispose() {
     this.disposed = true;
     this.unsubscribe();
-    for (const texture of [...this.maskTextures, ...this.overviewTextures, this.lookupTexture, this.imageTexture]) texture.dispose();
+    for (const texture of [...this.maskTextures, this.overviewTexture, this.lookupTexture, this.imageTexture]) texture.dispose();
     for (const entry of this.textureEntries.values()) entry.texture?.dispose();
     this.textureEntries.clear();
     this.boundImages.fill(null);

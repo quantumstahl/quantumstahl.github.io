@@ -27,3 +27,9 @@ body { background: #77b4df; }
 .touch-action.is-down { transform: scale(.93); background: radial-gradient(circle at 35% 28%, #9199a1, #3f4852 72%); }
 .touch-action svg { width: 44px; height: 44px; fill: #fff; pointer-events: none; }
 .touch-jump-icon { font-size: 40px; line-height: 44px; }
+
+/* Created only with ?movementDebug; no diagnostic UI in ordinary gameplay. */
+.movement-debug { z-index: 40; top: max(8px, env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right)); width: min(390px, calc(100vw - 16px)); padding: 6px; max-height: 46vh; overflow: auto; user-select: text; -webkit-user-select: text; }
+.movement-debug__controls { display: flex; gap: 5px; }
+.movement-debug__controls button { padding: 6px 8px; border: 1px solid #8ba6bc; border-radius: 4px; color: #e8f5ff; background: #172e43; font-size: 11px; touch-action: manipulation; }
+.movement-debug__output { margin: 6px 0 0; white-space: pre-wrap; font: 10px/1.35 ui-monospace, SFMono-Regular, Consolas, monospace; }

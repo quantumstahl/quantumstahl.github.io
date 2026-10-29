@@ -1,6 +1,7 @@
 // Persistent authoring data. Render cells may be discarded without touching it.
 import { normalizeLOD } from "./ObjectLOD.js";
 import { normalizeCollision } from "./ObjectCollision.js";
+import { normalizeDestructible } from "./DestructibleConfig.js";
 export const OBJECT_CELL_SIZE = 128;
 export const objectId = () => globalThis.crypto.randomUUID();
 export const copy = value => value == null ? null : structuredClone(value);
@@ -19,6 +20,7 @@ export function normalizeObject(value) {
   if (!value || typeof value.id !== "string" || !value.id || typeof value.assetId !== "string" || !value.assetId) throw new Error("Invalid placed object ID or asset reference.");
   const result = { id: value.id, assetId: value.assetId, position: vector(value.position, [0, 0, 0]), rotation: vector(value.rotation, [0, 0, 0]), scale: vector(value.scale, [1, 1, 1]), properties: copy(value.properties ?? {}) };
   if (typeof result.properties !== "object" || Array.isArray(result.properties)) throw new Error("Invalid object properties.");
+  if (result.properties.destructible != null) result.properties.destructible = normalizeDestructible(result.properties.destructible);
   if (result.scale.some(n => n <= 0)) throw new Error("Object scales must be positive.");
   if (value.anchor) {
     const { sourceX, sourceZ, offset = 0 } = value.anchor;
@@ -93,12 +95,14 @@ export class ObjectData {
     this.changed({ kind: "resource", id: resource.id, before, after: resource }); return resource;
   }
   deleteResource(id) {
+    this.checkDestructibleReference(id);
     if ([...this.assets.values()].some(asset => asset.collision?.sourceId === id)) throw new Error("This GLB is used by an asset's collision mesh.");
     if ([...this.assets.values()].some(asset => asset.lod?.levels.some(level => level.resourceId === id))) throw new Error("This GLB is still used by an LOD level.");
     const before = this.resources.get(id);
     if (this.resources.delete(id)) this.changed({ kind: "resource", id, before, after: null });
   }
   demoteAsset(id, value) {
+    this.checkDestructibleReference(id);
     if ([...this.objects.values()].some(object => object.assetId === id)) throw new Error("Delete this asset's placed objects first.");
     const resource = normalizeAsset(value), before = this.assets.get(id);
     if (resource.id !== id || resource.lod) throw new Error("Invalid restored GLB resource.");
@@ -106,6 +110,7 @@ export class ObjectData {
     this.changed({ kind: "asset", id, before, after: null });
   }
   deleteAsset(id) {
+    this.checkDestructibleReference(id);
     if ([...this.assets.values()].some(asset => asset.id !== id && asset.collision?.sourceId === id)) throw new Error("This GLB is used by another asset's collision mesh.");
     if ([...this.objects.values()].some(object => object.assetId === id)) throw new Error("Delete this asset's placed objects first.");
     if ([...this.assets.values()].some(asset => asset.id !== id && asset.lod?.levels.some(level => level.resourceId === id))) throw new Error("This GLB is used by another asset's LOD configuration.");
@@ -136,7 +141,11 @@ export class ObjectData {
   snapshot() {
     const used = new Set([...this.assets.values()].flatMap(asset => asset.lod?.levels.map(level => level.resourceId) ?? []));
     for (const asset of this.assets.values()) if (asset.collision?.sourceId) used.add(asset.collision.sourceId);
+    for (const object of this.objects.values()) if (object.properties.destructible?.destroyedAsset) used.add(object.properties.destructible.destroyedAsset);
     return { revision: this.revision, value: { assets: [...this.assets.values()], resources: [...this.resources.values()].filter(resource => used.has(resource.id)), instances: [...this.objects.values()] } };
   }
   commit(snapshot) { this.savedRevision = snapshot.revision; }
+  checkDestructibleReference(id) {
+    if ([...this.objects.values()].some(object => object.properties.destructible?.destroyedAsset === id)) throw new Error("This GLB is used by a destructible object.");
+  }
 }

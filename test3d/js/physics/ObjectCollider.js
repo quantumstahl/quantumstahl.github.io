@@ -23,6 +23,10 @@ export class ObjectCollider extends StaticColliders {
     this.position.fromArray(record.position); this.scale.fromArray(record.scale); this.euler.set(...record.rotation); this.quaternion.setFromEuler(this.euler);
     return this.matrix.compose(this.position, this.quaternion, this.scale);
   }
+  setExcluded(id, excluded) {
+    if (excluded) { this.excludeIds.add(id); this.delete(id); }
+    else { this.excludeIds.delete(id); const record = this.data.objects.get(id); if (record) this.updateObject(record); }
+  }
   updateObject(record) {
     if (this.excludeIds.has(record.id)) return;
     let ids = this.byAsset.get(record.assetId); if (!ids) this.byAsset.set(record.assetId, ids = new Set()); ids.add(record.id);

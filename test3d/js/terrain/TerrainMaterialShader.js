@@ -1,7 +1,7 @@
 export const TERRAIN_MATERIAL_GLSL = `
 uniform bool uMaterialEnabled;
 uniform highp sampler2DArray uMaterialMasks, uMaterialMaps;
-uniform sampler2D uMaterialOverview0, uMaterialOverview1, uMaterialLookup;
+uniform sampler2D uMaterialOverview, uMaterialLookup;
 uniform vec2 uMaterialLookupOrigin;
 uniform int uMaterialLookupSize, uMaterialOverviewColumns, uMaterialDetailLayers;
 uniform float uMaterialReady[8], uMaterialRepeat[8];
@@ -34,8 +34,9 @@ void materialMasks(vec2 source, out vec4 weights0, out vec4 weights1) {
   if (layers.y >= 0.0) {
     float columns = float(uMaterialOverviewColumns);
     vec2 slot = vec2(mod(layers.y, columns), floor(layers.y / columns));
-    vec2 uv = (slot * 17.0 + local * 16.0 + .5) / (columns * 17.0);
-    weights0 = texture(uMaterialOverview0, uv); weights1 = texture(uMaterialOverview1, uv);
+    vec2 uv = (slot * 17.0 + local * 16.0 + .5) / vec2(columns * 17.0, columns * 34.0);
+    weights0 = texture(uMaterialOverview, uv);
+    weights1 = texture(uMaterialOverview, uv + vec2(0.0, .5));
   }
   if (layers.x >= 0.0) {
     vec2 uv = (local * 128.0 + .5) / 129.0;

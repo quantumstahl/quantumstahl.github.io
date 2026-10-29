@@ -148,6 +148,26 @@ export class ObjectSystem {
     const previous = this.data.objects.get(this.selectedId); this.selectedId = id;
     if (previous) this.invalidate(this.data.cellKey(previous.position));
     const current = this.data.objects.get(id); if (current) this.invalidate(this.data.cellKey(current.position));
+    this.hideObject(id);
+  }
+  setExcluded(id, excluded) {
+    if (this.excludeIds.has(id) === excluded) return;
+    if (excluded) this.excludeIds.add(id); else this.excludeIds.delete(id);
+    const record = this.data.objects.get(id);
+    if (record) {
+      const key = this.data.cellKey(record.position), version = this.versions.get(key) ?? 0;
+      this.versions.set(key, version + 1); // Cancel any pending cell snapshot.
+      const cell = this.cells.get(key);
+      if (excluded && cell?.version === version) {
+        // The resident cell is already correct after hiding this slot. Keep
+        // its other GPU batches instead of rebuilding a large cell per hit.
+        cell.version = version + 1;
+        if (id !== this.selectedId && !this.data.assets.get(record.assetId)?.lod) cell.count = Math.max(0, cell.count - 1);
+      }
+    }
+    if (excluded) this.hideObject(id);
+  }
+  hideObject(id) {
     // Hide the old batch slot immediately, before the asynchronous rebuild.
     if (id) for (const cell of this.cells.values()) {
       for (const group of cell.lodGroups) {
@@ -307,11 +327,11 @@ export class ObjectSystem {
       if (!objectHitVisible(hit.object)) continue;
       if (hit.object.isInstancedMesh && hit.object.userData.objectIds) {
         const id = hit.object.userData.objectIds[hit.instanceId];
-        if (id !== this.selectedId) return { id, distance: hit.distance };
+        if (id !== this.selectedId && !this.excludeIds.has(id)) return { id, distance: hit.distance };
       }
       let root = hit.object;
       while (root && !root.userData.objectId) root = root.parent;
-      if (root?.visible && root.userData.objectId !== this.selectedId) return { id: root.userData.objectId, distance: hit.distance };
+      if (root?.visible && root.userData.objectId !== this.selectedId && !this.excludeIds.has(root.userData.objectId)) return { id: root.userData.objectId, distance: hit.distance };
     }
     return null;
   }

@@ -10,6 +10,7 @@ import { WaterSystem } from "./water/WaterSystem.js";
 import { EnvironmentSystem } from "./engine/EnvironmentSystem.js";
 import { GLBAssetLibrary } from "./objects/GLBAssetLibrary.js";
 import { ObjectSystem } from "./objects/ObjectSystem.js";
+import { DestructibleSystem } from "./objects/DestructibleSystem.js";
 import { renderWorldFrame, renderStatsLabel } from "./engine/RenderFrame.js";
 import { GrassSystem } from "./vegetation/GrassSystem.js";
 import { findMapCat } from "./game/MapCat.js";
@@ -18,7 +19,7 @@ const canvas = document.querySelector("#viewport");
 const statsElement = document.querySelector("#stats");
 const worldSession = await loadWorldSession(statsElement);
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.setPixelRatio(1.0);
 
@@ -32,22 +33,38 @@ const objectAssets = new GLBAssetLibrary(worldSession.objectData, { onError: mes
 const mapCat = runtimeOptions.get("character") === "fly" ? null : findMapCat(worldSession.objectData);
 let controller;
 let physicsDebug = null;
+let cameraDebug = null;
+let movementDebug = null;
+let combatTestTarget = null;
 if (mapCat || runtimeOptions.get("character") === "cat") {
   const { CatCharacterRuntime } = await import("./game/CatCharacterRuntime.js");
   const spawnX = Number(runtimeOptions.get("spawnX") ?? 100), spawnZ = Number(runtimeOptions.get("spawnZ") ?? 100);
+  const cameraMode = runtimeOptions.get("camera") === "smart" ? "smart" : "nextworld";
   controller = await CatCharacterRuntime.create(scene, camera, terrainData, mapCat
-    ? { mapObject: mapCat, assetLibrary: objectAssets }
-    : { spawnXZ: [Number.isFinite(spawnX) ? spawnX : 100, Number.isFinite(spawnZ) ? spawnZ : 100] });
+    ? { mapObject: mapCat, assetLibrary: objectAssets, cameraMode }
+    : { spawnXZ: [Number.isFinite(spawnX) ? spawnX : 100, Number.isFinite(spawnZ) ? spawnZ : 100], cameraMode });
+  if (runtimeOptions.has("combatTest")) {
+    const { CombatTestTarget } = await import("./game/CombatTestTarget.js");
+    combatTestTarget = new CombatTestTarget(scene, controller.melee, controller.body);
+  }
   if (runtimeOptions.has("physicsDebug")) {
     const { PhysicsDebug } = await import("./physics/PhysicsDebug.js");
     physicsDebug = new PhysicsDebug(scene, controller.body, controller.terrainCollider);
+  }
+  if (runtimeOptions.has("cameraDebug")) {
+    const { CameraDebug } = await import("./game/CameraDebug.js");
+    cameraDebug = new CameraDebug(scene, controller.smartCamera);
   }
 } else controller = new FlyCamera(camera);
 if (controller.input) {
   const { TouchControls } = await import("./game/TouchControls.js");
   if (TouchControls.supported()) controller.input.attachTouch(new TouchControls(canvas));
+  if (runtimeOptions.has("movementDebug")) {
+    const { MovementDebug } = await import("./game/MovementDebug.js");
+    movementDebug = new MovementDebug(controller);
+  }
 }
-statsElement.hidden = !!controller.physics && !physicsDebug && !runtimeOptions.has("stats");
+statsElement.hidden = !!controller.physics && !physicsDebug && !cameraDebug && !runtimeOptions.has("stats");
 const heightCache = new TerrainHeightGpuCache(terrainData);
 const materialCache = new TerrainMaterialGpuCache(worldSession.materialData);
 const terrain = new TerrainQuadtree(scene, {
@@ -67,6 +84,15 @@ const objects = new ObjectSystem(scene, worldSession.objectData, objectAssets, {
   diagnostics: runtimeOptions.has("objectLODStats"), excludeIds: new Set(mapCat ? [mapCat.id] : []),
 });
 if (controller.physics) controller.attachObjects(worldSession.objectData, objectAssets, { onError: message => { objectWarnings.hidden = false; objectWarnings.textContent = message; } });
+const destructibles = controller.melee ? new DestructibleSystem(scene, worldSession.objectData, objectAssets, objects, controller.melee, terrainData, {
+  collider: controller.objectCollider,
+  destructionSound: (hit, target) => controller.combatOptions.destructionSound?.(hit, target),
+  onError: message => { objectWarnings.hidden = false; objectWarnings.textContent = message; },
+}) : null;
+destructibles?.syncTargets(controller.body.position);
+// Embedders can dispatch this event to restart destruction state without
+// touching the loaded world file. Reloading the game also starts fresh.
+window.addEventListener("maxworld:reset-session", () => destructibles?.resetSession());
 window.addEventListener("keydown", event => {
   if (!event.ctrlKey && !event.metaKey && event.key.toLowerCase() === "l" && !event.target.closest?.("input, textarea, select, [contenteditable='true']")) objects.diagnostics = !objects.diagnostics;
 });
@@ -103,8 +129,12 @@ function updateStats(now, delta) {
     ...(controller.physics ? [
       `Cat ${controller.body.state} · physics ${controller.physics.stats.updateMs.toFixed(3)} ms`,
       `Support ${controller.body.groundObject?.name ?? "none"}${controller.physics.stats.waitingForColliders ? " · loading nearby collision" : ""}`,
-      "Left stick walk · RT/L3 run · A jump",
-      "Right stick look (WASD/Shift/Space/arrows)",
+      "Left stick tilt: walk/run · A jump · X claw",
+      "Right stick look (WASD/Shift/Space/arrows/F claw)",
+    ] : []),
+    ...(cameraDebug ? [
+      `Camera auto-follow ${controller.smartCamera.autoFollowing ? "active" : "idle"} · distance ${controller.smartCamera.distance.toFixed(2)}m`,
+      `Camera queries ${controller.smartCamera.collision.stats.queries} · triangle tests ${controller.smartCamera.collision.stats.triangleTests}${controller.smartCamera.collision.stats.waitingForColliders ? " · loading collision" : ""}`,
     ] : []),
     renderStatsLabel(info),
     `Terrain ${terrain.stats.triangles.toLocaleString("en-US")} tris · ${terrain.stats.patches} patches (${terrain.stats.culledPatches} culled)`,
@@ -126,7 +156,11 @@ function frame(now) {
   const rawDelta = clock.getDelta();
   const delta = Math.min(rawDelta, 1 / 20);
   controller.update(controller.physics ? rawDelta : delta);
+  destructibles?.update(rawDelta, controller.body.position);
+  combatTestTarget?.update(delta);
   physicsDebug?.update();
+  cameraDebug?.update();
+  movementDebug?.update(now);
   environment.update(rawDelta);
   water.update(delta,camera);
   objects.update(camera, delta);
@@ -145,4 +179,4 @@ function frame(now) {
 window.addEventListener("resize", resize);
 resize();
 requestAnimationFrame(frame);
-window.addEventListener("pagehide", event => { if (!event.persisted) { physicsDebug?.dispose(); controller.dispose?.(); grass.dispose(); objects.dispose(); objectAssets.dispose(); } });
+window.addEventListener("pagehide", event => { if (!event.persisted) { destructibles?.dispose(); combatTestTarget?.dispose(); physicsDebug?.dispose(); cameraDebug?.dispose(); movementDebug?.dispose(); controller.dispose?.(); grass.dispose(); objects.dispose(); objectAssets.dispose(); } });

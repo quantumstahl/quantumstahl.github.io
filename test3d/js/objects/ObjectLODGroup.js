@@ -159,7 +159,7 @@ export class ObjectLODGroup {
       return Promise.resolve();
     }
     const task = this.ensureTarget(choice).then(target => {
-      if (!target || this.disposed || state.revision !== revision || state.target === target) return;
+      if (!target || this.disposed || state.revision !== revision || state.target === target || this.system.excludeIds.has(state.record.id)) return;
       const previous = state.target;
       // Add and remove in one turn after the GLB is ready: no blank frames,
       // duplicated render frames, identity changes or per-tree THREE.LODs.

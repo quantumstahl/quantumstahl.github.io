@@ -149,7 +149,14 @@ export class GLBAssetLibrary {
     this.lastUsed.set(id, this.now());
     if (!this.cache.has(id)) {
       const asset = this.data.getResource(id);
-      const promise = Promise.resolve().then(() => {
+      const promise = Promise.resolve().then(async () => {
+        // Bundled default stays outside authored data; use the same loader,
+        // material conversion, cache and leases as imported GLBs.
+        if (!asset && id === "box2.glb") {
+          const response = await fetch(new URL("../../assets/box2.glb", import.meta.url));
+          if (!response.ok) throw new Error("Could not load bundled box2.glb.");
+          const buffer = await response.arrayBuffer(); validateGLB(buffer); return this.parse(buffer);
+        }
         if (!asset?.data) throw new Error(`Missing GLB: ${asset?.name ?? id}. Reimport the asset to repair it.`);
         const buffer = decodeGLB(asset.data); validateGLB(buffer); return this.parse(buffer);
       }).catch(error => { this.errors.set(id, error.message); this.onError(error.message); throw error; });

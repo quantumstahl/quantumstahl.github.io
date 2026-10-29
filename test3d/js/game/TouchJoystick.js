@@ -3,6 +3,7 @@
 export class TouchJoystick {
   constructor(parent) {
     this.vector = { x: 0, y: 0, power: 0 };
+    this.rawX = this.rawZ = 0;
     this.radius = 32;
     this.pointerId = null;
     this.centerX = this.centerY = 0;
@@ -49,6 +50,8 @@ export class TouchJoystick {
     const dx = event.clientX - this.centerX, dy = event.clientY - this.centerY;
     const distance = Math.hypot(dx, dy), amount = Math.min(1, distance / this.radius);
     const x = distance ? dx / distance * amount : 0, y = distance ? -dy / distance * amount : 0;
+    // Diagnostic values before radial deadzone/rescaling, in gameplay X/Z.
+    this.rawX = x; this.rawZ = -y;
     // Radial deadzone, rescaled so full deflection still reaches exactly 1.
     const power = Math.max(0, (amount - .14) / .86);
     this.vector.x = amount ? x / amount * power : 0;
@@ -59,6 +62,7 @@ export class TouchJoystick {
   }
   reset() {
     this.pointerId = null; this.vector.x = 0; this.vector.y = 0; this.vector.power = 0;
+    this.rawX = this.rawZ = 0;
     // Releasing/cancelling input centers only the knob, preserving the base.
     this.knob.style.transform = "translate3d(-50%, -50%, 0)";
   }

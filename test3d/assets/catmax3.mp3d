@@ -1,0 +1,2695 @@
+{
+  "version": 5,
+  "objects": [
+    {
+      "nodeType": "group",
+      "assetId": 759,
+      "name": "Model",
+      "position": [
+        0,
+        0.06518520005395091,
+        -0.6754076211100717
+      ],
+      "rotation": [
+        0.19217763366629423,
+        0,
+        0,
+        "XYZ"
+      ],
+      "scale": [
+        0.12666625976562496,
+        0.12666625976562496,
+        0.12666625976562496
+      ],
+      "animationPivot": null,
+      "isLeafCanopy": false,
+      "leafGenerated": false,
+      "materialSettingsVersion": 1,
+      "legacyLeafMaterials": true,
+      "leafSeed": 0,
+      "leafCount": 0,
+      "leafTextureDataURL": "",
+      "leafTextureName": "",
+      "windStrength": 0,
+      "windPhase": 0,
+      "children": [
+        {
+          "nodeType": "primitive",
+          "assetId": 11,
+          "name": "sphere",
+          "position": [
+            -0.8979198826078028,
+            1.9438059871081896,
+            1.5571196300937031
+          ],
+          "rotation": [
+            -7.437915506171845e-14,
+            -1.5700500000002655,
+            -0.10995000000003048,
+            "XYZ"
+          ],
+          "scale": [
+            1.8024849371198333,
+            0.785853006400086,
+            1.2423163110399364
+          ],
+          "animationPivot": null,
+          "primitiveType": "sphere",
+          "resolution": "high",
+          "color": 6184542,
+          "roughness": 0.7,
+          "materialSettings": {
+            "side": 0,
+            "mode": "standard",
+            "roughness": 0.7,
+            "metalness": 0,
+            "runtimeLighting": "standard",
+            "opacity": 1,
+            "transparent": false,
+            "alphaTest": 0,
+            "legacyExport": true
+          },
+          "opacity": 1,
+          "alphaTest": 0,
+          "flatShading": false,
+          "vertexColors": null,
+          "geometryPositions": null,
+          "geometryAttributes": null,
+          "textureDataURL": null,
+          "textureName": null,
+          "textureScale": 1,
+          "faceTextureOverlays": [],
+          "children": []
+        },
+        {
+          "nodeType": "primitive",
+          "assetId": 424,
+          "name": "cylinder",
+          "position": [
+            -0.8959112968514901,
+            2.559529299793821,
+            -0.15969222967332186
+          ],
+          "rotation": [
+            0.12001111775519167,
+            -1.5700445930099902,
+            0.9897410841704095,
+            "XYZ"
+          ],
+          "scale": [
+            0.33189239649999736,
+            0.3318923964999973,
+            0.3318923964999973
+          ],
+          "animationPivot": null,
+          "primitiveType": "cylinder",
+          "resolution": "high",
+          "color": 6184542,
+          "roughness": 0.7,
+          "materialSettings": {
+            "side": 0,
+            "mode": "standard",
+            "roughness": 0.7,
+            "metalness": 0,
+            "runtimeLighting": "standard",
+            "opacity": 1,
+            "transparent": false,
+            "alphaTest": 0,
+            "legacyExport": true
+          },
+          "opacity": 1,
+          "alphaTest": 0,
+          "flatShading": false,
+          "vertexColors": null,
+          "geometryPositions": null,
+          "geometryAttributes": null,
+          "textureDataURL": null,
+          "textureName": null,
+          "textureScale": 1,
+          "faceTextureOverlays": [],
+          "children": []
+        },
+        {
+          "nodeType": "primitive",
+          "assetId": 421,
+          "name": "sphere",
+          "position": [
+            -0.9899316397974633,
+            2.66490828427751,
+            -0.6948904469814019
+          ],
+          "rotation": [
+            0,
+            -1.5700500000004143,
+            0,
+            "XYZ"
+          ],
+          "scale": [
+            0.7636275929065947,
+            0.763627592906595,
+            0.7636275929065947
+          ],
+          "animationPivot": null,
+          "primitiveType": "sphere",
+          "resolution": "high",
+          "color": 6184542,
+          "roughness": 0.7,
+          "materialSettings": {
+            "side": 0,
+            "mode": "standard",
+            "roughness": 0.7,
+            "metalness": 0,
+            "runtimeLighting": "standard",
+            "opacity": 1,
+            "transparent": false,
+            "alphaTest": 0,
+            "legacyExport": true
+          },
+          "opacity": 1,
+          "alphaTest": 0,
+          "flatShading": false,
+          "vertexColors": null,
+          "geometryPositions": null,
+          "geometryAttributes": null,
+          "textureDataURL": null,
+          "textureName": null,
+          "textureScale": 1,
+          "faceTextureOverlays": [],
+          "children": []
+        },
+        {
+          "nodeType": "primitive",
+          "assetId": 590,
+          "name": "cone",
+          "position": [
+            -1.0335711740053566,
+            2.898996020849691,
+            -1.4209272565234896
+          ],
+          "rotation": [
+            0,
+            -1.5700500000002655,
+            0,
+            "XYZ"
+          ],
+          "scale": [
+            0.10783302883143009,
+            0.10783302883143012,
+            0.10783302883143009
+          ],
+          "animationPivot": null,
+          "primitiveType": "cone",
+          "resolution": "medium",
+          "color": 2236962,
+          "roughness": 0.7,
+          "materialSettings": {
+            "side": 0,
+            "mode": "standard",
+            "roughness": 0.7,
+            "metalness": 0,
+            "runtimeLighting": "standard",
+            "opacity": 1,
+            "transparent": false,
+            "alphaTest": 0,
+            "legacyExport": true
+          },
+          "opacity": 1,
+          "alphaTest": 0,
+          "flatShading": false,
+          "vertexColors": null,
+          "geometryPositions": null,
+          "geometryAttributes": null,
+          "textureDataURL": null,
+          "textureName": null,
+          "textureScale": 1,
+          "faceTextureOverlays": [],
+          "children": []
+        },
+        {
+          "nodeType": "primitive",
+          "assetId": 426,
+          "name": "sphere",
+          "position": [
+            -0.7847823102212805,
+            3.0400630922035936,
+            -1.232454630569297
+          ],
+          "rotation": [
+            0,
+            -1.5700500000007116,
+            0,
+            "XYZ"
+          ],
+          "scale": [
+            0.16253612216549185,
+            0.16253612216549196,
+            0.16253612216549185
+          ],
+          "animationPivot": null,
+          "primitiveType": "sphere",
+          "resolution": "medium",
+          "color": 16777215,
+          "roughness": 0.7,
+          "materialSettings": {
+            "side": 0,
+            "mode": "standard",
+            "roughness": 0.7,
+            "metalness": 0,
+            "runtimeLighting": "standard",
+            "opacity": 1,
+            "transparent": false,
+            "alphaTest": 0,
+            "legacyExport": true
+          },
+          "opacity": 1,
+          "alphaTest": 0,
+          "flatShading": false,
+          "vertexColors": null,
+          "geometryPositions": null,
+          "geometryAttributes": null,
+          "textureDataURL": null,
+          "textureName": null,
+          "textureScale": 1,
+          "faceTextureOverlays": [],
+          "children": []
+        },
+        {
+          "nodeType": "primitive",
+          "assetId": 426,
+          "name": "sphere_copy",
+          "position": [
+            -1.2291926518702272,
+            3.031015533869253,
+            -1.2099339680335839
+          ],
+          "rotation": [
+            0,
+            -1.5700500000004143,
+            0,
+            "XYZ"
+          ],
+          "scale": [
+            0.15737612216547084,
+            0.15737612216547092,
+            0.15737612216547084
+          ],
+          "animationPivot": null,
+          "primitiveType": "sphere",
+          "resolution": "medium",
+          "color": 16777215,
+          "roughness": 0.7,
+          "materialSettings": {
+            "side": 0,
+            "mode": "standard",
+            "roughness": 0.7,
+            "metalness": 0,
+            "runtimeLighting": "standard",
+            "opacity": 1,
+            "transparent": false,
+            "alphaTest": 0,
+            "legacyExport": true
+          },
+          "opacity": 1,
+          "alphaTest": 0,
+          "flatShading": false,
+          "vertexColors": null,
+          "geometryPositions": null,
+          "geometryAttributes": null,
+          "textureDataURL": null,
+          "textureName": null,
+          "textureScale": 1,
+          "faceTextureOverlays": [],
+          "children": []
+        },
+        {
+          "nodeType": "primitive",
+          "assetId": 425,
+          "name": "cone_copy",
+          "position": [
+            -0.6351396726581243,
+            3.29540734190637,
+            -0.6930584845615044
+          ],
+          "rotation": [
+            -1.5696570161584906,
+            -0.9908659016457749,
+            -1.7192543311378872,
+            "XYZ"
+          ],
+          "scale": [
+            0.02125532194626483,
+            0.40073711292995495,
+            0.4007231226458431
+          ],
+          "animationPivot": null,
+          "primitiveType": "cone",
+          "resolution": "high",
+          "color": 14727342,
+          "roughness": 0.7,
+          "materialSettings": {
+            "side": 0,
+            "mode": "standard",
+            "roughness": 0.7,
+            "metalness": 0,
+            "runtimeLighting": "standard",
+            "opacity": 1,
+            "transparent": false,
+            "alphaTest": 0,
+            "legacyExport": true
+          },
+          "opacity": 1,
+          "alphaTest": 0,
+          "flatShading": false,
+          "vertexColors": null,
+          "geometryPositions": null,
+          "geometryAttributes": null,
+          "textureDataURL": null,
+          "textureName": null,
+          "textureScale": 1,
+          "faceTextureOverlays": [],
+          "children": []
+        },
+        {
+          "nodeType": "primitive",
+          "assetId": 425,
+          "name": "cone",
+          "position": [
+            -0.4659496195237692,
+            3.499785408887101,
+            -0.6372879995731162
+          ],
+          "rotation": [
+            -1.5696570161584904,
+            -0.9908659016457751,
+            -1.7192543311378872,
+            "XYZ"
+          ],
+          "scale": [
+            0.02125532194626484,
+            0.40073711292995484,
+            0.4007231226458432
+          ],
+          "animationPivot": null,
+          "primitiveType": "cone",
+          "resolution": "high",
+          "color": 2236962,
+          "roughness": 0.7,
+          "materialSettings": {
+            "side": 0,
+            "mode": "standard",
+            "roughness": 0.7,
+            "metalness": 0,
+            "runtimeLighting": "standard",
+            "opacity": 1,
+            "transparent": false,
+            "alphaTest": 0,
+            "legacyExport": true
+          },
+          "opacity": 1,
+          "alphaTest": 0,
+          "flatShading": false,
+          "vertexColors": null,
+          "geometryPositions": null,
+          "geometryAttributes": null,
+          "textureDataURL": null,
+          "textureName": null,
+          "textureScale": 1,
+          "faceTextureOverlays": [],
+          "children": []
+        },
+        {
+          "nodeType": "primitive",
+          "assetId": 425,
+          "name": "cone_copy",
+          "position": [
+            -1.4226502482179755,
+            3.515439352541147,
+            -0.6165226301231668
+          ],
+          "rotation": [
+            1.5691686997959304,
+            -1.1408657194238858,
+            1.4441157478825084,
+            "XYZ"
+          ],
+          "scale": [
+            0.03266789614690382,
+            0.41680845171349623,
+            0.41679446142938437
+          ],
+          "animationPivot": null,
+          "primitiveType": "cone",
+          "resolution": "high",
+          "color": 2236962,
+          "roughness": 0.7,
+          "materialSettings": {
+            "side": 0,
+            "mode": "standard",
+            "roughness": 0.7,
+            "metalness": 0,
+            "runtimeLighting": "standard",
+            "opacity": 1,
+            "transparent": false,
+            "alphaTest": 0,
+            "legacyExport": true
+          },
+          "opacity": 1,
+          "alphaTest": 0,
+          "flatShading": false,
+          "vertexColors": null,
+          "geometryPositions": null,
+          "geometryAttributes": null,
+          "textureDataURL": null,
+          "textureName": null,
+          "textureScale": 1,
+          "faceTextureOverlays": [],
+          "children": []
+        },
+        {
+          "nodeType": "primitive",
+          "assetId": 425,
+          "name": "cone_copy_copy",
+          "position": [
+            -1.3389138832332879,
+            3.3051040590709073,
+            -0.6607976529073754
+          ],
+          "rotation": [
+            1.5691686997959304,
+            -1.1408657194238858,
+            1.4441157478825084,
+            "XYZ"
+          ],
+          "scale": [
+            0.03266789614690382,
+            0.4168084517134961,
+            0.4167944614293844
+          ],
+          "animationPivot": null,
+          "primitiveType": "cone",
+          "resolution": "high",
+          "color": 14727342,
+          "roughness": 0.7,
+          "materialSettings": {
+            "side": 0,
+            "mode": "standard",
+            "roughness": 0.7,
+            "metalness": 0,
+            "runtimeLighting": "standard",
+            "opacity": 1,
+            "transparent": false,
+            "alphaTest": 0,
+            "legacyExport": true
+          },
+          "opacity": 1,
+          "alphaTest": 0,
+          "flatShading": false,
+          "vertexColors": null,
+          "geometryPositions": null,
+          "geometryAttributes": null,
+          "textureDataURL": null,
+          "textureName": null,
+          "textureScale": 1,
+          "faceTextureOverlays": [],
+          "children": []
+        },
+        {
+          "nodeType": "primitive",
+          "assetId": 422,
+          "name": "cylinder",
+          "position": [
+            -0.8500090522001019,
+            0.9164489723043431,
+            4.026190451535287
+          ],
+          "rotation": [
+            -0.630766574626889,
+            -1.4252462357564015,
+            -2.995965217201838,
+            "XYZ"
+          ],
+          "scale": [
+            0.11263840839990297,
+            1.0982092962399028,
+            0.11263840839990302
+          ],
+          "animationPivot": null,
+          "primitiveType": "cylinder",
+          "resolution": "high",
+          "color": 6184542,
+          "roughness": 0.7,
+          "materialSettings": {
+            "side": 0,
+            "mode": "standard",
+            "roughness": 0.7,
+            "metalness": 0,
+            "runtimeLighting": "standard",
+            "opacity": 1,
+            "transparent": false,
+            "alphaTest": 0,
+            "legacyExport": true
+          },
+          "opacity": 1,
+          "alphaTest": 0,
+          "flatShading": false,
+          "vertexColors": null,
+          "geometryPositions": null,
+          "geometryAttributes": null,
+          "textureDataURL": null,
+          "textureName": null,
+          "textureScale": 1,
+          "faceTextureOverlays": [],
+          "children": []
+        },
+        {
+          "nodeType": "primitive",
+          "assetId": 423,
+          "name": "cone",
+          "position": [
+            -0.8320331071188328,
+            0.07388898372620234,
+            4.85583963528408
+          ],
+          "rotation": [
+            -1.4208824463725296,
+            -1.560808404825498,
+            2.447239144069062,
+            "XYZ"
+          ],
+          "scale": [
+            0.15552075279997782,
+            0.15552075279997782,
+            0.15552075279997774
+          ],
+          "animationPivot": null,
+          "primitiveType": "cone",
+          "resolution": "high",
+          "color": 16777215,
+          "roughness": 0.7,
+          "materialSettings": {
+            "side": 0,
+            "mode": "standard",
+            "roughness": 0.7,
+            "metalness": 0,
+            "runtimeLighting": "standard",
+            "opacity": 1,
+            "transparent": false,
+            "alphaTest": 0,
+            "legacyExport": true
+          },
+          "opacity": 1,
+          "alphaTest": 0,
+          "flatShading": false,
+          "vertexColors": null,
+          "geometryPositions": null,
+          "geometryAttributes": null,
+          "textureDataURL": null,
+          "textureName": null,
+          "textureScale": 1,
+          "faceTextureOverlays": [],
+          "children": []
+        },
+        {
+          "nodeType": "primitive",
+          "assetId": 730,
+          "name": "sphere",
+          "position": [
+            -0.7839050130492046,
+            3.093478178501303,
+            -1.3300428384788694
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            "XYZ"
+          ],
+          "scale": [
+            0.07003000000002742,
+            0.07003000000002742,
+            0.07003000000002742
+          ],
+          "animationPivot": null,
+          "primitiveType": "sphere",
+          "resolution": "medium",
+          "color": 2236962,
+          "roughness": 0.7,
+          "materialSettings": {
+            "side": 0,
+            "mode": "standard",
+            "roughness": 0.7,
+            "metalness": 0,
+            "runtimeLighting": "standard",
+            "opacity": 1,
+            "transparent": false,
+            "alphaTest": 0,
+            "legacyExport": true
+          },
+          "opacity": 1,
+          "alphaTest": 0,
+          "flatShading": false,
+          "vertexColors": null,
+          "geometryPositions": null,
+          "geometryAttributes": null,
+          "textureDataURL": null,
+          "textureName": null,
+          "textureScale": 1,
+          "faceTextureOverlays": [],
+          "children": []
+        },
+        {
+          "nodeType": "primitive",
+          "assetId": 730,
+          "name": "sphere_copy",
+          "position": [
+            -1.2594820732939402,
+            3.0881610247868774,
+            -1.313468268026839
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            "XYZ"
+          ],
+          "scale": [
+            0.06487000000004138,
+            0.06487000000004138,
+            0.06487000000004138
+          ],
+          "animationPivot": null,
+          "primitiveType": "sphere",
+          "resolution": "medium",
+          "color": 2236962,
+          "roughness": 0.7,
+          "materialSettings": {
+            "side": 0,
+            "mode": "standard",
+            "roughness": 0.7,
+            "metalness": 0,
+            "runtimeLighting": "standard",
+            "opacity": 1,
+            "transparent": false,
+            "alphaTest": 0,
+            "legacyExport": true
+          },
+          "opacity": 1,
+          "alphaTest": 0,
+          "flatShading": false,
+          "vertexColors": null,
+          "geometryPositions": null,
+          "geometryAttributes": null,
+          "textureDataURL": null,
+          "textureName": null,
+          "textureScale": 1,
+          "faceTextureOverlays": [],
+          "children": []
+        },
+        {
+          "nodeType": "primitive",
+          "assetId": 758,
+          "name": "cone",
+          "position": [
+            -1.034180841859166,
+            2.616144404396973,
+            -1.4037055560474436
+          ],
+          "rotation": [
+            -1.5400200000001107,
+            0,
+            0,
+            "XYZ"
+          ],
+          "scale": [
+            0.2611480000000147,
+            0.08494000000008183,
+            0.08494000000008183
+          ],
+          "animationPivot": null,
+          "primitiveType": "cone",
+          "resolution": "medium",
+          "color": 14524818,
+          "roughness": 0.7,
+          "materialSettings": {
+            "side": 0,
+            "mode": "standard",
+            "roughness": 0.7,
+            "metalness": 0,
+            "runtimeLighting": "standard",
+            "opacity": 1,
+            "transparent": false,
+            "alphaTest": 0,
+            "legacyExport": true
+          },
+          "opacity": 1,
+          "alphaTest": 0,
+          "flatShading": false,
+          "vertexColors": null,
+          "geometryPositions": null,
+          "geometryAttributes": null,
+          "textureDataURL": null,
+          "textureName": null,
+          "textureScale": 1,
+          "faceTextureOverlays": [],
+          "children": []
+        },
+        {
+          "nodeType": "group",
+          "assetId": 760,
+          "name": "leg1",
+          "position": [
+            -1.6740706952247124,
+            1.707285745979836,
+            0.3895675047072104
+          ],
+          "rotation": [
+            0.21922487606277644,
+            0.01873508746630982,
+            -0.2470482193987977,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999989,
+            0.9999999999999997,
+            0.9999999999999999
+          ],
+          "animationPivot": null,
+          "isLeafCanopy": false,
+          "leafGenerated": false,
+          "materialSettingsVersion": 1,
+          "legacyLeafMaterials": true,
+          "leafSeed": 0,
+          "leafCount": 0,
+          "leafTextureDataURL": "",
+          "leafTextureName": "",
+          "windStrength": 0,
+          "windPhase": 0,
+          "children": [
+            {
+              "nodeType": "primitive",
+              "assetId": 8,
+              "name": "sphere_copy_copy_copy_copy",
+              "position": [
+                0.2472802656933859,
+                -1.5427627794797842,
+                -0.610216459608306
+              ],
+              "rotation": [
+                0,
+                -1.5700500000004143,
+                0,
+                "XYZ"
+              ],
+              "scale": [
+                0.3860258453800414,
+                0.16452296650004983,
+                0.3331562353000203
+              ],
+              "animationPivot": null,
+              "primitiveType": "sphere",
+              "resolution": "medium",
+              "color": 16777215,
+              "roughness": 0.7,
+              "materialSettings": {
+                "side": 0,
+                "mode": "standard",
+                "roughness": 0.7,
+                "metalness": 0,
+                "runtimeLighting": "standard",
+                "opacity": 1,
+                "transparent": false,
+                "alphaTest": 0,
+                "legacyExport": true
+              },
+              "opacity": 1,
+              "alphaTest": 0,
+              "flatShading": false,
+              "vertexColors": null,
+              "geometryPositions": null,
+              "geometryAttributes": null,
+              "textureDataURL": null,
+              "textureName": null,
+              "textureScale": 1,
+              "faceTextureOverlays": [],
+              "children": []
+            },
+            {
+              "nodeType": "primitive",
+              "assetId": 5,
+              "name": "cylinder_copy_copy",
+              "position": [
+                0.24458350768971782,
+                -0.9991090870746122,
+                -0.25100490637689443
+              ],
+              "rotation": [
+                7.437915501720589e-14,
+                -1.5700499999998192,
+                -0.399869999999999,
+                "XYZ"
+              ],
+              "scale": [
+                0.17630061400000235,
+                0.579393195279999,
+                0.17630061400000238
+              ],
+              "animationPivot": null,
+              "primitiveType": "cylinder",
+              "resolution": "medium",
+              "color": 6184542,
+              "roughness": 0.7,
+              "materialSettings": {
+                "side": 0,
+                "mode": "standard",
+                "roughness": 0.7,
+                "metalness": 0,
+                "runtimeLighting": "standard",
+                "opacity": 1,
+                "transparent": false,
+                "alphaTest": 0,
+                "legacyExport": true
+              },
+              "opacity": 1,
+              "alphaTest": 0,
+              "flatShading": false,
+              "vertexColors": null,
+              "geometryPositions": null,
+              "geometryAttributes": null,
+              "textureDataURL": null,
+              "textureName": null,
+              "textureScale": 1,
+              "faceTextureOverlays": [],
+              "children": []
+            },
+            {
+              "nodeType": "primitive",
+              "assetId": 420,
+              "name": "cone",
+              "position": [
+                0.27293012607659217,
+                -0.3908902132364305,
+                -0.021318207009779877
+              ],
+              "rotation": [
+                -1.5666935692841395,
+                -1.3908547957936646,
+                1.1065390666849086,
+                "XYZ"
+              ],
+              "scale": [
+                0.41547181984006193,
+                0.5426904212800443,
+                0.4741727233600369
+              ],
+              "animationPivot": null,
+              "primitiveType": "cone",
+              "resolution": "high",
+              "color": 6184542,
+              "roughness": 0.7,
+              "materialSettings": {
+                "side": 0,
+                "mode": "standard",
+                "roughness": 0.7,
+                "metalness": 0,
+                "runtimeLighting": "standard",
+                "opacity": 1,
+                "transparent": false,
+                "alphaTest": 0,
+                "legacyExport": true
+              },
+              "opacity": 1,
+              "alphaTest": 0,
+              "flatShading": false,
+              "vertexColors": null,
+              "geometryPositions": null,
+              "geometryAttributes": null,
+              "textureDataURL": null,
+              "textureName": null,
+              "textureScale": 1,
+              "faceTextureOverlays": [],
+              "children": []
+            }
+          ]
+        },
+        {
+          "nodeType": "group",
+          "assetId": 761,
+          "name": "leg2",
+          "position": [
+            -1.7653336632434948,
+            1.4798592220810223,
+            2.428792082720739
+          ],
+          "rotation": [
+            -0.4529763839780327,
+            -7.822518674482914e-15,
+            0.005010000000013053,
+            "XYZ"
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "animationPivot": null,
+          "isLeafCanopy": false,
+          "leafGenerated": false,
+          "materialSettingsVersion": 1,
+          "legacyLeafMaterials": true,
+          "leafSeed": 0,
+          "leafCount": 0,
+          "leafTextureDataURL": "",
+          "leafTextureName": "",
+          "windStrength": 0,
+          "windPhase": 0,
+          "children": [
+            {
+              "nodeType": "primitive",
+              "assetId": 8,
+              "name": "sphere_copy_copy_copy",
+              "position": [
+                0.28739396167050435,
+                -1.3393254723810166,
+                -0.016512663437463715
+              ],
+              "rotation": [
+                0,
+                -1.5700500000004143,
+                0,
+                "XYZ"
+              ],
+              "scale": [
+                0.3860258453800414,
+                0.14053374970000515,
+                0.3331562353000203
+              ],
+              "animationPivot": null,
+              "primitiveType": "sphere",
+              "resolution": "medium",
+              "color": 16777215,
+              "roughness": 0.7,
+              "materialSettings": {
+                "side": 0,
+                "mode": "standard",
+                "roughness": 0.7,
+                "metalness": 0,
+                "runtimeLighting": "standard",
+                "opacity": 1,
+                "transparent": false,
+                "alphaTest": 0,
+                "legacyExport": true
+              },
+              "opacity": 1,
+              "alphaTest": 0,
+              "flatShading": false,
+              "vertexColors": null,
+              "geometryPositions": null,
+              "geometryAttributes": null,
+              "textureDataURL": null,
+              "textureName": null,
+              "textureScale": 1,
+              "faceTextureOverlays": [],
+              "children": []
+            },
+            {
+              "nodeType": "primitive",
+              "assetId": 5,
+              "name": "cylinder",
+              "position": [
+                0.34437180114009247,
+                -0.9371239328188731,
+                0.32596525680329735
+              ],
+              "rotation": [
+                -2.9751662006877934e-13,
+                -1.5700499999998192,
+                -0.5298600000003425,
+                "XYZ"
+              ],
+              "scale": [
+                0.17630061400000238,
+                0.5156011952799316,
+                0.1763006140000024
+              ],
+              "animationPivot": null,
+              "primitiveType": "cylinder",
+              "resolution": "medium",
+              "color": 6184542,
+              "roughness": 0.7,
+              "materialSettings": {
+                "side": 0,
+                "mode": "standard",
+                "roughness": 0.7,
+                "metalness": 0,
+                "runtimeLighting": "standard",
+                "opacity": 1,
+                "transparent": false,
+                "alphaTest": 0,
+                "legacyExport": true
+              },
+              "opacity": 1,
+              "alphaTest": 0,
+              "flatShading": false,
+              "vertexColors": null,
+              "geometryPositions": null,
+              "geometryAttributes": null,
+              "textureDataURL": null,
+              "textureName": null,
+              "textureScale": 1,
+              "faceTextureOverlays": [],
+              "children": []
+            },
+            {
+              "nodeType": "primitive",
+              "assetId": 6,
+              "name": "cylinder",
+              "position": [
+                0.34437180114009247,
+                -0.28425559257552546,
+                0.32596525680329735
+              ],
+              "rotation": [
+                0,
+                -1.5700499999998192,
+                0.5349599999998824,
+                "XYZ"
+              ],
+              "scale": [
+                0.17635204929999884,
+                0.5153430070599924,
+                0.1763285360199975
+              ],
+              "animationPivot": null,
+              "primitiveType": "cylinder",
+              "resolution": "medium",
+              "color": 6184542,
+              "roughness": 0.7,
+              "materialSettings": {
+                "side": 0,
+                "mode": "standard",
+                "roughness": 0.7,
+                "metalness": 0,
+                "runtimeLighting": "standard",
+                "opacity": 1,
+                "transparent": false,
+                "alphaTest": 0,
+                "legacyExport": true
+              },
+              "opacity": 1,
+              "alphaTest": 0,
+              "flatShading": false,
+              "vertexColors": null,
+              "geometryPositions": null,
+              "geometryAttributes": null,
+              "textureDataURL": null,
+              "textureName": null,
+              "textureScale": 1,
+              "faceTextureOverlays": [],
+              "children": []
+            }
+          ]
+        },
+        {
+          "nodeType": "group",
+          "assetId": 762,
+          "name": "leg3",
+          "position": [
+            -0.09947795785265759,
+            1.6850118404073395,
+            0.426045403643422
+          ],
+          "rotation": [
+            0.2607804786675112,
+            -0.028135518711264153,
+            0.09716235715046224,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999998,
+            1,
+            1.0000000000000002
+          ],
+          "animationPivot": null,
+          "isLeafCanopy": false,
+          "leafGenerated": false,
+          "materialSettingsVersion": 1,
+          "legacyLeafMaterials": true,
+          "leafSeed": 0,
+          "leafCount": 0,
+          "leafTextureDataURL": "",
+          "leafTextureName": "",
+          "windStrength": 0,
+          "windPhase": 0,
+          "children": [
+            {
+              "nodeType": "primitive",
+              "assetId": 8,
+              "name": "sphere_copy",
+              "position": [
+                -0.1786751675893046,
+                -1.5043423094273778,
+                -0.5594902702455247
+              ],
+              "rotation": [
+                0,
+                -1.5700500000004143,
+                0,
+                "XYZ"
+              ],
+              "scale": [
+                0.3860258453800414,
+                0.1806695309799624,
+                0.3331562353000203
+              ],
+              "animationPivot": null,
+              "primitiveType": "sphere",
+              "resolution": "medium",
+              "color": 16777215,
+              "roughness": 0.7,
+              "materialSettings": {
+                "side": 0,
+                "mode": "standard",
+                "roughness": 0.7,
+                "metalness": 0,
+                "runtimeLighting": "standard",
+                "opacity": 1,
+                "transparent": false,
+                "alphaTest": 0,
+                "legacyExport": true
+              },
+              "opacity": 1,
+              "alphaTest": 0,
+              "flatShading": false,
+              "vertexColors": null,
+              "geometryPositions": null,
+              "geometryAttributes": null,
+              "textureDataURL": null,
+              "textureName": null,
+              "textureScale": 1,
+              "faceTextureOverlays": [],
+              "children": []
+            },
+            {
+              "nodeType": "primitive",
+              "assetId": 5,
+              "name": "cylinder_copy",
+              "position": [
+                -0.19944311614914292,
+                -0.9901062934061697,
+                -0.20217343617433364
+              ],
+              "rotation": [
+                4.4627493028035615e-13,
+                -1.5700500000001167,
+                -0.3899999999996604,
+                "XYZ"
+              ],
+              "scale": [
+                0.1763006140000023,
+                0.5315371952800773,
+                0.17630061400000238
+              ],
+              "animationPivot": null,
+              "primitiveType": "cylinder",
+              "resolution": "medium",
+              "color": 6184542,
+              "roughness": 0.7,
+              "materialSettings": {
+                "side": 0,
+                "mode": "standard",
+                "roughness": 0.7,
+                "metalness": 0,
+                "runtimeLighting": "standard",
+                "opacity": 1,
+                "transparent": false,
+                "alphaTest": 0,
+                "legacyExport": true
+              },
+              "opacity": 1,
+              "alphaTest": 0,
+              "flatShading": false,
+              "vertexColors": null,
+              "geometryPositions": null,
+              "geometryAttributes": null,
+              "textureDataURL": null,
+              "textureName": null,
+              "textureScale": 1,
+              "faceTextureOverlays": [],
+              "children": []
+            },
+            {
+              "nodeType": "primitive",
+              "assetId": 420,
+              "name": "cone_copy",
+              "position": [
+                -0.22700538578587234,
+                -0.437214818978233,
+                0.0076359402861885806
+              ],
+              "rotation": [
+                -2.9539872232544098,
+                -0.2810195681641748,
+                -0.2518467643427098,
+                "XYZ"
+              ],
+              "scale": [
+                0.41547181984006076,
+                0.5426904212800431,
+                0.4741727233600364
+              ],
+              "animationPivot": null,
+              "primitiveType": "cone",
+              "resolution": "high",
+              "color": 6184542,
+              "roughness": 0.7,
+              "materialSettings": {
+                "side": 0,
+                "mode": "standard",
+                "roughness": 0.7,
+                "metalness": 0,
+                "runtimeLighting": "standard",
+                "opacity": 1,
+                "transparent": false,
+                "alphaTest": 0,
+                "legacyExport": true
+              },
+              "opacity": 1,
+              "alphaTest": 0,
+              "flatShading": false,
+              "vertexColors": null,
+              "geometryPositions": null,
+              "geometryAttributes": null,
+              "textureDataURL": null,
+              "textureName": null,
+              "textureScale": 1,
+              "faceTextureOverlays": [],
+              "children": []
+            }
+          ]
+        },
+        {
+          "nodeType": "group",
+          "assetId": 763,
+          "name": "leg4",
+          "position": [
+            0.021458308039026368,
+            1.546139113583741,
+            2.4370504614903226
+          ],
+          "rotation": [
+            0.24003410327026675,
+            -7.703764655277862e-19,
+            -0.000029999999958092853,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999996,
+            0.9999999999999994,
+            0.9999999999999999
+          ],
+          "animationPivot": null,
+          "isLeafCanopy": false,
+          "leafGenerated": false,
+          "materialSettingsVersion": 1,
+          "legacyLeafMaterials": true,
+          "leafSeed": 0,
+          "leafCount": 0,
+          "leafTextureDataURL": "",
+          "leafTextureName": "",
+          "windStrength": 0,
+          "windPhase": 0,
+          "children": [
+            {
+              "nodeType": "primitive",
+              "assetId": 8,
+              "name": "sphere_copy_copy",
+              "position": [
+                -0.21323127452035637,
+                -1.3997898024437794,
+                -0.06457115223331877
+              ],
+              "rotation": [
+                0,
+                -1.5700500000004143,
+                0,
+                "XYZ"
+              ],
+              "scale": [
+                0.3860258453800414,
+                0.14634931113996139,
+                0.3331562353000203
+              ],
+              "animationPivot": null,
+              "primitiveType": "sphere",
+              "resolution": "medium",
+              "color": 16777215,
+              "roughness": 0.7,
+              "materialSettings": {
+                "side": 0,
+                "mode": "standard",
+                "roughness": 0.7,
+                "metalness": 0,
+                "runtimeLighting": "standard",
+                "opacity": 1,
+                "transparent": false,
+                "alphaTest": 0,
+                "legacyExport": true
+              },
+              "opacity": 1,
+              "alphaTest": 0,
+              "flatShading": false,
+              "vertexColors": null,
+              "geometryPositions": null,
+              "geometryAttributes": null,
+              "textureDataURL": null,
+              "textureName": null,
+              "textureScale": 1,
+              "faceTextureOverlays": [],
+              "children": []
+            },
+            {
+              "nodeType": "primitive",
+              "assetId": 5,
+              "name": "cylinder",
+              "position": [
+                -0.21781491538080242,
+                -1.0232710754548175,
+                0.25729594590752614
+              ],
+              "rotation": [
+                0,
+                -1.5700500000001167,
+                -0.5298600000001122,
+                "XYZ"
+              ],
+              "scale": [
+                0.17630061400000244,
+                0.4676491952800324,
+                0.17630061400000246
+              ],
+              "animationPivot": null,
+              "primitiveType": "cylinder",
+              "resolution": "medium",
+              "color": 6184542,
+              "roughness": 0.7,
+              "materialSettings": {
+                "side": 0,
+                "mode": "standard",
+                "roughness": 0.7,
+                "metalness": 0,
+                "runtimeLighting": "standard",
+                "opacity": 1,
+                "transparent": false,
+                "alphaTest": 0,
+                "legacyExport": true
+              },
+              "opacity": 1,
+              "alphaTest": 0,
+              "flatShading": false,
+              "vertexColors": null,
+              "geometryPositions": null,
+              "geometryAttributes": null,
+              "textureDataURL": null,
+              "textureName": null,
+              "textureScale": 1,
+              "faceTextureOverlays": [],
+              "children": []
+            },
+            {
+              "nodeType": "primitive",
+              "assetId": 6,
+              "name": "cylinder",
+              "position": [
+                -0.2178149153808024,
+                -0.3529847840782441,
+                0.25729594590752614
+              ],
+              "rotation": [
+                0,
+                -1.5700499999998192,
+                0.5349599999998824,
+                "XYZ"
+              ],
+              "scale": [
+                0.17635204929999884,
+                0.5153430070599924,
+                0.1763285360199975
+              ],
+              "animationPivot": null,
+              "primitiveType": "cylinder",
+              "resolution": "medium",
+              "color": 6184542,
+              "roughness": 0.7,
+              "materialSettings": {
+                "side": 0,
+                "mode": "standard",
+                "roughness": 0.7,
+                "metalness": 0,
+                "runtimeLighting": "standard",
+                "opacity": 1,
+                "transparent": false,
+                "alphaTest": 0,
+                "legacyExport": true
+              },
+              "opacity": 1,
+              "alphaTest": 0,
+              "flatShading": false,
+              "vertexColors": null,
+              "geometryPositions": null,
+              "geometryAttributes": null,
+              "textureDataURL": null,
+              "textureName": null,
+              "textureScale": 1,
+              "faceTextureOverlays": [],
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "animations": [
+    {
+      "id": "animation-1",
+      "name": "Animation 1",
+      "duration": 0.5,
+      "playback": "pingpong",
+      "keyframes": [
+        {
+          "target": 759,
+          "time": 0,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            "XYZ"
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "pivotPosition": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "target": 760,
+          "time": 0,
+          "position": [
+            -1.674070695224714,
+            1.7072857459798338,
+            0.3895675047072069
+          ],
+          "rotation": [
+            -0.8236820750120355,
+            0.0030791677471487516,
+            0.016574007281916443,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999999,
+            1.0000000000000002,
+            1
+          ],
+          "pivotPosition": [
+            -1.674070695224714,
+            1.7072857459798338,
+            0.3895675047072069
+          ]
+        },
+        {
+          "target": 761,
+          "time": 0,
+          "position": [
+            -1.7653336632434944,
+            1.4798592220810223,
+            2.4287920827207388
+          ],
+          "rotation": [
+            0.37934262519910833,
+            -7.823277616003654e-15,
+            0.005010000000013054,
+            "XYZ"
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "pivotPosition": [
+            -1.7653336632434944,
+            1.4798592220810223,
+            2.4287920827207388
+          ]
+        },
+        {
+          "target": 762,
+          "time": 0,
+          "position": [
+            -0.09947795785265753,
+            1.68501184040734,
+            0.4260454036434219
+          ],
+          "rotation": [
+            0.36519854872837687,
+            0.0000032847598742240697,
+            -0.000011610889994063466,
+            "XYZ"
+          ],
+          "scale": [
+            1,
+            0.9999999999999999,
+            1
+          ],
+          "pivotPosition": [
+            -0.09947795785265753,
+            1.68501184040734,
+            0.4260454036434219
+          ]
+        },
+        {
+          "target": 763,
+          "time": 0,
+          "position": [
+            0.02145830803902637,
+            1.5461391135837412,
+            2.4370504614903226
+          ],
+          "rotation": [
+            -0.4998541216665472,
+            -7.691059161069047e-19,
+            -0.000029999999958092812,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999998,
+            0.9999999999999998,
+            1
+          ],
+          "pivotPosition": [
+            0.02145830803902637,
+            1.5461391135837412,
+            2.4370504614903226
+          ]
+        },
+        {
+          "target": 760,
+          "time": 0.5,
+          "position": [
+            -1.6740706952247137,
+            1.707285745979834,
+            0.38956750470720714
+          ],
+          "rotation": [
+            0.29277063845975343,
+            0.003079167747148752,
+            0.016574007281916454,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999997,
+            1.0000000000000002,
+            1
+          ],
+          "pivotPosition": [
+            -1.6740706952247137,
+            1.707285745979834,
+            0.38956750470720714
+          ]
+        },
+        {
+          "target": 761,
+          "time": 0.5,
+          "position": [
+            -1.7653336632434948,
+            1.4798592220810223,
+            2.428792082720739
+          ],
+          "rotation": [
+            -0.4531428810941773,
+            -7.8236028766554e-15,
+            0.0050100000000130535,
+            "XYZ"
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "pivotPosition": [
+            -1.7653336632434948,
+            1.4798592220810223,
+            2.428792082720739
+          ]
+        },
+        {
+          "target": 762,
+          "time": 0.5,
+          "position": [
+            -0.09947795785265753,
+            1.68501184040734,
+            0.4260454036434218
+          ],
+          "rotation": [
+            -0.7788813148654457,
+            0.0000032847598742240697,
+            -0.000011610889994063477,
+            "XYZ"
+          ],
+          "scale": [
+            1,
+            0.9999999999999998,
+            1
+          ],
+          "pivotPosition": [
+            -0.09947795785265753,
+            1.68501184040734,
+            0.4260454036434218
+          ]
+        },
+        {
+          "target": 763,
+          "time": 0.5,
+          "position": [
+            0.021458308039026368,
+            1.546139113583741,
+            2.4370504614903226
+          ],
+          "rotation": [
+            0.24018211052993882,
+            -7.712234984750405e-19,
+            -0.000029999999958092815,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999996,
+            0.9999999999999994,
+            0.9999999999999999
+          ],
+          "pivotPosition": [
+            0.021458308039026368,
+            1.546139113583741,
+            2.4370504614903226
+          ]
+        }
+      ]
+    },
+    {
+      "id": "animation-2",
+      "name": "Animation 2",
+      "duration": 0.5,
+      "playback": "loop",
+      "keyframes": [
+        {
+          "target": 759,
+          "time": 0,
+          "position": [
+            0,
+            0.007784712516923885,
+            -0.6754076211100717
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            "XYZ"
+          ],
+          "scale": [
+            0.12666625976562496,
+            0.12666625976562496,
+            0.12666625976562496
+          ],
+          "pivotPosition": [
+            0,
+            0.007784712516923885,
+            -0.6754076211100717
+          ]
+        },
+        {
+          "target": 760,
+          "time": 0,
+          "position": [
+            -1.6740706952247129,
+            1.7072857459798363,
+            0.3895675047072098
+          ],
+          "rotation": [
+            -0.21869912843653325,
+            -0.04207274333817626,
+            -0.07553052206946556,
+            "XYZ"
+          ],
+          "scale": [
+            0.999999999999999,
+            0.9999999999999997,
+            0.9999999999999999
+          ],
+          "pivotPosition": [
+            -1.6740706952247129,
+            1.7072857459798363,
+            0.3895675047072098
+          ]
+        },
+        {
+          "target": 761,
+          "time": 0,
+          "position": [
+            -1.7653336632434948,
+            1.4798592220810223,
+            2.428792082720739
+          ],
+          "rotation": [
+            -0.4529763839780327,
+            -7.823386036220903e-15,
+            0.005010000000013053,
+            "XYZ"
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "pivotPosition": [
+            -1.7653336632434948,
+            1.4798592220810223,
+            2.428792082720739
+          ]
+        },
+        {
+          "target": 762,
+          "time": 0,
+          "position": [
+            -0.09947795785265752,
+            1.6850118404073398,
+            0.426045403643422
+          ],
+          "rotation": [
+            -0.20846180033377062,
+            0.0000032847598742240697,
+            -0.000011610889994063477,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999998,
+            0.9999999999999998,
+            1
+          ],
+          "pivotPosition": [
+            -0.09947795785265752,
+            1.6850118404073398,
+            0.426045403643422
+          ]
+        },
+        {
+          "target": 763,
+          "time": 0,
+          "position": [
+            0.021458308039026368,
+            1.546139113583741,
+            2.4370504614903226
+          ],
+          "rotation": [
+            0.24003410327026656,
+            -7.712234984750405e-19,
+            -0.00002999999995809281,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999996,
+            0.9999999999999994,
+            0.9999999999999999
+          ],
+          "pivotPosition": [
+            0.021458308039026368,
+            1.546139113583741,
+            2.4370504614903226
+          ]
+        },
+        {
+          "target": 760,
+          "time": 0.25,
+          "position": [
+            -1.6740706952247106,
+            1.7072857459798383,
+            0.3895675047072098
+          ],
+          "rotation": [
+            1.4365038116071778,
+            0.31736137171515894,
+            -1.355632721314964,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999986,
+            0.9999999999999993,
+            0.9999999999999998
+          ],
+          "pivotPosition": [
+            -1.6740706952247106,
+            1.7072857459798383,
+            0.3895675047072098
+          ]
+        },
+        {
+          "target": 760,
+          "time": 0.5,
+          "position": [
+            -1.6740706952247106,
+            1.7072857459798387,
+            0.3895675047072098
+          ],
+          "rotation": [
+            1.228870386708333,
+            -0.035767850878510137,
+            -0.09327793484993527,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999986,
+            0.9999999999999993,
+            1
+          ],
+          "pivotPosition": [
+            -1.6740706952247106,
+            1.7072857459798387,
+            0.3895675047072098
+          ]
+        }
+      ]
+    },
+    {
+      "id": "animation-3",
+      "name": "Animation 3",
+      "duration": 0.5,
+      "playback": "loop",
+      "keyframes": [
+        {
+          "target": 759,
+          "time": 0,
+          "position": [
+            0,
+            0.007784712516923885,
+            -0.6754076211100717
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            "XYZ"
+          ],
+          "scale": [
+            0.12666625976562496,
+            0.12666625976562496,
+            0.12666625976562496
+          ],
+          "pivotPosition": [
+            0,
+            0.007784712516923885,
+            -0.6754076211100717
+          ]
+        },
+        {
+          "target": 760,
+          "time": 0,
+          "position": [
+            -1.6740706952247129,
+            1.7072857459798363,
+            0.3895675047072098
+          ],
+          "rotation": [
+            -0.21869912843653336,
+            -0.04207274333817628,
+            -0.07553052206946559,
+            "XYZ"
+          ],
+          "scale": [
+            0.999999999999999,
+            0.9999999999999997,
+            0.9999999999999999
+          ],
+          "pivotPosition": [
+            -1.6740706952247129,
+            1.7072857459798363,
+            0.3895675047072098
+          ]
+        },
+        {
+          "target": 761,
+          "time": 0,
+          "position": [
+            -1.7653336632434948,
+            1.4798592220810223,
+            2.428792082720739
+          ],
+          "rotation": [
+            -0.4529763839780327,
+            -7.822952355351909e-15,
+            0.005010000000013053,
+            "XYZ"
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "pivotPosition": [
+            -1.7653336632434948,
+            1.4798592220810223,
+            2.428792082720739
+          ]
+        },
+        {
+          "target": 762,
+          "time": 0,
+          "position": [
+            -0.09947795785265752,
+            1.6850118404073398,
+            0.426045403643422
+          ],
+          "rotation": [
+            -0.20846180033377062,
+            0.0000032847598742240697,
+            -0.000011610889994063478,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999998,
+            0.9999999999999998,
+            1
+          ],
+          "pivotPosition": [
+            -0.09947795785265752,
+            1.6850118404073398,
+            0.426045403643422
+          ]
+        },
+        {
+          "target": 763,
+          "time": 0,
+          "position": [
+            0.021458308039026368,
+            1.546139113583741,
+            2.4370504614903226
+          ],
+          "rotation": [
+            0.24003410327026664,
+            -7.707999820014133e-19,
+            -0.000029999999958092822,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999996,
+            0.9999999999999994,
+            0.9999999999999999
+          ],
+          "pivotPosition": [
+            0.021458308039026368,
+            1.546139113583741,
+            2.4370504614903226
+          ]
+        },
+        {
+          "target": 762,
+          "time": 0.25,
+          "position": [
+            -0.0994779578526584,
+            1.6850118404073406,
+            0.426045403643422
+          ],
+          "rotation": [
+            1.5398649143651109,
+            -0.22117019275428976,
+            1.4306783282727733,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999998,
+            1,
+            1.0000000000000007
+          ],
+          "pivotPosition": [
+            -0.0994779578526584,
+            1.6850118404073406,
+            0.426045403643422
+          ]
+        },
+        {
+          "target": 762,
+          "time": 0.5,
+          "position": [
+            -0.0994779578526584,
+            1.6850118404073406,
+            0.426045403643422
+          ],
+          "rotation": [
+            1.3477639085000506,
+            0.010762032763488484,
+            -0.04741112899781576,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999999,
+            1,
+            1.0000000000000007
+          ],
+          "pivotPosition": [
+            -0.0994779578526584,
+            1.6850118404073406,
+            0.426045403643422
+          ]
+        }
+      ]
+    },
+    {
+      "id": "animation-4",
+      "name": "Animation 4",
+      "duration": 0.6,
+      "playback": "loop",
+      "keyframes": [
+        {
+          "target": 759,
+          "time": 0,
+          "position": [
+            0,
+            0.007784712516923885,
+            -0.6754076211100717
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            "XYZ"
+          ],
+          "scale": [
+            0.12666625976562496,
+            0.12666625976562496,
+            0.12666625976562496
+          ],
+          "pivotPosition": [
+            0,
+            0.007784712516923885,
+            -0.6754076211100717
+          ]
+        },
+        {
+          "target": 760,
+          "time": 0,
+          "position": [
+            -1.6740706952247129,
+            1.7072857459798363,
+            0.3895675047072098
+          ],
+          "rotation": [
+            -0.21869912843653347,
+            -0.0420727433381763,
+            -0.07553052206946562,
+            "XYZ"
+          ],
+          "scale": [
+            0.999999999999999,
+            0.9999999999999997,
+            0.9999999999999999
+          ],
+          "pivotPosition": [
+            -1.6740706952247129,
+            1.7072857459798363,
+            0.3895675047072098
+          ]
+        },
+        {
+          "target": 761,
+          "time": 0,
+          "position": [
+            -1.7653336632434948,
+            1.4798592220810223,
+            2.428792082720739
+          ],
+          "rotation": [
+            -0.4529763839780327,
+            -7.822735514917412e-15,
+            0.005010000000013053,
+            "XYZ"
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "pivotPosition": [
+            -1.7653336632434948,
+            1.4798592220810223,
+            2.428792082720739
+          ]
+        },
+        {
+          "target": 762,
+          "time": 0,
+          "position": [
+            -0.09947795785265752,
+            1.6850118404073398,
+            0.426045403643422
+          ],
+          "rotation": [
+            -0.20846180033377062,
+            0.0000032847598742240697,
+            -0.00001161088999406348,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999998,
+            0.9999999999999998,
+            1
+          ],
+          "pivotPosition": [
+            -0.09947795785265752,
+            1.6850118404073398,
+            0.426045403643422
+          ]
+        },
+        {
+          "target": 763,
+          "time": 0,
+          "position": [
+            0.021458308039026368,
+            1.546139113583741,
+            2.4370504614903226
+          ],
+          "rotation": [
+            0.2400341032702667,
+            -7.707999820014133e-19,
+            -0.000029999999958092836,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999996,
+            0.9999999999999994,
+            0.9999999999999999
+          ],
+          "pivotPosition": [
+            0.021458308039026368,
+            1.546139113583741,
+            2.4370504614903226
+          ]
+        },
+        {
+          "target": 759,
+          "time": 0.3,
+          "position": [
+            0,
+            0.17734944356451743,
+            -0.6754076211100717
+          ],
+          "rotation": [
+            0.5677050869118091,
+            0,
+            0,
+            "XYZ"
+          ],
+          "scale": [
+            0.12666625976562496,
+            0.12666625976562496,
+            0.12666625976562496
+          ],
+          "pivotPosition": [
+            0,
+            0.17734944356451743,
+            -0.6754076211100717
+          ]
+        },
+        {
+          "target": 760,
+          "time": 0.3,
+          "position": [
+            -1.6740706952247117,
+            1.7072857459798354,
+            0.3895675047072116
+          ],
+          "rotation": [
+            1.0740116705709568,
+            -0.08703544421246724,
+            -0.5782974308521323,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999986,
+            0.9999999999999998,
+            0.9999999999999999
+          ],
+          "pivotPosition": [
+            -1.6740706952247117,
+            1.7072857459798354,
+            0.3895675047072116
+          ]
+        },
+        {
+          "target": 762,
+          "time": 0.3,
+          "position": [
+            -0.09947795785265773,
+            1.685011840407339,
+            0.426045403643422
+          ],
+          "rotation": [
+            1.1753303330671176,
+            0.04887075949211912,
+            0.27373425549101554,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999998,
+            1.0000000000000007,
+            1.0000000000000009
+          ],
+          "pivotPosition": [
+            -0.09947795785265773,
+            1.685011840407339,
+            0.426045403643422
+          ]
+        },
+        {
+          "target": 759,
+          "time": 0.45,
+          "position": [
+            0,
+            0.17734944356451743,
+            -0.6754076211100718
+          ],
+          "rotation": [
+            -0.34397908073410904,
+            0,
+            0,
+            "XYZ"
+          ],
+          "scale": [
+            0.12666625976562496,
+            0.12666625976562498,
+            0.12666625976562498
+          ],
+          "pivotPosition": [
+            0,
+            0.17734944356451743,
+            -0.6754076211100718
+          ]
+        },
+        {
+          "target": 759,
+          "time": 0.6,
+          "position": [
+            0,
+            -0.10716176493774077,
+            -0.6754076211100719
+          ],
+          "rotation": [
+            -0.7184448414565521,
+            0,
+            0,
+            "XYZ"
+          ],
+          "scale": [
+            0.12666625976562496,
+            0.126666259765625,
+            0.126666259765625
+          ],
+          "pivotPosition": [
+            0,
+            -0.10716176493774077,
+            -0.6754076211100719
+          ]
+        },
+        {
+          "target": 760,
+          "time": 0.6,
+          "position": [
+            -1.6740706952247126,
+            1.7072857459798372,
+            0.38956750470721424
+          ],
+          "rotation": [
+            1.1013323217815103,
+            -0.7352126088775123,
+            -0.44421416240034894,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999982,
+            0.9999999999999997,
+            0.9999999999999999
+          ],
+          "pivotPosition": [
+            -1.6740706952247126,
+            1.7072857459798372,
+            0.38956750470721424
+          ]
+        },
+        {
+          "target": 762,
+          "time": 0.6,
+          "position": [
+            -0.09947795785265795,
+            1.6850118404073418,
+            0.4260454036434238
+          ],
+          "rotation": [
+            1.219628810980182,
+            0.41007972249967606,
+            0.08270624907906271,
+            "XYZ"
+          ],
+          "scale": [
+            0.9999999999999994,
+            1.0000000000000009,
+            1.0000000000000007
+          ],
+          "pivotPosition": [
+            -0.09947795785265795,
+            1.6850118404073418,
+            0.4260454036434238
+          ]
+        }
+      ]
+    }
+  ],
+  "activeAnimationId": "animation-4",
+  "animation": {
+    "id": "animation-4",
+    "name": "Animation 4",
+    "duration": 0.6,
+    "playback": "loop",
+    "keyframes": [
+      {
+        "target": 759,
+        "time": 0,
+        "position": [
+          0,
+          0.007784712516923885,
+          -0.6754076211100717
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ],
+        "scale": [
+          0.12666625976562496,
+          0.12666625976562496,
+          0.12666625976562496
+        ],
+        "pivotPosition": [
+          0,
+          0.007784712516923885,
+          -0.6754076211100717
+        ]
+      },
+      {
+        "target": 760,
+        "time": 0,
+        "position": [
+          -1.6740706952247129,
+          1.7072857459798363,
+          0.3895675047072098
+        ],
+        "rotation": [
+          -0.21869912843653347,
+          -0.0420727433381763,
+          -0.07553052206946562,
+          "XYZ"
+        ],
+        "scale": [
+          0.999999999999999,
+          0.9999999999999997,
+          0.9999999999999999
+        ],
+        "pivotPosition": [
+          -1.6740706952247129,
+          1.7072857459798363,
+          0.3895675047072098
+        ]
+      },
+      {
+        "target": 761,
+        "time": 0,
+        "position": [
+          -1.7653336632434948,
+          1.4798592220810223,
+          2.428792082720739
+        ],
+        "rotation": [
+          -0.4529763839780327,
+          -7.822735514917412e-15,
+          0.005010000000013053,
+          "XYZ"
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "pivotPosition": [
+          -1.7653336632434948,
+          1.4798592220810223,
+          2.428792082720739
+        ]
+      },
+      {
+        "target": 762,
+        "time": 0,
+        "position": [
+          -0.09947795785265752,
+          1.6850118404073398,
+          0.426045403643422
+        ],
+        "rotation": [
+          -0.20846180033377062,
+          0.0000032847598742240697,
+          -0.00001161088999406348,
+          "XYZ"
+        ],
+        "scale": [
+          0.9999999999999998,
+          0.9999999999999998,
+          1
+        ],
+        "pivotPosition": [
+          -0.09947795785265752,
+          1.6850118404073398,
+          0.426045403643422
+        ]
+      },
+      {
+        "target": 763,
+        "time": 0,
+        "position": [
+          0.021458308039026368,
+          1.546139113583741,
+          2.4370504614903226
+        ],
+        "rotation": [
+          0.2400341032702667,
+          -7.707999820014133e-19,
+          -0.000029999999958092836,
+          "XYZ"
+        ],
+        "scale": [
+          0.9999999999999996,
+          0.9999999999999994,
+          0.9999999999999999
+        ],
+        "pivotPosition": [
+          0.021458308039026368,
+          1.546139113583741,
+          2.4370504614903226
+        ]
+      },
+      {
+        "target": 759,
+        "time": 0.3,
+        "position": [
+          0,
+          0.17734944356451743,
+          -0.6754076211100717
+        ],
+        "rotation": [
+          0.5677050869118091,
+          0,
+          0,
+          "XYZ"
+        ],
+        "scale": [
+          0.12666625976562496,
+          0.12666625976562496,
+          0.12666625976562496
+        ],
+        "pivotPosition": [
+          0,
+          0.17734944356451743,
+          -0.6754076211100717
+        ]
+      },
+      {
+        "target": 760,
+        "time": 0.3,
+        "position": [
+          -1.6740706952247117,
+          1.7072857459798354,
+          0.3895675047072116
+        ],
+        "rotation": [
+          1.0740116705709568,
+          -0.08703544421246724,
+          -0.5782974308521323,
+          "XYZ"
+        ],
+        "scale": [
+          0.9999999999999986,
+          0.9999999999999998,
+          0.9999999999999999
+        ],
+        "pivotPosition": [
+          -1.6740706952247117,
+          1.7072857459798354,
+          0.3895675047072116
+        ]
+      },
+      {
+        "target": 762,
+        "time": 0.3,
+        "position": [
+          -0.09947795785265773,
+          1.685011840407339,
+          0.426045403643422
+        ],
+        "rotation": [
+          1.1753303330671176,
+          0.04887075949211912,
+          0.27373425549101554,
+          "XYZ"
+        ],
+        "scale": [
+          0.9999999999999998,
+          1.0000000000000007,
+          1.0000000000000009
+        ],
+        "pivotPosition": [
+          -0.09947795785265773,
+          1.685011840407339,
+          0.426045403643422
+        ]
+      },
+      {
+        "target": 759,
+        "time": 0.45,
+        "position": [
+          0,
+          0.17734944356451743,
+          -0.6754076211100718
+        ],
+        "rotation": [
+          -0.34397908073410904,
+          0,
+          0,
+          "XYZ"
+        ],
+        "scale": [
+          0.12666625976562496,
+          0.12666625976562498,
+          0.12666625976562498
+        ],
+        "pivotPosition": [
+          0,
+          0.17734944356451743,
+          -0.6754076211100718
+        ]
+      },
+      {
+        "target": 759,
+        "time": 0.6,
+        "position": [
+          0,
+          -0.10716176493774077,
+          -0.6754076211100719
+        ],
+        "rotation": [
+          -0.7184448414565521,
+          0,
+          0,
+          "XYZ"
+        ],
+        "scale": [
+          0.12666625976562496,
+          0.126666259765625,
+          0.126666259765625
+        ],
+        "pivotPosition": [
+          0,
+          -0.10716176493774077,
+          -0.6754076211100719
+        ]
+      },
+      {
+        "target": 760,
+        "time": 0.6,
+        "position": [
+          -1.6740706952247126,
+          1.7072857459798372,
+          0.38956750470721424
+        ],
+        "rotation": [
+          1.1013323217815103,
+          -0.7352126088775123,
+          -0.44421416240034894,
+          "XYZ"
+        ],
+        "scale": [
+          0.9999999999999982,
+          0.9999999999999997,
+          0.9999999999999999
+        ],
+        "pivotPosition": [
+          -1.6740706952247126,
+          1.7072857459798372,
+          0.38956750470721424
+        ]
+      },
+      {
+        "target": 762,
+        "time": 0.6,
+        "position": [
+          -0.09947795785265795,
+          1.6850118404073418,
+          0.4260454036434238
+        ],
+        "rotation": [
+          1.219628810980182,
+          0.41007972249967606,
+          0.08270624907906271,
+          "XYZ"
+        ],
+        "scale": [
+          0.9999999999999994,
+          1.0000000000000009,
+          1.0000000000000007
+        ],
+        "pivotPosition": [
+          -0.09947795785265795,
+          1.6850118404073418,
+          0.4260454036434238
+        ]
+      }
+    ]
+  },
+  "symmetry": {
+    "enabled": false,
+    "referenceImageDataURL": "",
+    "referenceImageName": "",
+    "referenceImageOpacity": 0.35
+  }
+}
