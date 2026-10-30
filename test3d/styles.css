@@ -14,7 +14,7 @@ body { background: #77b4df; }
 
 /* Gameplay only; the editor uses its own stylesheet and never mounts these. */
 .game-page { touch-action: none; overscroll-behavior: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.game-page #viewport, .touch-controls { touch-action: none; }
+.game-page #viewport, .touch-controls, .mobile-joystick { touch-action: none; }
 .touch-controls { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
 .touch-controls[hidden] { display: none; }
 .mobile-joystick { position: absolute; left: env(safe-area-inset-left, 0px); bottom: env(safe-area-inset-bottom, 0px); width: 38vw; height: 48%; pointer-events: auto; }

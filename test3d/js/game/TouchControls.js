@@ -30,7 +30,14 @@ export class TouchControls {
     this.up = event => this.end(event);
     this.cancel = event => this.end(event, true);
     this.preventMenu = event => event.preventDefault();
+    // Safari can still recognize double-tap zoom despite touch-action: none.
+    // Cancel native touch gestures too; pointer events continue to own game input.
+    this.preventTouchGesture = event => {
+      if (this.enabled && event.cancelable) event.preventDefault();
+    };
     for (const target of [this.root, canvas]) {
+      target.addEventListener("touchstart", this.preventTouchGesture, { passive: false });
+      target.addEventListener("touchend", this.preventTouchGesture, { passive: false });
       target.addEventListener("pointerdown", this.down);
       target.addEventListener("pointermove", this.move);
       target.addEventListener("pointerup", this.up);
@@ -119,6 +126,8 @@ export class TouchControls {
   dispose() {
     this.reset(); this.disposed = true;
     for (const target of [this.root, this.canvas]) {
+      target.removeEventListener("touchstart", this.preventTouchGesture);
+      target.removeEventListener("touchend", this.preventTouchGesture);
       target.removeEventListener("pointerdown", this.down); target.removeEventListener("pointermove", this.move);
       target.removeEventListener("pointerup", this.up); target.removeEventListener("pointercancel", this.cancel);
       target.removeEventListener("lostpointercapture", this.cancel); target.removeEventListener("contextmenu", this.preventMenu);
