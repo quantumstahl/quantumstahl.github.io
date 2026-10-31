@@ -10,5 +10,5 @@ export const SOUND_CONFIG = {
   // Synthetic placeholder is a sustained tonal drone that masks the recordings.
   // Keep it registered for explicit playback; opt in after replacing the asset.
   wind: { url: sfx("wind.wav"), channel: "ambient", loop: true, volume: 0 },
-  exploration: { url: new URL("../../sounds/music/TheGoldenYarn.mp3", import.meta.url).href, channel: "music", loop: true, volume: .5 },
+  exploration: { url: new URL("../../sounds/music/mountain.mp3", import.meta.url).href, channel: "music", loop: true, volume: .5 },
 };
