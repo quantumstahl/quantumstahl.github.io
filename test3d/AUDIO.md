@@ -140,16 +140,29 @@ twilight overlaps them. Dispose this adapter before disposing the manager.
 
 ## Browser unlock and formats
 
-Passive capture listeners call `resume()` and play a one-sample silent buffer
-within the first pointer, touch-end, or keyboard gesture. They do not cancel input
-or pause gameplay. Music/ambient loops may be requested before unlock and wait;
+The manager and passive capture handlers are installed before world loading or
+file-picker awaits. They call the shared context's `resume()` synchronously on
+touch-start, pointer-down/up, touch-end, or keyboard input, before any await. Touch
+release is a fallback on browsers that grant activation at the end of the first
+tap. They do not cancel input or pause gameplay. No synthetic warm-up source is
+connected directly to the destination. Music/ambient loops may be requested before unlock and wait;
 locked one-shots are dropped to avoid playing a backlog of attacks later. A
 gamepad-only session may need one initial tap/key press to grant browser audio
 permission. `audio.unlock()` is available for a host's own gesture handler.
 
-Visibility changes suspend audio in the background and attempt resuming after
-return. Gesture listeners remain installed for subsequent iOS interruptions;
-failed resume attempts do not block gameplay and retry at the next gesture.
+Blur and visibility changes fade a separate output gate to zero over 20 ms,
+then pause loop sources and suspend after a 40 ms grace period. Pagehide silences
+and pauses synchronously, including when `document.hidden` has not changed.
+One-shots and outgoing fades are discarded; loop handles, decoded buffers and
+playback offsets survive. Focus, visible state and pageshow attempt resuming
+previously unlocked audio, with a 250 ms fade from silence. Master/channel mixer
+targets remain unchanged. Rapid event sequences cancel pending suspension;
+late native suspend/resume completions cannot start hidden playback.
+
+Native `suspended` and iOS `interrupted` state changes also mute and pause sources
+even if no page lifecycle event has arrived. Passive gesture handlers remain
+installed for recovery; failed or stalled native resume attempts do not block
+gameplay or prevent retry on the same tap's release or a later gesture.
 Hardware mute, OS audio routing, and Safari/PWA engine bugs still require device
 testing; software cannot guarantee recovery from every OS interruption. See the
 [WebKit PWA interruption report](https://bugs.webkit.org/show_bug.cgi?id=291892)
@@ -168,6 +181,7 @@ From `MaxWorld` (Node 24 and local Chrome, with `CHROME_PATH` override supported
 ```powershell
 node --test --experimental-test-isolation=none tests/*.test.mjs
 node tests/run-audio-browser.mjs
+node tests/run-audio-browser.mjs --touch
 node tests/run-audio-browser.mjs --ambient
 ```
 
@@ -189,3 +203,10 @@ still works while unlocking; all sounds decode; volume sliders work; birds switc
 to crickets at night; lock/unlock and background/foreground resume on return or
 the next tap; navigation away releases playback. Chromium automation cannot
 validate iOS hardware behavior.
+
+The `--touch` runner sends exactly one trusted Chromium touch and cancels native
+touch gestures like gameplay, with results in `tests/audio-touch-browser-results.json`.
+The real Web Audio lifecycle checks use dispatched blur/focus/page transition
+events. Node tests separately simulate iOS interruption states and delayed native
+promises. Neither is a physical iPhone or installed iOS PWA test. See
+`tests/IOS_AUDIO.md` for the diagnosis, coverage and remaining device checks.

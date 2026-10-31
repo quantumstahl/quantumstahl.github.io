@@ -2,7 +2,9 @@ import { Audio, PositionalAudio, AudioListener, AudioLoader, Group } from "three
 
 const clamp = (value, fallback = 1) => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : fallback;
 const seconds = value => Number.isFinite(value) ? Math.max(0, value) : 0;
-const gestures = ["pointerdown", "touchend", "keydown"];
+// Touch start can unlock some Safari versions; pointer-up/touch-end are the
+// activation-bearing events for touch on others. All belong to the first tap.
+const gestures = ["touchstart", "pointerdown", "pointerup", "touchend", "keydown"];
 
 // Keep our own ramp endpoints: AudioParam.value is not the instantaneous value
 // of an automation ramp on every browser. This also supports older Safari.
@@ -38,7 +40,7 @@ class AudioVoice {
   setVolume(value, { fade = 0 } = {}) {
     if (this.stopped || this.stopping) return;
     this.volume = clamp(value, this.volume);
-    if (this.sound) this.envelope = ramp(this.sound.gain.gain, this.volume, seconds(fade), this.manager.context, this.envelope);
+    if (this.sound && !this.paused) this.envelope = ramp(this.sound.gain.gain, this.volume, seconds(fade), this.manager.context, this.envelope);
   }
   // World coordinates, copied immediately; callers may reuse their Vector3.
   setPosition(position) {
@@ -59,6 +61,8 @@ export class AudioManager {
     this.voices = new Set(); this.reported = new Set(); this.buses = new Map();
     this.volumes = { master: clamp(volumes.master), music: clamp(volumes.music, .5), ambient: clamp(volumes.ambient, .6), sfx: clamp(volumes.sfx) };
     this.disposed = false; this.unlocked = false; this.music = null;
+    this.backgrounded = !!documentTarget?.hidden; this.pageHidden = false;
+    this.suspendTimer = null;
     this.eventTarget = eventTarget; this.documentTarget = documentTarget;
     this.root = new Group(); this.root.name = "World audio";
     scene?.add(this.root);
@@ -70,33 +74,102 @@ export class AudioManager {
       this.loader = new AudioLoader();
       this.setCamera(camera);
       this.listener.gain.gain.setValueAtTime(clamp(this.volumes.master), this.context.currentTime);
+      // A separate lifecycle gate preserves the user's master volume and mutes
+      // the graph before an app-initiated suspension.
+      this.outputGate = this.context.createGain();
+      this.listener.gain.disconnect(); this.listener.gain.connect(this.outputGate);
+      this.outputGate.connect(this.context.destination);
+      const initial = this.unlocked && !this.backgrounded ? 1 : 0;
+      this.gateEnvelope = ramp(this.outputGate.gain, initial, 0, this.context, null, initial);
       for (const channel of ["music", "ambient", "sfx"]) {
         const node = this.context.createGain();
         node.gain.setValueAtTime(clamp(this.volumes[channel]), this.context.currentTime);
         node.connect(this.listener.getInput());
         this.buses.set(channel, { node, envelope: null });
       }
-      this.silence = this.context.createBuffer(1, 1, this.context.sampleRate);
     } catch (error) { this.loader = null; this._report("init", `Audio unavailable: ${error.message}`); }
-    this.gesture = () => { void this.unlock(); };
-    this.visibility = () => {
-      if (!this.context || this.disposed) return;
-      if (documentTarget?.hidden) {
-        Promise.resolve(this.context.suspend()).catch(() => {});
-      } else if (this.unlocked) void this.unlock();
+    this.gesture = () => {
+      if (documentTarget?.hidden || this.pageHidden) return;
+      this.backgrounded = false; // A real interaction also recovers a missed focus event.
+      void this.unlock(); // resume() executes here, before any promise/await.
     };
+    this.visibility = () => documentTarget?.hidden ? this._background() : this._foreground();
+    this.blur = () => this._background();
+    this.focus = () => this._foreground();
+    this.pageHide = () => { this.pageHidden = true; this._background(true); };
+    this.pageShow = () => { this.pageHidden = false; this._foreground(); };
     this.stateChange = () => {
-      if (this.context.state === "running" && !documentTarget?.hidden) {
+      if (this.disposed || !this.loader || !this.outputGate) return;
+      if (this.context.state === "running" && this._active()) {
         this.unlocked = true;
         for (const voice of this.voices) this._tryStart(voice);
+        if (this.gateEnvelope.to !== 1) this.gateEnvelope = ramp(this.outputGate.gain, 1, .25, this.context, this.gateEnvelope);
+      } else if (this.context.state === "running") {
+        this._background(true); // A late resume must never unmute a hidden page.
+      } else if (this.context.state === "suspended" || this.context.state === "interrupted") {
+        this._silence(); // iOS can interrupt audio before visibilitychange fires.
       }
     };
     // Passive capture does not consume the gesture needed by touch/game input.
     // Retain these after unlocking to recover from Safari interruptions.
     for (const type of gestures) eventTarget?.addEventListener(type, this.gesture, { capture: true, passive: true });
-    eventTarget?.addEventListener("pageshow", this.visibility);
+    eventTarget?.addEventListener("blur", this.blur);
+    eventTarget?.addEventListener("focus", this.focus);
+    eventTarget?.addEventListener("pagehide", this.pageHide);
+    eventTarget?.addEventListener("pageshow", this.pageShow);
     documentTarget?.addEventListener("visibilitychange", this.visibility);
     this.context?.addEventListener("statechange", this.stateChange);
+  }
+
+  _active() { return !this.backgrounded && !this.pageHidden && !this.documentTarget?.hidden; }
+
+  _silence() {
+    if (!this.context || !this.outputGate) return;
+    this.gateEnvelope = ramp(this.outputGate.gain, 0, 0, this.context, this.gateEnvelope);
+    for (const voice of this.voices) {
+      if (!voice.loop || voice.stopping) this._release(voice);
+      else if (voice.sound?.isPlaying) {
+        // Keep the same voice/Audio object and loop offset, but release its
+        // single-use buffer source. No stale attack or outgoing fade is replayed.
+        const sound = voice.sound;
+        sound.pause(); sound.disconnect(); sound.source.disconnect(); sound.source = null;
+        voice.paused = true;
+      }
+    }
+  }
+
+  _suspend() {
+    this.suspendTimer = null;
+    if (this.disposed || this._active() || !this.context) return;
+    this._silence();
+    if (this.context.state === "closed" || this.context.state === "suspended") return;
+    try {
+      Promise.resolve(this.context.suspend()).then(() => {
+        // A queued native suspension may complete after the page has returned.
+        if (!this.disposed && this._active() && this.unlocked) void this.unlock();
+      }).catch(() => {});
+    } catch { /* An OS interruption may already have suspended the context. */ }
+  }
+
+  _background(immediate = false) {
+    if (this.disposed || !this.context || !this.outputGate) return;
+    this.backgrounded = true;
+    if (immediate || this.context.state !== "running") {
+      clearTimeout(this.suspendTimer); this._suspend();
+    } else if (this.suspendTimer === null) {
+      // Allow a short output fade on blur/visibility changes. pagehide takes
+      // the synchronous path because a frozen/BFCache page cannot run timers.
+      this.gateEnvelope = ramp(this.outputGate.gain, 0, .02, this.context, this.gateEnvelope);
+      for (const voice of this.voices) if (!voice.loop || voice.stopping) this._release(voice);
+      this.suspendTimer = setTimeout(() => this._suspend(), 40);
+    }
+  }
+
+  _foreground() {
+    if (this.disposed || this.pageHidden || this.documentTarget?.hidden) return;
+    this.backgrounded = false;
+    clearTimeout(this.suspendTimer); this.suspendTimer = null;
+    if (this.unlocked) void this.unlock();
   }
 
   _report(key, message) {
@@ -124,33 +197,18 @@ export class AudioManager {
   }
 
   async unlock() {
-    if (this.disposed || !this.context || !this.loader || this.context.state === "closed" || this.documentTarget?.hidden) return false;
+    if (this.disposed || !this.context || !this.loader || this.context.state === "closed" || !this._active()) return false;
+    clearTimeout(this.suspendTimer); this.suspendTimer = null;
     try {
       if (this.context.state !== "running") {
-        // Both calls happen synchronously inside the original trusted gesture.
-        // Do not await a fetch or decode before resume() on iOS.
-        const resumed = this.context.resume();
-        if (!this.unlockSource) {
-          const source = this.context.createBufferSource();
-          this.unlockSource = source;
-          source.buffer = this.silence; source.connect(this.context.destination);
-          source.onended = () => { source.disconnect(); source.onended = null; if (this.unlockSource === source) this.unlockSource = null; };
-          source.start(0);
-        }
-        await resumed;
+        // Must run synchronously in the original gesture for both suspended and
+        // interrupted states. No direct-to-speaker warm-up buffers are needed.
+        await this.context.resume();
       }
-      if (this.disposed || this.context.state !== "running") return false;
+      if (this.disposed || !this._active() || this.context.state !== "running") return false;
       this.stateChange();
       return true;
-    } catch { this._clearUnlockSource(); return false; } // Retry on the next gesture; never block input.
-  }
-
-  _clearUnlockSource() {
-    const source = this.unlockSource;
-    if (!source) return;
-    source.onended = null;
-    try { source.stop(); } catch { /* Already ended. */ }
-    source.disconnect(); this.unlockSource = null;
+    } catch { return false; } // Retry on the same tap's release or next gesture.
   }
 
   load(id) {
@@ -196,7 +254,7 @@ export class AudioManager {
     if (!this.buses.has(channel)) return null;
     const loop = options.loop ?? config.loop ?? false;
     // Never build a backlog of attacks while locked or in the background.
-    if (!loop && (this.context.state !== "running" || this.documentTarget?.hidden)) return null;
+    if (!loop && (this.context.state !== "running" || !this._active())) return null;
     let count = 0, oldest = null;
     for (const voice of this.voices) if (voice.id === id) {
       if (loop && !position && !voice.position && !voice.stopping) return voice;
@@ -217,15 +275,23 @@ export class AudioManager {
       if (voice.stopped) return;
       if (!buffer) { this._release(voice); return; }
       voice.buffer = buffer;
-      if (!voice.loop && (this.context.state !== "running" || this.documentTarget?.hidden)) this._release(voice);
+      if (!voice.loop && (this.context.state !== "running" || !this._active())) this._release(voice);
       else this._tryStart(voice);
     });
     return voice;
   }
 
   _tryStart(voice) {
-    if (voice.stopped || voice.sound || !voice.buffer || this.context.state !== "running" || this.documentTarget?.hidden) return;
+    if (voice.stopped || (voice.sound && !voice.paused) || !voice.buffer || this.context.state !== "running" || !this._active()) return;
     try {
+      if (voice.paused) {
+        const sound = voice.sound;
+        voice.envelope = ramp(sound.gain.gain, voice.volume, .25, this.context, null, 0);
+        sound.play();
+        sound.source.onended = () => { sound.onEnded(); this._release(voice); };
+        voice.paused = false;
+        return;
+      }
       const sound = voice.position ? new PositionalAudio(this.listener) : new Audio(this.listener);
       voice.sound = sound;
       sound.gain.disconnect(); sound.gain.connect(this.buses.get(voice.channel).node);
@@ -266,7 +332,7 @@ export class AudioManager {
   }
   _stopVoice(voice, fade) {
     if (voice.stopped) return;
-    if (!voice.sound || !fade) { this._release(voice); return; }
+    if (!voice.sound || voice.paused || !fade) { this._release(voice); return; }
     if (voice.stopping) return;
     voice.stopping = true;
     voice.envelope = ramp(voice.sound.gain.gain, 0, fade, this.context, voice.envelope);
@@ -307,16 +373,19 @@ export class AudioManager {
     if (this.disposed) return;
     this.disposed = true;
     for (const type of gestures) this.eventTarget?.removeEventListener(type, this.gesture, true);
-    this.eventTarget?.removeEventListener("pageshow", this.visibility);
+    this.eventTarget?.removeEventListener("blur", this.blur);
+    this.eventTarget?.removeEventListener("focus", this.focus);
+    this.eventTarget?.removeEventListener("pagehide", this.pageHide);
+    this.eventTarget?.removeEventListener("pageshow", this.pageShow);
     this.documentTarget?.removeEventListener("visibilitychange", this.visibility);
     this.context?.removeEventListener("statechange", this.stateChange);
-    this._clearUnlockSource();
+    clearTimeout(this.suspendTimer); this.suspendTimer = null;
     for (const voice of this.voices) this._release(voice);
     for (const bus of this.buses.values()) bus.node.disconnect();
     this.buses.clear(); this.buffers.clear(); this.loads.clear(); this.config.clear();
     this.root.removeFromParent(); this.listener?.removeFromParent();
     this.listener?.gain.disconnect(); this.listener?._timer?.dispose();
-    this.silence = null;
+    this.outputGate?.disconnect();
     // Three shares its AudioContext with loaders/other users. Do not close it.
   }
 }

@@ -21,12 +21,6 @@ import { attachAudioControls } from "./audio/AudioControls.js";
 
 const canvas = document.querySelector("#viewport");
 const statsElement = document.querySelector("#stats");
-const worldSession = await loadWorldSession(statsElement);
-
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.setPixelRatio(1.0);
-
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x83b9de);
 const camera = new THREE.PerspectiveCamera(62, 1, 1, 5200);
@@ -36,6 +30,12 @@ const detachAudioControls = attachAudioControls(audio, document.querySelector("#
 // the first gesture; locked one-shot effects are dropped instead of queued.
 void audio.preload();
 audio.playMusic("exploration", { fade: 2 });
+// Register gesture capture before any world/file-picker await. The first tap
+// may select the world, and must also unlock the shared audio context.
+const worldSession = await loadWorldSession(statsElement);
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.setPixelRatio(1.0);
 const combatAudio = {
   clawSound: () => audio.play("claw"),
   destructionSound: (hit, target) => audio.play3D("crate_break", target.position, { volume: .8, pitch: 1.1 }),
