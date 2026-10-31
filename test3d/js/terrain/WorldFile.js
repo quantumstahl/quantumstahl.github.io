@@ -18,6 +18,7 @@ export class WorldTileStore {
     this.warpSummaries = new Map();
     this.warpMetadataComplete = tiles.size === 0;
     this.rockExposureTileKeys = rockKeys;
+    this.holeMasks = new Map();
     this.materialData = materialData;
     this.waterData = new WaterData();
     this.waterBeds = new WaterBedData();
@@ -29,7 +30,7 @@ export class WorldTileStore {
 
   static parse(text) {
     const world = JSON.parse(text);
-    if (!world || world.format !== FORMAT || ![1, 2, 3, 4, 5, 6, 7].includes(world.version) || world.baseTerrain !== "flat-v1"
+    if (!world || world.format !== FORMAT || ![1, 2, 3, 4, 5, 6, 7, 8].includes(world.version) || world.baseTerrain !== "flat-v1"
       || world.tileSize !== TERRAIN_TILE_SIZE || world.tileSegments !== TERRAIN_TILE_SEGMENTS || !Array.isArray(world.tiles)) {
       throw new Error("This is not a supported MaxWorld world file.");
     }
@@ -56,6 +57,7 @@ export class WorldTileStore {
       const warpSummary = validator.refreshWarpSummary(tile);
       if (warpSummary) store.warpSummaries.set(key, warpSummary);
       if (record.rockExposure) store.rockExposureTileKeys.add(key);
+      if (tile.holes) store.holeMasks.set(key, tile.holes);
     }
     store.warpMetadataComplete = true;
     return { store, settings: { rockShellEnabled: world.settings?.rockShellEnabled !== false, environment: normalizeEnvironmentSettings(world.settings?.environment), grass: normalizeGrassSettings(world.settings?.grass) }, savedAt: world.savedAt ?? null, version: world.version };
@@ -73,14 +75,15 @@ export class WorldTileStore {
     const waterSnapshot = this.waterData.snapshot();
     const bedSnapshot=this.waterBeds.snapshot();
     const objectSnapshot = this.objectData.snapshot();
-    const header = JSON.stringify({ format: FORMAT, version: 7, baseTerrain: "flat-v1", tileSize: provider.tileSize, tileSegments: provider.tileSegments, savedAt: new Date().toISOString(), settings: { ...settings, grass: normalizeGrassSettings(settings?.grass) }, materials: materialSnapshot.materials, water: waterSnapshot.value,waterBeds:bedSnapshot.value, objects: objectSnapshot.value });
+    const header = JSON.stringify({ format: FORMAT, version: 8, baseTerrain: "flat-v1", tileSize: provider.tileSize, tileSegments: provider.tileSegments, savedAt: new Date().toISOString(), settings: { ...settings, grass: normalizeGrassSettings(settings?.grass) }, materials: materialSnapshot.materials, water: waterSnapshot.value,waterBeds:bedSnapshot.value, objects: objectSnapshot.value });
     return { text: `${header.slice(0, -1)},"tiles":[${[...tiles.values()].join(",")}],"materialTiles":[${[...materialSnapshot.tiles.values()].join(",")}]}`, tiles, versions, rockKeys, materialSnapshot, waterSnapshot,bedSnapshot, objectSnapshot,
-      warpSummaries: new Map(provider.warpSummaries) };
+      warpSummaries: new Map(provider.warpSummaries), holeMasks: new Map([...provider.holeMasks].map(([key, mask]) => [key, mask.slice()])) };
   }
 
   commit(snapshot, provider) {
     this.tiles = snapshot.tiles;
     this.warpSummaries = snapshot.warpSummaries;
+    this.holeMasks = snapshot.holeMasks;
     this.rockExposureTileKeys = snapshot.rockKeys;
     this.materialData.commit(snapshot.materialSnapshot);
     this.waterData.commit(snapshot.waterSnapshot);

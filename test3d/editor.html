@@ -24,6 +24,8 @@
       <button type="button" data-tool="smoothWarp" aria-pressed="false" title="Smooth XZ terrain displacement">Smooth Warp</button>
       <button type="button" data-tool="paint" aria-pressed="false">Paint</button>
       <button type="button" data-tool="erasePaint" aria-pressed="false">Erase paint</button>
+      <button type="button" data-tool="hole" aria-pressed="false" title="Remove terrain and Rockify cells without changing heights">Paint Hole</button>
+      <button type="button" data-tool="restoreHole" aria-pressed="false">Restore Terrain</button>
       <button type="button" data-tool="water" aria-pressed="false">Water</button>
       <button type="button" data-tool="objects" aria-pressed="false">Objects</button>
     </div>
@@ -62,7 +64,8 @@
     </details>
     <div id="brushPanel">
     <div class="inspector-title">Brush</div>
-    <label><span>Radius</span><output id="radiusValue">24 m</output><input id="radiusInput" type="range" min="4" max="80" step="2" value="24"></label>
+    <label><span>Radius</span><output id="radiusValue">24 m</output><input id="radiusInput" type="range" min="2" max="80" step="2" value="24"></label>
+    <p id="holeHelp" hidden>Removes whole 2 m terrain and Rockify cells fully inside the brush. Restore targets the hidden original surface. Place a GLB cave with mesh collision using Objects; overlap its entrance rim with retained terrain.</p>
     <label id="sculptStrengthControl"><span>Strength</span><output id="strengthValue">18</output><input id="strengthInput" type="range" min="2" max="40" step="1" value="18"></label>
     <label id="paintFlowControl" hidden><span>Paint flow</span><output id="paintFlowValue">50%</output><input id="paintFlowInput" type="range" min="1" max="100" step="1" value="50"></label>
     <section id="materialPanel" class="material-panel" aria-label="Terrain materials">

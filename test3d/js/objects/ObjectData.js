@@ -20,7 +20,7 @@ export function normalizeObject(value) {
   if (!value || typeof value.id !== "string" || !value.id || typeof value.assetId !== "string" || !value.assetId) throw new Error("Invalid placed object ID or asset reference.");
   const result = { id: value.id, assetId: value.assetId, position: vector(value.position, [0, 0, 0]), rotation: vector(value.rotation, [0, 0, 0]), scale: vector(value.scale, [1, 1, 1]), properties: copy(value.properties ?? {}) };
   if (typeof result.properties !== "object" || Array.isArray(result.properties)) throw new Error("Invalid object properties.");
-  if (result.properties.destructible != null) result.properties.destructible = normalizeDestructible(result.properties.destructible);
+  if (result.properties.destructible != null) result.properties.destructible = normalizeDestructible(result.properties.destructible === false ? { enabled: false } : result.properties.destructible);
   if (result.scale.some(n => n <= 0)) throw new Error("Object scales must be positive.");
   if (value.anchor) {
     const { sourceX, sourceZ, offset = 0 } = value.anchor;
@@ -48,6 +48,7 @@ export function normalizeAsset(value, validatePayload = true) {
   }
   if (value.lod != null) result.lod = normalizeLOD(value.lod, result.id);
   if (value.collision != null) result.collision = normalizeCollision(value.collision);
+  if (value.destructible != null) result.destructible = normalizeDestructible(value.destructible);
   return result;
 }
 export class ObjectData {
@@ -102,7 +103,7 @@ export class ObjectData {
     if (this.resources.delete(id)) this.changed({ kind: "resource", id, before, after: null });
   }
   demoteAsset(id, value) {
-    this.checkDestructibleReference(id);
+    // The payload/ID remains available as a resource, including for debris.
     if ([...this.objects.values()].some(object => object.assetId === id)) throw new Error("Delete this asset's placed objects first.");
     const resource = normalizeAsset(value), before = this.assets.get(id);
     if (resource.id !== id || resource.lod) throw new Error("Invalid restored GLB resource.");
@@ -141,11 +142,13 @@ export class ObjectData {
   snapshot() {
     const used = new Set([...this.assets.values()].flatMap(asset => asset.lod?.levels.map(level => level.resourceId) ?? []));
     for (const asset of this.assets.values()) if (asset.collision?.sourceId) used.add(asset.collision.sourceId);
+    for (const asset of this.assets.values()) if (asset.destructible?.destroyedAsset) used.add(asset.destructible.destroyedAsset);
     for (const object of this.objects.values()) if (object.properties.destructible?.destroyedAsset) used.add(object.properties.destructible.destroyedAsset);
     return { revision: this.revision, value: { assets: [...this.assets.values()], resources: [...this.resources.values()].filter(resource => used.has(resource.id)), instances: [...this.objects.values()] } };
   }
   commit(snapshot) { this.savedRevision = snapshot.revision; }
   checkDestructibleReference(id) {
+    if ([...this.assets.values()].some(asset => asset.id !== id && asset.destructible?.destroyedAsset === id)) throw new Error("This GLB is used by an asset's destructible defaults.");
     if ([...this.objects.values()].some(object => object.properties.destructible?.destroyedAsset === id)) throw new Error("This GLB is used by a destructible object.");
   }
 }

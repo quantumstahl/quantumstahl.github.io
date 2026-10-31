@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { normalizeDestructible } from "./DestructibleConfig.js";
+import { resolveDestructible } from "./DestructibleConfig.js";
 
 const SETTLING = Object.freeze({ linearSpeed: .4, angularSpeed: .6, rotationRate: 9, heightRate: 14,
   angleTolerance: .01, heightTolerance: .005, clearance: .005 });
@@ -33,6 +33,18 @@ export class DestructibleSystem {
       if (event.kind === "object") {
         const state = this.states.get(event.id);
         if (state) { this.active.get(event.id)?.(); this.active.delete(event.id); this.states.delete(event.id); }
+      } else if (event.kind === "asset") {
+        for (const state of this.states.values()) if (state.record.assetId === event.id && !this.destroyed.has(state.id)) {
+          const config = resolveDestructible(event.after, state.record);
+          // Preserve damage already taken when authoring defaults change. An
+          // asset metadata edit must never heal all of its runtime instances.
+          if (config) {
+            const damage = Math.max(0, state.config.health - state.health);
+            state.health = Math.max(0, config.health - damage); state.config = config;
+          }
+          state.enabled = !!config?.enabled;
+          if (!state.enabled) { this.active.get(state.id)?.(); this.active.delete(state.id); }
+        }
       }
     });
   }
@@ -63,7 +75,7 @@ export class DestructibleSystem {
       if (this.objects.cellBounds(key).distanceToPoint(focus) > this.activationDistance) continue;
       for (const id of ids) {
         if (this.destroyed.has(id) || this.objects.excludeIds.has(id)) continue;
-        const record = this.data.objects.get(id), config = normalizeDestructible(record.properties.destructible);
+        const record = this.data.objects.get(id), config = resolveDestructible(this.data.assets.get(record.assetId), record);
         if (!config?.enabled) continue;
         const state = this.states.get(id) ?? this.createTarget(record, config);
         if (state.position.distanceTo(focus) > this.activationDistance + state.radius) continue;

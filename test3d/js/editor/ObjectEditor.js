@@ -8,6 +8,7 @@ import { ObjectLODPanel, applyLODHistory } from "./ObjectLODPanel.js";
 import { ObjectBrush, DEFAULT_OBJECT_BRUSH, applyBrushHistory } from "./ObjectBrush.js";
 import { ObjectCollisionPanel } from "./ObjectCollisionPanel.js";
 import { DestructiblePanel } from "./DestructiblePanel.js";
+import { replaceGLB } from "./ReplaceGLB.js";
 
 export class ObjectEditor {
   constructor({ scene, camera, canvas, data, assets, system, provider, panel, recordHistory, onStatus, activate }) {
@@ -54,6 +55,9 @@ export class ObjectEditor {
       <div class="material-actions"><button id="importGLB" type="button">Import GLB…</button><button id="removeGLB" type="button">Remove asset</button></div>
       <input id="glbFiles" type="file" accept=".glb,model/gltf-binary" multiple hidden>
       <label>Asset library<select id="objectAssets" size="5" aria-label="GLB asset library"></select></label>
+      <button id="replaceGLB" type="button" disabled>Replace GLB…</button>
+      <input id="replacementGLBFile" type="file" accept=".glb,model/gltf-binary" hidden>
+      <p id="replacementGLBStatus" role="status"></p>
       <div class="material-actions"><button id="placeObject" type="button">Place copies</button><button id="selectObject" type="button">Select objects</button></div>
       <div class="material-actions"><button id="paintObjects" type="button">Paint brush</button><button id="eraseObjects" type="button">Erase brush</button></div>
       <section id="objectBrushPanel" aria-label="Object brush settings" hidden>
@@ -70,6 +74,7 @@ export class ObjectEditor {
       <p id="objectAssetStatus" role="status"></p>
       <section id="objectLODPanel" aria-label="Object LOD"></section>
       <section id="objectCollisionPanel" aria-label="Object collision"></section>
+      <section id="assetDestructiblePanel" aria-label="Asset destructible defaults"></section>
       <label>Placed objects<select id="placedObjects" aria-label="Placed objects"></select></label>
       <div class="material-actions"><button id="focusObject" type="button">Focus</button><button id="duplicateObject" type="button">Duplicate</button><button id="deleteObject" type="button">Delete</button></div>
       <div class="material-actions" aria-label="Object transform"><button data-object-mode="translate" type="button">Move</button><button data-object-mode="rotate" type="button">Rotate</button><button data-object-mode="scale" type="button">Scale</button></div>
@@ -86,11 +91,40 @@ export class ObjectEditor {
       <p>Save embeds each unique GLB once. Imported textures and animations travel with the world.</p>`;
     this.$ = selector => this.panel.querySelector(selector);
     this.destructiblePanel = new DestructiblePanel(this, this.$("#objectDestructiblePanel"));
+    this.assetDestructiblePanel = new DestructiblePanel(this, this.$("#assetDestructiblePanel"), { assetDefaults: true });
     this.lodPanel = new ObjectLODPanel({ element: this.$("#objectLODPanel"), data: this.data, assets: this.assets, system: this.system,
       getAssetId: () => this.assetId, getSelectedId: () => this.selectedId, preview: level => this.setLODPreview(level), recordHistory: this.recordHistory, onStatus: this.onStatus });
     this.collisionPanel = new ObjectCollisionPanel({ element: this.$("#objectCollisionPanel"), scene: this.scene, data: this.data, assets: this.assets,
       getAssetId: () => this.assetId, getSelectedId: () => this.selectedId, getRoot: () => this.selectedRoot, recordHistory: this.recordHistory, onStatus: this.onStatus });
     this.$("#importGLB").onclick = () => this.$("#glbFiles").click();
+    this.$("#replaceGLB").onclick = () => {
+      const asset = this.data.assets.get(this.assetId); if (!asset || this.replacingGLB) return;
+      this.finishTransform();
+      // Capture the target when opening the picker, not when parsing finishes.
+      this.replacementTarget = { id: asset.id, name: asset.name };
+      this.$("#replacementGLBStatus").textContent = `Choose a replacement GLB for “${asset.name}”. All placed copies keep their transforms and settings.`;
+      this.$("#replacementGLBFile").click();
+    };
+    this.$("#replacementGLBFile").onchange = async event => {
+      const file = event.target.files[0], target = this.replacementTarget;
+      event.target.value = ""; this.replacementTarget = null;
+      if (!file || !target || this.replacingGLB) return;
+      this.replacingGLB = true; this.refreshLists();
+      const status = this.$("#replacementGLBStatus");
+      status.textContent = `Validating ${file.name} for “${target.name}”…`;
+      try {
+        const result = await replaceGLB(this.data, this.assets, target.id, file, { beforeCommit: () => this.finishTransform() });
+        if (result.entries) this.recordHistory({ kind: "objectAsset", entries: result.entries });
+        status.textContent = result.unchanged ? `“${result.name}” already contains this GLB.`
+          : `Replaced “${result.name}” with ${file.name}. All placements preserved. ${result.warnings.join(" ")}`;
+        this.onStatus(status.textContent);
+      } catch (error) {
+        status.textContent = `Replacement failed for “${target.name}”: ${error.message}`; this.onStatus(status.textContent);
+      } finally { this.replacingGLB = false; if (!this.disposed) this.refreshLists(); }
+    };
+    this.$("#replacementGLBFile").oncancel = () => {
+      this.replacementTarget = null; this.$("#replacementGLBStatus").textContent = "";
+    };
     this.$("#glbFiles").onchange = async event => {
       for (const file of event.target.files) {
         try {
@@ -166,12 +200,16 @@ export class ObjectEditor {
   }
   refreshLists() {
     this.destructiblePanel.refresh();
+    this.assetDestructiblePanel.refresh();
     const list = this.$("#objectAssets"); list.replaceChildren();
     for (const asset of this.data.assets.values()) {
       const option = new Option(`${asset.name}${asset.lod ? " · LOD" : ""}${!this.canPlace(asset) ? " — missing; reimport to repair" : this.assets.errors.has(asset.id) ? " — load failed" : ""}`, asset.id);
       list.add(option);
     }
     list.value = this.assetId ?? "";
+    const replacementAsset = this.data.assets.get(this.assetId), replaceButton = this.$("#replaceGLB");
+    replaceButton.disabled = !replacementAsset || this.replacingGLB;
+    replaceButton.textContent = replacementAsset ? `Replace GLB: ${replacementAsset.name}…` : "Replace GLB…";
     const placed = this.$("#placedObjects"); placed.replaceChildren(new Option("Select an object…", ""));
     for (const record of this.data.objects.values()) placed.add(new Option(`${this.data.assets.get(record.assetId)?.name ?? "Missing asset"} · ${record.id.slice(-8)}`, record.id));
     placed.value = this.selectedId ?? "";
@@ -418,6 +456,7 @@ export class ObjectEditor {
     if (root.userData.mixer) { root.userData.mixer.update(delta); this.updateOutline(); }
   }
   dispose() {
+    this.disposed = true;
     this.finishBrush(); this.brushPreview.removeFromParent(); this.brushGeometry.dispose(); this.brushMaterial.dispose();
     this.lodPanel.dispose();
     this.collisionPanel.dispose();

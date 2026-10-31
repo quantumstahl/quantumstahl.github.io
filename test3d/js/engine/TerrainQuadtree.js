@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { TerrainCutoutMask } from "../terrain/TerrainCutoutMask.js";
 import { TERRAIN_HEIGHT_GLSL } from "../terrain/TerrainHeight.js";
 import { ROCK_APPEARANCE_GLSL } from "./RockAppearance.js";
 import { TERRAIN_MATERIAL_GLSL } from "../terrain/TerrainMaterialShader.js";
@@ -95,6 +96,9 @@ function createTerrainMaterial(atmosphere, heightCache, materialCache) {
       out float vTerrainSurface;
       out vec3 vWorldPosition;
       out vec2 vSourcePosition;
+      #ifdef TERRAIN_PATCH_BOUNDARIES
+        out vec2 vPatchUv;
+      #endif
       uniform highp sampler2DArray uHeightTiles;
       uniform highp sampler2DArray uWarpTiles;
       uniform highp sampler2DArray uRockExposureTiles;
@@ -290,6 +294,9 @@ function createTerrainMaterial(atmosphere, heightCache, materialCache) {
           patchUv.x = round(patchUv.x * 16.0) / 16.0;
         }
         local.xz = patchUv;
+        #ifdef TERRAIN_PATCH_BOUNDARIES
+          vPatchUv = patchUv;
+        #endif
         vec4 instancePosition = instanceMatrix * local;
         vec2 sourcePosition = instancePosition.xz;
         bool fullResolutionResident;
@@ -318,6 +325,9 @@ function createTerrainMaterial(atmosphere, heightCache, materialCache) {
       uniform bool uRockSourceMaskEnabled;
       in float vHeight; in float vRockExposure; in float vRockCoverage;in float vTerrainSurface; in vec3 vWorldPosition; in vec2 vSourcePosition;
       out vec4 outColor;
+      #ifdef TERRAIN_PATCH_BOUNDARIES
+        in vec2 vPatchUv;
+      #endif
       ${ROCK_APPEARANCE_GLSL}
       ${materialCache ? TERRAIN_MATERIAL_GLSL : ""}
       void main() {
@@ -327,7 +337,9 @@ function createTerrainMaterial(atmosphere, heightCache, materialCache) {
           ivec2 sourceCell = ivec2(floor(sourceCellPosition));
           ivec2 sourceResolution = ivec2(uRockSourceMaskResolution);
           if (all(greaterThanEqual(sourceCell, ivec2(0))) && all(lessThan(sourceCell, sourceResolution))) {
-            rockMaskHit = texelFetch(uRockSourceMask, sourceCell, 0).r > .5;
+            vec2 cutout = texelFetch(uRockSourceMask, sourceCell, 0).rg;
+            if (cutout.g > .5) discard;
+            rockMaskHit = cutout.r > .5;
             // A half-metre source-space inset into the retained one-cell
             // guard prevents a coarse patch from peeking through beside the
             // shell. It deliberately samples only cardinal interior cells,
@@ -364,7 +376,9 @@ function createTerrainMaterial(atmosphere, heightCache, materialCache) {
         // matches the detailed shell; inward history is not fake occlusion.
         float cliffShade = (1.0 - smoothstep(0.58, 0.74, abs(faceNormal.y))) * vTerrainSurface;
         float cliffMacro = .5 + .26 * sin(dot(vWorldPosition.xz, vec2(.066, .042))) + .24 * sin(dot(vWorldPosition.xz, vec2(-.030, .059)));
-        cliffShade = smoothstep(0.0, 1.0, cliffShade + (cliffMacro - .5) * .07);
+        // Scale variation by the slope mask. An additive macro created faint
+        // rock coverage even on flat ground, revealed by the moving sun.
+        cliffShade = smoothstep(0.0, 1.0, cliffShade + (cliffMacro - .5) * .07 * cliffShade);
         float exposureRockCoverage =smoothstep(0.05, 0.30, vRockCoverage);
 
         float rockShade = max(cliffShade, exposureRockCoverage);
@@ -375,6 +389,11 @@ function createTerrainMaterial(atmosphere, heightCache, materialCache) {
         color = environmentLightDisplayColor(color);
         if (!uSkyFadeEnabled) color = mix(color, uAtmosphereColor, atmosphere);
         outColor = vec4(environmentFog(color, vWorldPosition, false), 1.0);
+        #ifdef TERRAIN_PATCH_BOUNDARIES
+          vec2 edgePixels = min(vPatchUv, 1.0 - vPatchUv) / max(fwidth(vPatchUv), vec2(.000001));
+          float boundary = 1.0 - smoothstep(.75, 1.5, min(edgePixels.x, edgePixels.y));
+          outColor.rgb = mix(outColor.rgb, vec3(0.0, 1.0, 1.0), boundary);
+        #endif
       }`,
     // Folded Rockify faces may intentionally be viewed from either side.
     side: THREE.DoubleSide,
@@ -410,6 +429,8 @@ export class TerrainQuadtree {
     this.trianglesPerPatch = this.geometry.index.count / 3;
     this.minimumPatchSize = MIN_PATCH_SIZE;
     this.dataProvider = heightCache.provider;
+    this.cutoutMask = new TerrainCutoutMask(this.dataProvider);
+    this.rockSourceMask = null;
     this.heightCache = heightCache;
     this.warpLod = { ...DEFAULT_WARP_LOD, ...warpLod };
     this.warpBoundsScratch = {};
@@ -431,6 +452,13 @@ export class TerrainQuadtree {
     batch = { mesh, count: 0 };
     this.batches.set(size, batch);
     return batch;
+  }
+
+  // Temporary diagnostic overlay; no extra varyings/work in normal rendering.
+  setPatchBoundariesVisible(visible) {
+    if (visible) this.material.defines.TERRAIN_PATCH_BOUNDARIES = 1;
+    else delete this.material.defines.TERRAIN_PATCH_BOUNDARIES;
+    this.material.needsUpdate = true;
   }
 
   update(camera) {
@@ -554,6 +582,7 @@ export class TerrainQuadtree {
   }
 
   syncHeightCacheUniforms() {
+    this.syncCutoutMask();
     const uniforms = this.material.uniforms;
     uniforms.uCoarseHeight.value = this.heightCache.coarseTexture;
     uniforms.uCoarseWarp.value = this.heightCache.coarseWarpTexture;
@@ -595,9 +624,14 @@ export class TerrainQuadtree {
     return keys;
   }
 
-  // Editor-only RockSurfaceShell source cutout. This transient render data is
-  // independent of persistent terrain and immediately restores cleanly.
+  // Shell replacement and persistent holes share a single sampler.
   setExperimentalRockMask(mask = null) {
+    this.rockSourceMask = mask;
+    this.syncCutoutMask();
+  }
+
+  syncCutoutMask() {
+    const mask = this.cutoutMask.update(this.rockSourceMask);
     const uniforms = this.material.uniforms;
     uniforms.uRockSourceMaskEnabled.value = Boolean(mask);
     if (!mask) return;

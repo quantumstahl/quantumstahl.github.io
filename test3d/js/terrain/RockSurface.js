@@ -3,5 +3,5 @@
 export const ROCK_COVERAGE_THRESHOLD = .035;
 export function rockCellCovered(tile, x, z, threshold = ROCK_COVERAGE_THRESHOLD) {
   const width = tile.segments + 1, a = z * width + x, exposure = tile.rockExposure;
-  return !!exposure && Math.max(Math.abs(exposure[a]), Math.abs(exposure[a + 1]), Math.abs(exposure[a + width]), Math.abs(exposure[a + width + 1])) >= threshold;
+  return !tile.holes?.[z * tile.segments + x] && !!exposure && Math.max(Math.abs(exposure[a]), Math.abs(exposure[a + 1]), Math.abs(exposure[a + width]), Math.abs(exposure[a + width + 1])) >= threshold;
 }

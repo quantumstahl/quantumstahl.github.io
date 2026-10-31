@@ -7,9 +7,10 @@ export const CLAW_ATTACKS = Object.freeze([
 ]);
 
 export class ClawCombo {
-  constructor(animation, melee, body, { comboWindow = CLAW_DEFAULTS.comboWindow, attacks = [] } = {}) {
+  constructor(animation, melee, body, { comboWindow = CLAW_DEFAULTS.comboWindow, attacks = [], clawSound = null } = {}) {
     this.animation = animation; this.melee = melee; this.body = body;
     this.comboWindow = comboWindow;
+    this.clawSound = clawSound;
     this.attacks = CLAW_ATTACKS.map((attack, i) => ({ ...attack, ...attacks[i] }));
     this.attackIndex = -1; this.nextIndex = 0; this.elapsed = 0;
     this.buffered = false; this.idleAge = Infinity;
@@ -18,6 +19,7 @@ export class ClawCombo {
   start(index) {
     this.attackIndex = index; this.elapsed = 0; this.buffered = false;
     this.melee.beginSwing(); this.animation.playAttack(index);
+    this.clawSound?.(index, this.body);
   }
   update(delta, pressed = false) {
     if (!Number.isFinite(delta) || delta < 0) delta = 0;

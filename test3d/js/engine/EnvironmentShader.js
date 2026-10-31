@@ -36,7 +36,12 @@ export const ENVIRONMENT_GLSL = `
   float environmentGroundLight(vec3 normal) {
     float sun = clamp(dot(normal, uLightDirection) * .42 + .58, .30, 1.0);
     float moon = clamp(dot(normal, uMoonLightDirection) * .42 + .58, .30, 1.0);
-    return mix(moon, sun, uDaylight);
+    // Keep directional shading relative to horizontal ground. Otherwise
+    // sun/moon elevation adds a second brightness cycle on top of the tint.
+    // These clamped reference values also keep the divisor away from zero.
+    float sunUp = clamp(uLightDirection.y * .42 + .58, .30, 1.0);
+    float moonUp = clamp(uMoonLightDirection.y * .42 + .58, .30, 1.0);
+    return mix(moon, sun, uDaylight) / mix(moonUp, sunUp, uDaylight);
   }
 
   float environmentSpecular(vec3 normal, vec3 viewDirection, float shininess) {

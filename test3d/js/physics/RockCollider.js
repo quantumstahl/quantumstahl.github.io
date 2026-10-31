@@ -37,7 +37,7 @@ export class RockCollider extends StaticColliders {
     this.unsubscribe = provider.onTileChanged((tile, channels, bounds) => {
       if (!(channels & TERRAIN_CHANGE.ALL)) return;
       const key = provider.tileKey(Math.round(tile.x / tile.size), Math.round(tile.z / tile.size));
-      if (!(channels & TERRAIN_CHANGE.ROCK_EXPOSURE)) {
+      if (!(channels & (TERRAIN_CHANGE.ROCK_EXPOSURE | TERRAIN_CHANGE.HOLES))) {
         const chunk = this.chunks.get(key); if (!chunk) return;
         const b = chunk.sourceBounds;
         if (bounds && (bounds.minX>b.maxX||bounds.maxX<b.minX||bounds.minZ>b.maxZ||bounds.maxZ<b.minZ)) return;

@@ -1,4 +1,4 @@
-// Opt-in, per-placement authoring settings. Runtime health never lives here.
+// Opt-in authoring defaults/overrides. Runtime health never lives here.
 export const DESTRUCTIBLE_DEFAULTS = Object.freeze({
   enabled: true, health: 3, destroyedAsset: "box2.glb", debrisLifetime: 4,
   impulseStrength: 1, outwardImpulse: 2.4, upwardImpulse: 3.2,
@@ -15,4 +15,11 @@ export function normalizeDestructible(value) {
     if (!Number.isFinite(n) || (positive ? n <= 0 : n < 0) || n > (key === "bounce" ? 1 : 1000000)) throw new Error(`Invalid destructible ${key}.`);
   }
   return config;
+}
+
+// A saved placement config is a complete override (including legacy maps).
+// Missing/null means inherit; explicit false must opt out of enabled defaults.
+export function resolveDestructible(asset, record) {
+  const override = record?.properties?.destructible;
+  return normalizeDestructible(override == null ? asset?.destructible : override === false ? { enabled: false } : override);
 }

@@ -2,14 +2,18 @@ import { proceduralHeight } from "./TerrainHeight.js";
 
 export const TERRAIN_TILE_SIZE = 256;
 export const TERRAIN_TILE_SEGMENTS = 128;
-export const TERRAIN_TILE_VERSION = 4;
+export const TERRAIN_TILE_VERSION = 5;
 // Transient notification hints; not serialized. Unknown/direct mutations use
 // ALL so consumers never infer unchanged exposure from a missing hint.
-export const TERRAIN_CHANGE = Object.freeze({ HEIGHT: 1, WARP: 2, ROCK_EXPOSURE: 4, ALL: 7 });
+export const TERRAIN_CHANGE = Object.freeze({ HEIGHT: 1, WARP: 2, ROCK_EXPOSURE: 4, HOLES: 8, ALL: 15 });
 const WARP_ACTIVITY_EPSILON = 0.001;
 
 function encodeFloat32(values) {
   const bytes = new Uint8Array(values.buffer, values.byteOffset, values.byteLength);
+  return encodeBytes(bytes);
+}
+
+function encodeBytes(bytes) {
   let binary = "";
   const chunkSize = 0x8000;
   for (let offset = 0; offset < bytes.length; offset += chunkSize) {
@@ -27,7 +31,7 @@ function decodeFloat32(base64, expectedLength) {
 }
 
 export class TerrainTile {
-  constructor({ x, z, size, segments, heights, source = "procedural", warp = null, rockExposure = null, materialMask = null }) {
+  constructor({ x, z, size, segments, heights, source = "procedural", warp = null, rockExposure = null, materialMask = null, holes = null }) {
     this.x = x;
     this.z = z;
     this.size = size;
@@ -56,6 +60,8 @@ export class TerrainTile {
     this.rockExposure = rockExposure;
     this.changedChannels = 0;
     this.materialMask = materialMask;
+    // One byte per source CELL. A hole removes both canonical triangles.
+    this.holes = holes;
   }
 
   get sampleSpacing() { return this.size / this.segments; }
@@ -144,6 +150,14 @@ export class TerrainDataProvider {
     // Exact channel-presence metadata survives CPU eviction. The rock shell
     // can discover saved/disconnected regions as their owners are loaded.
     this.rockExposureTileKeys = new Set(store?.rockExposureTileKeys ?? []);
+    // Exact small masks survive CPU height-tile eviction and GPU remapping.
+    this.holeMasks = new Map(store?.holeMasks ?? []);
+    if (store && !store.holeMasks) {
+      for (const key of this.persistedTileKeys) {
+        const tile = this.deserializeTile(store.read(key));
+        if (tile?.holes) this.holeMasks.set(key, tile.holes);
+      }
+    }
     // Diagnostic counters are accumulated between HUD refreshes. They only
     // measure newly-created procedural tiles, not ordinary cached sampling.
     this.profile = { generatedTiles: 0, generationMs: 0, generatedBySource: Object.create(null), warpSummaryTiles: 0, warpSummaryMs: 0 };
@@ -208,6 +222,7 @@ export class TerrainDataProvider {
     else if (serialized === null) this.persistedTileKeys.delete(key);
     if (!tile) tile = this.createProceduralTile(tileX, tileZ, requestSource);
     if (tile.rockExposure) this.rockExposureTileKeys.add(key);
+    if (tile.holes) this.holeMasks.set(key, tile.holes);
     this.refreshHeightSummary(tile);
     this.refreshWarpSummary(tile);
     this.cache.set(key, tile);
@@ -230,6 +245,30 @@ export class TerrainDataProvider {
       return cached;
     }
     return this.persistedTileKeys.has(key) ? this.getTile(tileX, tileZ, requestSource) : null;
+  }
+
+  isHoleAt(sourceX, sourceZ) {
+    const tx = Math.floor(sourceX / this.tileSize), tz = Math.floor(sourceZ / this.tileSize);
+    const mask = this.holeMasks.get(this.tileKey(tx, tz));
+    if (!mask) return false;
+    const x = Math.floor((sourceX - tx * this.tileSize) / this.sampleSpacing);
+    const z = Math.floor((sourceZ - tz * this.tileSize) / this.sampleSpacing);
+    return mask[z * this.tileSegments + x] === 1;
+  }
+
+  setHoleCell(cellX, cellZ, hole) {
+    if (!Number.isSafeInteger(cellX) || !Number.isSafeInteger(cellZ)) throw new Error("Hole edits require integer source cells.");
+    const tx = Math.floor(cellX / this.tileSegments), tz = Math.floor(cellZ / this.tileSegments);
+    const key = this.tileKey(tx, tz), index = (cellZ - tz * this.tileSegments) * this.tileSegments + cellX - tx * this.tileSegments;
+    const value = hole ? 1 : 0;
+    if ((this.holeMasks.get(key)?.[index] ?? 0) === value) return false;
+    const tile = this.getTile(tx, tz, "hole-edit");
+    tile.holes ??= new Uint8Array(this.tileSegments ** 2);
+    tile.holes[index] = value;
+    this.holeMasks.set(key, tile.holes);
+    tile.source = "modified"; tile.dirty = true; tile.revision++;
+    this.markTileChanged(tile, TERRAIN_CHANGE.HOLES, cellX * this.sampleSpacing, cellZ * this.sampleSpacing);
+    return true;
   }
 
   sampleHeight(worldX, worldZ) {
@@ -654,19 +693,28 @@ export class TerrainDataProvider {
       heights: encodeFloat32(tile.heights),
       warp: tile.warp ? encodeFloat32(tile.warp) : null,
       rockExposure: tile.rockExposure ? encodeFloat32(tile.rockExposure) : null,
+      holes: tile.holes?.some(Boolean) ? encodeBytes(tile.holes) : null,
       // Material masks remain reserved; warp stores interleaved Float32 X/Z.
-      channels: { height: "float32", warp: tile.warp ? "float32x2" : null, rockExposure: tile.rockExposure ? "float32" : null, materialMask: null },
+      channels: { height: "float32", warp: tile.warp ? "float32x2" : null, rockExposure: tile.rockExposure ? "float32" : null, holes: tile.holes ? "uint8-cell" : null, materialMask: null },
     });
   }
 
   deserializeTile(serialized) {
     try {
       const record = JSON.parse(serialized);
-      if (![2, 3, TERRAIN_TILE_VERSION].includes(record.version) || record.size !== this.tileSize || record.segments !== this.tileSegments) return null;
+      if (![2, 3, 4, TERRAIN_TILE_VERSION].includes(record.version) || record.size !== this.tileSize || record.segments !== this.tileSegments) return null;
       const count = (this.tileSegments + 1) ** 2;
       const warp = record.warp ? decodeFloat32(record.warp, count * 2) : null;
       const rockExposure = record.rockExposure ? decodeFloat32(record.rockExposure, count) : null;
-      return new TerrainTile({ x: record.x, z: record.z, size: record.size, segments: record.segments, heights: decodeFloat32(record.heights, count), source: "persistent", warp, rockExposure });
+      let holes = null;
+      if (record.holes != null) {
+        if (record.version < 5 || typeof record.holes !== "string") return null;
+        const bytes = atob(record.holes);
+        if (bytes.length !== this.tileSegments ** 2) return null;
+        holes = Uint8Array.from(bytes, byte => byte.charCodeAt(0));
+        if (holes.some(value => value > 1)) return null;
+      }
+      return new TerrainTile({ x: record.x, z: record.z, size: record.size, segments: record.segments, heights: decodeFloat32(record.heights, count), source: "persistent", warp, rockExposure, holes });
     } catch {
       return null;
     }
@@ -678,6 +726,9 @@ export class TerrainDataProvider {
     const tileZ = Math.round(tile.z / this.tileSize);
     const saved = this.store.write(this.tileKey(tileX, tileZ), this.serializeTile(tile));
     if (saved) {
+      const key = this.tileKey(tileX, tileZ);
+      if (tile.holes) this.store.holeMasks?.set(key, tile.holes.slice());
+      else this.store.holeMasks?.delete(key);
       tile.dirty = false;
       if (!this.persistedTileKeys.has(this.tileKey(tileX, tileZ))) this.tileStateRevision += 1;
       this.persistedTileKeys.add(this.tileKey(tileX, tileZ));
@@ -695,6 +746,11 @@ export class TerrainDataProvider {
 
   markTileChanged(tile, channels = TERRAIN_CHANGE.ALL, sampleX, sampleZ) {
     tile.changedChannels |= channels;
+    if (channels & TERRAIN_CHANGE.HOLES) {
+      const key = this.tileKey(Math.round(tile.x / tile.size), Math.round(tile.z / tile.size));
+      if (tile.holes) this.holeMasks.set(key, tile.holes);
+      else this.holeMasks.delete(key);
+    }
     // Optional transient sample bounds let independent vegetation cells
     // invalidate a brush area without rebuilding a whole 256 m owner. An
     // unknown/direct mutation remains conservative for every consumer.

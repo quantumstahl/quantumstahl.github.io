@@ -7,8 +7,8 @@ import { WarpSurfacePicker } from "./WarpSurfacePicker.js";
 // uses a 2D grid traversal and exact triangle intersections without allocating
 // tiles. There is no approximate heightfield hit or inverse-warp iteration.
 export class ObjectSurfacePicker {
-  constructor(provider) {
-    this.provider = provider; this.warped = new WarpSurfacePicker(provider);
+  constructor(provider, { includeHoles = false } = {}) {
+    this.provider = provider; this.includeHoles = includeHoles; this.warped = new WarpSurfacePicker(provider, { includeHoles });
     this.intersection = new THREE.Vector3();
     this.a = new THREE.Vector3(); this.b = new THREE.Vector3(); this.c = new THREE.Vector3(); this.d = new THREE.Vector3();
     this.warp = { x: 0, z: 0 };
@@ -26,7 +26,7 @@ export class ObjectSurfacePicker {
       const distance = ray.origin.distanceTo(this.intersection);
       if (distance > maxDistance || (best && distance >= best.distance)) return;
       // Only unwarped cells are handled here, so final XZ equals source XZ.
-      best = { point: this.intersection.clone(), distance, sourceX: this.intersection.x, sourceZ: this.intersection.z };
+      best = { point: this.intersection.clone(), distance, sourceX: this.intersection.x, sourceZ: this.intersection.z, normal: new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a)).normalize() };
     };
     let ix = Math.floor(ray.origin.x / step), iz = Math.floor(ray.origin.z / step);
     const sx = Math.sign(ray.direction.x), sz = Math.sign(ray.direction.z);
@@ -42,7 +42,7 @@ export class ObjectSurfacePicker {
         + Math.abs(this.b.x - x - step) + Math.abs(this.b.z - z)
         + Math.abs(this.c.x - x) + Math.abs(this.c.z - z - step)
         + Math.abs(this.d.x - x - step) + Math.abs(this.d.z - z - step);
-      if (displacement <= .001) { test(this.a, this.c, this.b); test(this.b, this.c, this.d); }
+      if (displacement <= .001 && (this.includeHoles || !this.provider.isHoleAt(x, z))) { test(this.a, this.c, this.b); test(this.b, this.c, this.d); }
       distance = Math.min(nextX, nextZ);
       if (!Number.isFinite(distance)) break;
       if (nextX <= nextZ) { ix += sx; nextX += dx; }

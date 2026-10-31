@@ -17,6 +17,7 @@ export class GrassSurface {
     this.bounds = {minX:Infinity,maxX:-Infinity,minZ:Infinity,maxZ:-Infinity};
   }
   fill(index, originX, originZ, settings) {
+    if (!index) { this.originX = originX; this.originZ = originZ; }
     if (!index) {this.bounds.minX=this.bounds.minZ=Infinity;this.bounds.maxX=this.bounds.maxZ=-Infinity;}
     const x = originX + index % this.side * this.spacing, z = originZ + Math.floor(index / this.side) * this.spacing;
     this.provider.sampleWarp(x, z, this.warp);
@@ -68,6 +69,7 @@ export class GrassSurface {
     const nx=cy*bz-cz*by, ny=cz*bx-cx*bz, nz=cx*by-cy*bx;
     // Signed upward normal rejects folded undersides as well as steep cliffs.
     r.normalY=ny/Math.max(1e-9,Math.hypot(nx,ny,nz));
+    if (this.provider.isHoleAt(this.originX + localX, this.originZ + localZ)) r.coverage = r.flowerCoverage = 0;
     return r;
   }
 }

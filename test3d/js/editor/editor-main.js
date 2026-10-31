@@ -5,6 +5,7 @@ import { loadWorldSession, pickWorldFile } from "../WorldFileUI.js";
 import { TerrainHeightGpuCache } from "../terrain/TerrainHeightGpuCache.js";
 import { TerrainMaterialGpuCache } from "../terrain/TerrainMaterialGpuCache.js";
 import { EditorCameraController } from "./EditorCameraController.js";
+import { TerrainHoleBrush } from "./TerrainHoleBrush.js";
 import { TerrainSculptor } from "./TerrainSculptor.js";
 import { TerrainTexturePainter } from "./TerrainTexturePainter.js";
 import { TerrainMaterialPanel } from "./TerrainMaterialPanel.js";
@@ -51,8 +52,11 @@ const terrainData = new TerrainDataProvider({ store: worldSession.store });
 const heightCache = new TerrainHeightGpuCache(terrainData);
 const materialCache = new TerrainMaterialGpuCache(worldSession.materialData);
 const terrain = new TerrainQuadtree(scene, { atmosphere: { color: 0xa9bdc9, start: 3000, end: 5200, strength: 0.42 }, heightCache, materialCache });
+if (new URLSearchParams(location.search).has("terrainPatchBoundaries")) terrain.setPatchBoundariesVisible(true);
 const cameraController = new EditorCameraController(camera, canvas);
 const sculptor = new TerrainSculptor(terrainData);
+const holeBrush = new TerrainHoleBrush(terrainData);
+const holeSurfacePicker = new ObjectSurfacePicker(terrainData, { includeHoles: true });
 const painter = new TerrainTexturePainter(worldSession.materialData);
 const warpSurfacePicker = new WarpSurfacePicker(terrainData);
 const rockSurfaceShell = new RockSurfaceShell(scene, terrainData, heightCache);
@@ -145,6 +149,7 @@ async function saveWorld(saveAs = false) {
   if (worldSession.saving) return;
   objectEditor.finishTransform();
   waterEditor.finishDrag();
+  if (sculpting) finishStroke();
   if (!waterEditor.finishDraft()) return;
   flushObjectTerrain();
   saveButton.disabled = saveAsButton.disabled = openWorldButton.disabled = true;
@@ -227,6 +232,8 @@ function updateStats(now, delta) {
     `brush ${warpPickerProfile.brushMs.toFixed(1)}ms / ${warpPickerProfile.brushTiles} tiles / ${warpPickerProfile.brushSamples} hits / sculpt ${sculptProfile.rockifyBrushMs.toFixed(1)}ms ${sculptProfile.rockifySourceSamples} src`,
     `rock shell ${rockShellStats.enabled ? "on" : "off"} / ${rockShellStats.regions} regions / ${rockShellStats.cells} cells / ${rockShellStats.vertices} verts / ${rockShellStats.submittedTriangles}/${rockShellStats.triangles} tris / ${rockShellStats.submittedChunks}/${rockShellStats.chunks} chunks submitted/resident / GPU ${rockShellGpu.state}${rockShellGpu.maxHeightDeltaError !== undefined ? ` h${rockShellGpu.maxHeightDeltaError.toFixed(3)} w${rockShellGpu.maxWarpError.toFixed(3)}` : ""}`,
     `shell CPU ${rockShellProfile.updateMs.toFixed(1)} p${rockShellProfile.updatePeakMs.toFixed(1)}ms / geometry ${rockShellProfile.geometryMs.toFixed(1)} / mask ${rockShellProfile.maskMs.toFixed(1)} / rebuilt ${rockShellProfile.rebuiltChunks}`,
+    `rock LOD0 ${rockShellStats.visibleLod0} / LOD1 ${rockShellStats.visibleLod1} / morph ${rockShellStats.transitioning} / ${rockShellStats.submittedTriangles} submitted tris / buffers ${(rockShellStats.geometryBytes / 1048576).toFixed(1)} MiB`,
+    `LOD CPU ${rockShellProfile.lodUpdateMs.toFixed(2)} p${rockShellProfile.lodUpdatePeakMs.toFixed(2)}ms / build ${rockShellProfile.lodBuildMs.toFixed(1)} p${rockShellProfile.lodBuildPeakMs.toFixed(1)}ms / ${rockShellProfile.lodBuiltChunks} built / ${rockShellStats.pendingLods} queued`,
     `rock shell cutout ${rockCutoutEnabled ? "on" : "off"} / ${rockShellStats.sourceMaskTexels} source cells`,
     `water ${water.stats.bodies} bodies / ${water.stats.triangles} tris / update ${water.stats.updateMs.toFixed(3)}ms / last build ${water.stats.buildMs.toFixed(2)}ms`,
     `waterfalls ${water.waterfall.records.size} / ${water.waterfall.records.size*26} effect tris`,
@@ -242,6 +249,9 @@ function updateStats(now, delta) {
   lastStatsAt = now;
 }
 
+function isHoleTool() { return activeTool === "hole" || activeTool === "restoreHole"; }
+function isSurfaceBrush() { return isPaintTool() || isHoleTool(); }
+
 function isPaintTool() { return activeTool === "paint" || activeTool === "erasePaint"; }
 
 function setTool(tool) {
@@ -254,10 +264,12 @@ function setTool(tool) {
   brush.visible = false;
   for (const button of document.querySelectorAll("[data-tool]")) button.setAttribute("aria-pressed", String(button.dataset.tool === tool));
   updateRockifyLabel();
-  document.querySelector("#sculptStrengthControl").hidden = isPaintTool();
+  document.querySelector("#sculptStrengthControl").hidden = isSurfaceBrush();
+  document.querySelector("#holeHelp").hidden = !isHoleTool();
   document.querySelector("#paintFlowControl").hidden = !isPaintTool();
   if (tool === "water") return;
   if (tool === "objects") { setStatus("Objects: import a GLB, select an asset to place, or click an object to edit"); return; }
+  if (isHoleTool()) { setStatus(`${tool === "hole" ? "Paint Hole" : "Restore Terrain"}: full 2 m cells inside the brush; Rockify follows the opening`); return; }
   if (isPaintTool()) {
     const material = worldSession.materialData.materials[painter.activeMaterial];
     setStatus(`${activeTool === "paint" ? "Paint" : "Erase"}: ${material.name}${material.texture || activeTool === "erasePaint" ? "" : " — import an image first"}`);
@@ -286,7 +298,7 @@ function recordHistory(step) {
 
 function finishStroke() {
   const kind = strokeKind;
-  const entries = kind === "paint" ? painter.endStroke() : sculptor.endStroke();
+  const entries = kind === "hole" ? holeBrush.endStroke() : kind === "paint" ? painter.endStroke() : sculptor.endStroke();
   sculpting = false;
   strokeKind = null;
   paintHit = null;
@@ -303,6 +315,7 @@ function applyHistory(step, property) {
   else if (step.kind === "object" || step.kind === "objectAsset" || step.kind === "objectLOD" || step.kind === "objectBrush") objectEditor.applyHistory(step.entries, property, step.kind);
   else if (step.kind === "water") waterEditor.applyHistory(step.entries, property);
   else if(step.kind==="waterbed")waterEditor.beds.applyHistory(step.entries,property);
+  else if (step.kind === "hole") holeBrush.applyHistory(step.entries, property);
   else if (step.kind === "paint") painter.applyHistory(step.entries, property);
   else if (step.kind === "palette") worldSession.materialData.updateMaterial(step.entries.id, step.entries[property]);
   else sculptor.applyHistory(step.entries, property);
@@ -385,6 +398,13 @@ function pickWarpSurface(event) {
   return warpSurfacePicker.pick(raycaster.ray);
 }
 
+function pickHoleSurface(event) {
+  const rect = canvas.getBoundingClientRect();
+  pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  return holeSurfacePicker.pick(raycaster.ray);
+}
+
 function pickPaintSurface(event) {
   const flat = pickTerrain(event);
   const warped = pickWarpSurface(event);
@@ -441,6 +461,11 @@ function updateBrush(hit) {
   const point = hit.point ?? hit;
   brush.rotation.set(-Math.PI / 2, 0, 0);
   brush.position.set(point.x, point.y + .8, point.z);
+  if (isHoleTool() && hit.normal) {
+    brush.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), hit.normal);
+    brush.position.copy(point).addScaledVector(hit.normal, .12);
+  }
+  brush.material.color.setHex(isHoleTool() && activeTool === "hole" ? 0xff9977 : 0x9fe9ff);
   brush.scale.setScalar(sculptor.radius);
 }
 
@@ -455,11 +480,11 @@ function updateHeightfieldHover() {
   hoverPickScheduled = false;
   if (activeTool === "rockify") return;
   if (cameraController.dragging && !sculpting) return;
-  const hit = isPaintTool() ? pickPaintSurface(hoverPointer) : pickTerrain(hoverPointer);
+  const hit = isHoleTool() ? pickHoleSurface(hoverPointer) : isPaintTool() ? pickPaintSurface(hoverPointer) : pickTerrain(hoverPointer);
   updateBrush(hit);
-  if (isPaintTool()) {
+  if (isSurfaceBrush()) {
     paintHit = hit;
-    if (!hit) painter.resetPath();
+    if (!hit) { painter.resetPath(); holeBrush.resetPath(); }
   }
   if (sculpting && hit) strokeHit.copy(hit.point ?? hit);
 }
@@ -496,6 +521,10 @@ function updateRockifyStrokePick() {
 
 function sculptAt(hit, delta) {
   if (!hit) return;
+  if (isHoleTool()) {
+    if (paintHit) holeBrush.paintTo(paintHit);
+    return;
+  }
   if (isPaintTool()) {
     if (!paintHit || !painter.stroke) return;
     const changed = painter.paintTo(paintHit.sourceX, paintHit.sourceZ, Math.min(delta, .08));
@@ -544,6 +573,7 @@ rockShellButton.addEventListener("click", () => {
 radiusInput.addEventListener("input", () => {
   sculptor.radius = Number(radiusInput.value);
   painter.radius = sculptor.radius;
+  holeBrush.radius = sculptor.radius;
   radiusValue.value = `${sculptor.radius} m`;
 });
 strengthInput.addEventListener("input", () => {
@@ -590,18 +620,19 @@ canvas.addEventListener("pointerdown", event => {
     const material = worldSession.materialData.materials[painter.activeMaterial];
     if (!material.texture || materialCache.loadErrors.has(material.texture)) { setStatus(`Choose a working image for ${material.name} before painting`); return; }
   }
-  const paintSurface = isPaintTool() ? pickPaintSurface(event) : null;
+  const paintSurface = isHoleTool() ? pickHoleSurface(event) : isPaintTool() ? pickPaintSurface(event) : null;
   const warpedHit = activeTool === "rockify" ? pickWarpSurface(event) : null;
-  const hit = isPaintTool() ? paintSurface?.point : warpedHit?.point ?? pickTerrain(event);
+  const hit = isSurfaceBrush() ? paintSurface?.point : warpedHit?.point ?? pickTerrain(event);
   if (!hit) return;
   if (activeTool === "rockify" && !canStartRockify(warpedHit ?? hit)) {
     setStatus("Rockify only works on sloped or existing rock surfaces");
     return;
   }
   sculpting = true;
-  strokeKind = isPaintTool() ? "paint" : "sculpt";
+  strokeKind = isHoleTool() ? "hole" : isPaintTool() ? "paint" : "sculpt";
   paintHit = paintSurface;
-  if (isPaintTool()) painter.beginStroke({ erase: activeTool === "erasePaint" });
+  if (isHoleTool()) holeBrush.beginStroke({ restore: activeTool === "restoreHole" });
+  else if (isPaintTool()) painter.beginStroke({ erase: activeTool === "erasePaint" });
   else sculptor.beginStroke();
   lastStrokeTime = performance.now();
   strokeHit.copy(hit);
@@ -640,7 +671,7 @@ const stopSculpt = event => {
   if (activeTool === "objects") { objectEditor.pointerUp(event, pickObjectSurface); return; }
   if (activeTool === "water") waterEditor.pointerUp(event);
   if (event.type === "pointerup" && event.button !== 0) return;
-  if (sculpting && isPaintTool() && event.type === "pointerup") {
+  if (sculpting && isSurfaceBrush() && event.type === "pointerup") {
     // Include a fast drag's final point even when release precedes the RAF.
     queueHeightfieldHover(event);
     camera.updateMatrixWorld();
@@ -683,11 +714,12 @@ function frame(now) {
     sculptAt(strokeHit, Math.max(0, (strokeNow - lastStrokeTime) / 1000));
     lastStrokeTime = strokeNow;
   }
-  if (!sculpting && rockSurfaceShell.update()) updateRockCutoutMask();
+  if ((!sculpting || isHoleTool()) && rockSurfaceShell.update()) updateRockCutoutMask();
   terrain.update(camera);
   heightCache.update(camera.position.x, camera.position.z, terrain.getVisibleSourceTileKeys());
   materialCache.update(camera.position.x, camera.position.z, terrain.getVisibleSourceTileKeys());
   rockSurfaceShell.syncCoverage();
+  rockSurfaceShell.updateLod(camera, rawDelta);
   terrain.syncHeightCacheUniforms();
   grass.update(camera, delta);
   const renderStarted = performance.now();

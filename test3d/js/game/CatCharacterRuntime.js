@@ -85,7 +85,13 @@ export class CatCharacterRuntime {
     this.object = mapObject ?? { id: "cat-player", name: "cat" };
     this.controlledObjectId = mapObject?.id ?? null;
     this.body = this.physics.createCharacter(this.object, { ...CAT_CHARACTER_DEFAULTS, ...character });
-    if (mapObject) this.body.teleport(...mapObject.position, mapObject.rotation[1]);
+    if (mapObject) {
+      // Placements store XYZ Euler radians. A gizmo turn can encode a yaw as
+      // [pi, y, pi], so rotation[1] alone is not the world heading. Both the
+      // cat and camera use -Z forward; project the full saved rotation to yaw.
+      const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(...mapObject.rotation));
+      this.body.teleport(...mapObject.position, Math.atan2(-forward.x, -forward.z));
+    }
     else if (spawn) this.body.teleport(...spawn);
     else {
       const [x, z] = spawnXZ;

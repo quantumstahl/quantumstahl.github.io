@@ -51,8 +51,10 @@ export class TerrainCollider {
     if (block) return block;
     const originX = x * this.blockSize, originZ = z * this.blockSize;
     const tile = this.provider.getSampleTile(Math.floor(originX / this.provider.tileSize), Math.floor(originZ / this.provider.tileSize), "physics-block");
+    const holeOffset = Math.round((originZ - (tile?.z ?? Math.floor(originZ / this.provider.tileSize) * this.provider.tileSize)) / this.provider.sampleSpacing) * this.provider.tileSegments
+      + Math.round((originX - (tile?.x ?? Math.floor(originX / this.provider.tileSize) * this.provider.tileSize)) / this.provider.sampleSpacing);
     const width = this.segments + 1, values = new Float64Array(width * width * 3);
-    block = { x, z, values, stamp: 0, minX: Infinity, minY: Infinity, minZ: Infinity, maxX: -Infinity, maxY: -Infinity, maxZ: -Infinity };
+    block = { x, z, values, holes: tile?.holes, holeOffset, stamp: 0, minX: Infinity, minY: Infinity, minZ: Infinity, maxX: -Infinity, maxY: -Infinity, maxZ: -Infinity };
     for (let row = 0; row < width; row++) for (let column = 0; column < width; column++) {
       const offset = (row * width + column) * 3;
       this.readVertex(tile, originX + column * this.provider.sampleSpacing, originZ + row * this.provider.sampleSpacing, values, offset);
@@ -101,6 +103,11 @@ export class TerrainCollider {
   }
 
   invalidate(tile, channels = TERRAIN_CHANGE.ALL, bounds) {
+    // Hole changes update membership only; retain warmed vertex arrays.
+    if (channels & TERRAIN_CHANGE.HOLES) for (const block of this.blocks.values()) {
+      const x = block.x * this.blockSize, z = block.z * this.blockSize;
+      if (x >= tile.x && x < tile.x + tile.size && z >= tile.z && z < tile.z + tile.size) block.holes = tile.holes;
+    }
     if (!(channels & (TERRAIN_CHANGE.HEIGHT | TERRAIN_CHANGE.WARP))) return;
     const s = this.provider.sampleSpacing;
     for (const [key, block] of this.blocks) {
@@ -134,6 +141,7 @@ export class TerrainCollider {
     if (!overlaps(block, bounds)) return;
     const width = this.segments + 1;
     for (let row = 0; row < this.segments; row++) for (let col = 0; col < this.segments; col++) {
+      if (block.holes?.[block.holeOffset + row * this.provider.tileSegments + col]) continue;
       if (this.rock?.isCovered((x * this.segments + col) * this.provider.sampleSpacing, (z * this.segments + row) * this.provider.sampleSpacing)) continue;
       const a = row * width + col, b = a + 1, c = a + width, d = c + 1;
       // Stable source triangle IDs are independent of cache lifetime and LOD.

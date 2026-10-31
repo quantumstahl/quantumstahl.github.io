@@ -14,6 +14,10 @@ import { DestructibleSystem } from "./objects/DestructibleSystem.js";
 import { renderWorldFrame, renderStatsLabel } from "./engine/RenderFrame.js";
 import { GrassSystem } from "./vegetation/GrassSystem.js";
 import { findMapCat } from "./game/MapCat.js";
+import { AudioManager } from "./audio/AudioManager.js";
+import { SOUND_CONFIG } from "./audio/SoundConfig.js";
+import { DayNightAudio } from "./audio/DayNightAudio.js";
+import { attachAudioControls } from "./audio/AudioControls.js";
 
 const canvas = document.querySelector("#viewport");
 const statsElement = document.querySelector("#stats");
@@ -26,6 +30,16 @@ renderer.setPixelRatio(1.0);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x83b9de);
 const camera = new THREE.PerspectiveCamera(62, 1, 1, 5200);
+const audio = new AudioManager({ scene, camera, sounds: SOUND_CONFIG });
+const detachAudioControls = attachAudioControls(audio, document.querySelector("#audioControls"));
+// Start loading without delaying world/character initialization. Loops wait for
+// the first gesture; locked one-shot effects are dropped instead of queued.
+void audio.preload();
+audio.playMusic("exploration", { fade: 2 });
+const combatAudio = {
+  clawSound: () => audio.play("claw"),
+  destructionSound: (hit, target) => audio.play3D("crate_break", target.position, { volume: .8, pitch: 1.1 }),
+};
 const terrainData = new TerrainDataProvider({ store: worldSession.store });
 const runtimeOptions = new URLSearchParams(location.search);
 const objectWarnings = document.querySelector("#objectWarnings");
@@ -41,8 +55,8 @@ if (mapCat || runtimeOptions.get("character") === "cat") {
   const spawnX = Number(runtimeOptions.get("spawnX") ?? 100), spawnZ = Number(runtimeOptions.get("spawnZ") ?? 100);
   const cameraMode = runtimeOptions.get("camera") === "smart" ? "smart" : "nextworld";
   controller = await CatCharacterRuntime.create(scene, camera, terrainData, mapCat
-    ? { mapObject: mapCat, assetLibrary: objectAssets, cameraMode }
-    : { spawnXZ: [Number.isFinite(spawnX) ? spawnX : 100, Number.isFinite(spawnZ) ? spawnZ : 100], cameraMode });
+    ? { mapObject: mapCat, assetLibrary: objectAssets, cameraMode, combat: combatAudio }
+    : { spawnXZ: [Number.isFinite(spawnX) ? spawnX : 100, Number.isFinite(spawnZ) ? spawnZ : 100], cameraMode, combat: combatAudio });
   if (runtimeOptions.has("combatTest")) {
     const { CombatTestTarget } = await import("./game/CombatTestTarget.js");
     combatTestTarget = new CombatTestTarget(scene, controller.melee, controller.body);
@@ -72,10 +86,13 @@ const terrain = new TerrainQuadtree(scene, {
   heightCache,
   materialCache,
 });
+if (runtimeOptions.has("terrainPatchBoundaries")) terrain.setPatchBoundariesVisible(true);
 const rockSurfaceShell = new RockSurfaceShell(scene, terrainData, heightCache);
 rockSurfaceShell.setEnabled(worldSession.settings.rockShellEnabled);
 const water = new WaterSystem(scene, worldSession.waterData);
 const environment = new EnvironmentSystem(scene, worldSession.settings.environment);
+const ambientAudio = new DayNightAudio(audio);
+ambientAudio.update(0, environment.uniforms.uDaylight.value);
 const grass = new GrassSystem(scene, terrainData, worldSession.materialData, { settings: worldSession.settings.grass, water,
   diagnostics: new URLSearchParams(location.search).has("grassStats") });
 environment.bindMaterial(grass.nearMaterial); environment.bindMaterial(grass.farMaterial);
@@ -140,6 +157,7 @@ function updateStats(now, delta) {
     `Terrain ${terrain.stats.triangles.toLocaleString("en-US")} tris · ${terrain.stats.patches} patches (${terrain.stats.culledPatches} culled)`,
     `Terrain LOD ${lods}`,
     `Rock ${rockStats.submittedChunks}/${rockStats.chunks} chunks · ${(rockStats.submittedTriangles / 1000).toFixed(0)}k/${(rockStats.triangles / 1000).toFixed(0)}k tris submitted/resident`,
+    `Rock LOD0 ${rockStats.visibleLod0} / LOD1 ${rockStats.visibleLod1} / morph ${rockStats.transitioning} · CPU ${rockStats.lodUpdateMs.toFixed(3)} ms · buffers ${(rockStats.geometryBytes / 1048576).toFixed(1)} MiB · queued ${rockStats.pendingLods}`,
     `Water ${water.stats.bodies} bodies · ${water.stats.triangles} tris · CPU ${water.stats.updateMs.toFixed(3)} ms`,
     `Waterfalls ${water.waterfall.records.size} · ${water.waterfall.records.size*26} effect tris`,
     `Objects ${objects.stats.instances} · ${objects.stats.visibleCells}/${objects.stats.residentCells} cells · ${objects.stats.animated} animated`,
@@ -162,6 +180,7 @@ function frame(now) {
   cameraDebug?.update();
   movementDebug?.update(now);
   environment.update(rawDelta);
+  ambientAudio.update(rawDelta, environment.uniforms.uDaylight.value);
   water.update(delta,camera);
   objects.update(camera, delta);
   if (rockSurfaceShell.update()) terrain.setExperimentalRockMask(rockSurfaceShell.getSourceMask());
@@ -169,6 +188,7 @@ function frame(now) {
   heightCache.update(camera.position.x, camera.position.z, terrain.getVisibleSourceTileKeys());
   materialCache.update(camera.position.x, camera.position.z, terrain.getVisibleSourceTileKeys());
   rockSurfaceShell.syncCoverage();
+  rockSurfaceShell.updateLod(camera, rawDelta);
   terrain.syncHeightCacheUniforms();
   grass.update(camera, delta);
   renderWorldFrame(renderer, environment, scene, camera);
@@ -179,4 +199,4 @@ function frame(now) {
 window.addEventListener("resize", resize);
 resize();
 requestAnimationFrame(frame);
-window.addEventListener("pagehide", event => { if (!event.persisted) { destructibles?.dispose(); combatTestTarget?.dispose(); physicsDebug?.dispose(); cameraDebug?.dispose(); movementDebug?.dispose(); controller.dispose?.(); grass.dispose(); objects.dispose(); objectAssets.dispose(); } });
+window.addEventListener("pagehide", event => { if (!event.persisted) { ambientAudio.dispose(); detachAudioControls(); audio.dispose(); destructibles?.dispose(); combatTestTarget?.dispose(); physicsDebug?.dispose(); cameraDebug?.dispose(); movementDebug?.dispose(); controller.dispose?.(); grass.dispose(); objects.dispose(); objectAssets.dispose(); } });

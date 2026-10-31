@@ -31,11 +31,18 @@ export class GLBAssetLibrary {
     this.data = data; this.loader = loader; this.onError = onError;
     this.materialMode = materialMode;
     this.cache = new Map(); this.errors = new Map(); this.disposed = false;
+    // Leases belong to a payload generation, not just its logical asset ID.
+    this.sourceReferences = new Map(); this.retired = new Set(); this.stagedSources = new Map();
     this.references = new Map(); this.lastUsed = new Map(); this.now = now; this.resourceRetention = resourceRetention; this.nextTrim = 0;
     this.unsubscribe = data.onChanged(event => {
       if ((event.kind === "asset" || event.kind === "resource") && (event.before?.data !== event.after?.data || this.errors.has(event.id))) this.invalidate(event.id);
+      const staged = this.stagedSources.get(event.id);
+      if (staged && staged.data === event.after?.data) {
+        this.cache.set(event.id, staged.promise); this.lastUsed.set(event.id, this.now());
+      }
       if (event.kind === "asset" || event.kind === "resource") {
-        const used = new Set([...data.assets.values()].flatMap(asset => [asset.id, ...(asset.lod?.levels.map(level => level.resourceId) ?? []), asset.collision?.sourceId].filter(Boolean)));
+        const used = new Set([...data.assets.values()].flatMap(asset => [asset.id, ...(asset.lod?.levels.map(level => level.resourceId) ?? []), asset.collision?.sourceId, asset.destructible?.destroyedAsset].filter(Boolean)));
+        for (const object of data.objects.values()) if (object.properties.destructible?.destroyedAsset) used.add(object.properties.destructible.destroyedAsset);
         for (const id of this.errors.keys()) if (!used.has(id)) this.invalidate(id);
       }
     });
@@ -43,19 +50,35 @@ export class GLBAssetLibrary {
   async importFile(file) {
     const prepared = await this.prepareFile(file);
     const existing = this.data.assets.get(prepared.resource.id);
-    if (existing?.data && !this.errors.has(existing.id)) return existing;
+    if (existing?.data === prepared.resource.data && !this.errors.has(existing.id)) return existing;
     // Repairing a logical payload must retain its authored collision/LOD settings.
-    const asset = this.data.setAsset({ ...existing, ...prepared.resource });
-    this.cache.set(asset.id, Promise.resolve(prepared.source)); this.lastUsed.set(asset.id, this.now());
+    const asset = this.commitSource({ ...existing, ...prepared.resource }, prepared.source);
     return asset;
   }
-  async prepareFile(file) {
+  // Publish the parsed source during the asset notification, before consumers
+  // request it. No placement can start a second parse of the same replacement.
+  commitSource(asset, source) {
+    this.stagedSources.set(asset.id, { data: asset.data, promise: this.cache.has(asset.id) && !this.errors.has(asset.id) && this.data.getResource(asset.id)?.data === asset.data ? this.cache.get(asset.id) : Promise.resolve(source) });
+    try { return this.data.setAsset(asset); }
+    finally { this.stagedSources.delete(asset.id); }
+  }
+  async prepareFile(file, { reuse = true } = {}) {
+    if (this.disposed) throw new Error("Asset library is closed.");
     if (!/\.glb$/i.test(file.name)) throw new Error("Choose a .glb file.");
     const buffer = await file.arrayBuffer(); validateGLB(buffer);
     const hash = await crypto.subtle.digest("SHA-256", buffer);
-    const id = `glb-${Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, "0")).join("")}`;
+    let id = `glb-${Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, "0")).join("")}`;
+    const payload = encodeGLB(buffer);
+    // A logical asset keeps its ID after replacement, so its old hash is no
+    // longer proof of its contents. Never overwrite/deduplicate by ID alone.
+    const hashed = this.data.getResource(id);
+    if (hashed?.data !== payload) {
+      const matching = [...this.data.assets.values(), ...this.data.resources.values()].find(record => record.data === payload);
+      if (matching) id = matching.id;
+      else if (hashed?.data) id = `${id}-${crypto.randomUUID()}`;
+    }
     const existing = this.data.getResource(id);
-    if (existing?.data) {
+    if (reuse && existing?.data === payload) {
       try {
         const source = await this.load(id);
         return { resource: { ...existing, triangles: source.triangles, clips: source.animations.map(clip => clip.name) }, source, existing: true };
@@ -64,14 +87,17 @@ export class GLBAssetLibrary {
     }
     // Decode before mutating the library: failed imports never dirty the world.
     const source = await this.parse(buffer);
-    const bounds = this.measureBounds(source);
-    const resource = { id, name: file.name.replace(/\.glb$/i, ""), data: encodeGLB(buffer), triangles: source.triangles, clips: source.animations.map(clip => clip.name),
+    let bounds;
+    try { bounds = this.measureBounds(source); }
+    catch (error) { this.disposeSource(source); throw error; }
+    const resource = { id, name: file.name.replace(/\.glb$/i, ""), data: payload, triangles: source.triangles, clips: source.animations.map(clip => clip.name),
       bounds: bounds.isEmpty() ? { min: [0, 0, 0], max: [0, 0, 0] } : { min: bounds.min.toArray(), max: bounds.max.toArray() } };
     return { resource, source, existing: false };
   }
   registerResource(prepared) {
     if (!this.data.getResource(prepared.resource.id)?.data) this.data.setResource(prepared.resource);
-    this.cache.set(prepared.resource.id, Promise.resolve(prepared.source)); this.lastUsed.set(prepared.resource.id, this.now());
+    if (!prepared.existing || !this.cache.has(prepared.resource.id)) this.cache.set(prepared.resource.id, Promise.resolve(prepared.source));
+    this.lastUsed.set(prepared.resource.id, this.now());
     return prepared.resource;
   }
   async parse(buffer) {
@@ -159,19 +185,30 @@ export class GLBAssetLibrary {
         }
         if (!asset?.data) throw new Error(`Missing GLB: ${asset?.name ?? id}. Reimport the asset to repair it.`);
         const buffer = decodeGLB(asset.data); validateGLB(buffer); return this.parse(buffer);
-      }).catch(error => { this.errors.set(id, error.message); this.onError(error.message); throw error; });
+      }).catch(error => {
+        if (this.cache.get(id) === promise) { this.errors.set(id, error.message); this.onError(error.message); }
+        throw error;
+      });
       this.cache.set(id, promise);
     }
     return this.cache.get(id);
   }
   acquire(id) {
     this.references.set(id, (this.references.get(id) ?? 0) + 1);
+    const promise = this.load(id);
+    this.sourceReferences.set(promise, (this.sourceReferences.get(promise) ?? 0) + 1);
     let released = false;
-    return { id, promise: this.load(id), release: () => {
+    return { id, promise, release: () => {
       if (released) return; released = true;
       const count = (this.references.get(id) ?? 1) - 1;
       if (count) this.references.set(id, count); else this.references.delete(id);
       this.lastUsed.set(id, this.now());
+      const remaining = this.sourceReferences.get(promise) - 1;
+      if (remaining) this.sourceReferences.set(promise, remaining);
+      else {
+        this.sourceReferences.delete(promise);
+        if (this.retired.delete(promise)) promise.then(value => this.disposeSource(value), () => {});
+      }
     } };
   }
   async acquireLOD(assetId, requested = 0, { preview = false } = {}) {
@@ -210,7 +247,8 @@ export class GLBAssetLibrary {
   invalidate(id) {
     const source = this.cache.get(id); this.cache.delete(id); this.errors.delete(id);
     this.lastUsed.delete(id);
-    source?.then(value => this.disposeSource(value), () => {});
+    if (source && this.sourceReferences.has(source)) this.retired.add(source);
+    else source?.then(value => this.disposeSource(value), () => {});
   }
   dispose() { this.disposed = true; this.unsubscribe(); for (const id of this.cache.keys()) this.invalidate(id); }
 }

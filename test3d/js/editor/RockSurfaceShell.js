@@ -4,6 +4,7 @@ import { ROCK_APPEARANCE_GLSL } from "../engine/RockAppearance.js";
 import { TERRAIN_CHANGE } from "../terrain/TerrainDataProvider.js";
 import { rockCellCovered } from "../terrain/RockSurface.js";
 import { createEnvironmentUniforms, ENVIRONMENT_GLSL } from "../engine/EnvironmentShader.js";
+import { createRockLodBuild, advanceRockLod, rockLodOptions } from "./RockSurfaceLOD.js";
 
 // Shell vertices retain authoritative authored height and warp independently
 // of terrain texture residency. Bounds follow those same rendered positions.
@@ -14,14 +15,17 @@ function createShellMaterial(heightCache) {
   return new THREE.ShaderMaterial({
     uniforms: {
       ...createEnvironmentUniforms(),
+      uRockLodMorph: { value: 0 },
     },
     glslVersion: THREE.GLSL3,
     vertexShader: `
+      uniform float uRockLodMorph;
+      in vec3 lodPosition;
       out vec3 vWorldPosition;
       void main() {
         // Position is the complete authored snapshot, including XZ warp.
-        // Never substitute a coarser height field into this detailed mesh.
-        vec4 world = modelMatrix * vec4(position, 1.0);
+        // LOD targets also come from this snapshot, never a terrain cache.
+        vec4 world = modelMatrix * vec4(mix(position, lodPosition, uRockLodMorph), 1.0);
         vWorldPosition = world.xyz;
         gl_Position = projectionMatrix * viewMatrix * world;
       }`,
@@ -47,10 +51,13 @@ function createShellMaterial(heightCache) {
 // Detailed authored Rockify surfaces, partitioned into terrain-data-sized
 // chunks. Every discovered component owns its emitted source cells.
 export class RockSurfaceShell {
-  constructor(scene, provider, heightCache, { coverageThreshold = .035 } = {}) {
+  constructor(scene, provider, heightCache, { coverageThreshold = .035, lod = {} } = {}) {
     this.provider = provider;
     this.heightCache = heightCache;
     this.coverageThreshold = coverageThreshold;
+    this.lodOptions = rockLodOptions(lod);
+    this.pendingLods = new Set();
+    this.lodCameraPosition = new THREE.Vector3();
     this.scene = scene;
     this.material = createShellMaterial(heightCache);
     this.enabled = false;
@@ -68,18 +75,22 @@ export class RockSurfaceShell {
     this.cutoutReadyTileKeys = null;
     this.componentQueue = new Uint32Array(provider.tileSegments ** 2);
     this.stats = { tile: null, regions: 0, cells: 0, vertices: 0, triangles: 0, draws: 0,
-      chunks: 0, rebuiltChunks: 0, sourceMaskTexels: 0, submittedChunks: 0, submittedTriangles: 0 };
-    this.profile = { updateMs: 0, updatePeakMs: 0, geometryMs: 0, maskMs: 0, rebuiltChunks: 0 };
+      chunks: 0, rebuiltChunks: 0, sourceMaskTexels: 0, submittedChunks: 0, submittedTriangles: 0,
+      visibleLod0: 0, visibleLod1: 0, transitioning: 0, lod1Triangles: 0, geometryBytes: 0, lodUpdateMs: 0 };
+    this.profile = this.emptyProfile();
     this.unsubscribe = provider.onTileChanged((tile, channels = TERRAIN_CHANGE.ALL) => {
       const key = provider.tileKey(Math.round(tile.x / tile.size), Math.round(tile.z / tile.size));
       const chunk = this.chunks.get(key);
       if (chunk) {
         chunk.needsRebuild = true;
+        // Hole edits alter topology, never authored positions. Queue one local
+        // rebuild instead of refreshing old buffers before replacing them.
+        if (channels === TERRAIN_CHANGE.HOLES) { this.markDirty(key); return; }
         if (this.enabled) {
           this.refreshChunkGeometry(chunk, tile);
           // Position changes do not alter source ownership. Missing/unknown
           // notification hints still take the conservative coverage check.
-          if (!(channels & TERRAIN_CHANGE.ROCK_EXPOSURE) || this.coverageMatches(chunk, tile)) {
+          if (!(channels & (TERRAIN_CHANGE.ROCK_EXPOSURE | TERRAIN_CHANGE.HOLES)) || this.coverageMatches(chunk, tile)) {
             chunk.signature = tile.revision + ":" + chunk.triangles * 3;
             return;
           }
@@ -118,13 +129,14 @@ export class RockSurfaceShell {
       this.knownRockTileKeys.add(key);
       this.markDirty(key);
     }
-    if (!this.dirty) return false;
+    if (!this.dirty) { this.buildPendingLods(); return false; }
     const started = performance.now();
     this.rebuild();
     this.dirty = this.dirtyTiles.size > 0;
     const elapsed = performance.now() - started;
     this.profile.updateMs += elapsed;
     this.profile.updatePeakMs = Math.max(this.profile.updatePeakMs, elapsed);
+    this.buildPendingLods();
     return true;
   }
 
@@ -177,7 +189,7 @@ export class RockSurfaceShell {
       }
       const chunk = this.chunks.get(key);
       if (!count) {
-        if (chunk) { chunk.mesh.removeFromParent(); chunk.mesh.geometry.dispose(); this.chunks.delete(key); }
+        if (chunk) { this.disposeChunk(chunk); this.chunks.delete(key); }
         continue;
       }
       if (!changed && chunk) {
@@ -347,6 +359,9 @@ export class RockSurfaceShell {
       const { builder } = record;
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute("position", new THREE.Float32BufferAttribute(builder.positions, 3));
+      // Until a useful LOD exists, alias position rather than allocate a
+      // second vertex buffer for unsimplifiable patches.
+      geometry.setAttribute("lodPosition", geometry.getAttribute("position"));
       geometry.setAttribute("sourcePosition", new THREE.Float32BufferAttribute(builder.sourcePositions, 2));
       const IndexAttribute = builder.positions.length / 3 <= 65535 ? THREE.Uint16BufferAttribute : THREE.Uint32BufferAttribute;
       geometry.setIndex(new IndexAttribute(builder.indices, 1));
@@ -355,9 +370,21 @@ export class RockSurfaceShell {
         const mesh = new THREE.Mesh(geometry, this.material);
         mesh.name = "Rockify surface-shell chunk " + key;
         mesh.frustumCulled = true; mesh.renderOrder = 1;
-        mesh.onBeforeRender = () => { this.stats.submittedChunks++; this.stats.submittedTriangles += chunk.triangles; };
+        mesh.onBeforeRender = () => {
+          this.material.uniforms.uRockLodMorph.value = chunk.lod.morph;
+          // The material is shared. Three must upload this per-object value
+          // even when the preceding draw used the same material/program.
+          this.material.uniformsNeedUpdate = true;
+          this.stats.submittedChunks++;
+          this.stats.submittedTriangles += chunk.mesh.geometry.index.count / 3;
+          this.stats[chunk.lod.level ? "visibleLod1" : "visibleLod0"]++;
+          if (chunk.lod.morph > 0 && chunk.lod.morph < 1) this.stats.transitioning++;
+        };
         this.scene.add(mesh); chunk = { mesh }; this.chunks.set(key, chunk);
-      } else { chunk.mesh.geometry.dispose(); chunk.mesh.geometry = geometry; }
+      } else { this.disposeChunkGeometry(chunk); chunk.mesh.geometry = geometry; }
+      chunk.lod0Geometry = geometry;
+      chunk.lod1Geometry = null;
+      chunk.lod = { target: 0, morph: 0, level: 0 };
       chunk.signature = record.signature;
       chunk.cellCoverage = record.cellCoverage;
       const SampleArray = record.tile.heights.length <= 65536 ? Uint16Array : Uint32Array;
@@ -365,16 +392,33 @@ export class RockSurfaceShell {
       chunk.tileRevision = record.tile.revision; chunk.needsRebuild = false;
       chunk.vertices = builder.positions.length / 3; chunk.triangles = builder.indices.length / 3;
       chunk.mesh.visible = this.enabled;
+      this.pendingLods.add(chunk);
       rebuilt++;
     }
     return rebuilt;
   }
 
-  getStats() { return { ...this.stats, draws: [...this.chunks.values()].filter(chunk => chunk.mesh.visible).length, enabled: this.enabled }; }
+  getStats() {
+    let lod1Triangles = 0, geometryBytes = 0;
+    for (const chunk of this.chunks.values()) {
+      const geometry = chunk.lod0Geometry;
+      for (const attribute of new Set(Object.values(geometry.attributes))) geometryBytes += attribute.array.byteLength;
+      geometryBytes += geometry.index.array.byteLength;
+      if (chunk.lod1Geometry) geometryBytes += chunk.lod1Geometry.index.array.byteLength;
+      lod1Triangles += (chunk.lod1Geometry ?? geometry).index.count / 3;
+    }
+    return { ...this.stats, lod1Triangles, geometryBytes, pendingLods: this.pendingLods.size,
+      draws: this.stats.submittedChunks, enabled: this.enabled };
+  }
+
+  emptyProfile() {
+    return { updateMs: 0, updatePeakMs: 0, geometryMs: 0, maskMs: 0, rebuiltChunks: 0,
+      lodBuildMs: 0, lodBuildPeakMs: 0, lodBuiltChunks: 0, lodUpdateMs: 0, lodUpdatePeakMs: 0 };
+  }
 
   consumeProfile() {
     const profile = this.profile;
-    this.profile = { updateMs: 0, updatePeakMs: 0, geometryMs: 0, maskMs: 0, rebuiltChunks: 0 };
+    this.profile = this.emptyProfile();
     return profile;
   }
 
@@ -392,7 +436,8 @@ export class RockSurfaceShell {
 
   refreshChunkGeometry(chunk, tile) {
     const started = performance.now();
-    const geometry = chunk.mesh.geometry, positions = geometry.getAttribute("position");
+    this.invalidateLod(chunk);
+    const geometry = chunk.lod0Geometry, positions = geometry.getAttribute("position");
     const sources = geometry.getAttribute("sourcePosition").array;
     for (let vertex = 0; vertex < positions.count; vertex++) {
       const index = chunk.sourceIndices[vertex];
@@ -405,6 +450,91 @@ export class RockSurfaceShell {
     chunk.tileRevision = tile.revision; chunk.needsRebuild = false;
     this.profile.geometryMs += performance.now() - started;
   }
+
+  // Both VAOs refer to shared attributes. Invalidate both GPU allocations
+  // before dropping LOD1, while retaining LOD0's CPU geometry for the edit.
+  // This also releases buffers if only the coarse mesh was ever on screen.
+  releaseCoarseGeometry(chunk) {
+    if (!chunk.lod1Geometry) return;
+    chunk.lod0Geometry.dispose();
+    chunk.lod1Geometry.dispose(); chunk.lod1Geometry = null;
+  }
+
+  invalidateLod(chunk) {
+    chunk.mesh.geometry = chunk.lod0Geometry;
+    this.releaseCoarseGeometry(chunk);
+    chunk.lod.target = chunk.lod.morph = chunk.lod.level = 0;
+    chunk.lodBuild = null;
+    this.pendingLods.add(chunk);
+  }
+
+  buildPendingLods() {
+    if (!this.lodOptions.enabled || !this.pendingLods.size) return;
+    const started = performance.now();
+    // Small resumable slices enforce a frame budget even during a cold
+    // patch build. LOD0 stays live until the complete result is published.
+    for (const chunk of this.pendingLods) {
+      const fine = chunk.lod0Geometry;
+      chunk.lodBuild ??= createRockLodBuild(fine.attributes.position.array, fine.index.array, chunk.sourceIndices,
+        chunk.cellCoverage, this.provider.tileSegments, this.lodOptions);
+      let complete = false;
+      do {
+        const step = chunk.lodBuild.next();
+        if (step.done) {
+          const result = step.value;
+          if (result.indices.length < fine.index.count) {
+            if (fine.attributes.lodPosition === fine.attributes.position) fine.setAttribute("lodPosition", new THREE.BufferAttribute(result.positions, 3));
+            else { fine.attributes.lodPosition.array.set(result.positions); fine.attributes.lodPosition.needsUpdate = true; }
+            const coarse = new THREE.BufferGeometry();
+            for (const [name, attribute] of Object.entries(fine.attributes)) coarse.setAttribute(name, attribute);
+            coarse.setIndex(new THREE.BufferAttribute(result.indices, 1));
+            // Every morph target is an authored vertex in this same patch.
+            coarse.boundingBox = fine.boundingBox;
+            coarse.boundingSphere = fine.boundingSphere;
+            chunk.lod1Geometry = coarse;
+          }
+          this.pendingLods.delete(chunk); chunk.lodBuild = null;
+          this.profile.lodBuiltChunks++; complete = true;
+        }
+      } while (!complete && performance.now() - started < this.lodOptions.buildBudgetMs);
+      if (performance.now() - started >= this.lodOptions.buildBudgetMs) break;
+    }
+    const elapsed = performance.now() - started;
+    this.profile.lodBuildMs += elapsed;
+    this.profile.lodBuildPeakMs = Math.max(this.profile.lodBuildPeakMs, elapsed);
+  }
+
+  updateLod(camera, delta) {
+    const started = performance.now();
+    if (this.enabled) {
+      camera.getWorldPosition(this.lodCameraPosition);
+      for (const chunk of this.chunks.values()) {
+        if (!chunk.lod1Geometry) continue;
+        // Closest point of authored 3D bounds, rather than source tile center:
+        // warps and overhangs may extend well outside their source tile.
+        const box = chunk.lod0Geometry.boundingBox, p = this.lodCameraPosition;
+        const distance = Math.hypot(Math.max(box.min.x - p.x, 0, p.x - box.max.x),
+          Math.max(box.min.y - p.y, 0, p.y - box.max.y), Math.max(box.min.z - p.z, 0, p.z - box.max.z));
+        advanceRockLod(chunk.lod, distance, delta, this.lodOptions);
+        chunk.mesh.geometry = chunk.lod.level ? chunk.lod1Geometry : chunk.lod0Geometry;
+      }
+    }
+    const elapsed = performance.now() - started;
+    this.stats.lodUpdateMs = elapsed;
+    this.profile.lodUpdateMs += elapsed;
+    this.profile.lodUpdatePeakMs = Math.max(this.profile.lodUpdatePeakMs, elapsed);
+  }
+
+  disposeChunkGeometry(chunk) {
+    this.pendingLods.delete(chunk);
+    chunk.lodBuild = null;
+    // Neither geometry will render again; dispose both with attributes
+    // attached so whichever reached WebGL releases the shared buffers.
+    chunk.lod1Geometry?.dispose(); chunk.lod1Geometry = null;
+    chunk.lod0Geometry.dispose();
+  }
+
+  disposeChunk(chunk) { chunk.mesh.removeFromParent(); this.disposeChunkGeometry(chunk); }
 
   updateSourceMask(changedRects) {
     if (!this.coverageTiles.size) {
@@ -468,6 +598,7 @@ export class RockSurfaceShell {
   // Publish only cells whose authored mesh exists. Unchanged frames do no upload.
   syncCoverage() {
     this.stats.submittedChunks = 0; this.stats.submittedTriangles = 0;
+    this.stats.visibleLod0 = this.stats.visibleLod1 = this.stats.transitioning = 0;
     const ready = new Set();
     for (const [key, chunk] of this.chunks) {
       const represented = this.enabled && !chunk.needsRebuild;
@@ -495,6 +626,7 @@ export class RockSurfaceShell {
         }
       }
     }
+    mask.lastUpdateRects = rects.map(rect => ({ ...rect }));
     mask.texture.needsUpdate = true; mask.dirtyRects.length = 0; this.cutoutReadyTileKeys = ready;
   }
 
@@ -534,10 +666,10 @@ export class RockSurfaceShell {
   dispose() {
     this.unsubscribe?.();
     for (const chunk of this.chunks.values()) {
-      chunk.mesh.removeFromParent();
-      chunk.mesh.geometry.dispose();
+      this.disposeChunk(chunk);
     }
     this.chunks.clear();
+    this.pendingLods.clear();
     this.coverageTiles.clear(); this.dirtyTiles.clear();
     this.regionSeeds.clear(); this.chunkOrder.length = 0;
     this.material.dispose();

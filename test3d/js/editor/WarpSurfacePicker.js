@@ -32,8 +32,9 @@ function sphereIntersectsBox(center, radius, minX, minY, minZ, maxX, maxY, maxZ)
 // Editor-only CPU picking over the persistent 2 m source grid. It mirrors
 // the shader's position rule: finalXZ = sourceXZ + warp(sourceXZ), Y = height.
 export class WarpSurfacePicker {
-  constructor(provider) {
+  constructor(provider, { includeHoles = false } = {}) {
     this.provider = provider;
+    this.includeHoles = includeHoles;
     this.point = new THREE.Vector3();
     this.normal = new THREE.Vector3();
     this.profile = { pickMs: 0, pickTiles: 0, pickTriangles: 0, pickHits: 0, brushMs: 0, brushTiles: 0, brushSamples: 0 };
@@ -70,6 +71,7 @@ export class WarpSurfacePicker {
       const tile = this.provider.getTile(summary.tileX, summary.tileZ, "warp-picker");
       const range = this.sampleRange(tile, summary);
       for (let z = range.minZ; z < range.maxZ; z += 1) for (let x = range.minX; x < range.maxX; x += 1) {
+        if (!this.includeHoles && tile.holes?.[z * tile.segments + x]) continue;
         const a = this.vertex(tile, x, z);
         const b = this.vertex(tile, x + 1, z);
         const c = this.vertex(tile, x, z + 1);
