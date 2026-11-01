@@ -11,6 +11,7 @@ import { EnvironmentSystem } from "./engine/EnvironmentSystem.js";
 import { GLBAssetLibrary } from "./objects/GLBAssetLibrary.js";
 import { ObjectSystem } from "./objects/ObjectSystem.js";
 import { DestructibleSystem } from "./objects/DestructibleSystem.js";
+import { BoxPhysics } from "./physics/BoxPhysics.js";
 import { renderWorldFrame, renderStatsLabel } from "./engine/RenderFrame.js";
 import { GrassSystem } from "./vegetation/GrassSystem.js";
 import { findMapCat } from "./game/MapCat.js";
@@ -19,15 +20,48 @@ import { SOUND_CONFIG } from "./audio/SoundConfig.js";
 import { DayNightAudio } from "./audio/DayNightAudio.js";
 import { attachAudioControls } from "./audio/AudioControls.js";
 
+
+
+//IMPORTANT: The existing iOS audio unlock hack is intentional and has been verified working on the actual iPhone.
+var song= 'sounds/mountain.mp3';
+var audio5 = new Audio(song);
+const context = new (window.AudioContext || window.webkitAudioContext)();
+            audio5.loop = true;
+
+ document.addEventListener('click', (event) => {
+                try{if(audio5.paused){ audio5.play();}}catch(error){};
+                if(context.state === 'suspended'){context.suspend();context.resume();} 
+
+            });
+            document.addEventListener("touchstart" , function(e) {
+                if (!e.target.closest?.(".game-settings")) e.preventDefault();
+                try{if(audio5.paused){ audio5.play();}}catch(error){};
+                if(context.state === 'suspended'){context.suspend();context.resume();}           
+            });
+
+
+
+
+
+
+
+
+
+
+
 const canvas = document.querySelector("#viewport");
 const statsElement = document.querySelector("#stats");
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x83b9de);
 const camera = new THREE.PerspectiveCamera(62, 1, 1, 5200);
-const audio = new AudioManager({ scene, camera, sounds: SOUND_CONFIG });
+const audioDiagnostics = new URLSearchParams(location.search).has("audioDebug")
+  ? (await import("./audio/AudioDiagnostics.js")).createAudioDiagnostics() : null;
+const audio = new AudioManager({ scene, camera, sounds: SOUND_CONFIG, onTrace: audioDiagnostics?.record });
+audioDiagnostics?.attach(audio);
+if (audioDiagnostics) window.maxWorldAudioDebug = audioDiagnostics;
 const detachAudioControls = attachAudioControls(audio, document.querySelector("#audioControls"));
-// Start loading without delaying world/character initialization. Loops wait for
-// the first gesture; locked one-shot effects are dropped instead of queued.
+// Preload without delaying the world. The first touchstart uses CatAdventure's
+// initial suspend/resume sequence; loops wait and locked one-shots are dropped.
 void audio.preload();
 audio.playMusic("exploration", { fade: 2 });
 // Register gesture capture before any world/file-picker await. The first tap
@@ -54,9 +88,11 @@ if (mapCat || runtimeOptions.get("character") === "cat") {
   const { CatCharacterRuntime } = await import("./game/CatCharacterRuntime.js");
   const spawnX = Number(runtimeOptions.get("spawnX") ?? 100), spawnZ = Number(runtimeOptions.get("spawnZ") ?? 100);
   const cameraMode = runtimeOptions.get("camera") === "smart" ? "smart" : "nextworld";
+  const cameraSettings = { collisionEnabled: runtimeOptions.get("cameraCollision") !== "off" };
   controller = await CatCharacterRuntime.create(scene, camera, terrainData, mapCat
-    ? { mapObject: mapCat, assetLibrary: objectAssets, cameraMode, combat: combatAudio }
-    : { spawnXZ: [Number.isFinite(spawnX) ? spawnX : 100, Number.isFinite(spawnZ) ? spawnZ : 100], cameraMode, combat: combatAudio });
+    ? { mapObject: mapCat, assetLibrary: objectAssets, cameraMode, cameraSettings, combat: combatAudio }
+    : { spawnXZ: [Number.isFinite(spawnX) ? spawnX : 100, Number.isFinite(spawnZ) ? spawnZ : 100], cameraMode, cameraSettings, combat: combatAudio });
+ 
   if (runtimeOptions.has("combatTest")) {
     const { CombatTestTarget } = await import("./game/CombatTestTarget.js");
     combatTestTarget = new CombatTestTarget(scene, controller.melee, controller.body);
@@ -78,6 +114,7 @@ if (controller.input) {
     movementDebug = new MovementDebug(controller);
   }
 }
+audioDiagnostics?.setInput(controller.input);
 statsElement.hidden = !!controller.physics && !physicsDebug && !cameraDebug && !runtimeOptions.has("stats");
 const heightCache = new TerrainHeightGpuCache(terrainData);
 const materialCache = new TerrainMaterialGpuCache(worldSession.materialData);
@@ -88,6 +125,7 @@ const terrain = new TerrainQuadtree(scene, {
 });
 if (runtimeOptions.has("terrainPatchBoundaries")) terrain.setPatchBoundariesVisible(true);
 const rockSurfaceShell = new RockSurfaceShell(scene, terrainData, heightCache);
+if (cameraDebug) window.maxWorldCameraDebug = { runtime: controller, camera, rockSurfaceShell, snapshot: () => cameraDebug.snapshot() };
 rockSurfaceShell.setEnabled(worldSession.settings.rockShellEnabled);
 const water = new WaterSystem(scene, worldSession.waterData);
 const environment = new EnvironmentSystem(scene, worldSession.settings.environment);
@@ -101,15 +139,19 @@ const objects = new ObjectSystem(scene, worldSession.objectData, objectAssets, {
   diagnostics: runtimeOptions.has("objectLODStats"), excludeIds: new Set(mapCat ? [mapCat.id] : []),
 });
 if (controller.physics) controller.attachObjects(worldSession.objectData, objectAssets, { onError: message => { objectWarnings.hidden = false; objectWarnings.textContent = message; } });
+const boxPhysics = controller.physics ? new BoxPhysics(worldSession.objectData, objects, controller.objectCollider,
+  [controller.terrainCollider, controller.rockCollider], { terrain: terrainData, onMove: id => destructibles?.refreshTarget(id) }) : null;
 const destructibles = controller.melee ? new DestructibleSystem(scene, worldSession.objectData, objectAssets, objects, controller.melee, terrainData, {
   collider: controller.objectCollider,
+  onDestroy: (_hit, target) => boxPhysics?.remove(target.id),
+  hitSound: (_hit, target) => audio.play3D("crate_hit", target.position),
   destructionSound: (hit, target) => controller.combatOptions.destructionSound?.(hit, target),
   onError: message => { objectWarnings.hidden = false; objectWarnings.textContent = message; },
 }) : null;
 destructibles?.syncTargets(controller.body.position);
 // Embedders can dispatch this event to restart destruction state without
 // touching the loaded world file. Reloading the game also starts fresh.
-window.addEventListener("maxworld:reset-session", () => destructibles?.resetSession());
+window.addEventListener("maxworld:reset-session", () => { destructibles?.resetSession(); boxPhysics?.reset(); });
 window.addEventListener("keydown", event => {
   if (!event.ctrlKey && !event.metaKey && event.key.toLowerCase() === "l" && !event.target.closest?.("input, textarea, select, [contenteditable='true']")) objects.diagnostics = !objects.diagnostics;
 });
@@ -145,6 +187,7 @@ function updateStats(now, delta) {
     `Gamepad ${controller.gamepadConnected ? "connected" : "not detected"}`,
     ...(controller.physics ? [
       `Cat ${controller.body.state} · physics ${controller.physics.stats.updateMs.toFixed(3)} ms`,
+      `Boxes ${boxPhysics.stats.active} falling · ${boxPhysics.stats.sleeping} sleeping · ${boxPhysics.stats.triangleTests} triangle tests`,
       `Support ${controller.body.groundObject?.name ?? "none"}${controller.physics.stats.waitingForColliders ? " · loading nearby collision" : ""}`,
       "Left stick tilt: walk/run · A jump · X claw",
       "Right stick look (WASD/Shift/Space/arrows/F claw)",
@@ -152,6 +195,7 @@ function updateStats(now, delta) {
     ...(cameraDebug ? [
       `Camera auto-follow ${controller.smartCamera.autoFollowing ? "active" : "idle"} · distance ${controller.smartCamera.distance.toFixed(2)}m`,
       `Camera queries ${controller.smartCamera.collision.stats.queries} · triangle tests ${controller.smartCamera.collision.stats.triangleTests}${controller.smartCamera.collision.stats.waitingForColliders ? " · loading collision" : ""}`,
+      `Camera collision ${controller.smartCamera.settings.collisionEnabled ? "on" : "off"}${controller.smartCamera.collisionLimited ? " · close obstruction" : ""}`,
     ] : []),
     renderStatsLabel(info),
     `Terrain ${terrain.stats.triangles.toLocaleString("en-US")} tris · ${terrain.stats.patches} patches (${terrain.stats.culledPatches} culled)`,
@@ -173,6 +217,7 @@ function updateStats(now, delta) {
 function frame(now) {
   const rawDelta = clock.getDelta();
   const delta = Math.min(rawDelta, 1 / 20);
+  boxPhysics?.update(rawDelta);
   controller.update(controller.physics ? rawDelta : delta);
   destructibles?.update(rawDelta, controller.body.position);
   combatTestTarget?.update(delta);
@@ -199,4 +244,4 @@ function frame(now) {
 window.addEventListener("resize", resize);
 resize();
 requestAnimationFrame(frame);
-window.addEventListener("pagehide", event => { if (!event.persisted) { ambientAudio.dispose(); detachAudioControls(); audio.dispose(); destructibles?.dispose(); combatTestTarget?.dispose(); physicsDebug?.dispose(); cameraDebug?.dispose(); movementDebug?.dispose(); controller.dispose?.(); grass.dispose(); objects.dispose(); objectAssets.dispose(); } });
+window.addEventListener("pagehide", event => { if (!event.persisted) { ambientAudio.dispose(); detachAudioControls(); audio.dispose(); audioDiagnostics?.dispose(); destructibles?.dispose(); boxPhysics?.dispose(); combatTestTarget?.dispose(); physicsDebug?.dispose(); cameraDebug?.dispose(); movementDebug?.dispose(); controller.dispose?.(); grass.dispose(); objects.dispose(); objectAssets.dispose(); } });

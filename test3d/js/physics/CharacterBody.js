@@ -44,6 +44,7 @@ export class CharacterBody {
     this.query = new CapsuleTriangle();
     this.normal = new Vector3(); this.faceNormal = new Vector3();
     this.saved = new Vector3(); this.stepSaved = new Vector3();
+    this.motionSaved = new Vector3(); this.velocitySaved = new Vector3();
     this.bestPoint = new Vector3(); this.bestNormal = new Vector3();
     this.contactScores = new Float64Array(6); this.contactIds = new Float64Array(6);
     this.contactNormals = new Float64Array(18);
@@ -242,9 +243,27 @@ export class CharacterBody {
       const fallTravel = Math.max(0, -this.velocity.y * dt);
       this.position.x += dx; this.position.z += dz; this.position.y += this.velocity.y * dt;
       if (this.grounded && !jumped) this.position.y -= (dx * this.groundNormal.x + dz * this.groundNormal.z) / this.groundNormal.y;
+      this.motionSaved.copy(this.position); this.velocitySaved.copy(this.velocity);
       const obstacle = this.findCollision() && this.faceNormal.y < this.minGroundY && this.normal.y >= 0;
       if (!(obstacle && this.grounded && !jumped && c.stepHeight > 0 && this.tryStep()) && !this.resolve()) {
-        this.position.copy(this.saved); this.velocity.x = 0; this.velocity.z = 0;
+        // Opposing steep faces may have no horizontal separation at the new
+        // height. Reject that vertical travel, then solve the intended XZ move
+        // at the last safe height so gravity cannot also lock an open exit.
+        // Retry from the requested move/velocity, not the failed solver's
+        // alternating pushes. The same solid/slope checks still apply.
+        this.position.copy(this.motionSaved); this.position.y = this.saved.y;
+        this.velocity.copy(this.velocitySaved); this.floorResponse = false;
+        if (this.resolve()) this.velocity.y = 0;
+        else {
+          // A narrow horizontal corner can instead block XZ while leaving
+          // falling/jumping unobstructed. Keep that vertical travel too.
+          this.position.copy(this.saved);
+          this.position.y += this.velocitySaved.y * dt;
+          this.velocity.set(0, this.velocitySaved.y, 0); this.floorResponse = false;
+          if (!this.resolve()) {
+            this.position.copy(this.saved); this.velocity.set(0, 0, 0); this.floorResponse = false;
+          }
+        }
       }
       this.grounded = false;
       // If the torso has actually landed, recover its lower paw probe through

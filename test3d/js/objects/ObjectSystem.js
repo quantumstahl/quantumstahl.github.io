@@ -31,6 +31,7 @@ export class ObjectSystem {
   constructor(scene, data, assets, { visibilityDistance = 5000, maxConcurrentLoads = 2, evictionDelay = 2000, now = () => performance.now(), lodChecksPerFrame = 2048, lodUpdateInterval = 100, diagnostics = false, excludeIds = new Set() } = {}) {
     Object.assign(this, { scene, data, assets, visibilityDistance, maxConcurrentLoads, evictionDelay, now, lodChecksPerFrame, lodUpdateInterval, diagnostics });
     this.excludeIds = excludeIds;
+    this.runtimeY = new Map();
     this.root = new THREE.Group(); this.root.name = "World objects"; scene.add(this.root);
     this.cells = new Map(); this.pending = new Map(); this.versions = new Map(); this.bounds = new Map();
     this.drawLimits = new Map();
@@ -84,6 +85,7 @@ export class ObjectSystem {
   }
   recordMatrix(record, target = this.matrix) {
     this.position.fromArray(record.position); this.scale.fromArray(record.scale); this.euler.set(...record.rotation);
+    this.position.y += this.runtimeY.get(record.id) ?? 0;
     this.quaternion.setFromEuler(this.euler); return target.compose(this.position, this.quaternion, this.scale);
   }
   cellBounds(key) {
@@ -107,6 +109,7 @@ export class ObjectSystem {
     const root = new THREE.Group(); root.userData.objectId = record.id;
     const model = source ? this.assets.clone(source) : new THREE.Mesh(this.missingGeometry, this.missingMaterial);
     root.add(model); applyObjectTransform(root, record);
+    root.position.y += this.runtimeY.get(record.id) ?? 0; root.updateMatrixWorld(true);
     if (source?.animations.length && record.properties.animation !== false) {
       // A wrapper owns world placement. Root animation can never overwrite it.
       const mixer = new THREE.AnimationMixer(model);
@@ -167,6 +170,53 @@ export class ObjectSystem {
     }
     if (excluded) this.hideObject(id);
   }
+  // Vertical gameplay offsets never rewrite placements or rebuild render cells.
+  // The per-cell slot lookup is built once, including cells streamed mid-fall.
+  setRuntimeY(id, offset) {
+    this.runtimeY.set(id, offset); // Retain zero while a streamed build finishes.
+    if (this.excludeIds.has(id) || this.selectedId === id) return;
+    const record = this.data.objects.get(id); if (!record) return;
+    const key = this.data.cellKey(record.position), cell = this.cells.get(key);
+    if (cell) {
+      // Collision/destructible settings can be enabled without a visual rebuild.
+      if (offset && !cell.motionSlots?.has(id)) {
+        cell.motionSlots ??= new Map(); const slots = [];
+        for (const root of cell.live) if (root.userData.objectId === id) slots.push({ root });
+        for (const mesh of cell.group.children) if (mesh.userData.placementLocalMatrix) {
+          const index = mesh.userData.objectIds.indexOf(id); if (index >= 0) slots.push({ mesh, index });
+        }
+        cell.motionSlots.set(id, slots);
+      }
+      for (const group of cell.lodGroups) group.moveObject(id);
+      for (const slot of cell.motionSlots?.get(id) ?? []) {
+        if (slot.root) this.moveLive(slot.root, record);
+        else {
+          slot.mesh.setMatrixAt(slot.index, this.recordMatrix(record).multiply(slot.mesh.userData.placementLocalMatrix));
+          if (!slot.mesh.instanceMatrix.updateRanges.some(range => range.start === slot.index * 16)) slot.mesh.instanceMatrix.addUpdateRange(slot.index * 16, 16);
+          slot.mesh.instanceMatrix.needsUpdate = true;
+          slot.mesh.frustumCulled = false; // The containing cell already culls.
+        }
+      }
+    }
+    const bounds = this.bounds.get(key);
+    if (bounds) {
+      const asset = this.data.assets.get(record.assetId);
+      const box = this.motionBox ??= new THREE.Box3();
+      box.min.fromArray(asset?.bounds?.min ?? [-1, -1, -1]); box.max.fromArray(asset?.bounds?.max ?? [1, 1, 1]);
+      for (const level of asset?.lod?.levels ?? []) {
+        const variant = level.enabled && this.data.getResource(level.resourceId)?.bounds; if (!variant) continue;
+        const variantBox = this.motionVariantBox ??= new THREE.Box3();
+        variantBox.min.fromArray(variant.min); variantBox.max.fromArray(variant.max); box.union(variantBox);
+      }
+      box.applyMatrix4(this.recordMatrix(record)); bounds.union(box);
+    }
+  }
+  moveLive(root, record) {
+    const y = record.position[1] + (this.runtimeY.get(record.id) ?? 0), delta = y - root.position.y;
+    root.position.y = y; root.updateMatrix();
+    // Static roots freeze matrixWorldAutoUpdate throughout their hierarchy.
+    root.traverse(node => { node.matrixWorld.elements[13] += delta; });
+  }
   hideObject(id) {
     // Hide the old batch slot immediately, before the asynchronous rebuild.
     if (id) for (const cell of this.cells.values()) {
@@ -176,7 +226,13 @@ export class ObjectSystem {
       }
       cell.group.traverse(mesh => {
         const index = mesh.userData.objectIds?.indexOf(id);
-        if (index >= 0) { mesh.setMatrixAt(index, new THREE.Matrix4().makeScale(0, 0, 0)); mesh.instanceMatrix.needsUpdate = true; }
+        if (index >= 0) {
+          mesh.setMatrixAt(index, new THREE.Matrix4().makeScale(0, 0, 0));
+          // Movement may already have scheduled partial uploads for siblings.
+          // Include this slot so the GPU receives the hidden matrix as well.
+          if (!mesh.instanceMatrix.updateRanges.some(range => range.start === index * 16)) mesh.instanceMatrix.addUpdateRange(index * 16, 16);
+          mesh.instanceMatrix.needsUpdate = true;
+        }
       });
       for (const root of cell.live) if (root.userData.objectId === id) root.visible = false;
     }
@@ -214,6 +270,7 @@ export class ObjectSystem {
             batch.name = mesh.name; batch.castShadow = mesh.castShadow; batch.receiveShadow = mesh.receiveShadow;
             batch.layers.mask = mesh.layers.mask;
             batch.userData.objectIds = batchRecords.map(record => record.id);
+            batch.userData.placementLocalMatrix = matrix.clone();
             batch.userData.shadowProxy = mesh.userData.shadowProxy;
             this.observeMesh(batch, 0);
             batchRecords.forEach((record, i) => batch.setMatrixAt(i, this.recordMatrix(record).multiply(matrix)));
@@ -231,6 +288,20 @@ export class ObjectSystem {
       if (this.disposed || version !== (this.versions.get(key) ?? 0) || !this.wanted.has(key)) { this.disposeCell(cell); return; }
       const old = this.cells.get(key); if (old) this.disposeCell(old);
       this.cells.set(key, cell); this.root.add(group);
+      cell.motionSlots = new Map();
+      const addSlot = (id, slot) => {
+        const record = this.data.objects.get(id), asset = this.data.assets.get(record?.assetId);
+        // Allocate motion lookups only for possible gameplay crates.
+        if (asset?.collision?.mode !== "simple" || asset.collision.shape !== "box"
+          || !(record.properties.destructible ?? asset.destructible)?.enabled) return;
+        if (!cell.motionSlots.has(id)) cell.motionSlots.set(id, []);
+        cell.motionSlots.get(id).push(slot);
+      };
+      for (const root of cell.live) addSlot(root.userData.objectId, { root });
+      group.traverse(mesh => {
+        if (mesh.userData.placementLocalMatrix) mesh.userData.objectIds.forEach((id, index) => addSlot(id, { mesh, index }));
+      });
+      for (const id of this.data.cells.get(key) ?? []) if (this.runtimeY.has(id)) this.setRuntimeY(id, this.runtimeY.get(id));
     } catch (error) { this.disposeCell(cell); this.assets.onError(`Object cell ${key}: ${error.message}`); }
   }
   disposeCell(cell) {

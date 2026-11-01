@@ -20,9 +20,9 @@ export function prepareDebris(source) {
 }
 
 export class DestructibleSystem {
-  constructor(scene, data, assets, objects, melee, terrain, { collider = null, onDestroy = null, destructionSound = null,
+  constructor(scene, data, assets, objects, melee, terrain, { collider = null, onDestroy = null, destructionSound = null, hitSound = null,
     onError = assets.onError ?? (() => {}), random = Math.random, activationDistance = 24, maxDebrisPieces = 120, spawnBudget = 2 } = {}) {
-    Object.assign(this, { scene, data, assets, objects, melee, terrain, collider, onDestroy, destructionSound, onError, random, activationDistance, maxDebrisPieces, spawnBudget });
+    Object.assign(this, { scene, data, assets, objects, melee, terrain, collider, onDestroy, destructionSound, hitSound, onError, random, activationDistance, maxDebrisPieces, spawnBudget });
     this.states = new Map(); this.active = new Map(); this.destroyed = new Set(); this.sources = new Map();
     this.debris = []; this.queue = []; this.generation = 0; this.disposed = false; this.syncAge = Infinity;
     this.root = new THREE.Group(); this.root.name = "Destructible debris"; scene.add(this.root);
@@ -86,10 +86,17 @@ export class DestructibleSystem {
     }
     for (const [id, unregister] of this.active) if (!near.has(id)) { unregister(); this.active.delete(id); }
   }
+  refreshTarget(id) {
+    const state = this.states.get(id); if (!state || this.destroyed.has(id)) return;
+    const asset = this.data.assets.get(state.record.assetId);
+    this.box.min.fromArray(asset?.bounds?.min ?? [-.5, 0, -.5]); this.box.max.fromArray(asset?.bounds?.max ?? [.5, 1, .5]);
+    this.box.applyMatrix4(this.objects.recordMatrix(state.record, this.matrix)); this.box.getCenter(state.position);
+  }
   receiveHit(id, hit) {
     const state = this.states.get(id);
     if (!state?.enabled || this.destroyed.has(id) || !Number.isFinite(hit.damage) || hit.damage <= 0) return false;
     state.health = Math.max(0, state.health - hit.damage);
+    this.hitSound?.(hit, state); // Once per accepted hit, including the lethal hit.
     if (state.health > 0) return true;
     state.enabled = false; this.destroyed.add(id);
     // No authoring mutation: invalidate pending builds and remove ALL visual

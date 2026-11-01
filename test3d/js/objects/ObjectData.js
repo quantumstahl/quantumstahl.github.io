@@ -48,6 +48,10 @@ export function normalizeAsset(value, validatePayload = true) {
   }
   if (value.lod != null) result.lod = normalizeLOD(value.lod, result.id);
   if (value.collision != null) result.collision = normalizeCollision(value.collision);
+  if (value.cameraCollision != null) {
+    result.cameraCollision = normalizeCollision(value.cameraCollision);
+    if (result.cameraCollision.mode === "mesh") throw new Error("Camera collision overrides must use Simple or None.");
+  }
   if (value.destructible != null) result.destructible = normalizeDestructible(value.destructible);
   return result;
 }

@@ -9,16 +9,15 @@ export class ThirdPersonCamera {
     this.camera = camera; this.settings = { ...CAMERA_DEFAULTS, ...settings };
     this.yaw = yaw; this.pitch = this.settings.pitch;
     this.target = new Vector3(); this.desired = new Vector3(); this.pivot = new Vector3();
-    this.anchor = new Vector3();
     this.offset = new Vector3(); this.lastPosition = new Vector3();
-    this.collision = new CameraCollision(world, this.settings);
+    this.collision = new CameraCollision(world);
     this.initialized = false; this.manualAge = this.settings.followDelay;
-    this.heading = yaw; this.autoFollowing = false; this.recoveryHold = 0;
+    this.heading = yaw; this.autoFollowing = false; this.obstructionFraction = 1;
     this.moving = false; this.turnSign = 1;
     this.movementYaw = null;
     this.backwardTouch = false; this.travelHeading = yaw;
-    this.recovering = false; this.mode = "smart"; this.movementReferenceMode = "gesture";
-    this.distance = 0; this.collisionRadius = this.settings.radius;
+    this.mode = "smart"; this.movementReferenceMode = "gesture";
+    this.distance = 0;
   }
   applyInput(input, delta) {
     const dt = Number.isFinite(delta) ? MathUtils.clamp(delta, 0, .1) : 0;
@@ -103,21 +102,10 @@ export class ThirdPersonCamera {
     const reset = !this.initialized || position.distanceToSquared(this.lastPosition) > s.teleportDistance ** 2;
     this.trackTarget(position, dt, reset);
     this.lastPosition.copy(position);
-    // A sphere enclosing the near-plane rectangle protects its corners after
-    // portrait/landscape changes, without querying the DOM in the frame path.
-    const near = this.camera.near, halfHeight = near * Math.tan(this.camera.fov * Math.PI / 360) / this.camera.zoom;
-    this.collisionRadius = Math.max(s.radius, Math.hypot(near, halfHeight, halfHeight * this.camera.aspect));
-    const radius = this.collisionRadius + s.surfaceMargin;
+    // Collision never changes the smoothed look target or the orbit goal.
     this.collision.resetStats();
-    // Constrain target lag from a safe upper-body anchor, including horizontal
-    // target smoothing around corners and taller look targets under low roofs.
-    this.anchor.set(position.x, position.y + (s.collisionAnchorHeight ?? s.targetHeight), position.z);
-    if (this.target.distanceToSquared(this.anchor) > s.surfaceMargin ** 2) {
-      this.collision.sweep(this.anchor, this.target, .01);
-      if (this.collision.hit) this.target.copy(this.anchor);
-    }
     this.placeOrbit(dt, reset);
-    this.resolveCollision(dt, reset, radius);
+    this.resolveCollision(dt, reset);
     this.initialized = true;
   }
   trackTarget(position, dt, reset) {
@@ -138,32 +126,28 @@ export class ThirdPersonCamera {
       Math.cos(this.yaw) * horizontal);
     this.desired.copy(this.target).add(this.offset);
   }
-  resolveCollision(dt, reset, radius) {
-    const s = this.settings;
-    this.collision.recoverPivot(this.target, radius, this.pivot);
-    const safeDistance = this.collision.sweep(this.pivot, this.desired, radius);
-    if (this.collision.hit) this.recovering = true;
-    const previousHold = this.recoveryHold;
-    if (s.recoverOnlyAfterCollision && !this.recovering) {
-      // NextWorld already smooths the unobstructed world-space goal. Preserve
-      // that trajectory; reserve boom recovery easing for actual obstructions.
-      this.distance = safeDistance; this.recoveryHold = 0;
-    } else if (reset || safeDistance < this.distance) {
-      // Inward response is immediate; interpolating through a wall is unsafe.
-      this.distance = safeDistance; this.recoveryHold = s.recoveryDelay;
-    } else {
-      this.recoveryHold = Math.max(0, this.recoveryHold - dt);
-      if (safeDistance - this.distance > s.recoveryHysteresis || !this.collision.hit) {
-        const recoveryDt = Math.max(0, dt - previousHold);
-        this.distance += (safeDistance - this.distance) * (1 - Math.exp(-s.recoverySpeed * recoveryDt));
-      }
-    }
-    if (!this.collision.hit && Math.abs(safeDistance - this.distance) < .001) this.recovering = false;
-    // minDistance is a preferred framing limit, overridden by solid geometry.
-    // Never clamp a collision result outward through a close wall.
+  resolveCollision(dt, reset) {
+    const s = this.settings, camera = this.camera;
+    this.pivot.copy(this.target);
+    this.offset.subVectors(this.desired, this.target);
+    const length = this.offset.length();
+    const halfHeight = camera.near * Math.tan(camera.fov * Math.PI / 360) / camera.zoom;
+    const halfWidth = halfHeight * camera.aspect;
+    const safeDistance = s.collisionEnabled
+      ? this.collision.sweep(this.target, this.desired, halfWidth, halfHeight, s.surfaceMargin) : length;
+    // There is no safe camera placement on this boom if a surface intersects
+    // the cat's look target. Keep a finite view direction and expose this case
+    // in diagnostics; never translate the pivot or push through other faces.
+    const minimum = Math.min(length, camera.near + s.surfaceMargin);
+    this.collisionLimited = safeDistance < minimum;
+    const allowed = length > 1e-8 ? Math.min(1, Math.max(minimum, safeDistance) / length) : 1;
+    if (reset || !s.collisionEnabled || allowed < this.obstructionFraction) this.obstructionFraction = allowed;
+    else this.obstructionFraction += (allowed - this.obstructionFraction) * (1 - Math.exp(-s.recoverySpeed * dt));
+    if (length > 1e-8) this.obstructionFraction = Math.max(minimum / length, this.obstructionFraction);
+    if (Math.abs(1 - this.obstructionFraction) < 1e-5) this.obstructionFraction = 1;
+    this.distance = length * this.obstructionFraction;
     this.belowMinimum = this.distance < s.minDistance;
-    this.offset.subVectors(this.desired, this.pivot).normalize();
-    this.camera.position.copy(this.pivot).addScaledVector(this.offset, this.distance);
-    this.camera.lookAt(this.target);
+    camera.position.lerpVectors(this.target, this.desired, this.obstructionFraction);
+    camera.lookAt(this.target);
   }
 }

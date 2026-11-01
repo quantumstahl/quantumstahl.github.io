@@ -43,11 +43,15 @@ export class ColliderAssets {
   constructor(data, library, onError = () => {}) { this.data = data; this.library = library; this.onError = onError; this.states = new Map(); this.builds = 0; }
   get(id) {
     const asset = this.data.assets.get(id); if (!asset) return null;
-    const config = normalizeCollision(asset.collision), key = JSON.stringify(config);
+    const config = normalizeCollision(asset.collision), cameraConfig = asset.cameraCollision;
+    const key = JSON.stringify([config, cameraConfig]);
     const sourceId = config.sourceId ?? id, resource = this.data.getResource(sourceId), payload = resource?.data;
     let state = this.states.get(id);
     if (state?.key === key && state.payload === payload) return state;
     state = { id, config, key, sourceId, payload, sourceBounds: resource?.bounds, mesh: null, promise: null, error: null };
+    // Optional authored camera proxy. Share it across every placed instance;
+    // leave character collision and the visual LODs independent.
+    if (cameraConfig) state.cameraMesh = cameraConfig.mode === "none" ? null : simpleColliderMesh(cameraConfig);
     this.states.set(id, state);
     if (config.mode === "simple") { state.mesh = simpleColliderMesh(config); this.builds++; }
     return state;

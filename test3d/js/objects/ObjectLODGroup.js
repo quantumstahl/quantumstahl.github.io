@@ -124,7 +124,7 @@ export class ObjectLODGroup {
   }
   distance(state, camera) {
     const p = state.record.position, c = camera.position;
-    return Math.hypot(p[0] - c.x, p[1] - c.y, p[2] - c.z);
+    return Math.hypot(p[0] - c.x, p[1] + (this.system.runtimeY.get(state.record.id) ?? 0) - c.y, p[2] - c.z);
   }
   configure(asset) {
     this.asset = asset; this.checking = false; this.nextCheck = 0;
@@ -216,6 +216,19 @@ export class ObjectLODGroup {
   }
   get count() { let count = 0; for (const target of this.targets.values()) count += target.count; return count; }
   activeLevel(id) { return this.byId.get(id)?.target?.level ?? null; }
+  moveObject(id) {
+    const state = this.byId.get(id); if (!state) return;
+    const pivot = this.system.position.fromArray(state.record.position); pivot.y += this.system.runtimeY.get(id) ?? 0;
+    this.pivotBounds.expandByPoint(pivot);
+    this.lastCamera.set(Infinity, Infinity, Infinity); this.nextCheck = 0;
+    const target = state.target; if (!target) return;
+    const record = state.record, index = target.slots.get(id);
+    if (index !== undefined) {
+      target.source.meshes.forEach(({ matrix }, i) => target.batches[i].setMatrixAt(index, this.system.recordMatrix(record).multiply(matrix)));
+      target.dirtyMin = Math.min(target.dirtyMin, index); target.dirtyMax = Math.max(target.dirtyMax, index);
+      target.flush();
+    } else if (target.live.has(id)) this.system.moveLive(target.live.get(id), record);
+  }
   dispose() {
     this.disposed = true;
     for (const target of this.targets.values()) target.dispose();

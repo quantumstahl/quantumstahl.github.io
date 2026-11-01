@@ -10,17 +10,15 @@ export const CAMERA_DEFAULTS = Object.freeze({
   movementInputThreshold: .12, movingThreshold: .25, movingHysteresis: .1,
   touchBackwardThreshold: .25,
   verticalTracking: 10, teleportDistance: 8,
-  radius: .24, surfaceMargin: .05,
-  recoverySpeed: 3, recoveryDelay: .15, recoveryHysteresis: .06,
-  sweepIterations: 12, overlapIterations: 6,
+  collisionEnabled: true, surfaceMargin: .05,
+  recoverySpeed: 3,
 });
 
 // NextWorld/js/game/PlayerController.js camera tuning. Collision uses the same
-// MaxWorld defaults above; the shorter anchor keeps the cat safe under roofs.
+// MaxWorld defaults above. Collision never changes the smoothed look target.
 export const NEXTWORLD_CAMERA_DEFAULTS = Object.freeze({
   distance: 3, cameraHeight: 0.5, pitch: Math.atan2(3, 10), verticalOffset: 0,
-  targetHeight: 1.0, collisionAnchorHeight: .8,
+  targetHeight: 1.0,
   horizontalTracking: 12, verticalTracking: 4, positionTracking: 7,
   followStrength: .7,
-  recoverOnlyAfterCollision: true,
 });

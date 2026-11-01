@@ -4,7 +4,9 @@ const clamp = (value, fallback = 1) => Number.isFinite(value) ? Math.max(0, Math
 const seconds = value => Number.isFinite(value) ? Math.max(0, value) : 0;
 // Touch start can unlock some Safari versions; pointer-up/touch-end are the
 // activation-bearing events for touch on others. All belong to the first tap.
-const gestures = ["touchstart", "pointerdown", "pointerup", "touchend", "keydown"];
+// Safari may expose activation only after release capture, at native click.
+// Retry there too; an earlier blocked resume can remain pending indefinitely.
+const gestures = ["touchstart", "pointerdown", "pointerup", "touchend", "click", "keydown"];
 
 // Keep our own ramp endpoints: AudioParam.value is not the instantaneous value
 // of an automation ramp on every browser. This also supports older Safari.
@@ -54,8 +56,9 @@ class AudioVoice {
 export class AudioManager {
   constructor({ camera, scene, sounds = {}, volumes = {}, maxVoices = 24,
     eventTarget = globalThis.window, documentTarget = globalThis.document,
-    onError = message => console.warn(message) } = {}) {
+    onError = message => console.warn(message), onTrace = null } = {}) {
     this.camera = camera; this.scene = scene; this.onError = onError;
+    this.onTrace = onTrace; this.resumeAttempts = 0; this.pendingResumes = 0;
     this.maxVoices = Number.isFinite(maxVoices) ? Math.max(2, Math.floor(maxVoices)) : 24;
     this.config = new Map(); this.buffers = new Map(); this.loads = new Map();
     this.voices = new Set(); this.reported = new Set(); this.buses = new Map();
@@ -63,42 +66,28 @@ export class AudioManager {
     this.disposed = false; this.unlocked = false; this.music = null;
     this.backgrounded = !!documentTarget?.hidden; this.pageHidden = false;
     this.suspendTimer = null;
+    this.initializationAttempted = false;
+    this.activationStrategy = "cat-touchstart-suspend-resume";
+    this.loader = new AudioLoader(); // Construction alone does not create a context.
     this.eventTarget = eventTarget; this.documentTarget = documentTarget;
     this.root = new Group(); this.root.name = "World audio";
     scene?.add(this.root);
     for (const [id, config] of Object.entries(sounds)) this.register(id, config);
-    // Audio is optional: an unavailable AudioContext must never stop gameplay.
-    try {
-      this.listener = new AudioListener(); this.context = this.listener.context;
-      this.unlocked = this.context.state === "running";
-      this.loader = new AudioLoader();
-      this.setCamera(camera);
-      this.listener.gain.gain.setValueAtTime(clamp(this.volumes.master), this.context.currentTime);
-      // A separate lifecycle gate preserves the user's master volume and mutes
-      // the graph before an app-initiated suspension.
-      this.outputGate = this.context.createGain();
-      this.listener.gain.disconnect(); this.listener.gain.connect(this.outputGate);
-      this.outputGate.connect(this.context.destination);
-      const initial = this.unlocked && !this.backgrounded ? 1 : 0;
-      this.gateEnvelope = ramp(this.outputGate.gain, initial, 0, this.context, null, initial);
-      for (const channel of ["music", "ambient", "sfx"]) {
-        const node = this.context.createGain();
-        node.gain.setValueAtTime(clamp(this.volumes[channel]), this.context.currentTime);
-        node.connect(this.listener.getInput());
-        this.buses.set(channel, { node, envelope: null });
-      }
-    } catch (error) { this.loader = null; this._report("init", `Audio unavailable: ${error.message}`); }
-    this.gesture = () => {
+    this.gesture = event => {
+      this._trace("gesture", { event: event.type, trusted: event.isTrusted, pointerType: event.pointerType,
+        pointerId: event.pointerId, touches: event.touches?.length, defaultPrevented: event.defaultPrevented,
+        target: event.target?.id || event.target?.className?.baseVal || event.target?.className || event.target?.nodeName });
       if (documentTarget?.hidden || this.pageHidden) return;
       this.backgrounded = false; // A real interaction also recovers a missed focus event.
-      void this.unlock(); // resume() executes here, before any promise/await.
+      void this.unlock(event.type); // resume() executes here, before any promise/await.
     };
-    this.visibility = () => documentTarget?.hidden ? this._background() : this._foreground();
-    this.blur = () => this._background();
-    this.focus = () => this._foreground();
-    this.pageHide = () => { this.pageHidden = true; this._background(true); };
-    this.pageShow = () => { this.pageHidden = false; this._foreground(); };
-    this.stateChange = () => {
+    this.visibility = () => { this._trace("visibilitychange"); documentTarget?.hidden ? this._background() : this._foreground(); };
+    this.blur = () => { this._trace("blur"); this._background(); };
+    this.focus = () => { this._trace("focus"); this._foreground(); };
+    this.pageHide = () => { this._trace("pagehide"); this.pageHidden = true; this._background(true); };
+    this.pageShow = () => { this._trace("pageshow"); this.pageHidden = false; this._foreground(); };
+    this.stateChange = event => {
+      this._trace(event ? "context:statechange" : "output:reconcile");
       if (this.disposed || !this.loader || !this.outputGate) return;
       if (this.context.state === "running" && this._active()) {
         this.unlocked = true;
@@ -118,13 +107,50 @@ export class AudioManager {
     eventTarget?.addEventListener("pagehide", this.pageHide);
     eventTarget?.addEventListener("pageshow", this.pageShow);
     documentTarget?.addEventListener("visibilitychange", this.visibility);
-    this.context?.addEventListener("statechange", this.stateChange);
+    this._initialize("constructor");
+    this._trace("init");
+  }
+
+  _initialize(reason) {
+    if (this.initializationAttempted) return !!(this.context && this.loader && this.outputGate);
+    if (this.disposed) return false;
+    this.initializationAttempted = true;
+    this._trace("context:create:attempt", { reason });
+    // Reuse Three's shared context for the listener, decoding and all voices.
+    try {
+      this.listener = new AudioListener(); this.context = this.listener.context;
+      this.unlocked = this.context.state === "running";
+      this.setCamera(this.camera);
+      this.listener.gain.gain.setValueAtTime(clamp(this.volumes.master), this.context.currentTime);
+      this.outputGate = this.context.createGain();
+      this.listener.gain.disconnect(); this.listener.gain.connect(this.outputGate);
+      this.outputGate.connect(this.context.destination);
+      const initial = this.unlocked && !this.backgrounded ? 1 : 0;
+      this.gateEnvelope = ramp(this.outputGate.gain, initial, 0, this.context, null, initial);
+      for (const channel of ["music", "ambient", "sfx"]) {
+        const node = this.context.createGain();
+        node.gain.setValueAtTime(clamp(this.volumes[channel]), this.context.currentTime);
+        node.connect(this.listener.getInput());
+        this.buses.set(channel, { node, envelope: null });
+      }
+      this.context.addEventListener("statechange", this.stateChange);
+      this._trace("context:created", { reason });
+      return true;
+    } catch (error) {
+      this.loader = null; this._report("init", `Audio unavailable: ${error.message}`);
+      return false;
+    }
+  }
+
+  _trace(type, details) {
+    try { this.onTrace?.(type, details, this); } catch { /* Diagnostics cannot affect audio or input. */ }
   }
 
   _active() { return !this.backgrounded && !this.pageHidden && !this.documentTarget?.hidden; }
 
   _silence() {
     if (!this.context || !this.outputGate) return;
+    this._trace("output:silence");
     this.gateEnvelope = ramp(this.outputGate.gain, 0, 0, this.context, this.gateEnvelope);
     for (const voice of this.voices) {
       if (!voice.loop || voice.stopping) this._release(voice);
@@ -144,11 +170,13 @@ export class AudioManager {
     this._silence();
     if (this.context.state === "closed" || this.context.state === "suspended") return;
     try {
+      this._trace("suspend:attempt");
       Promise.resolve(this.context.suspend()).then(() => {
+        this._trace("suspend:resolved");
         // A queued native suspension may complete after the page has returned.
-        if (!this.disposed && this._active() && this.unlocked) void this.unlock();
-      }).catch(() => {});
-    } catch { /* An OS interruption may already have suspended the context. */ }
+        if (!this.disposed && this._active() && this.unlocked) void this.unlock("late-suspend");
+      }).catch(error => this._trace("suspend:rejected", { error: error.name, message: error.message }));
+    } catch (error) { this._trace("suspend:rejected", { error: error.name, message: error.message }); }
   }
 
   _background(immediate = false) {
@@ -169,12 +197,13 @@ export class AudioManager {
     if (this.disposed || this.pageHidden || this.documentTarget?.hidden) return;
     this.backgrounded = false;
     clearTimeout(this.suspendTimer); this.suspendTimer = null;
-    if (this.unlocked) void this.unlock();
+    if (this.unlocked) void this.unlock("foreground");
   }
 
   _report(key, message) {
     if (this.disposed || this.reported.has(key)) return;
     this.reported.add(key);
+    this._trace("error", { key, message });
     try { this.onError(message); } catch { /* Diagnostics cannot break gameplay. */ }
   }
 
@@ -196,14 +225,36 @@ export class AudioManager {
     else this.listener?.removeFromParent();
   }
 
-  async unlock() {
-    if (this.disposed || !this.context || !this.loader || this.context.state === "closed" || !this._active()) return false;
+  async unlock(reason = "manual") {
+    if (this.disposed || !this.loader || !this._active()) return false;
+    if (!this._initialize(reason) || this.context.state === "closed") return false;
     clearTimeout(this.suspendTimer); this.suspendTimer = null;
     try {
       if (this.context.state !== "running") {
+        // Match CatAdventure's working cold-start sequence. WebKit's suspend
+        // path checks processingUserGestureForMedia, separately from resume's
+        // activation check. Call both now, without awaiting suspend or resetting
+        // an already-unlocked graph during normal lifecycle recovery.
+        if (reason === "touchstart" && !this.unlocked && this.context.state === "suspended") {
+          this._trace("unlock:suspend:attempt", { reason });
+          try {
+            Promise.resolve(this.context.suspend())
+              .then(() => this._trace("unlock:suspend:resolved", { reason }))
+              .catch(error => this._trace("unlock:suspend:rejected", { reason, error: error.name }));
+          } catch (error) { this._trace("unlock:suspend:rejected", { reason, error: error.name }); }
+        }
         // Must run synchronously in the original gesture for both suspended and
         // interrupted states. No direct-to-speaker warm-up buffers are needed.
-        await this.context.resume();
+        const attempt = ++this.resumeAttempts;
+        this.pendingResumes++;
+        this._trace("resume:attempt", { attempt, reason });
+        try {
+          await this.context.resume();
+          this._trace("resume:resolved", { attempt, reason });
+        } catch (error) {
+          this._trace("resume:rejected", { attempt, reason, error: error.name, message: error.message });
+          return false;
+        } finally { this.pendingResumes--; }
       }
       if (this.disposed || !this._active() || this.context.state !== "running") return false;
       this.stateChange();
@@ -254,7 +305,7 @@ export class AudioManager {
     if (!this.buses.has(channel)) return null;
     const loop = options.loop ?? config.loop ?? false;
     // Never build a backlog of attacks while locked or in the background.
-    if (!loop && (this.context.state !== "running" || !this._active())) return null;
+    if (!loop && (this.context?.state !== "running" || !this._active())) return null;
     let count = 0, oldest = null;
     for (const voice of this.voices) if (voice.id === id) {
       if (loop && !position && !voice.position && !voice.stopping) return voice;
@@ -271,10 +322,12 @@ export class AudioManager {
     }
     const voice = new AudioVoice(this, id, config, options, position);
     this.voices.add(voice);
+    this._trace("voice:queued", { id, channel, loop });
     this.load(id).then(buffer => {
       if (voice.stopped) return;
       if (!buffer) { this._release(voice); return; }
       voice.buffer = buffer;
+      this._trace("voice:buffer", { id });
       if (!voice.loop && (this.context.state !== "running" || !this._active())) this._release(voice);
       else this._tryStart(voice);
     });
@@ -282,7 +335,7 @@ export class AudioManager {
   }
 
   _tryStart(voice) {
-    if (voice.stopped || (voice.sound && !voice.paused) || !voice.buffer || this.context.state !== "running" || !this._active()) return;
+    if (voice.stopped || (voice.sound && !voice.paused) || !voice.buffer || this.context?.state !== "running" || !this._active()) return;
     try {
       if (voice.paused) {
         const sound = voice.sound;
@@ -290,6 +343,7 @@ export class AudioManager {
         sound.play();
         sound.source.onended = () => { sound.onEnded(); this._release(voice); };
         voice.paused = false;
+        this._trace("voice:resumed", { id: voice.id });
         return;
       }
       const sound = voice.position ? new PositionalAudio(this.listener) : new Audio(this.listener);
@@ -321,6 +375,7 @@ export class AudioManager {
         }
       }
       voice.resolveReady(true);
+      this._trace("voice:started", { id: voice.id });
     } catch (error) {
       this._report(voice.id, `Could not play audio "${voice.id}": ${error.message}`);
       this._release(voice);
@@ -372,7 +427,8 @@ export class AudioManager {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
-    for (const type of gestures) this.eventTarget?.removeEventListener(type, this.gesture, true);
+    this._trace("dispose");
+    for (const type of gestures) this.eventTarget?.removeEventListener(type, this.gesture, { capture: true });
     this.eventTarget?.removeEventListener("blur", this.blur);
     this.eventTarget?.removeEventListener("focus", this.focus);
     this.eventTarget?.removeEventListener("pagehide", this.pageHide);

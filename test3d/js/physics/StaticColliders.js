@@ -24,16 +24,25 @@ export class StaticColliders {
     this.visitor = visit; this.queryBounds = bounds; this.stats.triangles = 0;
     this.index.query(bounds, this.visitEntry); this.stats.candidates = this.index.candidates;
   }
+  queryCamera(bounds, visit) {
+    this.cameraQuery = true;
+    try { this.query(bounds, visit); }
+    finally { this.cameraQuery = false; }
+  }
   testEntry(entry) {
-    if (!entry.mesh) return;
+    const mesh = this.cameraQuery && entry.cameraMesh !== undefined ? entry.cameraMesh : entry.mesh;
+    if (!mesh) return;
     this.active = entry;
     const b = this.queryBounds;
     // Intersect first: placement rays may use infinite Y, and multiplying
     // infinite Box3 corners by a matrix would produce NaNs (0 * Infinity).
     this.localBox.min.set(Math.max(b.minX, entry.bounds.minX), Math.max(b.minY, entry.bounds.minY), Math.max(b.minZ, entry.bounds.minZ));
     this.localBox.max.set(Math.min(b.maxX, entry.bounds.maxX), Math.min(b.maxY, entry.bounds.maxY), Math.min(b.maxZ, entry.bounds.maxZ));
-    this.localBox.applyMatrix4(entry.inverse); boxBounds(this.localBox, this.localBounds);
-    entry.mesh.query(this.localBounds, this.visitTriangle);
+    // Inverse transforms can round a clipped top face just below its local
+    // triangle bounds after repeated vertical moves. Keep the broad phase
+    // conservative; the contact solver still tests the actual world triangle.
+    this.localBox.applyMatrix4(entry.inverse).expandByScalar(1e-7); boxBounds(this.localBox, this.localBounds);
+    mesh.query(this.localBounds, this.visitTriangle);
   }
   testTriangle(a, b, c, id) {
     const entry = this.active;

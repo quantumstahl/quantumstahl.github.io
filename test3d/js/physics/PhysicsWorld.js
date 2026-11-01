@@ -16,6 +16,7 @@ export class PhysicsWorld {
   removeBody(body) { const i = this.bodies.indexOf(body); if (i >= 0) this.bodies.splice(i, 1); }
   touching(object, type = "any", mode = "ghost", dir = "any") { return touching(object, type, mode, dir); }
   query(bounds, visitor) { for (const collider of this.colliders) collider.query(bounds, visitor); }
+  queryCamera(bounds, visitor) { for (const collider of this.colliders) (collider.queryCamera ?? collider.query).call(collider, bounds, visitor); }
   update(delta) {
     const started = performance.now();
     this.stats.steps = 0; this.stats.triangleTests = 0;

@@ -7,6 +7,7 @@ export class ObjectCollider extends StaticColliders {
   constructor(data, library, { onError = library.onError ?? (() => {}), excludeIds = new Set() } = {}) {
     super(); this.data = data; this.assets = new ColliderAssets(data, library, onError);
     this.excludeIds = excludeIds;
+    this.runtimeY = new Map();
     this.byAsset = new Map(); this.states = new Map(); this.loads = new Set(); this.disposed = false;
     this.matrix = new Matrix4(); this.position = new Vector3(); this.scale = new Vector3(); this.euler = new Euler(); this.quaternion = new Quaternion();
     this.readyVisitor = this.checkReady.bind(this);
@@ -21,11 +22,21 @@ export class ObjectCollider extends StaticColliders {
   }
   transform(record) {
     this.position.fromArray(record.position); this.scale.fromArray(record.scale); this.euler.set(...record.rotation); this.quaternion.setFromEuler(this.euler);
+    this.position.y += this.runtimeY.get(record.id) ?? 0;
     return this.matrix.compose(this.position, this.quaternion, this.scale);
   }
   setExcluded(id, excluded) {
     if (excluded) { this.excludeIds.add(id); this.delete(id); }
     else { this.excludeIds.delete(id); const record = this.data.objects.get(id); if (record) this.updateObject(record); }
+  }
+  setRuntimeY(id, offset) {
+    const previous = this.runtimeY.get(id) ?? 0;
+    if (offset) this.runtimeY.set(id, offset); else this.runtimeY.delete(id);
+    const entry = this.index.entries.get(id); if (!entry) return;
+    const delta = offset - previous;
+    entry.matrix.elements[13] += delta; entry.inverse.copy(entry.matrix).invert();
+    entry.bounds.minY += delta; entry.bounds.maxY += delta;
+    // XZ membership stays fixed for vertical motion. Bounds are read live.
   }
   updateObject(record) {
     if (this.excludeIds.has(record.id)) return;
@@ -43,7 +54,19 @@ export class ObjectCollider extends StaticColliders {
       const box = b ? new Box3(new Vector3().fromArray(b.min), new Vector3().fromArray(b.max)).applyMatrix4(matrix) : null;
       // Missing bounds mean unknown extent: discover this asset once before
       // allowing simulation, rather than silently missing a large bridge.
-      this.index.set(record.id, { mesh: null, object: record, state, bounds: box ? boxBounds(box) : { minX: -Infinity, minY: -Infinity, minZ: -Infinity, maxX: Infinity, maxY: Infinity, maxZ: Infinity } });
+      this.index.set(record.id, { mesh: null, object: record, state, matrix: matrix.clone(), inverse: matrix.clone().invert(), mirrored: matrix.determinant() < 0,
+        bounds: box ? boxBounds(box) : { minX: -Infinity, minY: -Infinity, minZ: -Infinity, maxX: Infinity, maxY: Infinity, maxZ: Infinity } });
+    }
+    const entry = this.index.entries.get(record.id);
+    entry.cameraMesh = state.cameraMesh;
+    if (state.cameraMesh) {
+      const b = state.cameraMesh.bounds, bounds = entry.bounds;
+      const box = new Box3(new Vector3(b.minX, b.minY, b.minZ), new Vector3(b.maxX, b.maxY, b.maxZ)).applyMatrix4(matrix);
+      bounds.minX = Math.min(bounds.minX, box.min.x); bounds.maxX = Math.max(bounds.maxX, box.max.x);
+      bounds.minY = Math.min(bounds.minY, box.min.y); bounds.maxY = Math.max(bounds.maxY, box.max.y);
+      bounds.minZ = Math.min(bounds.minZ, box.min.z); bounds.maxZ = Math.max(bounds.maxZ, box.max.z);
+      // Reindex the union if an authored camera proxy extends beyond physics.
+      this.index.set(record.id, entry);
     }
     this.stats.instances = this.index.entries.size;
   }
@@ -64,11 +87,12 @@ export class ObjectCollider extends StaticColliders {
     });
   }
   checkReady(entry) {
-    if (entry.mesh) return;
+    if (entry.mesh || (this.preparingCamera && entry.cameraMesh !== undefined)) return;
     this.isReady = false; this.loads.add(entry.state); this.startLoad(entry.state);
   }
-  prepare(bounds) {
+  prepare(bounds, camera = false) {
     if (!bounds) return true;
+    this.preparingCamera = camera;
     this.isReady = true; this.loads.clear(); this.index.query(bounds, this.readyVisitor);
     this.stats.loading = !this.isReady; return this.isReady;
   }
@@ -77,6 +101,6 @@ export class ObjectCollider extends StaticColliders {
     for (const state of loads) if (state.error) throw new Error(state.error);
     this.prepare(bounds);
   }
-  query(bounds, visit) { this.prepare(bounds); super.query(bounds, visit); }
+  query(bounds, visit) { this.prepare(bounds, this.cameraQuery); super.query(bounds, visit); }
   dispose() { this.disposed = true; this.unsubscribe(); this.assets.dispose(); this.byAsset.clear(); this.states.clear(); this.loads.clear(); super.dispose(); }
 }
