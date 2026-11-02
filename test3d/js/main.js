@@ -11,6 +11,7 @@ import { EnvironmentSystem } from "./engine/EnvironmentSystem.js";
 import { GLBAssetLibrary } from "./objects/GLBAssetLibrary.js";
 import { ObjectSystem } from "./objects/ObjectSystem.js";
 import { DestructibleSystem } from "./objects/DestructibleSystem.js";
+import { isFallingTree } from "./objects/DestructibleConfig.js";
 import { BoxPhysics } from "./physics/BoxPhysics.js";
 import { renderWorldFrame, renderStatsLabel } from "./engine/RenderFrame.js";
 import { GrassSystem } from "./vegetation/GrassSystem.js";
@@ -145,7 +146,10 @@ const destructibles = controller.melee ? new DestructibleSystem(scene, worldSess
   collider: controller.objectCollider,
   onDestroy: (_hit, target) => boxPhysics?.remove(target.id),
   hitSound: (_hit, target) => audio.play3D("crate_hit", target.position),
-  destructionSound: (hit, target) => controller.combatOptions.destructionSound?.(hit, target),
+  destructionSound: (hit, target) => {
+    if (isFallingTree(worldSession.objectData.assets.get(target.record.assetId))) return audio.play3D("tree_fall", target.position);
+    if (!target.config.destroyedAnimation) return controller.combatOptions.destructionSound?.(hit, target);
+  },
   onError: message => { objectWarnings.hidden = false; objectWarnings.textContent = message; },
 }) : null;
 destructibles?.syncTargets(controller.body.position);

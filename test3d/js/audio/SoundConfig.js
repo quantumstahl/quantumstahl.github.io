@@ -6,6 +6,7 @@ export const SOUND_CONFIG = {
   claw: { urls: [sfx("swipe1.opus"), sfx("swipe1.wav")], volume: .65, pitchVariation: .08, maxInstances: 4 },
   crate_hit: { url: sfx("boxpunch.mp3"), volume: .7, maxInstances: 8 },
   crate_break: { urls: [sfx("cratebreaking.opus"), sfx("cratebreaking.wav")], volume: .8, maxInstances: 4 },
+  tree_fall: { url: sfx("fallingtree.mp3"), volume: .8, maxInstances: 4 },
   birds: { urls: [sfx("woodlandbirds.opus"), sfx("woodlandbirds.wav")], channel: "ambient", loop: true, volume: .5 },
   crickets: { urls: [sfx("cricket.opus"), sfx("cricket.wav")], channel: "ambient", loop: true, volume: .4 },
   // Synthetic placeholder is a sustained tonal drone that masks the recordings.

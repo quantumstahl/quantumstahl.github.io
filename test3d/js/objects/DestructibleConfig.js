@@ -5,10 +5,13 @@ export const DESTRUCTIBLE_DEFAULTS = Object.freeze({
   gravity: 12, angularVelocity: 2.5, bounce: .22, damping: .8,
 });
 
+export const isFallingTree = asset => [asset?.name, asset?.id].some(name => typeof name === "string" && /(?:^|[/\\])fallingtree(?:\.glb)?$/i.test(name));
+
 export function normalizeDestructible(value) {
   if (value == null || value === false) return null;
   if (value !== true && (typeof value !== "object" || Array.isArray(value))) throw new Error("Invalid destructible settings.");
   const config = { ...DESTRUCTIBLE_DEFAULTS, ...(value === true ? {} : value) };
+  if (config.destroyedAnimation != null && (typeof config.destroyedAnimation !== "string" || !config.destroyedAnimation.trim())) throw new Error("Invalid destruction animation.");
   if (typeof config.enabled !== "boolean" || typeof config.destroyedAsset !== "string" || !config.destroyedAsset.trim()) throw new Error("Choose a destroyed GLB asset.");
   for (const key of ["health", "debrisLifetime", "impulseStrength", "outwardImpulse", "upwardImpulse", "gravity", "angularVelocity", "bounce", "damping"]) {
     const n = config[key], positive = key === "health" || key === "debrisLifetime";
@@ -21,5 +24,8 @@ export function normalizeDestructible(value) {
 // Missing/null means inherit; explicit false must opt out of enabled defaults.
 export function resolveDestructible(asset, record) {
   const override = record?.properties?.destructible;
-  return normalizeDestructible(override == null ? asset?.destructible : override === false ? { enabled: false } : override);
+  const value = override == null ? asset?.destructible : override;
+  if (isFallingTree(asset)) return normalizeDestructible({ health: 4, destroyedAsset: asset.id, destroyedAnimation: "Animation 1",
+    ...(value === false ? { enabled: false } : value === true ? {} : value) });
+  return normalizeDestructible(value === false ? { enabled: false } : value);
 }

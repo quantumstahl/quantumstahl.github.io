@@ -17,7 +17,19 @@ export function meshColliderFromSource(source) {
   const root = animated ? cloneSkeleton(source.scene) : source.scene;
   let mixer = null;
   if (source.animations?.length) { mixer = new AnimationMixer(root); mixer.clipAction(source.animations[0]).play(); mixer.update(0); }
+  const mesh = meshColliderFromObject(root);
+  mixer?.stopAllAction(); mixer?.uncacheRoot(root);
+  if (animated) root.traverse(node => node.skeleton?.dispose());
+  return mesh;
+}
+
+// Bake the current pose without restarting animations or cloning its skeleton.
+// Local coordinates let a runtime pose use the placement's existing transform.
+export function meshColliderFromObject(root, { local = false } = {}) {
+  root.updateWorldMatrix(true, false);
+  // Use the renderer's update path so attached skins refresh bindMatrixInverse.
   root.updateMatrixWorld(true);
+  const inverse = local ? root.matrixWorld.clone().invert() : null;
   const vertices = [], point = new Vector3(), instance = new Matrix4(), matrix = new Matrix4();
   const append = (mesh, transform) => {
     mesh.skeleton?.update();
@@ -30,11 +42,12 @@ export function meshColliderFromSource(source) {
   };
   root.traverseVisible(node => {
     if (!node.isMesh || node.userData.shadowProxy || /^SHADOW_PROXY_/i.test(node.name)) return;
-    if (node.isInstancedMesh) for (let i = 0; i < node.count; i++) { node.getMatrixAt(i, instance); matrix.multiplyMatrices(node.matrixWorld, instance); append(node, matrix); }
-    else append(node, node.matrixWorld);
+    if (node.isInstancedMesh) for (let i = 0; i < node.count; i++) {
+      node.getMatrixAt(i, instance); matrix.multiplyMatrices(node.matrixWorld, instance);
+      if (inverse) matrix.premultiply(inverse); append(node, matrix);
+    }
+    else { matrix.copy(node.matrixWorld); if (inverse) matrix.premultiply(inverse); append(node, matrix); }
   });
-  mixer?.stopAllAction(); mixer?.uncacheRoot(root);
-  if (animated) root.traverse(node => node.skeleton?.dispose());
   if (!vertices.length) throw new Error("Collision source has no visible mesh triangles.");
   return new TriangleMesh(vertices);
 }

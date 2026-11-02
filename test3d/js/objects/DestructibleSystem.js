@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { resolveDestructible } from "./DestructibleConfig.js";
+import { releaseObject } from "./ObjectSystem.js";
 
 const SETTLING = Object.freeze({ linearSpeed: .4, angularSpeed: .6, rotationRate: 9, heightRate: 14,
   angleTolerance: .01, heightTolerance: .005, clearance: .005 });
@@ -24,7 +25,7 @@ export class DestructibleSystem {
     onError = assets.onError ?? (() => {}), random = Math.random, activationDistance = 24, maxDebrisPieces = 120, spawnBudget = 2 } = {}) {
     Object.assign(this, { scene, data, assets, objects, melee, terrain, collider, onDestroy, destructionSound, hitSound, onError, random, activationDistance, maxDebrisPieces, spawnBudget });
     this.states = new Map(); this.active = new Map(); this.destroyed = new Set(); this.sources = new Map();
-    this.debris = []; this.queue = []; this.generation = 0; this.disposed = false; this.syncAge = Infinity;
+    this.debris = []; this.fallen = []; this.queue = []; this.generation = 0; this.disposed = false; this.syncAge = Infinity;
     this.root = new THREE.Group(); this.root.name = "Destructible debris"; scene.add(this.root);
     this.matrix = new THREE.Matrix4(); this.box = new THREE.Box3(); this.vector = new THREE.Vector3(); this.axis = new THREE.Vector3();
     this.rotation = new THREE.Quaternion(); this.warp = { x: 0, z: 0 };
@@ -48,15 +49,22 @@ export class DestructibleSystem {
       }
     });
   }
-  preload(id) {
-    if (this.sources.has(id)) return this.sources.get(id);
+  preload(id, animation = null) {
+    const key = animation ? `animation:${id}:${animation}` : id;
+    if (this.sources.has(key)) return this.sources.get(key);
     const lease = this.assets.acquire(id), entry = { lease, template: null, error: null, promise: null };
     entry.promise = lease.promise.then(source => {
       if (this.disposed) return;
-      entry.template = prepareDebris(source);
-      if (id === "box2.glb" && entry.template.parts.length !== 6) throw new Error("box2.glb must contain six separate mesh parts.");
+      if (animation) {
+        const clip = source.animations.find(clip => clip.name === animation);
+        if (!clip) throw new Error(`Missing destruction animation: ${animation}.`);
+        entry.template = { source, clip };
+      } else {
+        entry.template = prepareDebris(source);
+        if (id === "box2.glb" && entry.template.parts.length !== 6) throw new Error("box2.glb must contain six separate mesh parts.");
+      }
     }).catch(error => { entry.error = error; entry.template = null; this.onError(`Destruction: ${error.message}`); });
-    this.sources.set(id, entry); return entry;
+    this.sources.set(key, entry); return entry;
   }
   createTarget(record, config) {
     const asset = this.data.assets.get(record.assetId);
@@ -81,7 +89,7 @@ export class DestructibleSystem {
         if (state.position.distanceTo(focus) > this.activationDistance + state.radius) continue;
         near.add(id);
         if (!this.active.has(id)) this.active.set(id, this.melee.register(state));
-        this.preload(config.destroyedAsset);
+        this.preload(config.destroyedAsset, config.destroyedAnimation);
       }
     }
     for (const [id, unregister] of this.active) if (!near.has(id)) { unregister(); this.active.delete(id); }
@@ -99,20 +107,33 @@ export class DestructibleSystem {
     this.hitSound?.(hit, state); // Once per accepted hit, including the lethal hit.
     if (state.health > 0) return true;
     state.enabled = false; this.destroyed.add(id);
-    // No authoring mutation: invalidate pending builds and remove ALL visual
-    // LODs / batch slots and the physics entry synchronously with the hit.
-    this.objects.setExcluded(id, true); this.collider?.setExcluded(id, true);
+    // The animated replacement retains collision until its live pose is ready.
+    // Debris destruction still removes collision synchronously with the hit.
+    this.objects.setExcluded(id, true);
+    if (!state.config.destroyedAnimation) this.collider?.setExcluded(id, true);
     this.active.get(id)?.(); this.active.delete(id);
     const direction = new THREE.Vector3(hit.direction?.x ?? 0, 0, hit.direction?.z ?? 0);
     if (direction.lengthSq() > 0) direction.normalize();
     this.queue.push({ id, config: state.config, matrix: this.objects.recordMatrix(state.record, new THREE.Matrix4()),
-      direction, source: this.preload(state.config.destroyedAsset), generation: this.generation });
-    this.onDestroy?.(hit, state); this.destructionSound?.(hit, state);
+      direction, source: this.preload(state.config.destroyedAsset, state.config.destroyedAnimation), generation: this.generation });
+    this.onDestroy?.(hit, state);
+    this.destructionSound?.(hit, state);
     return true;
   }
   spawn(request) {
     const { template } = request.source, { config, matrix, direction } = request;
     if (!template || request.generation !== this.generation) return;
+    if (config.destroyedAnimation) {
+      // Keep world placement outside the animated model, including root tracks.
+      const root = new THREE.Group(), model = this.assets.clone(template.source);
+      root.matrixAutoUpdate = false; root.matrix.copy(matrix); root.add(model); this.root.add(root);
+      const mixer = new THREE.AnimationMixer(model), action = mixer.clipAction(template.clip);
+      action.setLoop(THREE.LoopOnce, 1); action.clampWhenFinished = true; action.play(); mixer.update(0);
+      root.userData.mixer = mixer; root.userData.animationRoot = model;
+      this.collider?.setAnimatedPose(request.id, root);
+      this.fallen.push({ id: request.id, root, mixer, action });
+      return;
+    }
     if (template.parts.length > this.maxDebrisPieces) { this.onError("Destroyed asset exceeds the debris piece budget."); return; }
     while (this.debris.length && this.pieceCount + template.parts.length > this.maxDebrisPieces) this.removeDebris(0);
     const group = { id: request.id, age: 0, config, pieces: [] };
@@ -214,6 +235,10 @@ export class DestructibleSystem {
   update(delta, focus = null) {
     if (this.disposed) return;
     const elapsed = Number.isFinite(delta) ? Math.max(0, delta) : 0;
+    for (const { id, root, mixer, action } of this.fallen) if (!action.paused && elapsed > 0) {
+      mixer.update(elapsed);
+      this.collider?.setAnimatedPose(id, root);
+    }
     this.syncAge += elapsed;
     if (focus && this.syncAge >= .15) { this.syncAge = 0; this.syncTargets(focus); }
     for (let i = this.debris.length - 1; i >= 0; i--) {
@@ -238,6 +263,8 @@ export class DestructibleSystem {
   }
   resetSession() {
     this.generation++; this.queue.length = 0;
+    for (const { id, root } of this.fallen) { this.collider?.clearAnimatedPose(id); releaseObject(root); }
+    this.fallen.length = 0;
     while (this.debris.length) this.removeDebris(this.debris.length - 1);
     for (const unregister of this.active.values()) unregister();
     this.active.clear(); this.states.clear();

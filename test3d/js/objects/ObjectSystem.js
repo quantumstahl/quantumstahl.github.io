@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { ObjectLODGroup } from "./ObjectLODGroup.js";
 import { lodResourceIds } from "./ObjectLOD.js";
+import { isFallingTree } from "./DestructibleConfig.js";
 
 const NO_DIAGNOSTICS = [];
 const sameModels = (before, after) => before?.lod && after?.lod && before.data === after.data
@@ -110,7 +111,7 @@ export class ObjectSystem {
     const model = source ? this.assets.clone(source) : new THREE.Mesh(this.missingGeometry, this.missingMaterial);
     root.add(model); applyObjectTransform(root, record);
     root.position.y += this.runtimeY.get(record.id) ?? 0; root.updateMatrixWorld(true);
-    if (source?.animations.length && record.properties.animation !== false) {
+    if (source?.animations.length && record.properties.animation !== false && !isFallingTree(this.data.assets.get(record.assetId))) {
       // A wrapper owns world placement. Root animation can never overwrite it.
       const mixer = new THREE.AnimationMixer(model);
       const clip = source.animations.find(clip => clip.name === record.properties.clip) ?? source.animations[0];

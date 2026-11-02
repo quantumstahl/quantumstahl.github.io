@@ -1,6 +1,6 @@
 import { Box3, Euler, Matrix4, Quaternion, Vector3 } from "three";
 import { StaticColliders, boxBounds } from "./StaticColliders.js";
-import { ColliderAssets } from "./ColliderAssets.js";
+import { ColliderAssets, meshColliderFromObject } from "./ColliderAssets.js";
 import { initializeContacts } from "./Contacts.js";
 
 export class ObjectCollider extends StaticColliders {
@@ -8,12 +8,14 @@ export class ObjectCollider extends StaticColliders {
     super(); this.data = data; this.assets = new ColliderAssets(data, library, onError);
     this.excludeIds = excludeIds;
     this.runtimeY = new Map();
+    this.runtimeMeshes = new Map();
     this.byAsset = new Map(); this.states = new Map(); this.loads = new Set(); this.disposed = false;
     this.matrix = new Matrix4(); this.position = new Vector3(); this.scale = new Vector3(); this.euler = new Euler(); this.quaternion = new Quaternion();
     this.readyVisitor = this.checkReady.bind(this);
     for (const object of data.objects.values()) this.updateObject(object);
     this.unsubscribe = data.onChanged(event => {
       if (event.kind === "object") {
+        this.runtimeMeshes.delete(event.id);
         if (event.before) { this.byAsset.get(event.before.assetId)?.delete(event.id); this.delete(event.id); }
         if (event.after) this.updateObject(event.after);
       } else if (event.kind === "asset") this.updateAsset(event.id);
@@ -26,8 +28,20 @@ export class ObjectCollider extends StaticColliders {
     return this.matrix.compose(this.position, this.quaternion, this.scale);
   }
   setExcluded(id, excluded) {
-    if (excluded) { this.excludeIds.add(id); this.delete(id); }
+    if (excluded) { this.excludeIds.add(id); this.runtimeMeshes.delete(id); this.delete(id); }
     else { this.excludeIds.delete(id); const record = this.data.objects.get(id); if (record) this.updateObject(record); }
+  }
+  setAnimatedPose(id, root) {
+    const record = this.data.objects.get(id);
+    if (!record || this.excludeIds.has(id) || this.assets.get(record.assetId)?.config.mode !== "mesh") return;
+    // Per-placement mesh: cached asset colliders and neighbouring trees stay intact.
+    this.runtimeMeshes.set(id, meshColliderFromObject(root, { local: true }));
+    this.updateObject(record);
+  }
+  clearAnimatedPose(id) {
+    if (!this.runtimeMeshes.delete(id)) return;
+    this.delete(id);
+    const record = this.data.objects.get(id); if (record) this.updateObject(record);
   }
   setRuntimeY(id, offset) {
     const previous = this.runtimeY.get(id) ?? 0;
@@ -48,7 +62,8 @@ export class ObjectCollider extends StaticColliders {
     if (!Object.hasOwn(record, "name")) Object.defineProperty(record, "name", { configurable: true, get: () => record.properties.name ?? data.assets.get(record.assetId)?.name ?? record.assetId });
     if (!Object.hasOwn(record, "colliderKind")) Object.defineProperty(record, "colliderKind", { value: "object", configurable: true });
     const matrix = this.transform(record);
-    if (state.mesh) this.set(record.id, state.mesh, matrix, record);
+    const mesh = this.runtimeMeshes.get(record.id) ?? state.mesh;
+    if (mesh) this.set(record.id, mesh, matrix, record);
     else {
       const b = state.sourceBounds;
       const box = b ? new Box3(new Vector3().fromArray(b.min), new Vector3().fromArray(b.max)).applyMatrix4(matrix) : null;
@@ -102,5 +117,5 @@ export class ObjectCollider extends StaticColliders {
     this.prepare(bounds);
   }
   query(bounds, visit) { this.prepare(bounds, this.cameraQuery); super.query(bounds, visit); }
-  dispose() { this.disposed = true; this.unsubscribe(); this.assets.dispose(); this.byAsset.clear(); this.states.clear(); this.loads.clear(); super.dispose(); }
+  dispose() { this.disposed = true; this.unsubscribe(); this.assets.dispose(); this.byAsset.clear(); this.states.clear(); this.loads.clear(); this.runtimeMeshes.clear(); super.dispose(); }
 }
