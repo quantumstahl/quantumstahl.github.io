@@ -29,12 +29,15 @@ export class PhysicsWorld {
     for (const collider of this.colliders) if (collider.prepare) for (const body of this.bodies) {
       const c = body.config;
       const guard = Math.min((body.velocity.length() + c.runSpeed) * maximum, c.radius * .4 * c.maxMotionSubsteps * this.maxCatchUpSteps) + c.stepHeight + c.groundSnap + body.rotationReach * 2;
-      body.setBounds(guard);
+      // A local depenetration may reach farther than this frame's intent.
+      // Await collision assets throughout that region before moving there.
+      body.setBounds(Math.max(guard, body.recovery.maxDistance, body.escape.guardDistance));
       if (!collider.prepare(body.bounds)) this.stats.waitingForColliders = true;
     }
     if (this.stats.waitingForColliders) {
       this.stats.updateMs = performance.now() - started; this.stats.peakMs = Math.max(this.stats.peakMs, this.stats.updateMs); return 0;
     }
+    for (const body of this.bodies) body.escape.searchPrepared = body.escape.pending;
     while (this.accumulator + 1e-12 >= this.fixedDelta && this.stats.steps < this.maxCatchUpSteps) {
       for (const body of this.bodies) body.step(this.fixedDelta);
       this.accumulator = Math.max(0, this.accumulator - this.fixedDelta);

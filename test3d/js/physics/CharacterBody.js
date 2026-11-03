@@ -1,5 +1,7 @@
 import { Vector3 } from "three";
 import { CapsuleTriangle } from "./CapsuleTriangle.js";
+import { CapsuleRecovery } from "./CapsuleRecovery.js";
+import { CharacterEscape } from "./CharacterEscape.js";
 import { initializeContacts, clearContacts, DIRECTIONS } from "./Contacts.js";
 
 export const CHARACTER_DEFAULTS = Object.freeze({
@@ -42,6 +44,8 @@ export class CharacterBody {
     this.minGroundY = Math.cos(c.maxSlopeAngle * Math.PI / 180);
     this.bounds = { minX: 0, minY: 0, minZ: 0, maxX: 0, maxY: 0, maxZ: 0 };
     this.query = new CapsuleTriangle();
+    this.recovery = new CapsuleRecovery(this);
+    this.escape = new CharacterEscape(this);
     this.normal = new Vector3(); this.faceNormal = new Vector3();
     this.saved = new Vector3(); this.stepSaved = new Vector3();
     this.motionSaved = new Vector3(); this.velocitySaved = new Vector3();
@@ -67,6 +71,7 @@ export class CharacterBody {
     this.position.set(x, y, z); this.previousPosition.copy(this.position);
     this.yaw = this.previousYaw = this.targetYaw = yaw; this.turnBlocked = false;
     this.velocity.set(0, 0, 0); this.grounded = false; this.jumpRequested = false;
+    this.escape.reset();
     this.clearContacts();
     this.updateCapsule();
   }
@@ -168,6 +173,16 @@ export class CharacterBody {
     }
     return !this.findCollision();
   }
+  resolveMotion(colliding = this.findCollision()) {
+    if (!colliding) return true;
+    const pinched = this.recovery.capturePinch();
+    if (!this.resolve()) return false;
+    // Alternating pushes can appear to converge after crossing one of the
+    // two-sided faces. A pinched solve must stay on its original side.
+    if (!pinched) return true;
+    this.recovery.candidate.copy(this.position);
+    return this.recovery.reachable(this.recovery.candidate);
+  }
   testGround(a, b, c, object, id) {
     const q = this.query.testSegment(this.supportStart, this.supportEnd, a, b, c);
     if (q.faceNormal.y < this.minGroundY) return;
@@ -219,13 +234,19 @@ export class CharacterBody {
     const c = this.config, wasGrounded = this.grounded;
     this.previousPosition.copy(this.position); this.previousYaw = this.yaw; this.clearContacts(); this.landed = false;
     this.rotate();
+    
     const speed = this.running ? c.runSpeed : c.walkSpeed;
     const blend = wasGrounded ? 1 : 1 - Math.exp(-c.airControl * delta);
     this.velocity.x += (this.intent.x * speed - this.velocity.x) * blend;
     this.velocity.z += (this.intent.z * speed - this.velocity.z) * blend;
-    const jumped = this.jumpRequested && wasGrounded;
+    const normalJump = this.jumpRequested && wasGrounded;
+    const recoveryJump = this.jumpRequested && !wasGrounded && this.escape.recoveryJump();
+
+    
+    const jumped = normalJump || recoveryJump;
     this.jumpRequested = false;
-    if (jumped) { this.velocity.y = c.jumpSpeed; this.grounded = false; }
+    if (normalJump) this.escape.normalJump();
+    if (jumped) { this.velocity.y = recoveryJump ? this.escape.jumpSpeed() : c.jumpSpeed; this.grounded = false; }
     else if (wasGrounded) this.velocity.y = 0;
     this.velocity.y -= c.gravity * delta;
     const travel = this.velocity.length() * delta;
@@ -237,6 +258,9 @@ export class CharacterBody {
     for (let i = 0; i < substeps; i++) {
       this.floorResponse = false;
       this.saved.copy(this.position);
+      const supportedBeforeMotion = this.grounded, supportObject = this.groundObject;
+      let pocketRejected = false;
+      const startedOverlapping = this.findCollision();
       const dx = this.velocity.x * dt, dz = this.velocity.z * dt;
       // Measure downward travel before slope projection and collision response.
       // The foot probe still needs to recover gravity while walking uphill.
@@ -244,24 +268,31 @@ export class CharacterBody {
       this.position.x += dx; this.position.z += dz; this.position.y += this.velocity.y * dt;
       if (this.grounded && !jumped) this.position.y -= (dx * this.groundNormal.x + dz * this.groundNormal.z) / this.groundNormal.y;
       this.motionSaved.copy(this.position); this.velocitySaved.copy(this.velocity);
-      const obstacle = this.findCollision() && this.faceNormal.y < this.minGroundY && this.normal.y >= 0;
-      if (!(obstacle && this.grounded && !jumped && c.stepHeight > 0 && this.tryStep()) && !this.resolve()) {
-        // Opposing steep faces may have no horizontal separation at the new
-        // height. Reject that vertical travel, then solve the intended XZ move
-        // at the last safe height so gravity cannot also lock an open exit.
-        // Retry from the requested move/velocity, not the failed solver's
-        // alternating pushes. The same solid/slope checks still apply.
-        this.position.copy(this.motionSaved); this.position.y = this.saved.y;
-        this.velocity.copy(this.velocitySaved); this.floorResponse = false;
-        if (this.resolve()) this.velocity.y = 0;
-        else {
-          // A narrow horizontal corner can instead block XZ while leaving
-          // falling/jumping unobstructed. Keep that vertical travel too.
-          this.position.copy(this.saved);
-          this.position.y += this.velocitySaved.y * dt;
-          this.velocity.set(0, this.velocitySaved.y, 0); this.floorResponse = false;
-          if (!this.resolve()) {
-            this.position.copy(this.saved); this.velocity.set(0, 0, 0); this.floorResponse = false;
+      const colliding = this.findCollision();
+      const obstacle = colliding && this.faceNormal.y < this.minGroundY && this.normal.y >= 0;
+      if (!(obstacle && this.grounded && !jumped && c.stepHeight > 0 && this.tryStep()) && !this.resolveMotion(colliding)) {
+        // Solve the whole local contact manifold from the requested pose,
+        // before the old axis retries can restore an already trapped pose.
+        this.position.copy(this.motionSaved); this.velocity.copy(this.velocitySaved); this.floorResponse = false;
+        const recovered = this.recovery.recover({ allowSearch: startedOverlapping });
+        if (!this.floorResponse) this.velocity.y = Math.min(this.velocity.y, Math.max(0, this.velocitySaved.y));
+        // Steep-face separation cannot manufacture uphill travel. Only an
+        // actual pre-existing overlap may need that last-resort correction.
+        const uphill = !startedOverlapping && !this.floorResponse
+          && this.position.y > this.saved.y + Math.max(0, this.velocitySaved.y * dt) + 1e-5;
+        if (!recovered || uphill || this.position.y > this.escape.jumpCeiling + c.skin * 4) {
+          // Keep independent horizontal/vertical travel when a large blocked
+          // region has no local recovery, then reject only the blocked move.
+          this.position.copy(this.motionSaved); this.position.y = this.saved.y;
+          this.velocity.copy(this.velocitySaved); this.floorResponse = false;
+          if (this.resolveMotion()) this.velocity.y = 0;
+          else {
+            this.position.copy(this.saved);
+            this.position.y += this.velocitySaved.y * dt;
+            this.velocity.set(0, this.velocitySaved.y, 0); this.floorResponse = false;
+            if (!this.resolveMotion()) {
+              this.position.copy(this.saved); this.velocity.set(0, 0, 0); this.floorResponse = false;
+            }
           }
         }
       }
@@ -278,7 +309,19 @@ export class CharacterBody {
           this.groundNormal.copy(this.bestNormal); this.groundPoint.copy(this.bestPoint);
         } else this.position.copy(this.stepSaved);
       }
+      // Wall response can slide a supported proposed footprint past a rim.
+      // Check the resolved pose too before accepting the unsupported move.
+      if (supportedBeforeMotion && !jumped && !this.grounded && !startedOverlapping && this.escape.preventEntry()) {
+        this.position.copy(this.saved); this.velocity.set(0, 0, 0);
+        this.grounded = true; this.groundObject = supportObject; pocketRejected = true;
+      }
+      if (this.grounded && !pocketRejected) this.escape.pending = false;
     }
+    this.escape.update(delta);
+    this.finishStep(wasGrounded);
+  }
+  finishStep(wasGrounded) {
+    const c = this.config;
     // Only final-position contacts escape the solver; old/transient hits clear.
     this.clearContacts(); this.setBounds(c.skin * 4); this.world.query(this.bounds, this.visitContacts);
     if (this.grounded) { this.object.contactsSolid.down = this.groundObject; this.groundNormal.toArray(this.contactNormals, 15); }
