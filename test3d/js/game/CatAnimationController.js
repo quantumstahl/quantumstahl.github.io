@@ -4,7 +4,7 @@ export const CLAW_CLIP_NAMES = Object.freeze(["Animation 2", "Animation 3", "Ani
 
 const hasPounceRoot = clip => ["position", "quaternion"].every(property => clip?.tracks.some(track => track.name === `export-node-1.${property}`));
 export function catClipsNeedRefresh(clips) {
-  return CLAW_CLIP_NAMES.some(name => !clips.some(clip => clip.name === name))
+  return [...CLAW_CLIP_NAMES, "Animation 5"].some(name => !clips.some(clip => clip.name === name))
     || !hasPounceRoot(clips.find(clip => clip.name === "Animation 4"));
 }
 
@@ -19,7 +19,7 @@ function sameTrack(a, b) {
 // when every animated node has the same local bind transform and parent name.
 // Both input clip arrays and their tracks remain untouched.
 export function compatibleCatClips(model, reference, clips, extras) {
-  const missing = extras.filter(clip => CLAW_CLIP_NAMES.includes(clip.name) && !clips.some(existing => existing.name === clip.name));
+  const missing = extras.filter(clip => [...CLAW_CLIP_NAMES, "Animation 5"].includes(clip.name) && !clips.some(existing => existing.name === clip.name));
   const oldPounce = clips.find(clip => clip.name === "Animation 4"), repaired = extras.find(clip => clip.name === "Animation 4");
   // Also repair the known older complete export. Never replace customized paw
   // motion: its duration and every existing track must match the reference.
@@ -44,6 +44,12 @@ export function compatibleCatClips(model, reference, clips, extras) {
 export class CatAnimationController {
   constructor(mixer, clips, locomotionClip, { crossFade = .06 } = {}) {
     this.mixer = mixer; this.crossFade = crossFade;
+    let sleepClip = clips.find(clip => clip.name === "Animation 5");
+    // Some authored exports contain a static sleeping pose at time zero.
+    // Give that pose a finite loop span: a zero-duration repeating action
+    // produces NaN time in Three.js. Keep all source tracks/transforms intact.
+    if (sleepClip?.duration === 0) { sleepClip = sleepClip.clone(); sleepClip.duration = 1; }
+    this.sleep = sleepClip ? mixer.clipAction(sleepClip) : null;
     this.locomotion = locomotionClip ? mixer.clipAction(locomotionClip) : null;
     this.attacks = CLAW_CLIP_NAMES.map(name => {
       const clip = clips.find(clip => clip.name === name);

@@ -68,3 +68,13 @@ button:disabled:hover { background: rgb(102 149 178 / 15%); border-color: rgb(18
 #objectBrushPanel { padding: 8px 0 12px; border-bottom: 1px solid #49697e; }
 #objectBrushPanel .object-brush-range { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 #objectBrushRadiusValue { grid-column: 1 / -1; font-size: 11px; }
+#triggerPanel { margin-top: 0; padding-top: 0; border-top: 0; }
+#triggerPanel select { width: 100%; padding: 6px; background: #122a3a; color: #e5f3ff; border: 1px solid #49697e; border-radius: 4px; }
+#triggerPanel label > select, #triggerPanel .trigger-vector { grid-column: 1 / -1; }
+#triggerPanel label > textarea { grid-column: 1 / -1; width: 100%; resize: vertical; padding: 6px; background: #122a3a; color: #e5f3ff; border: 1px solid #49697e; border-radius: 4px; }
+#triggerPanel .trigger-vector { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+#triggerPanel .trigger-vector input { grid-column: auto; width: 100%; }
+#triggerPanel fieldset { min-width: 0; margin: 14px 0 0; padding: 8px; border: 1px solid #49697e; border-radius: 6px; }
+#triggerPanel legend { font-size: 12px; }
+#triggerPanel .trigger-check { align-items: center; }
+#triggerPanel .trigger-check input { grid-column: 2; grid-row: 1; width: auto; }

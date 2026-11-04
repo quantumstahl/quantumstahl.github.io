@@ -16,6 +16,11 @@ export class ClawCombo {
     this.buffered = false; this.idleAge = Infinity;
   }
   get active() { return this.attackIndex >= 0; }
+  cancel() {
+    this.attackIndex = -1; this.nextIndex = 0; this.elapsed = 0;
+    this.buffered = false; this.idleAge = Infinity;
+    this.animation.finishAttack();
+  }
   start(index) {
     this.attackIndex = index; this.elapsed = 0; this.buffered = false;
     this.melee.beginSwing(); this.animation.playAttack(index);

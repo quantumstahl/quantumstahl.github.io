@@ -103,6 +103,7 @@ export class DestructibleSystem {
   receiveHit(id, hit) {
     const state = this.states.get(id);
     if (!state?.enabled || this.destroyed.has(id) || !Number.isFinite(hit.damage) || hit.damage <= 0) return false;
+    this.refreshTarget(id); // Sound and rewards use the actual runtime transform.
     state.health = Math.max(0, state.health - hit.damage);
     this.hitSound?.(hit, state); // Once per accepted hit, including the lethal hit.
     if (state.health > 0) return true;
@@ -128,7 +129,7 @@ export class DestructibleSystem {
       const root = new THREE.Group(), model = this.assets.clone(template.source);
       root.matrixAutoUpdate = false; root.matrix.copy(matrix); root.add(model); this.root.add(root);
       const mixer = new THREE.AnimationMixer(model), action = mixer.clipAction(template.clip);
-      action.setLoop(THREE.LoopOnce, 1); action.clampWhenFinished = true; action.play(); mixer.update(0);
+      action.setLoop(THREE.LoopOnce, 1); action.clampWhenFinished = true; action.play(); mixer.update(request.savedTime ?? 0);
       root.userData.mixer = mixer; root.userData.animationRoot = model;
       this.collider?.setAnimatedPose(request.id, root);
       this.fallen.push({ id: request.id, root, mixer, action });
@@ -260,6 +261,60 @@ export class DestructibleSystem {
     const group = this.debris[index];
     for (const piece of group.pieces) { piece.pivot.removeFromParent(); piece.pivot.clear(); }
     this.debris.splice(index, 1); // Shared GPU resources belong to cached leases.
+  }
+  snapshot() {
+    return { version: 1, destroyed: [...this.destroyed].sort(),
+      damaged: [...this.states.values()].filter(s => !this.destroyed.has(s.id) && s.health < s.config.health)
+        .map(s => ({ id: s.id, health: s.health })),
+      animations: [...this.fallen].map(s => ({ id: s.id, time: s.action.time })) };
+  }
+  validateSnapshot(state) {
+    if (state?.version !== 1 || !Array.isArray(state.destroyed) || !Array.isArray(state.damaged) || !Array.isArray(state.animations)) throw new Error("Invalid destruction save.");
+    const configFor = id => {
+      const record = this.data.objects.get(id);
+      return record && resolveDestructible(this.data.assets.get(record.assetId), record);
+    };
+    if (new Set(state.destroyed).size !== state.destroyed.length || state.destroyed.some(id => !configFor(id)?.enabled)) throw new Error("Invalid destroyed object ID.");
+    const seen = new Set(state.destroyed);
+    for (const entry of state.damaged) {
+      const config = configFor(entry.id);
+      if (!config?.enabled || seen.has(entry.id) || !Number.isFinite(entry.health) || entry.health <= 0 || entry.health > config.health) throw new Error("Invalid saved object health.");
+      seen.add(entry.id);
+    }
+    const animated = new Set();
+    for (const entry of state.animations) {
+      if (!state.destroyed.includes(entry.id) || animated.has(entry.id) || !configFor(entry.id)?.destroyedAnimation
+        || !Number.isFinite(entry.time) || entry.time < 0) throw new Error("Invalid saved destruction animation.");
+      animated.add(entry.id);
+    }
+  }
+  async prepareRestore(state) {
+    this.validateSnapshot(state);
+    await Promise.all(state.destroyed.map(id => {
+      const record = this.data.objects.get(id), config = resolveDestructible(this.data.assets.get(record.assetId), record);
+      if (!config.destroyedAnimation) return;
+      const source = this.preload(config.destroyedAsset, config.destroyedAnimation);
+      return source.promise.then(() => {
+        if (source.error) throw source.error;
+        if ((state.animations.find(entry => entry.id === id)?.time ?? 0) > source.template.clip.duration) throw new Error("Saved destruction animation is out of range.");
+      });
+    }));
+  }
+  restore(state) {
+    this.validateSnapshot(state); this.resetSession();
+    for (const id of state.destroyed) {
+      const record = this.data.objects.get(id), config = resolveDestructible(this.data.assets.get(record.assetId), record);
+      this.destroyed.add(id); this.objects.setExcluded(id, true); this.collider?.setExcluded(id, !config.destroyedAnimation);
+      if (config.destroyedAnimation) {
+        this.spawn({ id, config, matrix: this.objects.recordMatrix(record, new THREE.Matrix4()),
+          source: this.preload(config.destroyedAsset, config.destroyedAnimation), generation: this.generation,
+          savedTime: state.animations.find(a => a.id === id)?.time ?? 0 });
+      }
+    }
+    for (const entry of state.damaged) {
+      const record = this.data.objects.get(entry.id), config = resolveDestructible(this.data.assets.get(record.assetId), record);
+      this.createTarget(record, config).health = entry.health;
+    }
   }
   resetSession() {
     this.generation++; this.queue.length = 0;

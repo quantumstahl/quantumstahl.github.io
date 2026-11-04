@@ -3,6 +3,24 @@
 html, body, #viewport { width: 100%; height: 100%; margin: 0; overflow: hidden; }
 body { background: #77b4df; }
 #viewport { display: block; }
+.respawn-fade { position: fixed; inset: 0; z-index: 1000; background: #000; opacity: 0; pointer-events: none; }
+.game-hud { position: fixed; z-index: 4; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); display: grid; justify-items: start; gap: 8px; color: #fff4ca; pointer-events: none; }
+.game-hud[hidden] { display: none; }
+.hud-symbols { position: absolute; overflow: hidden; }
+.hud-coins, .hud-health { border: 1.5px solid rgb(255 226 134 / 72%); box-shadow: 0 4px 12px rgb(18 35 17 / 38%); }
+.hud-coins { display: flex; align-items: center; gap: 8px; min-width: 120px; height: 50px; padding: 3px 16px 3px 4px; border-radius: 21px; background: linear-gradient(rgb(37 62 39 / 88%), rgb(15 30 20 / 88%)); font: 800 25px/1 system-ui, sans-serif; }
+.hud-coins output { font: inherit; font-variant-numeric: tabular-nums; }
+.hud-coin-icon { flex: none; width: 42px; height: 42px; }
+.hud-health { display: flex; align-items: center; gap: 6px; height: 48px; padding: 8px 10px; border-radius: 21px; background: rgb(22 51 39 / 94%); border-color: rgb(245 223 154 / 55%); }
+.hud-health svg { width: 26px; height: 28px; overflow: visible; fill: #f05c68; stroke: #ffd1bb; stroke-width: 2.3; stroke-linejoin: round; filter: drop-shadow(0 0 3px rgb(255 75 92 / 62%)); }
+.hud-health svg.is-empty { fill: #39463f; stroke: #718278; filter: none; }
+@media (pointer: coarse), (max-width: 600px) {
+  .game-hud { top: max(7px, env(safe-area-inset-top)); left: max(7px, env(safe-area-inset-left)); gap: 5px; }
+  .hud-coins { height: 40px; min-width: 110px; padding: 2px 12px 2px 3px; gap: 6px; border-radius: 17px; font-size: 19px; }
+  .hud-coin-icon { width: 34px; height: 34px; }
+  .hud-health { height: 36px; padding: 6px 7px; gap: 4px; border-radius: 16px; }
+  .hud-health svg { width: 20px; height: 22px; }
+}
 .panel { position: fixed; z-index: 1; border: 1px solid rgb(196 232 255 / 22%); background: rgb(7 18 31 / 72%); backdrop-filter: blur(10px); border-radius: 8px; color: #dceeff; box-shadow: 0 10px 35px rgb(0 0 0 / 18%); }
 .panel--brand { top: max(16px, env(safe-area-inset-top)); left: max(16px, env(safe-area-inset-left)); padding: 10px 13px; display: grid; gap: 2px; }
 .panel--brand strong { letter-spacing: .15em; font-size: 12px; color: #fff; }
@@ -16,6 +34,8 @@ body { background: #77b4df; }
 .audio-controls label { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; }
 .audio-controls input { width: 130px; min-height: 32px; touch-action: auto; }
 .game-settings { position: fixed; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); z-index: 10; display: flex; align-items: flex-start; gap: 8px; }
+.game-page .game-settings { left: auto; right: max(12px, env(safe-area-inset-right)); }
+.game-page .panel--stats { top: max(68px, calc(env(safe-area-inset-top) + 56px)); }
 .game-settings > details { position: static; }
 .camera-controls { padding: 10px 12px; font-size: 13px; touch-action: auto; }
 .camera-controls summary { cursor: pointer; min-height: 28px; }
@@ -43,3 +63,10 @@ body { background: #77b4df; }
 .movement-debug__controls { display: flex; gap: 5px; }
 .movement-debug__controls button { padding: 6px 8px; border: 1px solid #8ba6bc; border-radius: 4px; color: #e8f5ff; background: #172e43; font-size: 11px; touch-action: manipulation; }
 .movement-debug__output { margin: 6px 0 0; white-space: pre-wrap; font: 10px/1.35 ui-monospace, SFMono-Regular, Consolas, monospace; }
+/* Gameplay title reveal: transparent PNG, no menu panel or backdrop. */
+.mountain-title { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; pointer-events: none; }
+.mountain-title[hidden], .mountain-title-skip[hidden] { display: none; }
+.mountain-title img { display: block; width: min(84vw, 960px); max-height: 70vh; height: auto; object-fit: contain; }
+.mountain-title-skip { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); z-index: 31; padding: 10px 16px; border: 1px solid #ffffff65; border-radius: 20px; background: #13202c90; color: white; font: inherit; touch-action: manipulation; }
+.mountain-title-active .game-hud, .mountain-title-active .game-pause { visibility: hidden; }
+.game-menu-open .mountain-title, .game-menu-open .mountain-title-skip { visibility: hidden; }

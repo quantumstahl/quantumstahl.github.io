@@ -12,7 +12,9 @@ export class GameplayInput {
     this.keyClawPressed = false;
     this.padJump = this.padClaw = false;
     this.suspended = false;
+    this.menuBlocked = false; this.waitForNeutral = false; this.preferTouch = false;
     this.keyDown = event => {
+      if (this.menuBlocked || (event.repeat && !this.keys.has(event.code))) return;
       if (event.target?.closest?.("input,textarea,select,[contenteditable='true']")) return;
       if (event.code === "Space" || event.code.startsWith("Arrow")) event.preventDefault();
       if (event.code === this.clawKey && !event.repeat && !this.keys.has(event.code)) this.keyClawPressed = true;
@@ -34,11 +36,16 @@ export class GameplayInput {
     window.addEventListener("pagehide", this.blur); window.addEventListener("pageshow", this.focus);
     globalThis.document?.addEventListener("visibilitychange", this.visibility);
   }
-  attachTouch(touch) { this.touch = touch; this.poll(); touch.setEnabled(!this.gamepadConnected); }
+  attachTouch(touch) { this.touch = touch; this.poll(); this.syncTouch(); }
+  syncTouch() { this.touch?.setEnabled(!this.menuBlocked && (!this.gamepadConnected || this.preferTouch)); }
+  setMenuBlocked(blocked) {
+    this.menuBlocked = blocked; this.reset();
+    this.waitForNeutral = true; this.syncTouch();
+  }
   setConnected(connected) {
     if (this.gamepadConnected === connected) return;
     this.gamepadConnected = connected;
-    this.touch?.setEnabled(!connected);
+    this.syncTouch();
   }
   poll(now = performance.now(), disconnectedIndex = null) {
     let found = null;
@@ -63,7 +70,17 @@ export class GameplayInput {
   }
   update() {
     this.poll();
+    if (this.menuBlocked) return;
     if (this.suspended) return;
+    if (this.waitForNeutral) {
+      if ([0, 1, 2, 3].some(i => Math.abs(this.axis(i)) > .01) || this.button(0) || this.button(this.clawButton) || this.button(9)) {
+        this.reset(); return;
+      }
+      this.waitForNeutral = false;
+    }
+    if (this.preferTouch && ([0, 1, 2, 3].some(i => this.axis(i)) || this.button(0) || this.button(this.clawButton))) {
+      this.preferTouch = false; this.syncTouch();
+    }
     const keys = this.keys, touch = this.touch?.enabled ? this.touch : null;
     const vector = touch?.joystick.getVector();
     const padX = this.axis(0), padZ = this.axis(1);

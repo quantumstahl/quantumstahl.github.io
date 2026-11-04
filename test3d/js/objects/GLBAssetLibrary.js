@@ -178,9 +178,10 @@ export class GLBAssetLibrary {
       const promise = Promise.resolve().then(async () => {
         // Bundled default stays outside authored data; use the same loader,
         // material conversion, cache and leases as imported GLBs.
-        if (!asset && id === "box2.glb") {
-          const response = await fetch(new URL("../../assets/box2.glb", import.meta.url));
-          if (!response.ok) throw new Error("Could not load bundled box2.glb.");
+        if (!asset && (id === "box2.glb" || id === "maxworld:pickup-coin" || id === "maxworld:spider" || id === 'maxworld:spiderbig')) {
+          const file = id === "box2.glb" ? "box2.glb" : id === "maxworld:spider" ? "spider.glb" : id === 'maxworld:spiderbig' ? 'spiderbig.glb' : "coin.glb";
+          const response = await fetch(new URL(`../../assets/${file}`, import.meta.url));
+          if (!response.ok) throw new Error(`Could not load bundled ${file}.`);
           const buffer = await response.arrayBuffer(); validateGLB(buffer); return this.parse(buffer);
         }
         if (!asset?.data) throw new Error(`Missing GLB: ${asset?.name ?? id}. Reimport the asset to repair it.`);

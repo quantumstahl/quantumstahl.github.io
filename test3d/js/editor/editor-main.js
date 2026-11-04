@@ -19,6 +19,7 @@ import { GLBAssetLibrary } from "../objects/GLBAssetLibrary.js";
 import { ObjectSystem } from "../objects/ObjectSystem.js";
 import { refreshTerrainAnchors } from "../objects/ObjectSurface.js";
 import { ObjectEditor } from "./ObjectEditor.js";
+import { TriggerEditor } from "./TriggerEditor.js";
 import { ObjectSurfacePicker } from "./ObjectSurfacePicker.js";
 import { renderWorldFrame, renderStatsLabel } from "../engine/RenderFrame.js";
 import { GrassSystem } from "../vegetation/GrassSystem.js";
@@ -101,6 +102,9 @@ const objects = new ObjectSystem(scene, worldSession.objectData, objectAssets, {
 const objectSurfacePicker = new ObjectSurfacePicker(terrainData);
 const objectEditor = new ObjectEditor({ scene, camera, canvas, data: worldSession.objectData, assets: objectAssets, system: objects, provider: terrainData,
   panel: document.querySelector("#objectPanel"), recordHistory, onStatus: setStatus, activate: () => setTool("objects") });
+const triggerEditor = new TriggerEditor({ scene, camera, canvas, data: worldSession.triggerData,
+  panel: document.querySelector("#triggerPanel"), recordHistory, onStatus: setStatus,
+  pickSurface: ray => objectSurfacePicker.pick(ray) });
 const changedObjectTerrain = new Map();
 terrainData.onTileChanged((tile, channels) => { if (channels & 3) changedObjectTerrain.set(`${tile.x},${tile.z}`, tile); });
 function flushObjectTerrain() {
@@ -144,10 +148,12 @@ worldSession.materialData.onChanged(refreshWorldFileName);
 worldSession.waterData.onChanged(refreshWorldFileName);
 worldSession.waterBeds.onChanged(refreshWorldFileName);
 worldSession.objectData.onChanged(refreshWorldFileName);
+worldSession.triggerData.onChanged(refreshWorldFileName);
 
 async function saveWorld(saveAs = false) {
   if (worldSession.saving) return;
   objectEditor.finishTransform();
+  triggerEditor.finishTransform();
   waterEditor.finishDrag();
   if (sculpting) finishStroke();
   if (!waterEditor.finishDraft()) return;
@@ -165,6 +171,7 @@ async function saveWorld(saveAs = false) {
 async function openWorld() {
   if (worldSession.saving) return;
   objectEditor.finishTransform();
+  triggerEditor.finishTransform();
   flushObjectTerrain();
   if ((waterEditor.draft?.points.length || worldSession.hasUnsavedChanges(terrainData, worldSettings())) && !window.confirm("Discard unsaved changes and open another world?")) return;
   try {
@@ -176,6 +183,7 @@ async function openWorld() {
 }
 window.addEventListener("beforeunload", event => {
   objectEditor.finishTransform();
+  triggerEditor.finishTransform();
   flushObjectTerrain();
   if (!changingWorld && (waterEditor.draft?.points.length || worldSession.hasUnsavedChanges(terrainData, worldSettings()))) { event.preventDefault(); event.returnValue = ""; }
 });
@@ -260,7 +268,8 @@ function setTool(tool) {
   hoverPickScheduled = rockifyPickScheduled = false;
   waterEditor.setActive(tool === "water");
   objectEditor.setActive(tool === "objects");
-  document.querySelector("#brushPanel").hidden = tool === "water" || tool === "objects";
+  triggerEditor.setActive(tool === "triggers");
+  document.querySelector("#brushPanel").hidden = tool === "water" || tool === "objects" || tool === "triggers";
   brush.visible = false;
   for (const button of document.querySelectorAll("[data-tool]")) button.setAttribute("aria-pressed", String(button.dataset.tool === tool));
   updateRockifyLabel();
@@ -268,6 +277,7 @@ function setTool(tool) {
   document.querySelector("#holeHelp").hidden = !isHoleTool();
   document.querySelector("#paintFlowControl").hidden = !isPaintTool();
   if (tool === "water") return;
+  if (tool === "triggers") { setStatus("Triggers: place a Checkpoint or KillZone, or select a box to edit"); return; }
   if (tool === "objects") { setStatus("Objects: import a GLB, select an asset to place, or click an object to edit"); return; }
   if (isHoleTool()) { setStatus(`${tool === "hole" ? "Paint Hole" : "Restore Terrain"}: full 2 m cells inside the brush; Rockify follows the opening`); return; }
   if (isPaintTool()) {
@@ -311,7 +321,8 @@ function finishStroke() {
 }
 
 function applyHistory(step, property) {
-  if (step.kind === "grass") { grass.configure(step.entries[property]); grassPanel.render(); refreshWorldFileName(); }
+  if (step.kind === "trigger") triggerEditor.applyHistory(step.entries, property);
+  else if (step.kind === "grass") { grass.configure(step.entries[property]); grassPanel.render(); refreshWorldFileName(); }
   else if (step.kind === "object" || step.kind === "objectAsset" || step.kind === "objectLOD" || step.kind === "objectBrush") objectEditor.applyHistory(step.entries, property, step.kind);
   else if (step.kind === "water") waterEditor.applyHistory(step.entries, property);
   else if(step.kind==="waterbed")waterEditor.beds.applyHistory(step.entries,property);
@@ -331,6 +342,7 @@ function editMaterial(id, patch) {
 
 function undo() {
   objectEditor.finishTransform();
+  triggerEditor.finishTransform();
   waterEditor.finishDrag();
   if (sculpting) finishStroke();
   const step = undoStack.pop();
@@ -344,6 +356,7 @@ function undo() {
 
 function redo() {
   objectEditor.finishTransform();
+  triggerEditor.finishTransform();
   waterEditor.finishDrag();
   if (sculpting) finishStroke();
   const step = redoStack.pop();
@@ -593,6 +606,7 @@ window.addEventListener("keydown", event => {
   const typing = event.target.closest?.("input, textarea, select, [contenteditable='true']");
   if (typing && !((event.ctrlKey || event.metaKey) && ["s", "o"].includes(event.key.toLowerCase()))) return;
   objectEditor.keyDown(event);
+  triggerEditor.keyDown(event);
   if (isPaintTool() && !event.ctrlKey && !event.metaKey && /^[1-8]$/.test(event.key)) { materialPanel.select(Number(event.key) - 1); return; }
   if (event.key === "Shift") {
     rockifyIn = true;
@@ -613,6 +627,7 @@ window.addEventListener("keyup", event => {
 
 canvas.addEventListener("pointerdown", event => {
   if (event.button !== 0) return;
+  if (activeTool === "triggers") { triggerEditor.pointerDown(event); return; }
   if (activeTool === "objects") { objectEditor.pointerDown(event); return; }
   if (activeTool === "water") { waterEditor.pointerDown(event); event.preventDefault(); return; }
   if (sculpting) return;
@@ -649,6 +664,7 @@ canvas.addEventListener("pointerdown", event => {
   event.preventDefault();
 });
 canvas.addEventListener("pointermove", event => {
+  if (activeTool === "triggers") return;
   if (activeTool === "objects") { objectEditor.pointerMove(event); return; }
   if (activeTool === "water") { waterEditor.pointerMove(event); return; }
   // Camera look does not need a brush hit. More importantly, picking walks a
@@ -668,6 +684,7 @@ canvas.addEventListener("pointermove", event => {
   if (!sculpting) return;
 });
 const stopSculpt = event => {
+  if (activeTool === "triggers") { triggerEditor.pointerUp(event); return; }
   if (activeTool === "objects") { objectEditor.pointerUp(event, pickObjectSurface); return; }
   if (activeTool === "water") waterEditor.pointerUp(event);
   if (event.type === "pointerup" && event.button !== 0) return;
@@ -687,7 +704,7 @@ canvas.addEventListener("pointerup", stopSculpt);
 canvas.addEventListener("pointercancel", stopSculpt);
 canvas.addEventListener("lostpointercapture", stopSculpt);
 canvas.addEventListener("pointerleave", () => objectEditor.pointerLeave());
-window.addEventListener("blur", () => { objectEditor.finishTransform(); waterEditor.finishDrag(); if (sculpting) finishStroke(); brush.visible = false; });
+window.addEventListener("blur", () => { objectEditor.finishTransform(); triggerEditor.finishTransform(); waterEditor.finishDrag(); if (sculpting) finishStroke(); brush.visible = false; });
 
 function frame(now) {
   const rawDelta = clock.getDelta();
@@ -738,4 +755,4 @@ updateHistoryButtons();
 refreshWorldFileName();
 setStatus(worldSession.notice || (worldSession.importedLegacy ? "Imported browser save — Save to choose a world file" : `Loaded ${worldSession.name}`));
 requestAnimationFrame(frame);
-window.addEventListener("pagehide", event => { if (!event.persisted) { grassPanel.dispose(); grass.dispose(); objectEditor.dispose(); objects.dispose(); objectAssets.dispose(); } });
+window.addEventListener("pagehide", event => { if (!event.persisted) { grassPanel.dispose(); grass.dispose(); objectEditor.dispose(); triggerEditor.dispose(); objects.dispose(); objectAssets.dispose(); } });

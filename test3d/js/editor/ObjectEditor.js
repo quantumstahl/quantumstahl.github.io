@@ -9,6 +9,7 @@ import { ObjectBrush, DEFAULT_OBJECT_BRUSH, applyBrushHistory } from "./ObjectBr
 import { ObjectCollisionPanel } from "./ObjectCollisionPanel.js";
 import { DestructiblePanel } from "./DestructiblePanel.js";
 import { replaceGLB } from "./ReplaceGLB.js";
+import { SpiderPanel } from "./SpiderPanel.js";
 
 export class ObjectEditor {
   constructor({ scene, camera, canvas, data, assets, system, provider, panel, recordHistory, onStatus, activate }) {
@@ -54,6 +55,7 @@ export class ObjectEditor {
       <h2 class="inspector-title">Objects</h2>
       <div class="material-actions"><button id="importGLB" type="button">Import GLB…</button><button id="removeGLB" type="button">Remove asset</button></div>
       <input id="glbFiles" type="file" accept=".glb,model/gltf-binary" multiple hidden>
+      <div class="material-actions"><button id="addBigSpider" type="button">Big Spider asset</button><button id="addSpiderWeb" type="button">Web barrier asset</button></div>
       <label>Asset library<select id="objectAssets" size="5" aria-label="GLB asset library"></select></label>
       <button id="replaceGLB" type="button" disabled>Replace GLB…</button>
       <input id="replacementGLBFile" type="file" accept=".glb,model/gltf-binary" hidden>
@@ -79,10 +81,12 @@ export class ObjectEditor {
       <div class="material-actions"><button id="focusObject" type="button">Focus</button><button id="duplicateObject" type="button">Duplicate</button><button id="deleteObject" type="button">Delete</button></div>
       <div class="material-actions" aria-label="Object transform"><button data-object-mode="translate" type="button">Move</button><button data-object-mode="rotate" type="button">Rotate</button><button data-object-mode="scale" type="button">Scale</button></div>
       <fieldset id="objectTransform"><legend>Selected object</legend>
+      <label>Object ID (for arena links)<input id="objectStableId" readonly></label>
       ${["position", "rotation", "scale"].map(kind => `<label>${kind === "rotation" ? "Rotation (degrees)" : kind[0].toUpperCase() + kind.slice(1)}<span class="object-vector">${["X", "Y", "Z"].map((axis, i) => `<input type="number" step="${kind === "rotation" ? 1 : .1}" ${kind === "scale" ? 'min="0.001"' : ""} data-transform="${kind}" data-axis="${i}" aria-label="${kind} ${axis}" title="${axis}">`).join("")}</span></label>`).join("")}
       <label class="object-check">Follow terrain edits<input id="objectFollowTerrain" type="checkbox"></label>
       <label>Animation<select id="objectAnimation"></select></label>
       <section id="objectDestructiblePanel" aria-label="Selected object destruction"></section>
+      <section id="objectSpiderPanel" aria-label="Selected spider enemy"></section>
       </fieldset>
       <label>Source grid snap (m; 0 = off)<input id="objectGrid" type="number" min="0" step="0.5" value="0"></label>
       <label>Rotation snap (degrees; 0 = off)<input id="objectRotationSnap" type="number" min="0" max="180" step="5" value="0"></label>
@@ -91,12 +95,15 @@ export class ObjectEditor {
       <p>Save embeds each unique GLB once. Imported textures and animations travel with the world.</p>`;
     this.$ = selector => this.panel.querySelector(selector);
     this.destructiblePanel = new DestructiblePanel(this, this.$("#objectDestructiblePanel"));
+    this.spiderPanel = new SpiderPanel(this, this.$("#objectSpiderPanel"));
     this.assetDestructiblePanel = new DestructiblePanel(this, this.$("#assetDestructiblePanel"), { assetDefaults: true });
     this.lodPanel = new ObjectLODPanel({ element: this.$("#objectLODPanel"), data: this.data, assets: this.assets, system: this.system,
       getAssetId: () => this.assetId, getSelectedId: () => this.selectedId, preview: level => this.setLODPreview(level), recordHistory: this.recordHistory, onStatus: this.onStatus });
     this.collisionPanel = new ObjectCollisionPanel({ element: this.$("#objectCollisionPanel"), scene: this.scene, data: this.data, assets: this.assets,
       getAssetId: () => this.assetId, getSelectedId: () => this.selectedId, getRoot: () => this.selectedRoot, recordHistory: this.recordHistory, onStatus: this.onStatus });
     this.$("#importGLB").onclick = () => this.$("#glbFiles").click();
+    this.$('#addBigSpider').onclick = () => this.addEncounterAsset('spiderbig');
+    this.$('#addSpiderWeb').onclick = () => this.addEncounterAsset('spiderweb');
     this.$("#replaceGLB").onclick = () => {
       const asset = this.data.assets.get(this.assetId); if (!asset || this.replacingGLB) return;
       this.finishTransform();
@@ -183,6 +190,21 @@ export class ObjectEditor {
     this.refreshLists(); this.syncFields();
   }
   number(selector) { const n = Number(this.$(selector).value); return Number.isFinite(n) ? n : 0; }
+  async addEncounterAsset(name) {
+    try {
+      const response = await fetch(new URL(`../../assets/${name}.glb`, import.meta.url));
+      if (!response.ok) throw new Error(`Could not load ${name}.glb`);
+      const beforeAssets = new Map(this.data.assets), beforeResources = new Map(this.data.resources);
+      let asset = await this.assets.importFile(new File([await response.arrayBuffer()], `${name}.glb`, { type: 'model/gltf-binary' }));
+      if (name === 'spiderweb' && (!asset.collision || asset.collision.mode === 'none')) {
+        asset = this.data.setAsset({ ...asset, collision: { mode: 'simple', shape: 'box', offset: [0, .5, 0], size: [1, 1, .18] } });
+      }
+      const before = beforeAssets.get(asset.id);
+      if (before !== asset) this.recordHistory({ kind: 'objectAsset', entries: { id: asset.id, before: copyAsset(before), after: copyAsset(asset), resourceBefore: copyAsset(beforeResources.get(asset.id)) } });
+      this.assetId = asset.id; this.setMode('place'); this.activate();
+      this.onStatus(`${name} ready: click terrain to place, then scale it. Copy its Object ID into an Arena sphere's links.`);
+    } catch (error) { this.onStatus(error.message); }
+  }
   isBrushMode() { return this.mode === "paintBrush" || this.mode === "eraseBrush"; }
   setMode(mode) {
     this.finishTransform(); this.mode = mode;
@@ -273,8 +295,10 @@ export class ObjectEditor {
     return this.loadSelectedLOD(this.selectedLODChoice());
   }
   syncFields() {
+    this.spiderPanel.refresh();
     this.destructiblePanel.refresh();
     const record = this.data.objects.get(this.selectedId), root = this.selectedRoot;
+    this.$('#objectStableId').value = record?.id ?? '';
     this.$("#objectTransform").disabled = !record;
     for (const input of this.panel.querySelectorAll("[data-transform]")) {
       const kind = input.dataset.transform, i = Number(input.dataset.axis);

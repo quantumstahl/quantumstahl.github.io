@@ -28,6 +28,7 @@ export class CharacterBody {
       || c.maxSlopeAngle >= 90 || !Number.isInteger(c.maxMotionSubsteps) || c.maxMotionSubsteps < 1) throw new Error("Invalid capsule dimensions or movement limits.");
     // Position is the visual placement/foot datum. Local torso offsets rotate
     // around it; the body never pitches or rolls with terrain or animation.
+    this.floating=false;
     this.position = new Vector3(); this.previousPosition = new Vector3();
     this.yaw = 0; this.previousYaw = 0; this.targetYaw = 0; this.turnBlocked = false;
     this.capsuleStart = new Vector3(); this.capsuleEnd = new Vector3();
@@ -71,9 +72,16 @@ export class CharacterBody {
     this.position.set(x, y, z); this.previousPosition.copy(this.position);
     this.yaw = this.previousYaw = this.targetYaw = yaw; this.turnBlocked = false;
     this.velocity.set(0, 0, 0); this.grounded = false; this.jumpRequested = false;
+    this.intent.set(0, 0, 0); this.running = false;
+    this.groundObject = null; this.groundId = Infinity; this.groundCorrection = -Infinity;
+    this.groundNormal.set(0, 1, 0); this.groundPoint.set(0, 0, 0);
+    this.floorResponse = false; this.landed = false; this.state = "falling";
+    this.bestObject = null; this.bestId = Infinity; this.depth = 0;
+    this.recovery.contacts.length = 0; this.recovery.planes.length = 0;
     this.escape.reset();
     this.clearContacts();
     this.updateCapsule();
+    this.setBounds();
   }
   clearContacts() {
     clearContacts(this.object); this.contactScores.fill(-Infinity); this.contactIds.fill(Infinity); this.contactNormals.fill(0);
@@ -240,14 +248,15 @@ export class CharacterBody {
     this.velocity.x += (this.intent.x * speed - this.velocity.x) * blend;
     this.velocity.z += (this.intent.z * speed - this.velocity.z) * blend;
     const normalJump = this.jumpRequested && wasGrounded;
-    const recoveryJump = this.jumpRequested && !wasGrounded && this.escape.recoveryJump();
-
+    const recoveryJump = this.jumpRequested && !wasGrounded && this.escape.recoveryJump()&&this.floating;
+    this.floating=false;
     
     const jumped = normalJump || recoveryJump;
     this.jumpRequested = false;
     if (normalJump) this.escape.normalJump();
     if (jumped) { this.velocity.y = recoveryJump ? this.escape.jumpSpeed() : c.jumpSpeed; this.grounded = false; }
     else if (wasGrounded) this.velocity.y = 0;
+    
     this.velocity.y -= c.gravity * delta;
     const travel = this.velocity.length() * delta;
     const maxTravel = c.radius * .4;
@@ -271,6 +280,7 @@ export class CharacterBody {
       const colliding = this.findCollision();
       const obstacle = colliding && this.faceNormal.y < this.minGroundY && this.normal.y >= 0;
       if (!(obstacle && this.grounded && !jumped && c.stepHeight > 0 && this.tryStep()) && !this.resolveMotion(colliding)) {
+        this.floating=true;
         // Solve the whole local contact manifold from the requested pose,
         // before the old axis retries can restore an already trapped pose.
         this.position.copy(this.motionSaved); this.velocity.copy(this.velocitySaved); this.floorResponse = false;

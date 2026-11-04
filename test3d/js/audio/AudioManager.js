@@ -92,6 +92,7 @@ export class AudioManager {
       if (this.context.state === "running" && this._active()) {
         this.unlocked = true;
         for (const voice of this.voices) this._tryStart(voice);
+        this._syncMusicElement();
         if (this.gateEnvelope.to !== 1) this.gateEnvelope = ramp(this.outputGate.gain, 1, .25, this.context, this.gateEnvelope);
       } else if (this.context.state === "running") {
         this._background(true); // A late resume must never unmute a hidden page.
@@ -151,9 +152,10 @@ export class AudioManager {
   _silence() {
     if (!this.context || !this.outputGate) return;
     this._trace("output:silence");
+    this._syncMusicElement();
     this.gateEnvelope = ramp(this.outputGate.gain, 0, 0, this.context, this.gateEnvelope);
     for (const voice of this.voices) {
-      if (!voice.loop || voice.stopping) this._release(voice);
+      if ((!voice.loop && !voice.options?.preserveOnPause) || voice.stopping) this._release(voice);
       else if (voice.sound?.isPlaying) {
         // Keep the same voice/Audio object and loop offset, but release its
         // single-use buffer source. No stale attack or outgoing fade is replayed.
@@ -188,7 +190,7 @@ export class AudioManager {
       // Allow a short output fade on blur/visibility changes. pagehide takes
       // the synchronous path because a frozen/BFCache page cannot run timers.
       this.gateEnvelope = ramp(this.outputGate.gain, 0, .02, this.context, this.gateEnvelope);
-      for (const voice of this.voices) if (!voice.loop || voice.stopping) this._release(voice);
+      for (const voice of this.voices) if ((!voice.loop && !voice.options?.preserveOnPause) || voice.stopping) this._release(voice);
       this.suspendTimer = setTimeout(() => this._suspend(), 40);
     }
   }
@@ -305,7 +307,7 @@ export class AudioManager {
     if (!this.buses.has(channel)) return null;
     const loop = options.loop ?? config.loop ?? false;
     // Never build a backlog of attacks while locked or in the background.
-    if (!loop && (this.context?.state !== "running" || !this._active())) return null;
+    if (!loop && (this.menuPaused || this.context?.state !== "running" || !this._active())) return null;
     let count = 0, oldest = null;
     for (const voice of this.voices) if (voice.id === id) {
       if (loop && !position && !voice.position && !voice.stopping) return voice;
@@ -328,14 +330,14 @@ export class AudioManager {
       if (!buffer) { this._release(voice); return; }
       voice.buffer = buffer;
       this._trace("voice:buffer", { id });
-      if (!voice.loop && (this.context.state !== "running" || !this._active())) this._release(voice);
+      if (!voice.loop && !voice.options.preserveOnPause && (this.menuPaused || this.context.state !== "running" || !this._active())) this._release(voice);
       else this._tryStart(voice);
     });
     return voice;
   }
 
   _tryStart(voice) {
-    if (voice.stopped || (voice.sound && !voice.paused) || !voice.buffer || this.context?.state !== "running" || !this._active()) return;
+    if (this.menuPaused || voice.stopped || (voice.sound && !voice.paused) || !voice.buffer || this.context?.state !== "running" || !this._active()) return;
     try {
       if (voice.paused) {
         const sound = voice.sound;
@@ -421,12 +423,73 @@ export class AudioManager {
       const bus = this.buses.get(channel);
       if (bus) bus.envelope = ramp(bus.node.gain, this.volumes[channel], seconds(fade), this.context, bus.envelope);
     }
+    this._syncMusicElement();
   }
   getVolume(channel) { return this.volumes[channel]; }
+
+  // The verified legacy gesture handlers keep owning this element's unlock.
+  // Route its one music stream through the existing buses, including on iOS
+  // where HTMLMediaElement.volume itself does not support software volume.
+  attachMusicElement(element, url) {
+    this.musicElement = element;
+    this.musicElementEnabled = true;
+    if (url) element.src = url;
+    try {
+      this.musicElementSource = this.context.createMediaElementSource(element);
+      // Only the legacy gameplay stream is faded. Music preferences, title
+      // voices, nature ambience and SFX keep their existing buses and levels.
+      this.musicElementGain = this.context.createGain?.();
+      if (this.musicElementGain) {
+        this.musicElementSource.connect(this.musicElementGain);
+        this.musicElementGain.connect(this.buses.get('music').node);
+      } else this.musicElementSource.connect(this.buses.get('music').node);
+    } catch (error) { this._report("music-element", `Music volume routing unavailable: ${error.message}`); }
+    this.musicElementPlay = () => { this.musicElementStarted = true; this._syncMusicElement(); };
+    element.addEventListener("play", this.musicElementPlay);
+    this._syncMusicElement();
+  }
+  setMusicElementEnabled(enabled, { fade = 0 } = {}) {
+    this.musicElementEnabled = !!enabled;
+    if (this.musicElementGain) this.musicElementEnvelope = ramp(this.musicElementGain.gain, enabled ? 1 : 0, seconds(fade), this.context, this.musicElementEnvelope);
+    this._syncMusicElement();
+  }
+  updateMusicElement() { this._syncMusicElement(); }
+  _syncMusicElement() {
+    const element = this.musicElement;
+    if (!element) return;
+    const fading = this.musicElementEnvelope && this.context.currentTime < this.musicElementEnvelope.end;
+    const stopped = this.musicElementEnabled === false && !fading;
+    const blocked = !!this.menuPaused || !this._active() || stopped;
+    element.muted = blocked || (!this.musicElementSource && this.volumes.master * this.volumes.music === 0);
+    if (!this.musicElementSource) element.volume = this.volumes.master * this.volumes.music;
+    if (blocked) element.pause();
+    else if (this.musicElementStarted && element.paused) {
+      try { element.play()?.catch(() => {}); } catch { /* Next verified gesture retries playback. */ }
+    }
+  }
+  setMenuPaused(paused) {
+    if (this.disposed || !!this.menuPaused === paused) return;
+    this.menuPaused = paused;
+    if (paused) {
+      for (const voice of this.voices) {
+        if ((!voice.loop && !voice.options?.preserveOnPause) || voice.stopping) this._release(voice);
+        else if (voice.sound?.isPlaying) {
+          const sound = voice.sound;
+          sound.pause(); sound.disconnect(); sound.source.disconnect(); sound.source = null;
+          voice.paused = true;
+        }
+      }
+    } else for (const voice of this.voices) this._tryStart(voice);
+    this._syncMusicElement();
+    // Menu transitions never suspend, close, recreate or re-unlock the context.
+  }
 
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    this.musicElement?.removeEventListener("play", this.musicElementPlay);
+    this.musicElement?.pause(); this.musicElementSource?.disconnect();
+    this.musicElementGain?.disconnect();
     this._trace("dispose");
     for (const type of gestures) this.eventTarget?.removeEventListener(type, this.gesture, { capture: true });
     this.eventTarget?.removeEventListener("blur", this.blur);

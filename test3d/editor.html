@@ -28,6 +28,7 @@
       <button type="button" data-tool="restoreHole" aria-pressed="false">Restore Terrain</button>
       <button type="button" data-tool="water" aria-pressed="false">Water</button>
       <button type="button" data-tool="objects" aria-pressed="false">Objects</button>
+      <button type="button" data-tool="triggers" aria-pressed="false">Triggers</button>
     </div>
     <div class="history-group" aria-label="Edit history">
       <button id="undoButton" type="button" disabled>Undo</button>
@@ -46,6 +47,7 @@
   </header>
   <aside class="inspector">
     <section id="objectPanel" class="material-panel" aria-label="Objects" hidden></section>
+    <section id="triggerPanel" class="material-panel" aria-label="Trigger volumes" hidden></section>
     <details class="sky-panel">
       <summary class="inspector-title">Sky &amp; time</summary>
       <label for="skyTime"><span>Time of day</span><output id="skyTimeValue" for="skyTime">08:24</output><input id="skyTime" type="range" min="0" max="1439" step="1" value="504"></label>

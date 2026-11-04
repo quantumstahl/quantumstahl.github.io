@@ -17,7 +17,7 @@ export class PhysicsWorld {
   touching(object, type = "any", mode = "ghost", dir = "any") { return touching(object, type, mode, dir); }
   query(bounds, visitor) { for (const collider of this.colliders) collider.query(bounds, visitor); }
   queryCamera(bounds, visitor) { for (const collider of this.colliders) (collider.queryCamera ?? collider.query).call(collider, bounds, visitor); }
-  update(delta) {
+  update(delta, afterStep = null) {
     const started = performance.now();
     this.stats.steps = 0; this.stats.triangleTests = 0;
     if (!Number.isFinite(delta) || delta < 0) delta = 0;
@@ -42,6 +42,9 @@ export class PhysicsWorld {
       for (const body of this.bodies) body.step(this.fixedDelta);
       this.accumulator = Math.max(0, this.accumulator - this.fixedDelta);
       this.stats.steps++;
+      // A teleport ends catch-up here. Nearby collision must be prepared at
+      // the destination on the next update before any further movement.
+      if (afterStep?.() === false) { this.accumulator = 0; break; }
     }
     this.stats.updateMs = performance.now() - started;
     this.stats.peakMs = Math.max(this.stats.peakMs, this.stats.updateMs);

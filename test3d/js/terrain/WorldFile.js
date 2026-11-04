@@ -4,14 +4,26 @@ import { WaterData } from "../water/WaterData.js";
 import {WaterBedData} from "../water/WaterBedData.js";
 import { normalizeEnvironmentSettings, environmentSettingsEqual } from "../engine/EnvironmentSettings.js";
 import { ObjectData } from "../objects/ObjectData.js";
+import { TriggerData } from "../triggers/TriggerData.js";
 import { normalizeGrassSettings, grassSettingsEqual } from "../vegetation/GrassSettings.js";
 
 export const DEFAULT_WORLD_URL = new URL("../../worlds/main.maxworld.json", import.meta.url).href;
 export const WORLD_FILE_NAME = "main.maxworld.json";
 const FORMAT = "maxworld-world";
+const newWorldId = () => globalThis.crypto?.randomUUID?.() ?? `world-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+
+// Migrate old authored files using a stable placement, never their contents.
+// Saving writes this ID into the file, so future renames/removals cannot alter it.
+function legacyWorldId(objects, triggers) {
+  const isCat = value => typeof value === 'string' && /^cat(?:\.glb)?$/i.test(value.trim());
+  const cat = [...objects.objects.values()].find(o => isCat(objects.assets.get(o.assetId)?.name) || isCat(o.properties?.name) || isCat(o.properties?.type));
+  const anchor = cat?.id ?? objects.objects.keys().next().value ?? triggers.volumes.keys().next().value;
+  return anchor ? `legacy-${anchor}` : null;
+}
 
 export class WorldTileStore {
   constructor(tiles = new Map(), rockKeys = new Set(), materialData = new TerrainMaterialData()) {
+    this.worldId = newWorldId();
     this.tiles = tiles;
     // Retained while validating saves; physics can discover distant displaced
     // surfaces without decoding every saved height tile at startup.
@@ -23,6 +35,7 @@ export class WorldTileStore {
     this.waterData = new WaterData();
     this.waterBeds = new WaterBedData();
     this.objectData = new ObjectData();
+    this.triggerData = new TriggerData();
   }
   read(key) { return this.tiles.get(key) ?? null; }
   write(key, value) { this.tiles.set(key, value); return true; }
@@ -30,13 +43,17 @@ export class WorldTileStore {
 
   static parse(text) {
     const world = JSON.parse(text);
-    if (!world || world.format !== FORMAT || ![1, 2, 3, 4, 5, 6, 7, 8].includes(world.version) || world.baseTerrain !== "flat-v1"
+    if (!world || world.format !== FORMAT || ![1, 2, 3, 4, 5, 6, 7, 8, 9].includes(world.version) || world.baseTerrain !== "flat-v1"
       || world.tileSize !== TERRAIN_TILE_SIZE || world.tileSegments !== TERRAIN_TILE_SEGMENTS || !Array.isArray(world.tiles)) {
       throw new Error("This is not a supported MaxWorld world file.");
     }
     const store = new WorldTileStore();
     if (world.objects !== undefined && world.version < 5) throw new Error("Object data requires world file version 5.");
     store.objectData = ObjectData.fromJSON(world.objects);
+    if (world.triggers !== undefined && world.version < 9) throw new Error("Trigger data requires world file version 9.");
+    store.triggerData = TriggerData.fromJSON(world.triggers);
+    if (world.worldId != null && (typeof world.worldId !== 'string' || !world.worldId.trim())) throw new Error('Invalid world ID.');
+    store.worldId = world.worldId ?? legacyWorldId(store.objectData, store.triggerData);
     if (world.version >= 2) store.materialData = TerrainMaterialData.fromJSON({ materials: world.materials, tiles: world.materialTiles });
     else if (world.materials !== undefined || world.materialTiles !== undefined) throw new Error("Material data requires world file version 2.");
     if (world.water !== undefined && world.version < 3) throw new Error("Water data requires world file version 3.");
@@ -75,8 +92,10 @@ export class WorldTileStore {
     const waterSnapshot = this.waterData.snapshot();
     const bedSnapshot=this.waterBeds.snapshot();
     const objectSnapshot = this.objectData.snapshot();
-    const header = JSON.stringify({ format: FORMAT, version: 8, baseTerrain: "flat-v1", tileSize: provider.tileSize, tileSegments: provider.tileSegments, savedAt: new Date().toISOString(), settings: { ...settings, grass: normalizeGrassSettings(settings?.grass) }, materials: materialSnapshot.materials, water: waterSnapshot.value,waterBeds:bedSnapshot.value, objects: objectSnapshot.value });
-    return { text: `${header.slice(0, -1)},"tiles":[${[...tiles.values()].join(",")}],"materialTiles":[${[...materialSnapshot.tiles.values()].join(",")}]}`, tiles, versions, rockKeys, materialSnapshot, waterSnapshot,bedSnapshot, objectSnapshot,
+    const triggerSnapshot = this.triggerData.snapshot();
+    this.worldId ??= newWorldId();
+    const header = JSON.stringify({ format: FORMAT, version: 9, worldId: this.worldId, baseTerrain: "flat-v1", tileSize: provider.tileSize, tileSegments: provider.tileSegments, savedAt: new Date().toISOString(), settings: { ...settings, grass: normalizeGrassSettings(settings?.grass) }, materials: materialSnapshot.materials, water: waterSnapshot.value,waterBeds:bedSnapshot.value, objects: objectSnapshot.value, triggers: triggerSnapshot.value });
+    return { text: `${header.slice(0, -1)},"tiles":[${[...tiles.values()].join(",")}],"materialTiles":[${[...materialSnapshot.tiles.values()].join(",")}]}`, tiles, versions, rockKeys, materialSnapshot, waterSnapshot,bedSnapshot, objectSnapshot, triggerSnapshot,
       warpSummaries: new Map(provider.warpSummaries), holeMasks: new Map([...provider.holeMasks].map(([key, mask]) => [key, mask.slice()])) };
   }
 
@@ -89,6 +108,7 @@ export class WorldTileStore {
     this.waterData.commit(snapshot.waterSnapshot);
     this.waterBeds.commit(snapshot.bedSnapshot);
     this.objectData.commit(snapshot.objectSnapshot);
+    this.triggerData.commit(snapshot.triggerSnapshot);
     for (const key of this.tiles.keys()) provider.persistedTileKeys.add(key);
     for (const [tile, saved] of snapshot.versions) {
       // Editing may continue while a large file is being written. Only the
@@ -140,6 +160,9 @@ export class WorldFileSession {
     return globalThis.showSaveFilePicker(options);
   } } = {}) {
     Object.assign(this, { store, settings, handle, name, importedLegacy, notice, remember, pickSave });
+    // Legacy empty files have no entity anchor. Keep a filename-based identity
+    // until their next authoring save persists it; new worlds already have UUIDs.
+    store.worldId ??= `legacy-file-${name.replaceAll('\\', '/').split('/').at(-1)}`;
     this.settings = { ...settings, grass: normalizeGrassSettings(settings.grass) };
     this.saving = false;
     this.fileMissing = false;
@@ -188,12 +211,14 @@ export class WorldFileSession {
   }
 
   get materialData() { return this.store.materialData; }
+  get worldId() { return this.store.worldId; }
   get waterData() { return this.store.waterData; }
   get waterBeds(){return this.store.waterBeds;}
   get objectData() { return this.store.objectData; }
+  get triggerData() { return this.store.triggerData; }
 
   hasUnsavedChanges(provider, settings = this.settings) {
-    return this.fileMissing || this.importedLegacy || this.objectData.hasUnsavedChanges || this.materialData.hasUnsavedChanges || this.waterData.hasUnsavedChanges || this.waterBeds.hasUnsavedChanges || settings.rockShellEnabled !== this.settings.rockShellEnabled || !environmentSettingsEqual(settings.environment, this.settings.environment) || !grassSettingsEqual(settings.grass, this.settings.grass) || [...provider.cache.values()].some(tile => tile.dirty);
+    return this.fileMissing || this.importedLegacy || this.triggerData.hasUnsavedChanges || this.objectData.hasUnsavedChanges || this.materialData.hasUnsavedChanges || this.waterData.hasUnsavedChanges || this.waterBeds.hasUnsavedChanges || settings.rockShellEnabled !== this.settings.rockShellEnabled || !environmentSettingsEqual(settings.environment, this.settings.environment) || !grassSettingsEqual(settings.grass, this.settings.grass) || [...provider.cache.values()].some(tile => tile.dirty);
   }
 
   async save(provider, { saveAs = false, settings = this.settings } = {}) {

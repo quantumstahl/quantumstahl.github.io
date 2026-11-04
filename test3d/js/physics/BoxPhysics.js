@@ -175,7 +175,7 @@ export class BoxPhysics {
       position: [state.record.position[0], state.record.position[1] + state.offset, state.record.position[2]],
       velocityY: state.velocityY, sleeping: state.sleeping })) };
   }
-  restore(snapshot) {
+  restore(snapshot, validateOnly = false) {
     if (snapshot?.version !== 1 || !Array.isArray(snapshot.boxes)) throw new Error("Invalid box physics save.");
     const accumulator = snapshot.accumulator ?? 0;
     if (!Number.isFinite(accumulator) || accumulator < 0 || accumulator >= STEP) throw new Error("Invalid saved box timestep.");
@@ -187,6 +187,7 @@ export class BoxPhysics {
         || !Number.isFinite(box.velocityY) || box.velocityY > 0 || typeof box.sleeping !== "boolean") throw new Error("Invalid saved box state.");
       seen.add(box.id);
     }
+    if (validateOnly) return;
     this.reset();
     this.accumulator = accumulator;
     for (const box of snapshot.boxes) {

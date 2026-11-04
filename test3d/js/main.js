@@ -11,6 +11,8 @@ import { EnvironmentSystem } from "./engine/EnvironmentSystem.js";
 import { GLBAssetLibrary } from "./objects/GLBAssetLibrary.js";
 import { ObjectSystem } from "./objects/ObjectSystem.js";
 import { DestructibleSystem } from "./objects/DestructibleSystem.js";
+import { PickupSystem } from "./objects/PickupSystem.js";
+import { GameHud } from "./game/GameHud.js";
 import { isFallingTree } from "./objects/DestructibleConfig.js";
 import { BoxPhysics } from "./physics/BoxPhysics.js";
 import { renderWorldFrame, renderStatsLabel } from "./engine/RenderFrame.js";
@@ -20,6 +22,15 @@ import { AudioManager } from "./audio/AudioManager.js";
 import { SOUND_CONFIG } from "./audio/SoundConfig.js";
 import { DayNightAudio } from "./audio/DayNightAudio.js";
 import { attachAudioControls } from "./audio/AudioControls.js";
+import { MenuController } from "./game/MenuController.js";
+import { MenuPresentation } from "./game/MenuPresentation.js";
+import { PlayerSession } from "./game/PlayerSession.js";
+import { PlayerSettings } from "./game/PlayerSettings.js";
+import { PlayerSaves, worldSaveKey } from "./game/PlayerSaves.js";
+import { updateGameplay } from "./game/GameplayUpdates.js";
+import { SpiderSystem } from "./enemies/SpiderSystem.js";
+import { ArenaSystem } from "./triggers/ArenaSystem.js";
+import { MountainTitleSequence } from './game/MountainTitleSequence.js';
 
 
 
@@ -63,8 +74,10 @@ if (audioDiagnostics) window.maxWorldAudioDebug = audioDiagnostics;
 const detachAudioControls = attachAudioControls(audio, document.querySelector("#audioControls"));
 // Preload without delaying the world. The first touchstart uses CatAdventure's
 // initial suspend/resume sequence; loops wait and locked one-shots are dropped.
-void audio.preload();
-audio.playMusic("exploration", { fade: 2 });
+void audio.preload(Object.keys(SOUND_CONFIG).filter(id => id !== "introduction" && id !== "exploration"));
+// Keep the verified unlock handlers above verbatim. Their existing element is
+// the single music source; the manager supplies channel gain and menu pausing.
+audio.attachMusicElement(audio5, SOUND_CONFIG.exploration.url);
 // Register gesture capture before any world/file-picker await. The first tap
 // may select the world, and must also unlock the shared audio context.
 const worldSession = await loadWorldSession(statsElement);
@@ -140,11 +153,40 @@ const objects = new ObjectSystem(scene, worldSession.objectData, objectAssets, {
   diagnostics: runtimeOptions.has("objectLODStats"), excludeIds: new Set(mapCat ? [mapCat.id] : []),
 });
 if (controller.physics) controller.attachObjects(worldSession.objectData, objectAssets, { onError: message => { objectWarnings.hidden = false; objectWarnings.textContent = message; } });
+if (controller.physics) {
+  const fade = document.querySelector("#respawnFade");
+  controller.attachTriggers(worldSession.triggerData, { onFade: opacity => { fade.style.opacity = String(opacity); } });
+}
+const gameHud = controller.health ? new GameHud(document.querySelector("#gameHud"), controller.health) : null;
+const spiders = controller.melee ? new SpiderSystem(scene, controller, worldSession.objectData, objectAssets, objects, {
+  onError: message => { objectWarnings.hidden = false; objectWarnings.textContent = message; },
+}) : null;
+// Optional bundled-model fixture; normal play uses editor placements.
+if (spiders && runtimeOptions.has("spiderTest")) {
+  const p = controller.body.position, yaw = controller.body.yaw;
+  spiders.add({ id: "spider-test", assetId: "maxworld:spider", position: [p.x - Math.sin(yaw) * 4, p.y, p.z - Math.cos(yaw) * 4],
+    rotation: [0, 0, 0], scale: [1, 1, 1], properties: { enemy: { type: "spider" } } });
+}
+spiders?.update(0);
+const pickups = controller.physics ? new PickupSystem(scene, {
+  assets: objectAssets, data: worldSession.objectData, objects, collider: controller.objectCollider,
+  surfaces: [controller.terrainCollider, controller.rockCollider], body: controller.body, terrain: terrainData, audio,
+  onChange: state => gameHud?.setCoins(state.coinCount),
+  onHeal: amount => controller.heal?.(amount),
+  onError: message => { objectWarnings.hidden = false; objectWarnings.textContent = message; },
+}) : null;
+if (pickups) { controller.attachPickups(pickups); window.maxWorldPickups = pickups; }
+const encounters = spiders ? new ArenaSystem(worldSession.triggerData, spiders, objects, controller.objectCollider, pickups, {
+  onError: message => { objectWarnings.hidden = false; objectWarnings.textContent = message; },
+}) : null;
+const titleSequence = controller.physics ? new MountainTitleSequence(controller, audio) : null;
 const boxPhysics = controller.physics ? new BoxPhysics(worldSession.objectData, objects, controller.objectCollider,
-  [controller.terrainCollider, controller.rockCollider], { terrain: terrainData, onMove: id => destructibles?.refreshTarget(id) }) : null;
+  [controller.terrainCollider, controller.rockCollider], { terrain: terrainData, onMove: id => {
+    destructibles?.refreshTarget(id); pickups?.wakeSupport(id);
+  } }) : null;
 const destructibles = controller.melee ? new DestructibleSystem(scene, worldSession.objectData, objectAssets, objects, controller.melee, terrainData, {
   collider: controller.objectCollider,
-  onDestroy: (_hit, target) => boxPhysics?.remove(target.id),
+  onDestroy: (_hit, target) => { boxPhysics?.remove(target.id); pickups?.onBoxDestroyed(target); },
   hitSound: (_hit, target) => audio.play3D("crate_hit", target.position),
   destructionSound: (hit, target) => {
     if (isFallingTree(worldSession.objectData.assets.get(target.record.assetId))) return audio.play3D("tree_fall", target.position);
@@ -155,12 +197,37 @@ const destructibles = controller.melee ? new DestructibleSystem(scene, worldSess
 destructibles?.syncTargets(controller.body.position);
 // Embedders can dispatch this event to restart destruction state without
 // touching the loaded world file. Reloading the game also starts fresh.
-window.addEventListener("maxworld:reset-session", () => { destructibles?.resetSession(); boxPhysics?.reset(); });
+window.addEventListener("maxworld:reset-session", () => {
+  destructibles?.resetSession(); boxPhysics?.reset(); pickups?.resetSession();
+  controller.triggers?.resetSession(); spiders?.resetSession(); encounters?.restore(null);
+  titleSequence?.resetSession();
+});
 window.addEventListener("keydown", event => {
   if (!event.ctrlKey && !event.metaKey && event.key.toLowerCase() === "l" && !event.target.closest?.("input, textarea, select, [contenteditable='true']")) objects.diagnostics = !objects.diagnostics;
 });
 for (const material of [terrain.material, rockSurfaceShell.material, water.material, water.waterfall.material, water.waterfall.effectsMaterial]) environment.bindMaterial(material);
 const clock = new THREE.Clock();
+let skipGameplayFrame = true;
+const presentation = controller.physics ? new MenuPresentation(controller, camera) : null;
+const playerSettings = new PlayerSettings({ apply: value => {
+  if (renderer.getPixelRatio() !== value.renderScale) { renderer.setPixelRatio(value.renderScale); resize(); }
+  if (grass.settings.enabled !== value.grass || grass.settings.flowersEnabled !== value.flowers) {
+    grass.configure({ enabled: value.grass, flowersEnabled: value.flowers });
+  }
+  for (const channel of ["master", "music", "ambient", "sfx"]) if (audio.getVolume(channel) !== value[channel]) audio.setVolume(channel, value[channel]);
+} });
+const playerSession = controller.physics ? new PlayerSession({ runtime: controller, pickups, boxes: boxPhysics, destructibles, environment }) : null;
+const saves = playerSession ? new PlayerSaves({ worldKey: worldSaveKey(worldSession), worldId: worldSession.worldId,
+  validate: state => playerSession.validate(state), prepare: state => playerSession.compatibleState(state),
+  matchesLegacy: state => playerSession.matchesLegacy(state) }) : null;
+const menus = playerSession ? new MenuController({ session: playerSession, saves, settings: playerSettings, audio, presentation,
+  onTransition: () => { clock.getDelta(); skipGameplayFrame = true; },
+}) : null;
+const gameplaySystems = { menus, boxes: boxPhysics, pickups, runtime: controller, destructibles, enemies: spiders, combatTarget: combatTestTarget, environment, ambient: ambientAudio };
+if (titleSequence) titleSequence.isGameplayActive = () => !menus || menus.playing;
+if (menus && runtimeOptions.has("menuDebug")) window.maxWorldMenuDebug = {
+  menus, session: playerSession, audio, music: audio5, camera, presentation, environment, water, grass, renderer,
+};
 
 let frames = 0;
 let elapsed = 0;
@@ -173,6 +240,8 @@ function resize() {
   renderer.setSize(width, height, false);
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
+  presentation?.resize(camera.aspect);
+  titleSequence?.resize(camera.aspect);
 }
 
 function updateStats(now, delta) {
@@ -221,26 +290,26 @@ function updateStats(now, delta) {
 function frame(now) {
   const rawDelta = clock.getDelta();
   const delta = Math.min(rawDelta, 1 / 20);
-  boxPhysics?.update(rawDelta);
-  controller.update(controller.physics ? rawDelta : delta);
-  destructibles?.update(rawDelta, controller.body.position);
-  combatTestTarget?.update(delta);
+  menus?.update(now, delta);
+  audio.updateMusicElement();
+  const gameDelta = skipGameplayFrame ? 0 : updateGameplay(gameplaySystems, rawDelta);
+  skipGameplayFrame = false;
+  const renderCamera = menus?.showingScene ? presentation.camera : titleSequence?.active ? titleSequence.camera : camera;
+  if (audio.camera !== renderCamera) audio.setCamera(renderCamera);
   physicsDebug?.update();
   cameraDebug?.update();
   movementDebug?.update(now);
-  environment.update(rawDelta);
-  ambientAudio.update(rawDelta, environment.uniforms.uDaylight.value);
-  water.update(delta,camera);
-  objects.update(camera, delta);
+  water.update(gameDelta, renderCamera);
+  objects.update(renderCamera, gameDelta);
   if (rockSurfaceShell.update()) terrain.setExperimentalRockMask(rockSurfaceShell.getSourceMask());
-  terrain.update(camera);
-  heightCache.update(camera.position.x, camera.position.z, terrain.getVisibleSourceTileKeys());
-  materialCache.update(camera.position.x, camera.position.z, terrain.getVisibleSourceTileKeys());
+  terrain.update(renderCamera);
+  heightCache.update(renderCamera.position.x, renderCamera.position.z, terrain.getVisibleSourceTileKeys());
+  materialCache.update(renderCamera.position.x, renderCamera.position.z, terrain.getVisibleSourceTileKeys());
   rockSurfaceShell.syncCoverage();
-  rockSurfaceShell.updateLod(camera, rawDelta);
+  rockSurfaceShell.updateLod(renderCamera, delta);
   terrain.syncHeightCacheUniforms();
-  grass.update(camera, delta);
-  renderWorldFrame(renderer, environment, scene, camera);
+  grass.update(renderCamera, gameDelta);
+  renderWorldFrame(renderer, environment, scene, renderCamera);
   updateStats(now, rawDelta);
   requestAnimationFrame(frame);
 }
@@ -248,4 +317,4 @@ function frame(now) {
 window.addEventListener("resize", resize);
 resize();
 requestAnimationFrame(frame);
-window.addEventListener("pagehide", event => { if (!event.persisted) { ambientAudio.dispose(); detachAudioControls(); audio.dispose(); audioDiagnostics?.dispose(); destructibles?.dispose(); boxPhysics?.dispose(); combatTestTarget?.dispose(); physicsDebug?.dispose(); cameraDebug?.dispose(); movementDebug?.dispose(); controller.dispose?.(); grass.dispose(); objects.dispose(); objectAssets.dispose(); } });
+window.addEventListener("pagehide", event => { if (!event.persisted) { menus?.dispose(); titleSequence?.dispose(); gameHud?.dispose(); ambientAudio.dispose(); detachAudioControls(); audio.dispose(); audioDiagnostics?.dispose(); encounters?.dispose(); spiders?.dispose(); destructibles?.dispose(); boxPhysics?.dispose(); pickups?.dispose(); combatTestTarget?.dispose(); physicsDebug?.dispose(); cameraDebug?.dispose(); movementDebug?.dispose(); controller.dispose?.(); grass.dispose(); objects.dispose(); objectAssets.dispose(); } });

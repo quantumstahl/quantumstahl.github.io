@@ -11,6 +11,9 @@ import { CatAnimationController, CLAW_CLIP_NAMES, compatibleCatClips, catClipsNe
 import { ClawCombo } from "./ClawCombo.js";
 import { MeleeHitSystem } from "./MeleeHitSystem.js";
 import { CombatFeedback } from "./CombatFeedback.js";
+import { TriggerSystem } from "../triggers/TriggerSystem.js";
+import { DeathRespawnSequence } from "./DeathRespawnSequence.js";
+import { CatHealth } from "./CatHealth.js";
 
 // Preserve the tuned capsule dimensions. Position is now the centered foot
 // datum; horizontal offsets tied to the old GLB origin no longer apply.
@@ -46,7 +49,9 @@ export class CatCharacterRuntime {
       } else {
         const gltf = await new GLTFLoader().loadAsync(options.modelURL ?? new URL("../../assets/cat.glb", import.meta.url).href);
         runtime.model = gltf.scene; animations = gltf.animations;
-        runtime.model.scale.setScalar(options.visualScale ?? .2);
+        // The repaired bundled GLB uses authored world units, just like a map
+        // instance. Keep an explicit override for custom character previews.
+        runtime.model.scale.multiplyScalar(options.visualScale ?? 1);
       }
       runtime.model.userData.mapObject = runtime.object;
       // Keep skin vertices, bone locals and inverse binds intact. A parent
@@ -83,6 +88,7 @@ export class CatCharacterRuntime {
     this.terrainCollider = this.physics.addCollider(new TerrainCollider(provider, { rock: this.rockCollider }));
     this.physics.addCollider(this.rockCollider);
     this.object = mapObject ?? { id: "cat-player", name: "cat" };
+    this.health = new CatHealth();
     this.controlledObjectId = mapObject?.id ?? null;
     this.body = this.physics.createCharacter(this.object, { ...CAT_CHARACTER_DEFAULTS, ...character });
     if (mapObject) {
@@ -133,10 +139,59 @@ export class CatCharacterRuntime {
     if (this.controlledObjectId) excludeIds.add(this.controlledObjectId);
     return this.objectCollider = this.physics.addCollider(new ObjectCollider(data, library, { ...options, excludeIds }));
   }
+  attachTriggers(data, options = {}) {
+    this.health ??= new CatHealth();
+    this.deathSequence?.cancel();
+    this.deathSequence = new DeathRespawnSequence(this.root, { onFade: options.onFade, onBlack: () => {
+      this.triggers.respawn();
+      this.syncVisual(1, 0); // Reset the existing camera while fully covered.
+    } });
+    this.triggers = new TriggerSystem(data, this.body, { ...options, onEnter: (volume, body) => {
+      if (volume.type === 'Arena') this.encounters?.enter(volume);
+      this.cinematic?.onCheckpoint(volume);
+      options.onEnter?.(volume, body);
+    }, onKillZone: () => {
+      this.startDeath();
+    }, onRespawn: (point, body) => {
+      // Session resets/manual respawns can interrupt the visual sequence.
+      if (!this.deathSequence.respawning) this.deathSequence.cancel();
+      this.health.reset();
+      this.damageInvulnerability = 0;
+      this.encounters?.resetActive();
+      this.smartCamera.initialized = false;
+      options.onRespawn?.(point, body);
+    } });
+    return this.triggers;
+  }
+  heal(amount = 1) { return this.deathSequence?.active ? 0 : this.health.heal(amount); }
+  takeDamage(amount = 1, { combat = false } = {}) {
+    if (this.deathSequence?.active) return 0;
+    if (combat && this.damageInvulnerability > 0) return 0;
+    const lost = this.health.damage(amount);
+    if (lost > 0 && combat) this.damageInvulnerability = .75;
+    if (this.health.current === 0) this.startDeath();
+    return lost;
+  }
+  startDeath() {
+    this.health.kill();
+    this.body.setMovement(0, 0); this.body.jumpRequested = false;
+    this.combat?.cancel();
+    if (this.animation?.locomotion) this.animation.locomotion.paused = true;
+    if (this.triggers) this.triggers.respawnPending = true;
+    this.deathSequence?.start();
+  }
+  attachPickups(pickups) { this.pickups = pickups; }
   update(delta) {
     const input = this.input;
     input.update();
     const inputDelta = Number.isFinite(delta) ? Math.max(0, Math.min(delta, .1)) : 0;
+    if (this.deathSequence?.active) {
+      // Poll inputs to consume action/touch edges, but apply none while locked.
+      this.feedback.update(inputDelta); this.animation?.update(inputDelta);
+      this.deathSequence.update(delta);
+      return;
+    }
+    if (this.cinematic?.active) { this.cinematic.update(delta); return; }
     this.smartCamera.applyInput(input, inputDelta);
     const x = input.moveX, z = input.moveZ;
     const movementYaw = this.smartCamera.movementYaw ?? this.yaw;
@@ -144,10 +199,19 @@ export class CatCharacterRuntime {
     this.body.setMovement(x * cos + z * sin, z * cos - x * sin, input.running);
     if (this.body.intent.lengthSq() > .01) this.body.setYaw(Math.atan2(-this.body.intent.x, -this.body.intent.z));
     if (input.jump.pressed) this.body.jump();
-    this.physics.update(delta);
-    this.syncVisual(this.physics.alpha, inputDelta, input.claw.pressed);
+    this.physics.update(delta, () => {
+      this.damageInvulnerability = Math.max(0, (this.damageInvulnerability ?? 0) - this.physics.fixedDelta);
+      if (this.triggers?.update()) return false;
+      if (this.cinematic?.active) return false;
+      this.pickups?.checkOverlaps(this.body);
+      this.enemies?.step(this.physics.fixedDelta);
+      if (this.deathSequence?.active) return false;
+      return true;
+    });
+    if (this.deathSequence?.active) return; // Hold the last rendered camera pose.
+    this.syncVisual(this.physics.alpha, inputDelta, this.cinematic?.active ? false : input.claw.pressed, !this.cinematic?.active);
   }
-  syncVisual(alpha, delta, clawPressed = false) {
+  syncVisual(alpha, delta, clawPressed = false, updateCamera = true) {
     const body = this.body;
     alpha = THREE.MathUtils.clamp(alpha, 0, 1);
     this.viewPosition.lerpVectors(body.previousPosition, body.position, alpha);
@@ -158,9 +222,10 @@ export class CatCharacterRuntime {
       this.animation.setLocomotion(body);
       this.combat.update(delta, clawPressed);
     }
-    this.smartCamera.update(this.viewPosition, body, this.input, delta);
+    if (updateCamera) this.smartCamera.update(this.viewPosition, body, this.input, delta);
   }
   dispose() {
+    this.deathSequence?.cancel();
     this.input.dispose();
     this.melee.dispose(); this.feedback.dispose();
     this.mixer?.stopAllAction(); if (this.model) this.mixer?.uncacheRoot(this.model);

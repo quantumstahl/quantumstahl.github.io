@@ -4,15 +4,47 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#101b28">
-  <title>MaxWorld — Terrain Prototype</title>
+  <title>CatAdventure and the Golden Yarn</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="world-files.css">
+  <link rel="stylesheet" href="menus.css">
   <script type="importmap">
     { "imports": { "three": "https://unpkg.com/three@0.186.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.186.0/examples/jsm/" } }
   </script>
 </head>
 <body class="game-page">
   <canvas id="viewport" aria-label="MaxWorld terrain prototype"></canvas>
+  <div id="respawnFade" class="respawn-fade" aria-hidden="true"></div>
+  <div id="gameHud" class="game-hud" hidden>
+    <svg class="hud-symbols" aria-hidden="true" width="0" height="0">
+      <defs>
+        <radialGradient id="hudCoinGold" cx="35%" cy="30%" r="75%">
+          <stop stop-color="#ffe28a"/><stop offset=".58" stop-color="#e9ad39"/><stop offset="1" stop-color="#a96416"/>
+        </radialGradient>
+        <symbol id="hudHeart" viewBox="-18 -16 36 34">
+          <path d="M0 12C-19 1-15-13-7-12C-3-12-1-9 0-6C1-9 3-12 7-12C15-13 19 1 0 12Z"/>
+        </symbol>
+      </defs>
+    </svg>
+    <div class="hud-coins">
+      <svg class="hud-coin-icon" viewBox="-21 -21 42 42" aria-hidden="true">
+        <circle r="18" fill="url(#hudCoinGold)" stroke="#fff0a8" stroke-width="2.2"/>
+        <g fill="#ad6a1a">
+          <ellipse cx="-7.74" cy="-3.06" rx="2.88" ry="3.96"/>
+          <ellipse cx="-2.52" cy="-7.74" rx="2.88" ry="3.96"/>
+          <ellipse cx="2.52" cy="-7.74" rx="2.88" ry="3.96"/>
+          <ellipse cx="7.74" cy="-3.06" rx="2.88" ry="3.96"/>
+          <ellipse cy="4.14" rx="7.74" ry="5.58"/>
+        </g>
+      </svg>
+      <span aria-hidden="true">×</span><output data-coin-count aria-live="polite">0</output>
+    </div>
+    <div class="hud-health" data-health role="img" aria-label="3 of 3 hearts" aria-live="polite">
+      <svg viewBox="-18 -16 36 34" aria-hidden="true"><use href="#hudHeart" x="-18" y="-16" width="36" height="34"/></svg>
+      <svg viewBox="-18 -16 36 34" aria-hidden="true"><use href="#hudHeart" x="-18" y="-16" width="36" height="34"/></svg>
+      <svg viewBox="-18 -16 36 34" aria-hidden="true"><use href="#hudHeart" x="-18" y="-16" width="36" height="34"/></svg>
+    </div>
+  </div>
 
   <aside id="stats" class="panel panel--stats" aria-live="polite">Starting renderer…</aside>
   <aside id="objectWarnings" class="panel" role="alert" hidden></aside>
