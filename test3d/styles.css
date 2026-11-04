@@ -67,6 +67,6 @@ body { background: #77b4df; }
 .mountain-title { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; pointer-events: none; }
 .mountain-title[hidden], .mountain-title-skip[hidden] { display: none; }
 .mountain-title img { display: block; width: min(84vw, 960px); max-height: 70vh; height: auto; object-fit: contain; }
-.mountain-title-skip { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); z-index: 31; padding: 10px 16px; border: 1px solid #ffffff65; border-radius: 20px; background: #13202c90; color: white; font: inherit; touch-action: manipulation; }
+.mountain-title-skip { position: fixed; right: max(16px, env(safe-area-inset-right)); top: 2px; z-index: 31; padding: 10px 16px; border: 1px solid #ffffff65; border-radius: 20px; background: #13202c90; color: white; font: inherit; touch-action: manipulation; }
 .mountain-title-active .game-hud, .mountain-title-active .game-pause { visibility: hidden; }
 .game-menu-open .mountain-title, .game-menu-open .mountain-title-skip { visibility: hidden; }
